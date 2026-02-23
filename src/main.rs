@@ -1,3 +1,4 @@
+use hound::Sample;
 use std::sync::{Arc, Mutex};
 
 use hound;
@@ -60,11 +61,9 @@ fn main() -> Result<()> {
             &config,
             move |data: &[u8], _: &InputCallbackInfo| {
                 let mut writer = writer_clone.lock().unwrap();
-                for &sample in data {
-                    // Convert u8 to i16 (centered at 0)
-                    let s = (sample as i16 - 128) << 8;
-                    let _ = writer.write_sample(s);
-                }
+                // Transform: convert u8 to i16 centered at 0
+                let transformed: Vec<i16> = data.iter().map(|&s| (s as i16 - 128) << 8).collect();
+                write_wav_samples(&mut *writer, &transformed);
             },
             err_fn,
             None,
@@ -73,22 +72,7 @@ fn main() -> Result<()> {
             &config,
             move |data: &[i16], _: &InputCallbackInfo| {
                 let mut writer = writer_clone.lock().unwrap();
-                for &sample in data {
-                    let _ = writer.write_sample(sample);
-                }
-            },
-            err_fn,
-            None,
-        )?,
-        cpal::SampleFormat::U16 => input_device.build_input_stream(
-            &config,
-            move |data: &[u16], _: &InputCallbackInfo| {
-                let mut writer = writer_clone.lock().unwrap();
-                for &sample in data {
-                    // Convert u16 to i16 (centered at 0)
-                    let s = (sample as i32 - 32768) as i16;
-                    let _ = writer.write_sample(s);
-                }
+                write_wav_samples(&mut *writer, data);
             },
             err_fn,
             None,
@@ -97,22 +81,12 @@ fn main() -> Result<()> {
             &config,
             move |data: &[f32], _: &InputCallbackInfo| {
                 let mut writer = writer_clone.lock().unwrap();
-                for &sample in data {
-                    let _ = writer.write_sample(sample);
-                }
+                write_wav_samples(&mut *writer, data);
             },
             err_fn,
             None,
         )?,
-        cpal::SampleFormat::I8 => todo!(),
-        cpal::SampleFormat::I24 => todo!(),
-        cpal::SampleFormat::I32 => todo!(),
-        cpal::SampleFormat::I64 => todo!(),
-        cpal::SampleFormat::U24 => todo!(),
-        cpal::SampleFormat::U32 => todo!(),
-        cpal::SampleFormat::U64 => todo!(),
-        cpal::SampleFormat::F64 => todo!(),
-        _ => todo!(),
+        _ => panic!("Unsupported sample format for generic WAV writer"),
     };
 
     let _ = input_stream.play();
@@ -134,6 +108,16 @@ fn main() -> Result<()> {
             .status();
     }
     Ok(())
+}
+
+/// Generic WAV writing function for supported sample types
+fn write_wav_samples<T: Sample + Copy>(
+    writer: &mut hound::WavWriter<std::io::BufWriter<std::fs::File>>,
+    data: &[T],
+) {
+    for &sample in data {
+        let _ = writer.write_sample(sample);
+    }
 }
 
 fn err_fn(err: cpal::StreamError) {
