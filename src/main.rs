@@ -15,18 +15,33 @@ fn main() -> Result<()> {
     let input_device = host
         .default_input_device()
         .expect(&format!("No available input device for host: {}", host.id()).to_string());
+    let output_device = host
+        .default_output_device()
+        .expect(&format!("No available output device for host: {}", host.id()).to_string());
 
     let mut input_configs = input_device
         .supported_input_configs()
         .expect("error while querying configs");
+    let mut output_configs = output_device
+        .supported_output_configs()
+        .expect("error while querying output configs");
 
     let input_config = input_configs
         .next()
         .expect("no supported config?!")
         .with_max_sample_rate();
+    let output_config = output_configs
+        .find(|c| {
+            c.channels() == input_config.channels()
+                && c.sample_format() == input_config.sample_format()
+        })
+        .map(|c| c.with_max_sample_rate())
+        .unwrap_or_else(|| output_device.default_output_config().unwrap().into());
 
     println!("Input config: {:#?}", input_config);
     println!("Input device: {}", input_device.description()?);
+    println!("Output config: {:#?}", output_config);
+    println!("Output device: {}", output_device.description()?);
 
     // Remove output file if it exists
     let output_path = "output.wav";
@@ -53,35 +68,76 @@ fn main() -> Result<()> {
 
     let writer = Arc::new(Mutex::new(hound::WavWriter::create(output_path, spec)?));
     let sample_format = input_config.sample_format();
-    let config = input_config.into();
+    let input_config = input_config.into();
+    let output_config = output_config.into();
     let writer_clone = writer.clone();
 
+    // Shared buffer for output audio
+    let output_buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
+    let output_buffer_clone = output_buffer.clone();
+
+    // Output stream
+    let output_stream = output_device.build_output_stream(
+        &output_config,
+        move |output: &mut [f32], _| {
+            let mut buffer = output_buffer_clone.lock().unwrap();
+            let len = output.len().min(buffer.len());
+            output[..len].copy_from_slice(&buffer[..len]);
+            // Remove the samples that were just played
+            buffer.drain(..len);
+            // If not enough samples, fill the rest with silence
+            if len < output.len() {
+                for sample in &mut output[len..] {
+                    *sample = 0.0;
+                }
+            }
+        },
+        err_fn,
+        None,
+    )?;
+
+    let output_buffer_clone = output_buffer.clone();
     let input_stream = match sample_format {
         cpal::SampleFormat::U8 => input_device.build_input_stream(
-            &config,
+            &input_config,
             move |data: &[u8], _: &InputCallbackInfo| {
                 let mut writer = writer_clone.lock().unwrap();
                 // Transform: convert u8 to i16 centered at 0
                 let transformed: Vec<i16> = data.iter().map(|&s| (s as i16 - 128) << 8).collect();
                 write_wav_samples(&mut *writer, &transformed);
+                // Also convert to f32 for output
+                let mut buffer = output_buffer_clone.lock().unwrap();
+                buffer.extend(
+                    data.iter()
+                        .map(|&s| ((s as f32 - 128.0) / 128.0).clamp(-1.0, 1.0)),
+                );
             },
             err_fn,
             None,
         )?,
         cpal::SampleFormat::I16 => input_device.build_input_stream(
-            &config,
+            &input_config,
             move |data: &[i16], _: &InputCallbackInfo| {
                 let mut writer = writer_clone.lock().unwrap();
                 write_wav_samples(&mut *writer, data);
+                // Also convert to f32 for output
+                let mut buffer = output_buffer_clone.lock().unwrap();
+                buffer.extend(
+                    data.iter()
+                        .map(|&s| (s as f32 / i16::MAX as f32).clamp(-1.0, 1.0)),
+                );
             },
             err_fn,
             None,
         )?,
         cpal::SampleFormat::F32 => input_device.build_input_stream(
-            &config,
+            &input_config,
             move |data: &[f32], _: &InputCallbackInfo| {
                 let mut writer = writer_clone.lock().unwrap();
                 write_wav_samples(&mut *writer, data);
+                // Directly copy to output buffer
+                let mut buffer = output_buffer_clone.lock().unwrap();
+                buffer.extend_from_slice(data);
             },
             err_fn,
             None,
@@ -89,11 +145,13 @@ fn main() -> Result<()> {
         _ => panic!("Unsupported sample format for generic WAV writer"),
     };
 
+    let _ = output_stream.play();
     let _ = input_stream.play();
 
-    println!("Recording for 5 seconds...");
+    println!("Recording and playing for 5 seconds...");
     std::thread::sleep(std::time::Duration::from_secs(5));
     drop(input_stream);
+    drop(output_stream);
     let _ = Arc::try_unwrap(writer).map(|w| w.into_inner().unwrap().finalize());
     println!("Done! Audio written to output.wav");
 
