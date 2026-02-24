@@ -43,7 +43,16 @@ struct MeResponse {
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(health, me, create_server, create_channel, create_message, list_messages),
+    paths(
+        health,
+        me,
+        create_server,
+        list_servers,
+        create_channel,
+        list_channels,
+        create_message,
+        list_messages
+    ),
     components(schemas(
         HealthResponse,
         MeResponse,
@@ -96,8 +105,11 @@ pub fn build_app(state: ApiState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/api/v1/me", get(me))
-        .route("/api/v1/servers", post(create_server))
-        .route("/api/v1/servers/{server_id}/channels", post(create_channel))
+        .route("/api/v1/servers", post(create_server).get(list_servers))
+        .route(
+            "/api/v1/servers/{server_id}/channels",
+            post(create_channel).get(list_channels),
+        )
         .route(
             "/api/v1/channels/{channel_id}/messages",
             post(create_message).get(list_messages),
@@ -174,6 +186,28 @@ async fn create_server(
 }
 
 #[utoipa::path(
+    get,
+    path = "/api/v1/servers",
+    responses(
+        (status = 200, description = "Servers listed for authenticated user", body = [Server]),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "backend-api"
+)]
+async fn list_servers(
+    State(state): State<ApiState>,
+    authenticated_user: AuthenticatedUser,
+) -> impl IntoResponse {
+    let servers = state
+        .store
+        .list_servers_for_user(&authenticated_user.subject)
+        .await;
+
+    (StatusCode::OK, Json(servers))
+}
+
+#[utoipa::path(
     post,
     path = "/api/v1/servers/{server_id}/channels",
     request_body = CreateChannelRequest,
@@ -198,6 +232,33 @@ async fn create_channel(
 
     match created_channel {
         Some(channel) => (StatusCode::CREATED, Json(channel)).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/servers/{server_id}/channels",
+    responses(
+        (status = 200, description = "Channels listed for server", body = [Channel]),
+        (status = 404, description = "Server not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("server_id" = String, Path, description = "Server id")),
+    tag = "backend-api"
+)]
+async fn list_channels(
+    State(state): State<ApiState>,
+    authenticated_user: AuthenticatedUser,
+    Path(server_id): Path<String>,
+) -> impl IntoResponse {
+    let _ = authenticated_user;
+
+    let channels = state.store.list_channels_for_server(&server_id).await;
+
+    match channels {
+        Some(server_channels) => (StatusCode::OK, Json(server_channels)).into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
     }
 }

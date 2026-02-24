@@ -106,6 +106,33 @@ async fn given_authenticated_user_when_create_server_then_created_status_and_ser
 }
 
 #[tokio::test]
+async fn given_existing_server_when_list_servers_then_seeded_server_is_in_response() {
+    let entity_seeder = EntitySeeder;
+    let seeded_user = entity_seeder.user();
+    let seeded_server = entity_seeder.server();
+
+    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let create_server_response = create_server(&app, &seeded_server.name).await;
+    assert_eq!(create_server_response.status(), StatusCode::CREATED);
+
+    let list_servers_response = list_servers(&app).await;
+    assert_eq!(list_servers_response.status(), StatusCode::OK);
+
+    let list_servers_payload = response_payload_json(list_servers_response).await;
+    let listed_servers = list_servers_payload
+        .as_array()
+        .expect("server list payload to be array");
+
+    assert_eq!(listed_servers.len(), 1);
+    assert_eq!(
+        listed_servers[0]["name"].as_str(),
+        Some(seeded_server.name.as_str())
+    );
+}
+
+#[tokio::test]
 async fn given_existing_server_when_create_channel_then_created_status_and_channel_id_returned() {
     let entity_seeder = EntitySeeder;
     let seeded_user = entity_seeder.user();
@@ -198,6 +225,42 @@ async fn given_existing_channel_when_create_message_then_message_is_listed_for_c
     );
 }
 
+#[tokio::test]
+async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_response() {
+    let entity_seeder = EntitySeeder;
+    let seeded_user = entity_seeder.user();
+    let seeded_server = entity_seeder.server();
+    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+
+    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &seeded_server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_response =
+        create_channel(&app, &created_server_id, &seeded_channel.name).await;
+    assert_eq!(create_channel_response.status(), StatusCode::CREATED);
+
+    let list_channels_response = list_channels(&app, &created_server_id).await;
+    assert_eq!(list_channels_response.status(), StatusCode::OK);
+
+    let list_channels_payload = response_payload_json(list_channels_response).await;
+    let listed_channels = list_channels_payload
+        .as_array()
+        .expect("channel list payload to be array");
+
+    assert_eq!(listed_channels.len(), 1);
+    assert_eq!(
+        listed_channels[0]["name"].as_str(),
+        Some(seeded_channel.name.as_str())
+    );
+}
+
 async fn create_server(app: &axum::Router, server_name: &str) -> axum::response::Response {
     app.clone()
         .oneshot(
@@ -255,6 +318,32 @@ async fn create_message(
         )
         .await
         .expect("create message response from app")
+}
+
+async fn list_servers(app: &axum::Router) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/servers")
+                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .body(Body::empty())
+                .expect("list servers request to be valid"),
+        )
+        .await
+        .expect("list servers response from app")
+}
+
+async fn list_channels(app: &axum::Router, server_id: &str) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/servers/{server_id}/channels"))
+                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .body(Body::empty())
+                .expect("list channels request to be valid"),
+        )
+        .await
+        .expect("list channels response from app")
 }
 
 async fn response_payload_json(response: axum::response::Response) -> Value {

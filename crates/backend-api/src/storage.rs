@@ -18,7 +18,9 @@ struct InMemoryStore {
 #[async_trait]
 pub trait ChatRepository: Send + Sync {
     async fn create_server(&self, name: String, owner_subject: String) -> Server;
+    async fn list_servers_for_user(&self, owner_subject: &str) -> Vec<Server>;
     async fn create_channel(&self, server_id: &str, name: String) -> Option<Channel>;
+    async fn list_channels_for_server(&self, server_id: &str) -> Option<Vec<Channel>>;
     async fn create_message(
         &self,
         channel_id: &str,
@@ -111,9 +113,36 @@ impl ChatRepository for InMemoryChatRepository {
         store.create_server(name, owner_subject)
     }
 
+    async fn list_servers_for_user(&self, owner_subject: &str) -> Vec<Server> {
+        let store = self.store.read().await;
+        store
+            .servers
+            .values()
+            .filter(|server| server.owner_subject == owner_subject)
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+
     async fn create_channel(&self, server_id: &str, name: String) -> Option<Channel> {
         let mut store = self.store.write().await;
         store.create_channel(server_id, name)
+    }
+
+    async fn list_channels_for_server(&self, server_id: &str) -> Option<Vec<Channel>> {
+        let store = self.store.read().await;
+
+        if !store.servers.contains_key(server_id) {
+            return None;
+        }
+
+        let channels = store
+            .channels
+            .values()
+            .filter(|channel| channel.server_id == server_id)
+            .cloned()
+            .collect::<Vec<_>>();
+
+        Some(channels)
     }
 
     async fn create_message(

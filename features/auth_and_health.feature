@@ -15,20 +15,31 @@ Feature: Backend API health and authenticated identity
     Then the response status is 200
     And the response includes the seeded user subject
 
-  Scenario: Authenticated user can create server channel and message
-    Scenario: Authenticated user can create a server
-      Given an authenticated user exists from the EntitySeeder
-      When I create a server with a seeded name
-      Then the server is created successfully
+  Scenario: Authenticated user can create a server
+    Given an authenticated user exists from the EntitySeeder
+    When I create a server with a seeded name
+    Then the server is created successfully
 
-    Scenario: Authenticated user can create a server channel
-      Given an authenticated user exists from the EntitySeeder
-      And a seeded server exists for that user
-      And I create a channel in that server with a seeded name
-      Then the server channel is created successfully
+  Scenario: Authenticated user can list their servers
+    Given an authenticated user exists from the EntitySeeder
+    And a seeded server exists for that user
+    When I list servers for the authenticated user
+    Then the seeded server is included in the server list
 
-    Scenario: Authenticated user can create a message in server channel
-      Given an authenticated user exists from the EntitySeeder
-      And a seeded server channel exists for that user
-      When I post a seeded message in that channel
-      Then listing messages for that channel returns the seeded message
+  Scenario: Authenticated user can create a server channel
+    Given an authenticated user exists from the EntitySeeder
+    And a seeded server exists for that user
+    And I create a channel in that server with a seeded name
+    Then the server channel is created successfully
+
+  Scenario: Authenticated user can list channels in server
+    Given an authenticated user exists from the EntitySeeder
+    And a seeded server channel exists for that user
+    When I list channels in that server
+    Then the seeded channel is included in the channel list
+
+  Scenario: Authenticated user can create a message in server channel
+    Given an authenticated user exists from the EntitySeeder
+    And a seeded server channel exists for that user
+    When I post a seeded message in that channel
+    Then listing messages for that channel returns the seeded message
