@@ -14,3 +14,21 @@ Feature: Backend API health and authenticated identity
     When I request GET /api/v1/me with a valid bearer token
     Then the response status is 200
     And the response includes the seeded user subject
+
+  Scenario: Authenticated user can create server channel and message
+    Scenario: Authenticated user can create a server
+      Given an authenticated user exists from the EntitySeeder
+      When I create a server with a seeded name
+      Then the server is created successfully
+
+    Scenario: Authenticated user can create a server channel
+      Given an authenticated user exists from the EntitySeeder
+      And a seeded server exists for that user
+      And I create a channel in that server with a seeded name
+      Then the server channel is created successfully
+
+    Scenario: Authenticated user can create a message in server channel
+      Given an authenticated user exists from the EntitySeeder
+      And a seeded server channel exists for that user
+      When I post a seeded message in that channel
+      Then listing messages for that channel returns the seeded message

@@ -1,5 +1,5 @@
+use backend_api::domain::{Channel, Message, Server, User};
 use rand::{Rng as _, distr::Alphanumeric};
-use backend_api::domain::User;
 
 #[derive(Debug, Default)]
 pub struct EntitySeeder;
@@ -16,6 +16,52 @@ impl EntitySeeder {
         User {
             auth0_subject: format!("auth0|user_{random_segment}"),
             display_name: format!("User-{random_segment}"),
+        }
+    }
+
+    pub fn server(&self) -> Server {
+        let random_segment = rand::rng()
+            .sample_iter(Alphanumeric)
+            .take(8)
+            .map(char::from)
+            .collect::<String>()
+            .to_lowercase();
+
+        Server {
+            id: format!("srv-seeded-{random_segment}"),
+            name: format!("Server-{random_segment}"),
+            owner_subject: format!("auth0|owner_{random_segment}"),
+        }
+    }
+
+    pub fn channel(&self, server_id: &str) -> Channel {
+        let random_segment = rand::rng()
+            .sample_iter(Alphanumeric)
+            .take(8)
+            .map(char::from)
+            .collect::<String>()
+            .to_lowercase();
+
+        Channel {
+            id: format!("chn-seeded-{random_segment}"),
+            server_id: server_id.to_owned(),
+            name: format!("Channel-{random_segment}"),
+        }
+    }
+
+    pub fn message(&self, channel_id: &str, author_subject: &str) -> Message {
+        let random_segment = rand::rng()
+            .sample_iter(Alphanumeric)
+            .take(8)
+            .map(char::from)
+            .collect::<String>()
+            .to_lowercase();
+
+        Message {
+            id: format!("msg-seeded-{random_segment}"),
+            channel_id: channel_id.to_owned(),
+            author_subject: author_subject.to_owned(),
+            content: format!("Message-{random_segment}"),
         }
     }
 }
