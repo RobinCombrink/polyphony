@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "crates/backend-api"]
+resolver = "2"
+
 [package]
 name = "polyphony"
 version = "0.1.0"

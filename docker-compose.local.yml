@@ -1,0 +1,14 @@
+services:
+  backend-api:
+    image: rust:1.90
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    command: ["bash", "-lc", "cargo run -p backend-api"]
+    environment:
+      AUTH0_ISSUER: ${AUTH0_ISSUER:-https://example-dev.us.auth0.com/}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:-polyphony-api}
+      AUTH0_ACCESS_TOKEN_DURATION_HOURS: ${AUTH0_ACCESS_TOKEN_DURATION_HOURS:-18}
+      BACKEND_API_BIND: 0.0.0.0:5067
+    ports:
+      - "5067:5067"
