@@ -43,3 +43,17 @@ Feature: Backend API health and authenticated identity
     And a seeded server channel exists for that user
     When I post a seeded message in that channel
     Then listing messages for that channel returns the seeded message
+
+  Scenario: Authenticated user can edit their message in a server channel
+    Given an authenticated user exists from the EntitySeeder
+    And a seeded server channel exists for that user
+    And a seeded message exists in that channel
+    When I edit the seeded message content
+    Then listing messages for that channel returns the updated content
+
+  Scenario: Authenticated user can delete their message in a server channel
+    Given an authenticated user exists from the EntitySeeder
+    And a seeded server channel exists for that user
+    And a seeded message exists in that channel
+    When I delete the seeded message
+    Then listing messages for that channel does not include the deleted message

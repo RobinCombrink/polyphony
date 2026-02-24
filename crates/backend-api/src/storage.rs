@@ -5,6 +5,14 @@ use tokio::sync::RwLock;
 
 use crate::domain::{Channel, Message, Server};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MutationResult {
+    Updated,
+    Deleted,
+    NotFound,
+    Forbidden,
+}
+
 #[derive(Debug, Default)]
 struct InMemoryStore {
     next_server_id: u64,
@@ -27,6 +35,19 @@ pub trait ChatRepository: Send + Sync {
         author_subject: String,
         content: String,
     ) -> Option<Message>;
+    async fn update_message(
+        &self,
+        channel_id: &str,
+        message_id: &str,
+        author_subject: &str,
+        content: String,
+    ) -> MutationResult;
+    async fn delete_message(
+        &self,
+        channel_id: &str,
+        message_id: &str,
+        author_subject: &str,
+    ) -> MutationResult;
     async fn list_messages(&self, channel_id: &str) -> Vec<Message>;
 }
 
@@ -104,6 +125,53 @@ impl InMemoryStore {
             .cloned()
             .unwrap_or_default()
     }
+
+    fn update_message(
+        &mut self,
+        channel_id: &str,
+        message_id: &str,
+        author_subject: &str,
+        content: String,
+    ) -> MutationResult {
+        let messages = match self.messages_by_channel.get_mut(channel_id) {
+            Some(existing_messages) => existing_messages,
+            None => return MutationResult::NotFound,
+        };
+
+        let maybe_message = messages.iter_mut().find(|message| message.id == message_id);
+
+        match maybe_message {
+            Some(message) if message.author_subject == author_subject => {
+                message.content = content;
+                MutationResult::Updated
+            }
+            Some(_) => MutationResult::Forbidden,
+            None => MutationResult::NotFound,
+        }
+    }
+
+    fn delete_message(
+        &mut self,
+        channel_id: &str,
+        message_id: &str,
+        author_subject: &str,
+    ) -> MutationResult {
+        let messages = match self.messages_by_channel.get_mut(channel_id) {
+            Some(existing_messages) => existing_messages,
+            None => return MutationResult::NotFound,
+        };
+
+        let message_index = messages.iter().position(|message| message.id == message_id);
+
+        match message_index {
+            Some(index) if messages[index].author_subject == author_subject => {
+                messages.remove(index);
+                MutationResult::Deleted
+            }
+            Some(_) => MutationResult::Forbidden,
+            None => MutationResult::NotFound,
+        }
+    }
 }
 
 #[async_trait]
@@ -153,6 +221,27 @@ impl ChatRepository for InMemoryChatRepository {
     ) -> Option<Message> {
         let mut store = self.store.write().await;
         store.create_message(channel_id, author_subject, content)
+    }
+
+    async fn update_message(
+        &self,
+        channel_id: &str,
+        message_id: &str,
+        author_subject: &str,
+        content: String,
+    ) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.update_message(channel_id, message_id, author_subject, content)
+    }
+
+    async fn delete_message(
+        &self,
+        channel_id: &str,
+        message_id: &str,
+        author_subject: &str,
+    ) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.delete_message(channel_id, message_id, author_subject)
     }
 
     async fn list_messages(&self, channel_id: &str) -> Vec<Message> {

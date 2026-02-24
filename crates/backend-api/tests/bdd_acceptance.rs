@@ -226,6 +226,109 @@ async fn given_existing_channel_when_create_message_then_message_is_listed_for_c
 }
 
 #[tokio::test]
+async fn given_existing_message_when_update_message_then_updated_content_is_listed() {
+    let entity_seeder = EntitySeeder;
+    let seeded_user = entity_seeder.user();
+    let seeded_server = entity_seeder.server();
+    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+
+    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &seeded_server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload =
+        response_payload_json(create_channel(&app, &created_server_id, &seeded_channel.name).await)
+            .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let create_message_payload =
+        response_payload_json(create_message(&app, &created_channel_id, "original message").await)
+            .await;
+    let created_message_id = create_message_payload["id"]
+        .as_str()
+        .expect("created message id to be present")
+        .to_owned();
+
+    let update_response = update_message(
+        &app,
+        &created_channel_id,
+        &created_message_id,
+        "updated message",
+    )
+    .await;
+
+    assert_eq!(update_response.status(), StatusCode::OK);
+
+    let list_messages_payload =
+        response_payload_json(list_messages(&app, &created_channel_id).await).await;
+
+    let listed_messages = list_messages_payload
+        .as_array()
+        .expect("messages payload to be array");
+
+    assert_eq!(listed_messages.len(), 1);
+    assert_eq!(
+        listed_messages[0]["content"].as_str(),
+        Some("updated message")
+    );
+}
+
+#[tokio::test]
+async fn given_existing_message_when_delete_message_then_message_is_removed_from_list() {
+    let entity_seeder = EntitySeeder;
+    let seeded_user = entity_seeder.user();
+    let seeded_server = entity_seeder.server();
+    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+
+    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &seeded_server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload =
+        response_payload_json(create_channel(&app, &created_server_id, &seeded_channel.name).await)
+            .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let create_message_payload =
+        response_payload_json(create_message(&app, &created_channel_id, "to be deleted").await)
+            .await;
+    let created_message_id = create_message_payload["id"]
+        .as_str()
+        .expect("created message id to be present")
+        .to_owned();
+
+    let delete_response = delete_message(&app, &created_channel_id, &created_message_id).await;
+    assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);
+
+    let list_messages_payload =
+        response_payload_json(list_messages(&app, &created_channel_id).await).await;
+
+    let listed_messages = list_messages_payload
+        .as_array()
+        .expect("messages payload to be array");
+
+    assert_eq!(listed_messages.len(), 0);
+}
+
+#[tokio::test]
 async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_response() {
     let entity_seeder = EntitySeeder;
     let seeded_user = entity_seeder.user();
@@ -318,6 +421,63 @@ async fn create_message(
         )
         .await
         .expect("create message response from app")
+}
+
+async fn update_message(
+    app: &axum::Router,
+    channel_id: &str,
+    message_id: &str,
+    content: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/channels/{channel_id}/messages/{message_id}"
+                ))
+                .method("PATCH")
+                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "content": content }).to_string(),
+                ))
+                .expect("update message request to be valid"),
+        )
+        .await
+        .expect("update message response from app")
+}
+
+async fn delete_message(
+    app: &axum::Router,
+    channel_id: &str,
+    message_id: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/channels/{channel_id}/messages/{message_id}"
+                ))
+                .method("DELETE")
+                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .body(Body::empty())
+                .expect("delete message request to be valid"),
+        )
+        .await
+        .expect("delete message response from app")
+}
+
+async fn list_messages(app: &axum::Router, channel_id: &str) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/channels/{channel_id}/messages"))
+                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .body(Body::empty())
+                .expect("list messages request to be valid"),
+        )
+        .await
+        .expect("list messages response from app")
 }
 
 async fn list_servers(app: &axum::Router) -> axum::response::Response {

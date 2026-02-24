@@ -89,6 +89,35 @@ class PolyphonyApiClient {
     );
   }
 
+  Future<Result<Message>> updateMessage({
+    required String bearerToken,
+    required String channelId,
+    required String messageId,
+    required String content,
+  }) async {
+    return _performPatchRequest<Message>(
+      endpoint: '/api/v1/channels/$channelId/messages/$messageId',
+      bearerToken: bearerToken,
+      operation: 'update message',
+      body: <String, dynamic>{'content': content},
+      expectedStatusCode: 200,
+      decodeItem: Message.fromJson,
+    );
+  }
+
+  Future<Result<void>> deleteMessage({
+    required String bearerToken,
+    required String channelId,
+    required String messageId,
+  }) async {
+    return _performDeleteRequest(
+      endpoint: '/api/v1/channels/$channelId/messages/$messageId',
+      bearerToken: bearerToken,
+      operation: 'delete message',
+      expectedStatusCode: 204,
+    );
+  }
+
   Map<String, String> _headers(String bearerToken) {
     return <String, String>{
       'Authorization': 'Bearer $bearerToken',
@@ -159,6 +188,70 @@ class PolyphonyApiClient {
       return Error<T>(error);
     } catch (error) {
       return Error<T>(
+        Exception('Unexpected error while trying to $operation: $error'),
+      );
+    }
+  }
+
+  Future<Result<T>> _performPatchRequest<T>({
+    required String endpoint,
+    required String bearerToken,
+    required String operation,
+    required Map<String, dynamic> body,
+    required int expectedStatusCode,
+    required T Function(Map<String, dynamic>) decodeItem,
+  }) async {
+    try {
+      final response = await httpClient.patch(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: _headers(bearerToken),
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode != expectedStatusCode) {
+        return Error<T>(
+          Exception(
+            'Failed to $operation: ${response.statusCode} ${response.body}',
+          ),
+        );
+      }
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return Ok<T>(decodeItem(decoded));
+    } on Exception catch (error) {
+      return Error<T>(error);
+    } catch (error) {
+      return Error<T>(
+        Exception('Unexpected error while trying to $operation: $error'),
+      );
+    }
+  }
+
+  Future<Result<void>> _performDeleteRequest({
+    required String endpoint,
+    required String bearerToken,
+    required String operation,
+    required int expectedStatusCode,
+  }) async {
+    try {
+      final response = await httpClient.delete(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: _headers(bearerToken),
+      );
+
+      if (response.statusCode != expectedStatusCode) {
+        return Error<void>(
+          Exception(
+            'Failed to $operation: ${response.statusCode} ${response.body}',
+          ),
+        );
+      }
+
+      return const Ok<void>(null);
+    } on Exception catch (error) {
+      return Error<void>(error);
+    } catch (error) {
+      return Error<void>(
         Exception('Unexpected error while trying to $operation: $error'),
       );
     }

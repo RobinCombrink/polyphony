@@ -8,12 +8,16 @@ use std::{net::SocketAddr, sync::Arc};
 
 use auth::{AuthState, AuthenticatedUser, JwksTokenVerifier, TokenVerifier};
 use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::get};
-use axum::{extract::Path, routing::post};
+use axum::{
+    extract::Path,
+    routing::{patch, post},
+};
 use domain::{
     Channel, CreateChannelRequest, CreateMessageRequest, CreateServerRequest, Message, Server,
+    UpdateMessageRequest,
 };
 use serde::Serialize;
-use storage::{ChatRepository, InMemoryChatRepository};
+use storage::{ChatRepository, InMemoryChatRepository, MutationResult};
 use tower_http::trace::TraceLayer;
 use utoipa::openapi::{
     Components,
@@ -51,6 +55,8 @@ struct MeResponse {
         create_channel,
         list_channels,
         create_message,
+        update_message,
+        delete_message,
         list_messages
     ),
     components(schemas(
@@ -61,7 +67,8 @@ struct MeResponse {
         Message,
         CreateServerRequest,
         CreateChannelRequest,
-        CreateMessageRequest
+        CreateMessageRequest,
+        UpdateMessageRequest
     )),
     modifiers(&ApiSecurityAddon),
     tags((name = "backend-api", description = "Polyphony backend API"))
@@ -113,6 +120,10 @@ pub fn build_app(state: ApiState) -> Router {
         .route(
             "/api/v1/channels/{channel_id}/messages",
             post(create_message).get(list_messages),
+        )
+        .route(
+            "/api/v1/channels/{channel_id}/messages/{message_id}",
+            patch(update_message).delete(delete_message),
         )
         .merge(
             SwaggerUi::new("/openapi")
@@ -290,6 +301,93 @@ async fn create_message(
     match created_message {
         Some(message) => (StatusCode::CREATED, Json(message)).into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/channels/{channel_id}/messages/{message_id}",
+    request_body = UpdateMessageRequest,
+    responses(
+        (status = 200, description = "Message updated", body = Message),
+        (status = 403, description = "Message not owned by authenticated user"),
+        (status = 404, description = "Message not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(
+        ("channel_id" = String, Path, description = "Channel id"),
+        ("message_id" = String, Path, description = "Message id")
+    ),
+    tag = "backend-api"
+)]
+async fn update_message(
+    State(state): State<ApiState>,
+    authenticated_user: AuthenticatedUser,
+    Path((channel_id, message_id)): Path<(String, String)>,
+    Json(request): Json<UpdateMessageRequest>,
+) -> impl IntoResponse {
+    let mutation_result = state
+        .store
+        .update_message(
+            &channel_id,
+            &message_id,
+            &authenticated_user.subject,
+            request.content,
+        )
+        .await;
+
+    match mutation_result {
+        MutationResult::Updated => {
+            let updated_message = state
+                .store
+                .list_messages(&channel_id)
+                .await
+                .into_iter()
+                .find(|message| message.id == message_id);
+
+            match updated_message {
+                Some(message) => (StatusCode::OK, Json(message)).into_response(),
+                None => StatusCode::NOT_FOUND.into_response(),
+            }
+        }
+        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
+        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
+        MutationResult::Deleted => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/channels/{channel_id}/messages/{message_id}",
+    responses(
+        (status = 204, description = "Message deleted"),
+        (status = 403, description = "Message not owned by authenticated user"),
+        (status = 404, description = "Message not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(
+        ("channel_id" = String, Path, description = "Channel id"),
+        ("message_id" = String, Path, description = "Message id")
+    ),
+    tag = "backend-api"
+)]
+async fn delete_message(
+    State(state): State<ApiState>,
+    authenticated_user: AuthenticatedUser,
+    Path((channel_id, message_id)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let mutation_result = state
+        .store
+        .delete_message(&channel_id, &message_id, &authenticated_user.subject)
+        .await;
+
+    match mutation_result {
+        MutationResult::Deleted => StatusCode::NO_CONTENT.into_response(),
+        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
+        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
+        MutationResult::Updated => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 

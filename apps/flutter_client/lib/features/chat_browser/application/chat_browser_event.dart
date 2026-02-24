@@ -41,3 +41,19 @@ final class CreateMessageRequested extends ChatBrowserEvent {
 
   final String messageContent;
 }
+
+final class UpdateMessageRequested extends ChatBrowserEvent {
+  const UpdateMessageRequested({
+    required this.messageId,
+    required this.messageContent,
+  });
+
+  final String messageId;
+  final String messageContent;
+}
+
+final class DeleteMessageRequested extends ChatBrowserEvent {
+  const DeleteMessageRequested({required this.messageId});
+
+  final String messageId;
+}

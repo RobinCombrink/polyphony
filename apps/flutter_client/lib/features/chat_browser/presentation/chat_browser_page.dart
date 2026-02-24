@@ -236,6 +236,30 @@ class _ChatBrowserPageState extends State<ChatBrowserPage> {
                 return ListTile(
                   title: Text(message.content),
                   subtitle: Text(message.authorSubject),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      IconButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => _showEditMessageDialog(
+                                  context,
+                                  message,
+                                ),
+                        icon: const Icon(Icons.edit),
+                        tooltip: 'Edit message',
+                      ),
+                      IconButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => context.read<ChatBrowserBloc>().add(
+                                  DeleteMessageRequested(messageId: message.id),
+                                ),
+                        icon: const Icon(Icons.delete),
+                        tooltip: 'Delete message',
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -243,5 +267,47 @@ class _ChatBrowserPageState extends State<ChatBrowserPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _showEditMessageDialog(
+    BuildContext context,
+    Message message,
+  ) async {
+    final TextEditingController controller =
+        TextEditingController(text: message.content);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Edit message'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: 'Message content'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!context.mounted || result == null) {
+      return;
+    }
+
+    context.read<ChatBrowserBloc>().add(
+          UpdateMessageRequested(
+            messageId: message.id,
+            messageContent: result,
+          ),
+        );
   }
 }

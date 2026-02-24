@@ -43,3 +43,8 @@ pub struct CreateChannelRequest {
 pub struct CreateMessageRequest {
     pub content: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct UpdateMessageRequest {
+    pub content: String,
+}

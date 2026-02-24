@@ -17,6 +17,8 @@ class ChatBrowserBloc extends Bloc<ChatBrowserEvent, ChatBrowserState> {
     on<CreateServerRequested>(_onCreateServerRequested);
     on<CreateChannelRequested>(_onCreateChannelRequested);
     on<CreateMessageRequested>(_onCreateMessageRequested);
+    on<UpdateMessageRequested>(_onUpdateMessageRequested);
+    on<DeleteMessageRequested>(_onDeleteMessageRequested);
   }
 
   final http.Client _httpClient;
@@ -351,6 +353,135 @@ class ChatBrowserBloc extends Bloc<ChatBrowserEvent, ChatBrowserState> {
             emit(loadingState.fail(error));
         }
       case Error<Message>(:final error):
+        emit(loadingState.fail(error));
+    }
+  }
+
+  Future<void> _onUpdateMessageRequested(
+    UpdateMessageRequested event,
+    Emitter<ChatBrowserState> emit,
+  ) async {
+    final loadingState = switch (state) {
+      ChatBrowserReadyState current => current.createMessage(),
+      _ => null,
+    };
+
+    if (loadingState == null) {
+      emit(const ChatBrowserFailureState(
+        statusMessage: 'Update message is only valid from ready state.',
+        context: null,
+      ));
+      return;
+    }
+
+    final content = event.messageContent.trim();
+    final selectedChannel = loadingState.context.selectedChannel;
+
+    if (content.isEmpty) {
+      emit(
+        ChatBrowserFailureState(
+          statusMessage: 'Updated content is required.',
+          context: loadingState.context,
+        ),
+      );
+      return;
+    }
+
+    if (selectedChannel == null) {
+      emit(
+        ChatBrowserFailureState(
+          statusMessage: 'Select a channel before updating a message.',
+          context: loadingState.context,
+        ),
+      );
+      return;
+    }
+
+    emit(loadingState);
+
+    final apiClient = PolyphonyApiClient(
+      baseUrl: loadingState.context.baseUrl,
+      httpClient: _httpClient,
+    );
+
+    final updateResult = await apiClient.updateMessage(
+      bearerToken: loadingState.context.bearerToken,
+      channelId: selectedChannel.id,
+      messageId: event.messageId,
+      content: content,
+    );
+
+    switch (updateResult) {
+      case Ok<Message>():
+        final listResult = await apiClient.listMessages(
+          bearerToken: loadingState.context.bearerToken,
+          channelId: selectedChannel.id,
+        );
+        switch (listResult) {
+          case Ok<List<Message>>(:final value):
+            emit(loadingState.finishWithMessages(value));
+          case Error<List<Message>>(:final error):
+            emit(loadingState.fail(error));
+        }
+      case Error<Message>(:final error):
+        emit(loadingState.fail(error));
+    }
+  }
+
+  Future<void> _onDeleteMessageRequested(
+    DeleteMessageRequested event,
+    Emitter<ChatBrowserState> emit,
+  ) async {
+    final loadingState = switch (state) {
+      ChatBrowserReadyState current => current.createMessage(),
+      _ => null,
+    };
+
+    if (loadingState == null) {
+      emit(const ChatBrowserFailureState(
+        statusMessage: 'Delete message is only valid from ready state.',
+        context: null,
+      ));
+      return;
+    }
+
+    final selectedChannel = loadingState.context.selectedChannel;
+    if (selectedChannel == null) {
+      emit(
+        ChatBrowserFailureState(
+          statusMessage: 'Select a channel before deleting a message.',
+          context: loadingState.context,
+        ),
+      );
+      return;
+    }
+
+    emit(loadingState);
+
+    final apiClient = PolyphonyApiClient(
+      baseUrl: loadingState.context.baseUrl,
+      httpClient: _httpClient,
+    );
+
+    final deleteResult = await apiClient.deleteMessage(
+      bearerToken: loadingState.context.bearerToken,
+      channelId: selectedChannel.id,
+      messageId: event.messageId,
+    );
+
+    switch (deleteResult) {
+      case Ok<void>():
+        final listResult = await apiClient.listMessages(
+          bearerToken: loadingState.context.bearerToken,
+          channelId: selectedChannel.id,
+        );
+        switch (listResult) {
+          case Ok<List<Message>>(:final value):
+            emit(loadingState.finishWithMessages(value));
+          case Error<List<Message>>(:final error):
+            emit(loadingState.fail(error));
+        }
+      case Error<void>(:final error):
         emit(loadingState.fail(error));
     }
   }

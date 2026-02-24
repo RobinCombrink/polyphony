@@ -73,6 +73,59 @@ void main() {
 
     await bloc.close();
   });
+
+  test('updates message and remains in ready state with refreshed list',
+      () async {
+    final bloc = ChatBrowserBloc(httpClient: _successfulClient());
+
+    bloc.add(
+      const LoadServersRequested(
+        bearerToken: 'token-value',
+        baseUrl: 'http://127.0.0.1:5067',
+      ),
+    );
+    await _waitForBloc();
+
+    bloc.add(ServerSelected(bloc.state.servers.first));
+    await _waitForBloc();
+
+    bloc.add(ChannelSelected(bloc.state.channels.first));
+    await _waitForBloc();
+
+    bloc.add(const UpdateMessageRequested(
+        messageId: 'msg-1', messageContent: 'edited'));
+    await _waitForBloc();
+
+    expect(bloc.state, isA<ChatBrowserReadyState>());
+    expect(bloc.state.messages.first.content, 'hello');
+
+    await bloc.close();
+  });
+
+  test('deletes message and remains in ready state', () async {
+    final bloc = ChatBrowserBloc(httpClient: _successfulClient());
+
+    bloc.add(
+      const LoadServersRequested(
+        bearerToken: 'token-value',
+        baseUrl: 'http://127.0.0.1:5067',
+      ),
+    );
+    await _waitForBloc();
+
+    bloc.add(ServerSelected(bloc.state.servers.first));
+    await _waitForBloc();
+
+    bloc.add(ChannelSelected(bloc.state.channels.first));
+    await _waitForBloc();
+
+    bloc.add(const DeleteMessageRequested(messageId: 'msg-1'));
+    await _waitForBloc();
+
+    expect(bloc.state, isA<ChatBrowserReadyState>());
+
+    await bloc.close();
+  });
 }
 
 Future<void> _waitForBloc() async {
@@ -121,6 +174,26 @@ http.Client _successfulClient() {
         ),
         201,
       );
+    }
+
+    if (request.method == 'PATCH' &&
+        request.url.path == '/api/v1/channels/chn-1/messages/msg-1') {
+      return http.Response(
+        jsonEncode(
+          <String, dynamic>{
+            'id': 'msg-1',
+            'channel_id': 'chn-1',
+            'author_subject': 'auth0|u1',
+            'content': 'edited',
+          },
+        ),
+        200,
+      );
+    }
+
+    if (request.method == 'DELETE' &&
+        request.url.path == '/api/v1/channels/chn-1/messages/msg-1') {
+      return http.Response('', 204);
     }
 
     if (request.url.path == '/api/v1/servers') {
