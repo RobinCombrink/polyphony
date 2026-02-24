@@ -174,6 +174,27 @@ final class ChatBrowserReadyState extends ChatBrowserAuthenticatedState {
       context: context.selectingChannel(channel),
     );
   }
+
+  ChatBrowserLoadingServersState createServer() {
+    return ChatBrowserLoadingServersState(
+      statusMessage: 'Creating server...',
+      context: context,
+    );
+  }
+
+  ChatBrowserLoadingChannelsState createChannel() {
+    return ChatBrowserLoadingChannelsState(
+      statusMessage: 'Creating channel...',
+      context: context,
+    );
+  }
+
+  ChatBrowserLoadingMessagesState createMessage() {
+    return ChatBrowserLoadingMessagesState(
+      statusMessage: 'Sending message...',
+      context: context,
+    );
+  }
 }
 
 final class ChatBrowserFailureState extends ChatBrowserState {

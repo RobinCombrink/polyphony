@@ -14,6 +14,9 @@ class ChatBrowserBloc extends Bloc<ChatBrowserEvent, ChatBrowserState> {
     on<LoadServersRequested>(_onLoadServersRequested);
     on<ServerSelected>(_onServerSelected);
     on<ChannelSelected>(_onChannelSelected);
+    on<CreateServerRequested>(_onCreateServerRequested);
+    on<CreateChannelRequested>(_onCreateChannelRequested);
+    on<CreateMessageRequested>(_onCreateMessageRequested);
   }
 
   final http.Client _httpClient;
@@ -152,6 +155,202 @@ class ChatBrowserBloc extends Bloc<ChatBrowserEvent, ChatBrowserState> {
       case Ok<List<Message>>(:final value):
         emit(loadingState.finishWithMessages(value));
       case Error<List<Message>>(:final error):
+        emit(loadingState.fail(error));
+    }
+  }
+
+  Future<void> _onCreateServerRequested(
+    CreateServerRequested event,
+    Emitter<ChatBrowserState> emit,
+  ) async {
+    final loadingState = switch (state) {
+      ChatBrowserReadyState current => current.createServer(),
+      _ => null,
+    };
+
+    if (loadingState == null) {
+      emit(const ChatBrowserFailureState(
+        statusMessage: 'Create server is only valid from ready state.',
+        context: null,
+      ));
+      return;
+    }
+
+    final name = event.serverName.trim();
+    if (name.isEmpty) {
+      emit(
+        ChatBrowserFailureState(
+          statusMessage: 'Server name is required.',
+          context: loadingState.context,
+        ),
+      );
+      return;
+    }
+
+    emit(loadingState);
+
+    final apiClient = PolyphonyApiClient(
+      baseUrl: loadingState.context.baseUrl,
+      httpClient: _httpClient,
+    );
+
+    final createResult = await apiClient.createServer(
+      bearerToken: loadingState.context.bearerToken,
+      name: name,
+    );
+
+    switch (createResult) {
+      case Ok<Server>():
+        final listResult = await apiClient.listServers(
+          bearerToken: loadingState.context.bearerToken,
+        );
+        switch (listResult) {
+          case Ok<List<Server>>(:final value):
+            emit(loadingState.finishWithServers(value));
+          case Error<List<Server>>(:final error):
+            emit(loadingState.fail(error));
+        }
+      case Error<Server>(:final error):
+        emit(loadingState.fail(error));
+    }
+  }
+
+  Future<void> _onCreateChannelRequested(
+    CreateChannelRequested event,
+    Emitter<ChatBrowserState> emit,
+  ) async {
+    final loadingState = switch (state) {
+      ChatBrowserReadyState current => current.createChannel(),
+      _ => null,
+    };
+
+    if (loadingState == null) {
+      emit(const ChatBrowserFailureState(
+        statusMessage: 'Create channel is only valid from ready state.',
+        context: null,
+      ));
+      return;
+    }
+
+    final name = event.channelName.trim();
+    final selectedServer = loadingState.context.selectedServer;
+
+    if (name.isEmpty) {
+      emit(
+        ChatBrowserFailureState(
+          statusMessage: 'Channel name is required.',
+          context: loadingState.context,
+        ),
+      );
+      return;
+    }
+
+    if (selectedServer == null) {
+      emit(
+        ChatBrowserFailureState(
+          statusMessage: 'Select a server before creating a channel.',
+          context: loadingState.context,
+        ),
+      );
+      return;
+    }
+
+    emit(loadingState);
+
+    final apiClient = PolyphonyApiClient(
+      baseUrl: loadingState.context.baseUrl,
+      httpClient: _httpClient,
+    );
+
+    final createResult = await apiClient.createChannel(
+      bearerToken: loadingState.context.bearerToken,
+      serverId: selectedServer.id,
+      name: name,
+    );
+
+    switch (createResult) {
+      case Ok<Channel>():
+        final listResult = await apiClient.listChannels(
+          bearerToken: loadingState.context.bearerToken,
+          serverId: selectedServer.id,
+        );
+        switch (listResult) {
+          case Ok<List<Channel>>(:final value):
+            emit(loadingState.finishWithChannels(value));
+          case Error<List<Channel>>(:final error):
+            emit(loadingState.fail(error));
+        }
+      case Error<Channel>(:final error):
+        emit(loadingState.fail(error));
+    }
+  }
+
+  Future<void> _onCreateMessageRequested(
+    CreateMessageRequested event,
+    Emitter<ChatBrowserState> emit,
+  ) async {
+    final loadingState = switch (state) {
+      ChatBrowserReadyState current => current.createMessage(),
+      _ => null,
+    };
+
+    if (loadingState == null) {
+      emit(const ChatBrowserFailureState(
+        statusMessage: 'Send message is only valid from ready state.',
+        context: null,
+      ));
+      return;
+    }
+
+    final content = event.messageContent.trim();
+    final selectedChannel = loadingState.context.selectedChannel;
+
+    if (content.isEmpty) {
+      emit(
+        ChatBrowserFailureState(
+          statusMessage: 'Message content is required.',
+          context: loadingState.context,
+        ),
+      );
+      return;
+    }
+
+    if (selectedChannel == null) {
+      emit(
+        ChatBrowserFailureState(
+          statusMessage: 'Select a channel before sending a message.',
+          context: loadingState.context,
+        ),
+      );
+      return;
+    }
+
+    emit(loadingState);
+
+    final apiClient = PolyphonyApiClient(
+      baseUrl: loadingState.context.baseUrl,
+      httpClient: _httpClient,
+    );
+
+    final createResult = await apiClient.createMessage(
+      bearerToken: loadingState.context.bearerToken,
+      channelId: selectedChannel.id,
+      content: content,
+    );
+
+    switch (createResult) {
+      case Ok<Message>():
+        final listResult = await apiClient.listMessages(
+          bearerToken: loadingState.context.bearerToken,
+          channelId: selectedChannel.id,
+        );
+        switch (listResult) {
+          case Ok<List<Message>>(:final value):
+            emit(loadingState.finishWithMessages(value));
+          case Error<List<Message>>(:final error):
+            emit(loadingState.fail(error));
+        }
+      case Error<Message>(:final error):
         emit(loadingState.fail(error));
     }
   }

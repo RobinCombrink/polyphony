@@ -17,11 +17,17 @@ class _ChatBrowserPageState extends State<ChatBrowserPage> {
   final TextEditingController tokenController = TextEditingController();
   final TextEditingController baseUrlController =
       TextEditingController(text: 'http://127.0.0.1:5067');
+  final TextEditingController createServerController = TextEditingController();
+  final TextEditingController createChannelController = TextEditingController();
+  final TextEditingController createMessageController = TextEditingController();
 
   @override
   void dispose() {
     tokenController.dispose();
     baseUrlController.dispose();
+    createServerController.dispose();
+    createChannelController.dispose();
+    createMessageController.dispose();
     super.dispose();
   }
 
@@ -76,6 +82,13 @@ class _ChatBrowserPageState extends State<ChatBrowserPage> {
                               .read<ChatBrowserBloc>()
                               .add(ServerSelected(server)),
                           isLoading: state.isLoading,
+                          createController: createServerController,
+                          createLabel: 'Create server',
+                          createActionLabel: 'Add',
+                          onCreate: () => context.read<ChatBrowserBloc>().add(
+                                CreateServerRequested(
+                                    createServerController.text),
+                              ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -90,11 +103,26 @@ class _ChatBrowserPageState extends State<ChatBrowserPage> {
                               .read<ChatBrowserBloc>()
                               .add(ChannelSelected(channel)),
                           isLoading: state.isLoading,
+                          createController: createChannelController,
+                          createLabel: 'Create channel',
+                          createActionLabel: 'Add',
+                          onCreate: () => context.read<ChatBrowserBloc>().add(
+                                CreateChannelRequested(
+                                    createChannelController.text),
+                              ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildMessagesSection(state.messages),
+                        child: _buildMessagesSection(
+                          messages: state.messages,
+                          createController: createMessageController,
+                          isLoading: state.isLoading,
+                          onCreate: () => context.read<ChatBrowserBloc>().add(
+                                CreateMessageRequested(
+                                    createMessageController.text),
+                              ),
+                        ),
                       ),
                     ],
                   ),
@@ -114,6 +142,10 @@ class _ChatBrowserPageState extends State<ChatBrowserPage> {
     required String Function(T item) label,
     required void Function(T item) onTap,
     required bool isLoading,
+    required TextEditingController createController,
+    required String createLabel,
+    required String createActionLabel,
+    required VoidCallback onCreate,
   }) {
     return Card(
       child: Column(
@@ -125,6 +157,24 @@ class _ChatBrowserPageState extends State<ChatBrowserPage> {
                 style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
           const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextField(
+                    controller: createController,
+                    decoration: InputDecoration(labelText: createLabel),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: isLoading ? null : onCreate,
+                  child: Text(createActionLabel),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: ListView.builder(
               itemCount: items.length,
@@ -143,7 +193,12 @@ class _ChatBrowserPageState extends State<ChatBrowserPage> {
     );
   }
 
-  Widget _buildMessagesSection(List<Message> messages) {
+  Widget _buildMessagesSection({
+    required List<Message> messages,
+    required TextEditingController createController,
+    required bool isLoading,
+    required VoidCallback onCreate,
+  }) {
     return Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -154,6 +209,25 @@ class _ChatBrowserPageState extends State<ChatBrowserPage> {
                 Text('Messages', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextField(
+                    controller: createController,
+                    decoration:
+                        const InputDecoration(labelText: 'Send message'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: isLoading ? null : onCreate,
+                  child: const Text('Send'),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: ListView.builder(
               itemCount: messages.length,

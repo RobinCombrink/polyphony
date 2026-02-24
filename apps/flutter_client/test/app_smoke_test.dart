@@ -8,6 +8,7 @@ void main() {
     await tester.pumpWidget(const PolyphonyApp());
 
     expect(find.text('Polyphony MVP Client'), findsOneWidget);
-    expect(find.byType(FilledButton), findsOneWidget);
+    expect(find.text('Load Servers'), findsOneWidget);
+    expect(find.byType(FilledButton), findsWidgets);
   });
 }

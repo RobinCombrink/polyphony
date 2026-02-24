@@ -23,3 +23,21 @@ final class ChannelSelected extends ChatBrowserEvent {
 
   final Channel channel;
 }
+
+final class CreateServerRequested extends ChatBrowserEvent {
+  const CreateServerRequested(this.serverName);
+
+  final String serverName;
+}
+
+final class CreateChannelRequested extends ChatBrowserEvent {
+  const CreateChannelRequested(this.channelName);
+
+  final String channelName;
+}
+
+final class CreateMessageRequested extends ChatBrowserEvent {
+  const CreateMessageRequested(this.messageContent);
+
+  final String messageContent;
+}
