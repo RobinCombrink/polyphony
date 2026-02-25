@@ -1,35 +1,13 @@
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+mod create_channel_request;
+mod create_message_request;
+mod create_server_request;
+mod health_response;
+mod me_response;
+mod update_message_request;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct HealthResponse {
-    pub status: &'static str,
-    pub service: &'static str,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct MeResponse {
-    pub user_id: String,
-    pub issuer: String,
-    pub token_duration_hours: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct CreateServerRequest {
-    pub name: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct CreateChannelRequest {
-    pub name: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct CreateMessageRequest {
-    pub content: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct UpdateMessageRequest {
-    pub content: String,
-}
+pub use create_channel_request::CreateChannelRequest;
+pub use create_message_request::CreateMessageRequest;
+pub use create_server_request::CreateServerRequest;
+pub use health_response::HealthResponse;
+pub use me_response::MeResponse;
+pub use update_message_request::UpdateMessageRequest;
