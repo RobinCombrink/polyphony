@@ -2,6 +2,7 @@ pub mod auth;
 pub mod config;
 pub mod dto;
 pub mod observability;
+mod openapi;
 mod routes;
 
 pub use backend_domain as domain;
@@ -12,12 +13,8 @@ use std::{net::SocketAddr, sync::Arc};
 use auth::{AuthState, JwksTokenVerifier, TokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
-use backend_domain::{Channel, Message, Server};
 use backend_storage::{ChatRepository, InMemoryChatRepository};
-use dto::{
-    CreateChannelRequest, CreateMessageRequest, CreateServerRequest, HealthResponse, MeResponse,
-    UpdateMessageRequest,
-};
+use openapi::ApiDocumentation;
 use routes::{
     health::health,
     me::me,
@@ -25,65 +22,13 @@ use routes::{
     servers::{create_channel, create_server, list_channels, list_servers},
 };
 use tower_http::trace::TraceLayer;
-use utoipa::openapi::{
-    Components,
-    security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
-};
-use utoipa::{Modify, OpenApi};
+use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
 #[derive(Clone)]
 pub struct ApiState {
     pub auth_state: Arc<AuthState>,
     pub store: Arc<dyn ChatRepository>,
-}
-
-#[derive(OpenApi)]
-#[openapi(
-    paths(
-        health,
-        me,
-        create_server,
-        list_servers,
-        create_channel,
-        list_channels,
-        create_message,
-        update_message,
-        delete_message,
-        list_messages
-    ),
-    components(schemas(
-        HealthResponse,
-        MeResponse,
-        Server,
-        Channel,
-        Message,
-        CreateServerRequest,
-        CreateChannelRequest,
-        CreateMessageRequest,
-        UpdateMessageRequest
-    )),
-    modifiers(&ApiSecurityAddon),
-    tags((name = "backend-api", description = "Polyphony backend API"))
-)]
-struct ApiDocumentation;
-
-struct ApiSecurityAddon;
-
-impl Modify for ApiSecurityAddon {
-    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        let components = openapi.components.get_or_insert_with(Components::new);
-
-        components.add_security_scheme(
-            "bearer_auth",
-            SecurityScheme::Http(
-                HttpBuilder::new()
-                    .scheme(HttpAuthScheme::Bearer)
-                    .bearer_format("JWT")
-                    .build(),
-            ),
-        );
-    }
 }
 
 pub fn default_bind_address() -> SocketAddr {
