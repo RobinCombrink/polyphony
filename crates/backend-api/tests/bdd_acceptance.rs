@@ -466,6 +466,91 @@ async fn given_message_owned_by_another_user_when_delete_message_then_status_is_
 }
 
 #[tokio::test]
+async fn given_missing_message_when_update_message_then_status_is_404() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let response =
+        update_message(&app, &created_channel_id, "msg-missing", "attempted update").await;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn given_missing_channel_when_update_message_then_status_is_404() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let response = update_message(&app, "chn-missing", "msg-1", "attempted update").await;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn given_missing_message_when_delete_message_then_status_is_404() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let response = delete_message(&app, &created_channel_id, "msg-missing").await;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn given_missing_channel_when_delete_message_then_status_is_404() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let response = delete_message(&app, "chn-missing", "msg-1").await;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_response() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();

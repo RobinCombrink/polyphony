@@ -71,3 +71,25 @@ Feature: Backend API health and authenticated identity
     And a seeded message exists in that channel
     When a different authenticated user deletes the seeded message
     Then the response status is 403
+
+  Scenario: Updating a missing message returns not found
+    Given an authenticated user exists from the EntitySeeder
+    And a seeded server channel exists for that user
+    When I edit a missing message in that channel
+    Then the response status is 404
+
+  Scenario: Updating a message in a missing channel returns not found
+    Given an authenticated user exists from the EntitySeeder
+    When I edit a message in a missing channel
+    Then the response status is 404
+
+  Scenario: Deleting a missing message returns not found
+    Given an authenticated user exists from the EntitySeeder
+    And a seeded server channel exists for that user
+    When I delete a missing message in that channel
+    Then the response status is 404
+
+  Scenario: Deleting a message in a missing channel returns not found
+    Given an authenticated user exists from the EntitySeeder
+    When I delete a message in a missing channel
+    Then the response status is 404
