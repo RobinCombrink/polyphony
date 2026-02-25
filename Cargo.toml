@@ -1,10 +1,7 @@
 [workspace]
 members = [
-	"crates/audio-prototype",
 	"crates/backend-api",
 	"crates/backend-domain",
-	"crates/backend-gateway",
-	"crates/backend-observability",
 	"crates/backend-storage",
 ]
 resolver = "2"
