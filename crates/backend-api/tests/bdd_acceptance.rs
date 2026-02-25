@@ -91,13 +91,12 @@ async fn given_seeded_user_when_authenticated_me_requested_then_subject_matches_
 #[tokio::test]
 async fn given_authenticated_user_when_create_server_then_created_status_and_server_id_returned() {
     let entity_seeder = EntitySeeder;
-    let seeded_user = entity_seeder.user();
-    let seeded_server = entity_seeder.server();
+    let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
-    let create_server_response = create_server(&app, &seeded_server.name).await;
+    let create_server_response = create_server(&app, &fixture.server.name).await;
 
     assert_eq!(create_server_response.status(), StatusCode::CREATED);
 
@@ -108,13 +107,12 @@ async fn given_authenticated_user_when_create_server_then_created_status_and_ser
 #[tokio::test]
 async fn given_existing_server_when_list_servers_then_seeded_server_is_in_response() {
     let entity_seeder = EntitySeeder;
-    let seeded_user = entity_seeder.user();
-    let seeded_server = entity_seeder.server();
+    let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
-    let create_server_response = create_server(&app, &seeded_server.name).await;
+    let create_server_response = create_server(&app, &fixture.server.name).await;
     assert_eq!(create_server_response.status(), StatusCode::CREATED);
 
     let list_servers_response = list_servers(&app).await;
@@ -128,29 +126,27 @@ async fn given_existing_server_when_list_servers_then_seeded_server_is_in_respon
     assert_eq!(listed_servers.len(), 1);
     assert_eq!(
         listed_servers[0]["name"].as_str(),
-        Some(seeded_server.name.as_str())
+        Some(fixture.server.name.as_str())
     );
 }
 
 #[tokio::test]
 async fn given_existing_server_when_create_channel_then_created_status_and_channel_id_returned() {
     let entity_seeder = EntitySeeder;
-    let seeded_user = entity_seeder.user();
-    let seeded_server = entity_seeder.server();
-    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+    let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
-        response_payload_json(create_server(&app, &seeded_server.name).await).await;
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
     let created_server_id = create_server_payload["id"]
         .as_str()
         .expect("created server id to be present")
         .to_owned();
 
     let create_channel_response =
-        create_channel(&app, &created_server_id, &seeded_channel.name).await;
+        create_channel(&app, &created_server_id, &fixture.channel.name).await;
 
     assert_eq!(create_channel_response.status(), StatusCode::CREATED);
 
@@ -165,24 +161,22 @@ async fn given_existing_server_when_create_channel_then_created_status_and_chann
 #[tokio::test]
 async fn given_existing_channel_when_create_message_then_message_is_listed_for_channel() {
     let entity_seeder = EntitySeeder;
-    let seeded_user = entity_seeder.user();
-    let seeded_server = entity_seeder.server();
-    let seeded_channel = entity_seeder.channel(&seeded_server.id);
-    let seeded_message = entity_seeder.message(&seeded_channel.id, &seeded_user.auth0_subject);
+    let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
-        response_payload_json(create_server(&app, &seeded_server.name).await).await;
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
     let created_server_id = create_server_payload["id"]
         .as_str()
         .expect("created server id to be present")
         .to_owned();
 
-    let create_channel_payload =
-        response_payload_json(create_channel(&app, &created_server_id, &seeded_channel.name).await)
-            .await;
+    let create_channel_payload = response_payload_json(
+        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+    )
+    .await;
 
     let created_channel_id = create_channel_payload["id"]
         .as_str()
@@ -190,7 +184,7 @@ async fn given_existing_channel_when_create_message_then_message_is_listed_for_c
         .to_owned();
 
     let create_message_response =
-        create_message(&app, &created_channel_id, &seeded_message.content).await;
+        create_message(&app, &created_channel_id, &fixture.message.content).await;
 
     assert_eq!(create_message_response.status(), StatusCode::CREATED);
 
@@ -221,38 +215,38 @@ async fn given_existing_channel_when_create_message_then_message_is_listed_for_c
     assert_eq!(listed_messages.len(), 1);
     assert_eq!(
         listed_messages[0]["content"].as_str(),
-        Some(seeded_message.content.as_str())
+        Some(fixture.message.content.as_str())
     );
 }
 
 #[tokio::test]
 async fn given_existing_message_when_update_message_then_updated_content_is_listed() {
     let entity_seeder = EntitySeeder;
-    let seeded_user = entity_seeder.user();
-    let seeded_server = entity_seeder.server();
-    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+    let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
-        response_payload_json(create_server(&app, &seeded_server.name).await).await;
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
     let created_server_id = create_server_payload["id"]
         .as_str()
         .expect("created server id to be present")
         .to_owned();
 
-    let create_channel_payload =
-        response_payload_json(create_channel(&app, &created_server_id, &seeded_channel.name).await)
-            .await;
+    let create_channel_payload = response_payload_json(
+        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+    )
+    .await;
     let created_channel_id = create_channel_payload["id"]
         .as_str()
         .expect("created channel id to be present")
         .to_owned();
 
-    let create_message_payload =
-        response_payload_json(create_message(&app, &created_channel_id, "original message").await)
-            .await;
+    let create_message_payload = response_payload_json(
+        create_message(&app, &created_channel_id, &fixture.message.content).await,
+    )
+    .await;
     let created_message_id = create_message_payload["id"]
         .as_str()
         .expect("created message id to be present")
@@ -285,31 +279,31 @@ async fn given_existing_message_when_update_message_then_updated_content_is_list
 #[tokio::test]
 async fn given_existing_message_when_delete_message_then_message_is_removed_from_list() {
     let entity_seeder = EntitySeeder;
-    let seeded_user = entity_seeder.user();
-    let seeded_server = entity_seeder.server();
-    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+    let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
-        response_payload_json(create_server(&app, &seeded_server.name).await).await;
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
     let created_server_id = create_server_payload["id"]
         .as_str()
         .expect("created server id to be present")
         .to_owned();
 
-    let create_channel_payload =
-        response_payload_json(create_channel(&app, &created_server_id, &seeded_channel.name).await)
-            .await;
+    let create_channel_payload = response_payload_json(
+        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+    )
+    .await;
     let created_channel_id = create_channel_payload["id"]
         .as_str()
         .expect("created channel id to be present")
         .to_owned();
 
-    let create_message_payload =
-        response_payload_json(create_message(&app, &created_channel_id, "to be deleted").await)
-            .await;
+    let create_message_payload = response_payload_json(
+        create_message(&app, &created_channel_id, &fixture.message.content).await,
+    )
+    .await;
     let created_message_id = create_message_payload["id"]
         .as_str()
         .expect("created message id to be present")
@@ -331,8 +325,7 @@ async fn given_existing_message_when_delete_message_then_message_is_removed_from
 #[tokio::test]
 async fn given_message_owned_by_another_user_when_update_message_then_status_is_403() {
     let entity_seeder = EntitySeeder;
-    let seeded_server = entity_seeder.server();
-    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+    let fixture = entity_seeder.chat_fixture();
 
     let owner_subject = "auth0|owner-user";
     let other_subject = "auth0|other-user";
@@ -345,7 +338,7 @@ async fn given_message_owned_by_another_user_when_update_message_then_status_is_
     ));
 
     let create_server_payload = response_payload_json(
-        create_server_with_token(&owner_app, &seeded_server.name, "owner-token").await,
+        create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
     )
     .await;
     let created_server_id = create_server_payload["id"]
@@ -357,7 +350,7 @@ async fn given_message_owned_by_another_user_when_update_message_then_status_is_
         create_channel_with_token(
             &owner_app,
             &created_server_id,
-            &seeded_channel.name,
+            &fixture.channel.name,
             "owner-token",
         )
         .await,
@@ -372,7 +365,7 @@ async fn given_message_owned_by_another_user_when_update_message_then_status_is_
         create_message_with_token(
             &owner_app,
             &created_channel_id,
-            "message by owner",
+            &fixture.message.content,
             "owner-token",
         )
         .await,
@@ -404,8 +397,7 @@ async fn given_message_owned_by_another_user_when_update_message_then_status_is_
 #[tokio::test]
 async fn given_message_owned_by_another_user_when_delete_message_then_status_is_403() {
     let entity_seeder = EntitySeeder;
-    let seeded_server = entity_seeder.server();
-    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+    let fixture = entity_seeder.chat_fixture();
 
     let owner_subject = "auth0|owner-user";
     let other_subject = "auth0|other-user";
@@ -418,7 +410,7 @@ async fn given_message_owned_by_another_user_when_delete_message_then_status_is_
     ));
 
     let create_server_payload = response_payload_json(
-        create_server_with_token(&owner_app, &seeded_server.name, "owner-token").await,
+        create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
     )
     .await;
     let created_server_id = create_server_payload["id"]
@@ -430,7 +422,7 @@ async fn given_message_owned_by_another_user_when_delete_message_then_status_is_
         create_channel_with_token(
             &owner_app,
             &created_server_id,
-            &seeded_channel.name,
+            &fixture.channel.name,
             "owner-token",
         )
         .await,
@@ -445,7 +437,7 @@ async fn given_message_owned_by_another_user_when_delete_message_then_status_is_
         create_message_with_token(
             &owner_app,
             &created_channel_id,
-            "message by owner",
+            &fixture.message.content,
             "owner-token",
         )
         .await,
@@ -476,22 +468,20 @@ async fn given_message_owned_by_another_user_when_delete_message_then_status_is_
 #[tokio::test]
 async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_response() {
     let entity_seeder = EntitySeeder;
-    let seeded_user = entity_seeder.user();
-    let seeded_server = entity_seeder.server();
-    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+    let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&seeded_user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
-        response_payload_json(create_server(&app, &seeded_server.name).await).await;
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
     let created_server_id = create_server_payload["id"]
         .as_str()
         .expect("created server id to be present")
         .to_owned();
 
     let create_channel_response =
-        create_channel(&app, &created_server_id, &seeded_channel.name).await;
+        create_channel(&app, &created_server_id, &fixture.channel.name).await;
     assert_eq!(create_channel_response.status(), StatusCode::CREATED);
 
     let list_channels_response = list_channels(&app, &created_server_id).await;
@@ -505,7 +495,7 @@ async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_res
     assert_eq!(listed_channels.len(), 1);
     assert_eq!(
         listed_channels[0]["name"].as_str(),
-        Some(seeded_channel.name.as_str())
+        Some(fixture.channel.name.as_str())
     );
 }
 

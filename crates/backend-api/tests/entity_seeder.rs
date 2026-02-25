@@ -1,10 +1,32 @@
 use backend_api::domain::{Channel, Message, Server, User};
 use rand::{Rng as _, distr::Alphanumeric};
 
+#[derive(Debug, Clone)]
+pub struct ChatFixture {
+    pub user: User,
+    pub server: Server,
+    pub channel: Channel,
+    pub message: Message,
+}
+
 #[derive(Debug, Default)]
 pub struct EntitySeeder;
 
 impl EntitySeeder {
+    pub fn chat_fixture(&self) -> ChatFixture {
+        let user = self.user();
+        let server = self.server();
+        let channel = self.channel(&server.id);
+        let message = self.message(&channel.id, &user.auth0_subject);
+
+        ChatFixture {
+            user,
+            server,
+            channel,
+            message,
+        }
+    }
+
     pub fn user(&self) -> User {
         let random_segment = rand::rng()
             .sample_iter(Alphanumeric)
