@@ -231,3 +231,35 @@ fn parse_bearer_token(authorization_value: &str) -> Result<String, AuthError> {
         .trim_start_matches(bearer_prefix)
         .to_owned())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::AuthClaims;
+    use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
+
+    #[test]
+    fn jsonwebtoken_crypto_provider_is_usable() {
+        let claims = AuthClaims {
+            sub: "test-user".to_owned(),
+        };
+
+        let token = encode(
+            &Header::new(Algorithm::HS256),
+            &claims,
+            &EncodingKey::from_secret(b"test-secret"),
+        )
+        .expect("token encoding to succeed");
+
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.validate_exp = false;
+
+        let token_data = decode::<AuthClaims>(
+            &token,
+            &DecodingKey::from_secret(b"test-secret"),
+            &validation,
+        )
+        .expect("token decoding to succeed");
+
+        assert_eq!(token_data.claims.sub, "test-user");
+    }
+}
