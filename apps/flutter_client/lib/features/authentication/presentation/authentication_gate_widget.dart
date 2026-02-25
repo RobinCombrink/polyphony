@@ -1,3 +1,6 @@
+import "dart:async";
+
+import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
@@ -5,9 +8,11 @@ import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_blo
 import "package:polyphony_flutter_client/features/chat_browser/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/chat_browser_page_widget.dart";
+import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
 
 class AuthenticationGateWidget extends StatefulWidget {
   const AuthenticationGateWidget({super.key});
@@ -18,7 +23,26 @@ class AuthenticationGateWidget extends StatefulWidget {
 }
 
 class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
-  final tokenController = TextEditingController();
+  var _isSigningIn = false;
+  String? _signInError;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+
+        final authenticationState = context.read<AuthenticationBloc>().state;
+        if (authenticationState is AuthenticationUnauthenticatedState) {
+          unawaited(_signInWithAuth0());
+        }
+      });
+    }
+  }
 
   String _statusText(AuthenticationState state) {
     return switch (state) {
@@ -27,15 +51,46 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
       AuthenticationUnauthenticatedState(:final issue) => switch (issue) {
           AuthenticationIssue.tokenRequired => "Auth token is required.",
           AuthenticationIssue.signedOut => "Signed out.",
-          null => "Enter Auth0 access token to continue.",
+          null => "Sign in with Auth0 to continue.",
         },
     };
   }
 
-  @override
-  void dispose() {
-    tokenController.dispose();
-    super.dispose();
+  Future<void> _signInWithAuth0() async {
+    setState(() {
+      _isSigningIn = true;
+      _signInError = null;
+    });
+
+    final accessTokenResult =
+        await context.read<AccessTokenProvider>().getAccessToken();
+
+    if (!mounted) {
+      return;
+    }
+
+    switch (accessTokenResult) {
+      case Ok<String>(:final value):
+        context
+            .read<AuthenticationBloc>()
+            .add(AuthenticationLoginRequested(bearerToken: value));
+      case Error<String>(:final error):
+        final errorMessage = error.toString();
+        if (errorMessage.contains("Redirecting to Auth0 for sign in.")) {
+          setState(() {
+            _isSigningIn = false;
+          });
+          return;
+        }
+
+        setState(() {
+          _signInError = errorMessage;
+        });
+    }
+
+    setState(() {
+      _isSigningIn = false;
+    });
   }
 
   @override
@@ -70,21 +125,15 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                TextField(
-                  controller: tokenController,
-                  decoration:
-                      const InputDecoration(labelText: "Auth0 access token"),
-                ),
-                const SizedBox(height: 8),
                 FilledButton(
-                  onPressed: () => context.read<AuthenticationBloc>().add(
-                        AuthenticationLoginRequested(
-                          bearerToken: tokenController.text,
-                        ),
-                      ),
-                  child: const Text("Sign In"),
+                  onPressed: _isSigningIn ? null : _signInWithAuth0,
+                  child: Text(_isSigningIn ? "Signing in..." : "Sign In"),
                 ),
                 const SizedBox(height: 12),
+                if (_signInError != null) ...<Widget>[
+                  SelectableText(_signInError!),
+                  const SizedBox(height: 12),
+                ],
                 Text(_statusText(state)),
               ],
             ),

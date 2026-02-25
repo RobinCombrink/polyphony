@@ -4,6 +4,7 @@ import "package:polyphony_flutter_client/features/authentication/bloc/authentica
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
+import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 class ChatBrowserPageWidget extends StatefulWidget {
@@ -15,7 +16,7 @@ class ChatBrowserPageWidget extends StatefulWidget {
 
 class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   final baseUrlController =
-      TextEditingController(text: "http://127.0.0.1:5067");
+      TextEditingController(text: PolyphonyConfig.backendBaseUrl);
   final createServerController = TextEditingController();
   final createChannelController = TextEditingController();
   final createMessageController = TextEditingController();
@@ -77,6 +78,19 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
     }
 
     return "Loaded ${serversState.servers.length} server(s), ${channelsState.channels.length} channel(s), ${messagesState.messages.length} message(s).";
+  }
+
+  bool _hasErrorOrException({
+    required ServersState serversState,
+    required ChannelsState channelsState,
+    required MessagesState messagesState,
+  }) {
+    return serversState is ServersValidationFailedState ||
+        channelsState is ChannelsValidationFailedState ||
+        messagesState is MessagesValidationFailedState ||
+        serversState is ServersExceptionState ||
+        channelsState is ChannelsExceptionState ||
+        messagesState is MessagesExceptionState;
   }
 
   @override
@@ -150,12 +164,25 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                   child: const Text("Load Servers"),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  _statusText(
-                    serversState: serversState,
-                    channelsState: channelsState,
-                    messagesState: messagesState,
-                  ),
+                Builder(
+                  builder: (context) {
+                    final statusText = _statusText(
+                      serversState: serversState,
+                      channelsState: channelsState,
+                      messagesState: messagesState,
+                    );
+                    final hasErrorOrException = _hasErrorOrException(
+                      serversState: serversState,
+                      channelsState: channelsState,
+                      messagesState: messagesState,
+                    );
+
+                    if (hasErrorOrException) {
+                      return SelectableText(statusText);
+                    }
+
+                    return Text(statusText);
+                  },
                 ),
                 const SizedBox(height: 12),
                 Expanded(

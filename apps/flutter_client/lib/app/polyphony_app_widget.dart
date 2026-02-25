@@ -3,6 +3,9 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:http/http.dart" as http;
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/features/authentication/presentation/authentication_gate_widget.dart";
+import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
+import "package:polyphony_flutter_client/shared/auth/auth0_browser_token_provider.dart";
+import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/network/polyphony_api_client.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
@@ -29,6 +32,18 @@ class PolyphonyApp extends StatelessWidget {
         Provider<http.Client>(create: (_) => http.Client()),
         BlocProvider<AuthenticationBloc>(
           create: (_) => AuthenticationBloc(),
+        ),
+        Provider<AccessTokenProvider>(
+          create: (context) => Auth0TokenProvider(
+            httpClient: context.read<http.Client>(),
+            domain: PolyphonyConfig.auth0Domain,
+            clientId: PolyphonyConfig.auth0ClientId,
+            audience: PolyphonyConfig.auth0Audience,
+            scopes: PolyphonyConfig.auth0Scopes,
+            mobileRedirectUri: PolyphonyConfig.auth0MobileRedirectUri,
+            desktopRedirectUri: PolyphonyConfig.auth0DesktopRedirectUri,
+            webRedirectPath: PolyphonyConfig.auth0WebRedirectPath,
+          ),
         ),
         Provider<ChatApi>(
           create: (context) => PolyphonyApiClient(
