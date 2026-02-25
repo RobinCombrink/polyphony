@@ -1,8 +1,10 @@
 pub mod auth;
 pub mod config;
-pub mod domain;
+pub mod dto;
 pub mod observability;
-pub mod storage;
+
+pub use backend_domain as domain;
+pub use backend_storage as storage;
 
 use std::{net::SocketAddr, sync::Arc};
 
@@ -12,12 +14,12 @@ use axum::{
     extract::Path,
     routing::{patch, post},
 };
-use domain::{
-    Channel, CreateChannelRequest, CreateMessageRequest, CreateServerRequest, Message, Server,
-    UpdateMessageRequest,
+use backend_domain::{Channel, Message, Server};
+use backend_storage::{ChatRepository, InMemoryChatRepository, MutationResult};
+use dto::{
+    CreateChannelRequest, CreateMessageRequest, CreateServerRequest, UpdateMessageRequest,
 };
 use serde::Serialize;
-use storage::{ChatRepository, InMemoryChatRepository, MutationResult};
 use tower_http::trace::TraceLayer;
 use utoipa::openapi::{
     Components,
