@@ -17,9 +17,9 @@ use axum::{
 use backend_domain::{Channel, Message, Server};
 use backend_storage::{ChatRepository, InMemoryChatRepository, MutationResult};
 use dto::{
-    CreateChannelRequest, CreateMessageRequest, CreateServerRequest, UpdateMessageRequest,
+    CreateChannelRequest, CreateMessageRequest, CreateServerRequest, HealthResponse, MeResponse,
+    UpdateMessageRequest,
 };
-use serde::Serialize;
 use tower_http::trace::TraceLayer;
 use utoipa::openapi::{
     Components,
@@ -32,19 +32,6 @@ use utoipa_swagger_ui::{Config, SwaggerUi};
 pub struct ApiState {
     pub auth_state: Arc<AuthState>,
     pub store: Arc<dyn ChatRepository>,
-}
-
-#[derive(Serialize, ToSchema)]
-struct HealthResponse {
-    status: &'static str,
-    service: &'static str,
-}
-
-#[derive(Serialize, ToSchema)]
-struct MeResponse {
-    user_id: String,
-    issuer: String,
-    token_duration_hours: u64,
 }
 
 #[derive(OpenApi)]
