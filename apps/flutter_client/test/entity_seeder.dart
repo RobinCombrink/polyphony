@@ -1,6 +1,6 @@
-import 'dart:math';
+import "dart:math";
 
-import 'package:polyphony_flutter_client/shared/models/chat_models.dart';
+import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 class ChatApiFixture {
   const ChatApiFixture({
@@ -23,34 +23,34 @@ class ChatApiFixture {
 }
 
 class EntitySeeder {
-  static final Random _random = Random();
+  static final _random = Random();
 
   String authSubject({String? value}) {
     if (value != null && value.trim().isNotEmpty) {
       return value;
     }
 
-    return 'auth0|user_${_randomSegment()}';
+    return "auth0|user_${_randomSegment()}";
   }
 
   ChatApiFixture chatApiFixture() {
-    const ownerSubject = 'auth0|u1';
+    const ownerSubject = "auth0|u1";
 
-    final listedServer = server(id: 'srv-1', ownerSubject: ownerSubject);
-    final createdServer = server(id: 'srv-2', ownerSubject: ownerSubject);
-    final listedChannel = channel(id: 'chn-1', serverId: listedServer.id);
-    final createdChannel = channel(id: 'chn-2', serverId: listedServer.id);
+    final listedServer = server(id: "srv-1", ownerSubject: ownerSubject);
+    final createdServer = server(id: "srv-2", ownerSubject: ownerSubject);
+    final listedChannel = channel(id: "chn-1", serverId: listedServer.id);
+    final createdChannel = channel(id: "chn-2", serverId: listedServer.id);
     final listedMessage = message(
-      id: 'msg-1',
+      id: "msg-1",
       channelId: listedChannel.id,
       authorSubject: ownerSubject,
-      content: 'hello',
+      content: "hello",
     );
     final createdMessage = message(
-      id: 'msg-2',
+      id: "msg-2",
       channelId: listedChannel.id,
       authorSubject: ownerSubject,
-      content: 'new message',
+      content: "new message",
     );
 
     return ChatApiFixture(
@@ -68,8 +68,8 @@ class EntitySeeder {
     final randomSegment = _randomSegment();
 
     return Server(
-      id: id ?? 'srv-seeded-$randomSegment',
-      name: name ?? 'Server-$randomSegment',
+      id: id ?? "srv-seeded-$randomSegment",
+      name: name ?? "Server-$randomSegment",
       ownerSubject: authSubject(value: ownerSubject),
     );
   }
@@ -78,9 +78,9 @@ class EntitySeeder {
     final randomSegment = _randomSegment();
 
     return Channel(
-      id: id ?? 'chn-seeded-$randomSegment',
+      id: id ?? "chn-seeded-$randomSegment",
       serverId: serverId,
-      name: name ?? 'Channel-$randomSegment',
+      name: name ?? "Channel-$randomSegment",
     );
   }
 
@@ -93,40 +93,40 @@ class EntitySeeder {
     final randomSegment = _randomSegment();
 
     return Message(
-      id: id ?? 'msg-seeded-$randomSegment',
+      id: id ?? "msg-seeded-$randomSegment",
       channelId: channelId,
       authorSubject: authorSubject,
-      content: content ?? 'Message-$randomSegment',
+      content: content ?? "Message-$randomSegment",
     );
   }
 
   Map<String, dynamic> serverJson(Server server) {
     return <String, dynamic>{
-      'id': server.id,
-      'name': server.name,
-      'owner_subject': server.ownerSubject,
+      "id": server.id,
+      "name": server.name,
+      "owner_subject": server.ownerSubject,
     };
   }
 
   Map<String, dynamic> channelJson(Channel channel) {
     return <String, dynamic>{
-      'id': channel.id,
-      'server_id': channel.serverId,
-      'name': channel.name,
+      "id": channel.id,
+      "server_id": channel.serverId,
+      "name": channel.name,
     };
   }
 
   Map<String, dynamic> messageJson(Message message) {
     return <String, dynamic>{
-      'id': message.id,
-      'channel_id': message.channelId,
-      'author_subject': message.authorSubject,
-      'content': message.content,
+      "id": message.id,
+      "channel_id": message.channelId,
+      "author_subject": message.authorSubject,
+      "content": message.content,
     };
   }
 
   String _randomSegment() {
-    const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
 
     return List<String>.generate(
       8,
