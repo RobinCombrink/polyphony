@@ -5,13 +5,13 @@ Local-first Flutter MVP client for browsing:
 - Channels (`GET /api/v1/servers/{server_id}/channels`)
 - Messages (`GET /api/v1/channels/{channel_id}/messages`)
 
-State management uses BLoC for async/API-driven flows (`ChatBrowserBloc`) and Result-pattern API responses.
+State management uses BLoC for async/API-driven flows (`ServersBloc`, `ChannelsBloc`, `MessagesBloc`) and Result-pattern API responses.
 
 ## Architecture
 
-- Vertical slice feature: `lib/features/chat_browser/` (application + domain + presentation, end-to-end)
-- Shared concerns: `lib/shared/` (auth, models, network, result)
-- App composition: `lib/app/polyphony_app.dart`
+- Vertical slices: `lib/features/chat_browser/` and `lib/features/authentication/` (bloc + presentation + domain)
+- Shared concerns: `lib/shared/` (models, network, repositories, services, result)
+- App composition: `lib/app/polyphony_app_widget.dart`
 - Entrypoint: `lib/main.dart`
 
 ## Run
