@@ -97,10 +97,13 @@ pub fn default_bind_address() -> SocketAddr {
     config::BackendApiConfig::from_environment().bind_address
 }
 
-pub fn default_api_state() -> ApiState {
+pub async fn default_api_state() -> ApiState {
     let auth_config = config::BackendApiConfig::from_environment().auth0;
-    let token_verifier: Arc<dyn TokenVerifier> =
-        Arc::new(JwksTokenVerifier::new(auth_config.clone()));
+    let token_verifier: Arc<dyn TokenVerifier> = Arc::new(
+        JwksTokenVerifier::new(auth_config.clone())
+            .await
+            .expect("jwt authorizer initialization to succeed"),
+    );
 
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),

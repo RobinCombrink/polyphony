@@ -6,7 +6,7 @@ async fn main() -> Result<()> {
     backend_api::observability::init_open_telemetry()?;
 
     let bind_address = backend_api::default_bind_address();
-    let app = backend_api::build_app(backend_api::default_api_state());
+    let app = backend_api::build_app(backend_api::default_api_state().await);
 
     info!(%bind_address, "backend-api listening");
 

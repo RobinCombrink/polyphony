@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use axum::{
     extract::{FromRef, FromRequestParts},
@@ -6,8 +6,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use http::header::AUTHORIZATION;
-use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, decode, decode_header};
-use serde::{Deserialize, Serialize};
+use jwt_authorizer::{Authorizer, JwtAuthorizer, Validation};
+use serde::Deserialize;
 use thiserror::Error;
 use url::Url;
 
@@ -84,72 +84,38 @@ pub trait TokenVerifier: Send + Sync {
     async fn verify(&self, bearer_token: &str) -> Result<AuthenticatedUser, AuthError>;
 }
 
-#[derive(Clone)]
 pub struct JwksTokenVerifier {
-    config: Auth0Config,
+    authorizer: Authorizer<AuthClaims>,
 }
 
 impl JwksTokenVerifier {
-    pub fn new(config: Auth0Config) -> Self {
-        Self { config }
+    pub async fn new(config: Auth0Config) -> Result<Self, jwt_authorizer::error::InitError> {
+        let validation = Validation::new()
+            .iss(&[config.issuer.as_str()])
+            .aud(&[config.audience.as_str()]);
+
+        let authorizer = JwtAuthorizer::from_oidc(config.issuer.as_str())
+            .validation(validation)
+            .build()
+            .await?;
+
+        Ok(Self { authorizer })
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct AuthClaims {
     sub: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct JwksDocument {
-    keys: Vec<JwkKey>,
-}
-
-#[derive(Debug, Deserialize)]
-struct JwkKey {
-    kid: String,
-    n: String,
-    e: String,
-    kty: String,
 }
 
 #[async_trait::async_trait]
 impl TokenVerifier for JwksTokenVerifier {
     async fn verify(&self, bearer_token: &str) -> Result<AuthenticatedUser, AuthError> {
-        let token_header = decode_header(bearer_token).map_err(AuthError::InvalidToken)?;
-        let key_id = token_header.kid.ok_or(AuthError::MissingKeyId)?;
-
-        let jwks_uri = self
-            .config
-            .issuer
-            .join(".well-known/jwks.json")
-            .map_err(|_| AuthError::InvalidIssuer)?;
-
-        let jwks_document: JwksDocument = reqwest::get(jwks_uri.as_str())
+        let token_data = self
+            .authorizer
+            .check_auth(bearer_token)
             .await
-            .map_err(|_| AuthError::JwksFetchFailed)?
-            .json()
-            .await
-            .map_err(|_| AuthError::JwksParseFailed)?;
-
-        let signing_keys = jwks_document
-            .keys
-            .into_iter()
-            .filter(|key| key.kty == "RSA")
-            .map(|key| (key.kid.clone(), key))
-            .collect::<HashMap<_, _>>();
-
-        let selected_key = signing_keys.get(&key_id).ok_or(AuthError::UnknownKeyId)?;
-
-        let decoding_key = DecodingKey::from_rsa_components(&selected_key.n, &selected_key.e)
-            .map_err(AuthError::InvalidToken)?;
-
-        let mut validation = Validation::new(Algorithm::RS256);
-        validation.set_issuer(&[self.config.issuer.as_str()]);
-        validation.set_audience(&[self.config.audience.as_str()]);
-
-        let token_data: TokenData<AuthClaims> =
-            decode(bearer_token, &decoding_key, &validation).map_err(AuthError::InvalidToken)?;
+            .map_err(|error| AuthError::InvalidToken(error.to_string()))?;
 
         let authenticated_user = AuthenticatedUser {
             subject: token_data.claims.sub,
@@ -165,18 +131,8 @@ pub enum AuthError {
     MissingAuthorizationHeader,
     #[error("authorization header is not bearer token")]
     NonBearerAuthorization,
-    #[error("token header missing key id")]
-    MissingKeyId,
-    #[error("invalid issuer URL")]
-    InvalidIssuer,
-    #[error("failed to fetch jwks")]
-    JwksFetchFailed,
-    #[error("failed to parse jwks")]
-    JwksParseFailed,
-    #[error("jwks key id not found")]
-    UnknownKeyId,
-    #[error("invalid token")]
-    InvalidToken(#[from] jsonwebtoken::errors::Error),
+    #[error("invalid token: {0}")]
+    InvalidToken(String),
 }
 
 impl IntoResponse for AuthError {
@@ -234,32 +190,13 @@ fn parse_bearer_token(authorization_value: &str) -> Result<String, AuthError> {
 
 #[cfg(test)]
 mod tests {
-    use super::AuthClaims;
-    use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
+    use super::parse_bearer_token;
 
     #[test]
-    fn jsonwebtoken_crypto_provider_is_usable() {
-        let claims = AuthClaims {
-            sub: "test-user".to_owned(),
-        };
+    fn parse_bearer_token_extracts_token() {
+        let token = parse_bearer_token("Bearer test-token")
+            .expect("token should be extracted from bearer header");
 
-        let token = encode(
-            &Header::new(Algorithm::HS256),
-            &claims,
-            &EncodingKey::from_secret(b"test-secret"),
-        )
-        .expect("token encoding to succeed");
-
-        let mut validation = Validation::new(Algorithm::HS256);
-        validation.validate_exp = false;
-
-        let token_data = decode::<AuthClaims>(
-            &token,
-            &DecodingKey::from_secret(b"test-secret"),
-            &validation,
-        )
-        .expect("token decoding to succeed");
-
-        assert_eq!(token_data.claims.sub, "test-user");
+        assert_eq!(token, "test-token");
     }
 }
