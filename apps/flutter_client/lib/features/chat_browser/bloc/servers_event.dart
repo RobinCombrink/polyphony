@@ -1,0 +1,21 @@
+part of "servers_bloc.dart";
+
+sealed class ServersEvent {
+  const ServersEvent();
+}
+
+final class LoadServersRequested extends ServersEvent {
+  const LoadServersRequested({required this.baseUrl});
+
+  final String baseUrl;
+}
+
+final class CreateServerRequested extends ServersEvent {
+  const CreateServerRequested({
+    required this.baseUrl,
+    required this.serverName,
+  });
+
+  final String baseUrl;
+  final String serverName;
+}
