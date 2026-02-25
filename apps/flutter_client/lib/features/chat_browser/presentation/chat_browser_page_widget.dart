@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
@@ -104,178 +105,233 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Polyphony MVP Client"),
-        actions: <Widget>[
-          IconButton(
-            onPressed: () => context
-                .read<AuthenticationBloc>()
-                .add(const AuthenticationLogoutRequested()),
-            tooltip: "Sign out",
-            icon: const Icon(Icons.logout),
+    final authenticationState = context.read<AuthenticationBloc>().state;
+    final bearerToken = authenticationState is AuthenticationAuthenticatedState
+        ? authenticationState.bearerToken
+        : "";
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("Polyphony MVP Client"),
+          actions: <Widget>[
+            IconButton(
+              onPressed: () => context
+                  .read<AuthenticationBloc>()
+                  .add(const AuthenticationLogoutRequested()),
+              tooltip: "Sign out",
+              icon: const Icon(Icons.logout),
+            ),
+          ],
+          bottom: const TabBar(
+            tabs: <Tab>[
+              Tab(text: "Chat"),
+              Tab(text: "Token"),
+            ],
           ),
-        ],
+        ),
+        body: TabBarView(
+          children: <Widget>[
+            _buildChatTab(context),
+            _buildTokenTab(context, bearerToken),
+          ],
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Builder(
-          builder: (context) {
-            final serversState = context.watch<ServersBloc>().state;
-            final channelsState = context.watch<ChannelsBloc>().state;
-            final messagesState = context.watch<MessagesBloc>().state;
-            final isLoading = serversState.isLoading ||
-                channelsState.isLoading ||
-                messagesState.isLoading;
+    );
+  }
 
-            final servers = serversState.servers;
-            final channels = channelsState.channels;
-            final messages = messagesState.messages;
+  Widget _buildChatTab(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Builder(
+        builder: (context) {
+          final serversState = context.watch<ServersBloc>().state;
+          final channelsState = context.watch<ChannelsBloc>().state;
+          final messagesState = context.watch<MessagesBloc>().state;
+          final isLoading = serversState.isLoading ||
+              channelsState.isLoading ||
+              messagesState.isLoading;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                TextField(
-                  controller: baseUrlController,
-                  decoration:
-                      const InputDecoration(labelText: "Backend base URL"),
-                ),
-                const SizedBox(height: 8),
-                FilledButton(
-                  onPressed: isLoading
-                      ? null
-                      : () {
+          final servers = serversState.servers;
+          final channels = channelsState.channels;
+          final messages = messagesState.messages;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              TextField(
+                controller: baseUrlController,
+                decoration:
+                    const InputDecoration(labelText: "Backend base URL"),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: isLoading
+                    ? null
+                    : () {
+                        setState(() {
+                          selectedServer = null;
+                          selectedChannel = null;
+                        });
+                        context
+                            .read<ChannelsBloc>()
+                            .add(const ResetChannelsRequested());
+                        context
+                            .read<MessagesBloc>()
+                            .add(const ResetMessagesRequested());
+                        context.read<ServersBloc>().add(
+                              LoadServersRequested(
+                                baseUrl: baseUrlController.text,
+                              ),
+                            );
+                      },
+                child: const Text("Load Servers"),
+              ),
+              const SizedBox(height: 12),
+              Builder(
+                builder: (context) {
+                  final statusText = _statusText(
+                    serversState: serversState,
+                    channelsState: channelsState,
+                    messagesState: messagesState,
+                  );
+                  final hasErrorOrException = _hasErrorOrException(
+                    serversState: serversState,
+                    channelsState: channelsState,
+                    messagesState: messagesState,
+                  );
+
+                  if (hasErrorOrException) {
+                    return SelectableText(statusText);
+                  }
+
+                  return Text(statusText);
+                },
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _buildListSection<Server>(
+                        title: "Servers",
+                        items: servers,
+                        isSelected: (server) => selectedServer?.id == server.id,
+                        label: (server) => server.name,
+                        onTap: (server) {
                           setState(() {
-                            selectedServer = null;
+                            selectedServer = server;
                             selectedChannel = null;
                           });
                           context
-                              .read<ChannelsBloc>()
-                              .add(const ResetChannelsRequested());
-                          context
                               .read<MessagesBloc>()
                               .add(const ResetMessagesRequested());
-                          context.read<ServersBloc>().add(
-                                LoadServersRequested(
+                          context.read<ChannelsBloc>().add(
+                                LoadChannelsRequested(
                                   baseUrl: baseUrlController.text,
+                                  serverId: server.id,
                                 ),
                               );
                         },
-                  child: const Text("Load Servers"),
+                        isLoading: isLoading,
+                        createController: createServerController,
+                        createLabel: "Create server",
+                        createActionLabel: "Add",
+                        onCreate: () => context.read<ServersBloc>().add(
+                              CreateServerRequested(
+                                baseUrl: baseUrlController.text,
+                                serverName: createServerController.text,
+                              ),
+                            ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildListSection<Channel>(
+                        title: "Channels",
+                        items: channels,
+                        isSelected: (channel) =>
+                            selectedChannel?.id == channel.id,
+                        label: (channel) => channel.name,
+                        onTap: (channel) {
+                          setState(() {
+                            selectedChannel = channel;
+                          });
+                          context.read<MessagesBloc>().add(
+                                LoadMessagesRequested(
+                                  baseUrl: baseUrlController.text,
+                                  channelId: channel.id,
+                                ),
+                              );
+                        },
+                        isLoading: isLoading,
+                        createController: createChannelController,
+                        createLabel: "Create channel",
+                        createActionLabel: "Add",
+                        onCreate: () => context.read<ChannelsBloc>().add(
+                              CreateChannelRequested(
+                                baseUrl: baseUrlController.text,
+                                serverId: selectedServer?.id ?? "",
+                                channelName: createChannelController.text,
+                              ),
+                            ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildMessagesSection(
+                        messages: messages,
+                        createController: createMessageController,
+                        isLoading: isLoading,
+                        onCreate: () => context.read<MessagesBloc>().add(
+                              CreateMessageRequested(
+                                baseUrl: baseUrlController.text,
+                                channelId: selectedChannel?.id ?? "",
+                                messageContent: createMessageController.text,
+                              ),
+                            ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Builder(
-                  builder: (context) {
-                    final statusText = _statusText(
-                      serversState: serversState,
-                      channelsState: channelsState,
-                      messagesState: messagesState,
-                    );
-                    final hasErrorOrException = _hasErrorOrException(
-                      serversState: serversState,
-                      channelsState: channelsState,
-                      messagesState: messagesState,
-                    );
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
-                    if (hasErrorOrException) {
-                      return SelectableText(statusText);
+  Widget _buildTokenTab(BuildContext context, String bearerToken) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          FilledButton(
+            onPressed: bearerToken.isEmpty
+                ? null
+                : () async {
+                    await Clipboard.setData(ClipboardData(text: bearerToken));
+
+                    if (!context.mounted) {
+                      return;
                     }
 
-                    return Text(statusText);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Token copied")),
+                    );
                   },
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _buildListSection<Server>(
-                          title: "Servers",
-                          items: servers,
-                          isSelected: (server) =>
-                              selectedServer?.id == server.id,
-                          label: (server) => server.name,
-                          onTap: (server) {
-                            setState(() {
-                              selectedServer = server;
-                              selectedChannel = null;
-                            });
-                            context
-                                .read<MessagesBloc>()
-                                .add(const ResetMessagesRequested());
-                            context.read<ChannelsBloc>().add(
-                                  LoadChannelsRequested(
-                                    baseUrl: baseUrlController.text,
-                                    serverId: server.id,
-                                  ),
-                                );
-                          },
-                          isLoading: isLoading,
-                          createController: createServerController,
-                          createLabel: "Create server",
-                          createActionLabel: "Add",
-                          onCreate: () => context.read<ServersBloc>().add(
-                                CreateServerRequested(
-                                  baseUrl: baseUrlController.text,
-                                  serverName: createServerController.text,
-                                ),
-                              ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildListSection<Channel>(
-                          title: "Channels",
-                          items: channels,
-                          isSelected: (channel) =>
-                              selectedChannel?.id == channel.id,
-                          label: (channel) => channel.name,
-                          onTap: (channel) {
-                            setState(() {
-                              selectedChannel = channel;
-                            });
-                            context.read<MessagesBloc>().add(
-                                  LoadMessagesRequested(
-                                    baseUrl: baseUrlController.text,
-                                    channelId: channel.id,
-                                  ),
-                                );
-                          },
-                          isLoading: isLoading,
-                          createController: createChannelController,
-                          createLabel: "Create channel",
-                          createActionLabel: "Add",
-                          onCreate: () => context.read<ChannelsBloc>().add(
-                                CreateChannelRequested(
-                                  baseUrl: baseUrlController.text,
-                                  serverId: selectedServer?.id ?? "",
-                                  channelName: createChannelController.text,
-                                ),
-                              ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildMessagesSection(
-                          messages: messages,
-                          createController: createMessageController,
-                          isLoading: isLoading,
-                          onCreate: () => context.read<MessagesBloc>().add(
-                                CreateMessageRequested(
-                                  baseUrl: baseUrlController.text,
-                                  channelId: selectedChannel?.id ?? "",
-                                  messageContent: createMessageController.text,
-                                ),
-                              ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+            child: const Text("Copy Token"),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: SingleChildScrollView(
+              child: SelectableText(bearerToken),
+            ),
+          ),
+        ],
       ),
     );
   }
