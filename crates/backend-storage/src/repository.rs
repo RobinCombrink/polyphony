@@ -1,0 +1,32 @@
+use async_trait::async_trait;
+use backend_domain::{Channel, Message, Server};
+
+use crate::MutationResult;
+
+#[async_trait]
+pub trait ChatRepository: Send + Sync {
+    async fn create_server(&self, name: String, owner_subject: String) -> Server;
+    async fn list_servers_for_user(&self, owner_subject: &str) -> Vec<Server>;
+    async fn create_channel(&self, server_id: &str, name: String) -> Option<Channel>;
+    async fn list_channels_for_server(&self, server_id: &str) -> Option<Vec<Channel>>;
+    async fn create_message(
+        &self,
+        channel_id: &str,
+        author_subject: String,
+        content: String,
+    ) -> Option<Message>;
+    async fn update_message(
+        &self,
+        channel_id: &str,
+        message_id: &str,
+        author_subject: &str,
+        content: String,
+    ) -> MutationResult;
+    async fn delete_message(
+        &self,
+        channel_id: &str,
+        message_id: &str,
+        author_subject: &str,
+    ) -> MutationResult;
+    async fn list_messages(&self, channel_id: &str) -> Vec<Message>;
+}
