@@ -57,3 +57,17 @@ Feature: Backend API health and authenticated identity
     And a seeded message exists in that channel
     When I delete the seeded message
     Then listing messages for that channel does not include the deleted message
+
+  Scenario: Authenticated user cannot edit another user's message
+    Given an authenticated user exists from the EntitySeeder
+    And a seeded server channel exists for that user
+    And a seeded message exists in that channel
+    When a different authenticated user edits the seeded message content
+    Then the response status is 403
+
+  Scenario: Authenticated user cannot delete another user's message
+    Given an authenticated user exists from the EntitySeeder
+    And a seeded server channel exists for that user
+    And a seeded message exists in that channel
+    When a different authenticated user deletes the seeded message
+    Then the response status is 403

@@ -11,7 +11,7 @@ use backend_api::{
     ApiState,
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     build_app,
-    storage::InMemoryChatRepository,
+    storage::{ChatRepository, InMemoryChatRepository},
 };
 use entity_seeder::EntitySeeder;
 use serde_json::Value;
@@ -329,6 +329,151 @@ async fn given_existing_message_when_delete_message_then_message_is_removed_from
 }
 
 #[tokio::test]
+async fn given_message_owned_by_another_user_when_update_message_then_status_is_403() {
+    let entity_seeder = EntitySeeder;
+    let seeded_server = entity_seeder.server();
+    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+
+    let owner_subject = "auth0|owner-user";
+    let other_subject = "auth0|other-user";
+    let shared_store: Arc<dyn ChatRepository> = Arc::new(InMemoryChatRepository::new());
+
+    let owner_app = build_app(seeded_state_with_store(
+        owner_subject,
+        "owner-token",
+        Arc::clone(&shared_store),
+    ));
+
+    let create_server_payload = response_payload_json(
+        create_server_with_token(&owner_app, &seeded_server.name, "owner-token").await,
+    )
+    .await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel_with_token(
+            &owner_app,
+            &created_server_id,
+            &seeded_channel.name,
+            "owner-token",
+        )
+        .await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let create_message_payload = response_payload_json(
+        create_message_with_token(
+            &owner_app,
+            &created_channel_id,
+            "message by owner",
+            "owner-token",
+        )
+        .await,
+    )
+    .await;
+    let created_message_id = create_message_payload["id"]
+        .as_str()
+        .expect("created message id to be present")
+        .to_owned();
+
+    let other_user_app = build_app(seeded_state_with_store(
+        other_subject,
+        "other-token",
+        shared_store,
+    ));
+
+    let update_response = update_message_with_token(
+        &other_user_app,
+        &created_channel_id,
+        &created_message_id,
+        "attempted edit",
+        "other-token",
+    )
+    .await;
+
+    assert_eq!(update_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn given_message_owned_by_another_user_when_delete_message_then_status_is_403() {
+    let entity_seeder = EntitySeeder;
+    let seeded_server = entity_seeder.server();
+    let seeded_channel = entity_seeder.channel(&seeded_server.id);
+
+    let owner_subject = "auth0|owner-user";
+    let other_subject = "auth0|other-user";
+    let shared_store: Arc<dyn ChatRepository> = Arc::new(InMemoryChatRepository::new());
+
+    let owner_app = build_app(seeded_state_with_store(
+        owner_subject,
+        "owner-token",
+        Arc::clone(&shared_store),
+    ));
+
+    let create_server_payload = response_payload_json(
+        create_server_with_token(&owner_app, &seeded_server.name, "owner-token").await,
+    )
+    .await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel_with_token(
+            &owner_app,
+            &created_server_id,
+            &seeded_channel.name,
+            "owner-token",
+        )
+        .await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let create_message_payload = response_payload_json(
+        create_message_with_token(
+            &owner_app,
+            &created_channel_id,
+            "message by owner",
+            "owner-token",
+        )
+        .await,
+    )
+    .await;
+    let created_message_id = create_message_payload["id"]
+        .as_str()
+        .expect("created message id to be present")
+        .to_owned();
+
+    let other_user_app = build_app(seeded_state_with_store(
+        other_subject,
+        "other-token",
+        shared_store,
+    ));
+
+    let delete_response = delete_message_with_token(
+        &other_user_app,
+        &created_channel_id,
+        &created_message_id,
+        "other-token",
+    )
+    .await;
+
+    assert_eq!(delete_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
 async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_response() {
     let entity_seeder = EntitySeeder;
     let seeded_user = entity_seeder.user();
@@ -365,12 +510,20 @@ async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_res
 }
 
 async fn create_server(app: &axum::Router, server_name: &str) -> axum::response::Response {
+    create_server_with_token(app, server_name, "valid-token").await
+}
+
+async fn create_server_with_token(
+    app: &axum::Router,
+    server_name: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
                 .uri("/api/v1/servers")
                 .method("POST")
-                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(
                     serde_json::json!({ "name": server_name }).to_string(),
@@ -386,12 +539,21 @@ async fn create_channel(
     server_id: &str,
     channel_name: &str,
 ) -> axum::response::Response {
+    create_channel_with_token(app, server_id, channel_name, "valid-token").await
+}
+
+async fn create_channel_with_token(
+    app: &axum::Router,
+    server_id: &str,
+    channel_name: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
                 .uri(format!("/api/v1/servers/{server_id}/channels"))
                 .method("POST")
-                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(
                     serde_json::json!({ "name": channel_name }).to_string(),
@@ -407,12 +569,21 @@ async fn create_message(
     channel_id: &str,
     content: &str,
 ) -> axum::response::Response {
+    create_message_with_token(app, channel_id, content, "valid-token").await
+}
+
+async fn create_message_with_token(
+    app: &axum::Router,
+    channel_id: &str,
+    content: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
                 .uri(format!("/api/v1/channels/{channel_id}/messages"))
                 .method("POST")
-                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(
                     serde_json::json!({ "content": content }).to_string(),
@@ -429,6 +600,16 @@ async fn update_message(
     message_id: &str,
     content: &str,
 ) -> axum::response::Response {
+    update_message_with_token(app, channel_id, message_id, content, "valid-token").await
+}
+
+async fn update_message_with_token(
+    app: &axum::Router,
+    channel_id: &str,
+    message_id: &str,
+    content: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
@@ -436,7 +617,7 @@ async fn update_message(
                     "/api/v1/channels/{channel_id}/messages/{message_id}"
                 ))
                 .method("PATCH")
-                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(
                     serde_json::json!({ "content": content }).to_string(),
@@ -452,6 +633,15 @@ async fn delete_message(
     channel_id: &str,
     message_id: &str,
 ) -> axum::response::Response {
+    delete_message_with_token(app, channel_id, message_id, "valid-token").await
+}
+
+async fn delete_message_with_token(
+    app: &axum::Router,
+    channel_id: &str,
+    message_id: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
@@ -459,7 +649,7 @@ async fn delete_message(
                     "/api/v1/channels/{channel_id}/messages/{message_id}"
                 ))
                 .method("DELETE")
-                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .body(Body::empty())
                 .expect("delete message request to be valid"),
         )
@@ -516,6 +706,10 @@ async fn response_payload_json(response: axum::response::Response) -> Value {
 }
 
 fn seeded_state(subject: &str, token: &str) -> ApiState {
+    seeded_state_with_store(subject, token, Arc::new(InMemoryChatRepository::new()))
+}
+
+fn seeded_state_with_store(subject: &str, token: &str, store: Arc<dyn ChatRepository>) -> ApiState {
     let auth_config = Auth0Config {
         issuer: Url::parse("https://example-dev.us.auth0.com/").expect("valid issuer url"),
         audience: "polyphony-api".to_owned(),
@@ -529,6 +723,6 @@ fn seeded_state(subject: &str, token: &str) -> ApiState {
 
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
-        store: Arc::new(InMemoryChatRepository::new()),
+        store,
     }
 }
