@@ -1,0 +1,15 @@
+import "package:polyphony_flutter_client/shared/network/api_models.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
+
+abstract interface class ChannelService {
+  Future<Result<List<ApiChannel>>> listChannels({
+    required String baseUrl,
+    required String serverId,
+  });
+
+  Future<Result<ApiChannel>> createChannel({
+    required String baseUrl,
+    required String serverId,
+    required String name,
+  });
+}
