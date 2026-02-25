@@ -22,6 +22,15 @@ Or with Docker Compose:
 docker compose -f docker-compose.local.yml up --build
 ```
 
+## Developing the server
+```bash
+cargo install cargo-watch systemfd
+```
+
+```bash
+systemfd --no-pid -s http::3000 -- cargo watch -x run
+```
+
 ## OpenAPI Frontend
 - Swagger UI: `http://127.0.0.1:5067/openapi`
 - OpenAPI JSON: `http://127.0.0.1:5067/api-docs/openapi.json`
@@ -38,8 +47,21 @@ flutter run
 ```
 
 In the app:
-- Backend base URL defaults to `http://127.0.0.1:5067`
-- Paste an Auth0 access token and click **Load Servers**
+- Backend base URL defaults to `POLYPHONY_BACKEND_BASE_URL`
+- Click **Sign In** to start Auth0 browser login and automatic token exchange
+
+Flutter OAuth settings (`--dart-define`):
+- `AUTH0_DOMAIN` (default: `dev-polyphony.eu.auth0.com`)
+- `AUTH0_CLIENT_ID` (default: `3QEwnOrRK5qAFqjNJvXWdPJDhLz1p0yZ`)
+- `AUTH0_AUDIENCE` (default: `https://polyphony.com`)
+- `AUTH0_SCOPES` (default: `openid profile email`)
+- `AUTH0_MOBILE_REDIRECT_URI` (default: `polyphony://auth/callback`)
+- `AUTH0_DESKTOP_REDIRECT_URI` (default: `http://localhost:3000`)
+- `AUTH0_WEB_REDIRECT_PATH` (default: `/auth.html`)
+
+Package notes:
+- The Flutter client now uses `flutter_web_auth_2` for browser-based OAuth flow.
+- This supports Windows and Linux in addition to mobile/web.
 
 ## Test Strategy
 - BDD-style acceptance tests live under `features/` and backend integration tests.
