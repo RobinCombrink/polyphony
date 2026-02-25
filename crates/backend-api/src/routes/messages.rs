@@ -1,7 +1,7 @@
-mod create;
-mod delete;
-mod list;
-mod update;
+pub(crate) mod create;
+pub(crate) mod delete;
+pub(crate) mod list;
+pub(crate) mod update;
 
 pub(crate) use create::create_message;
 pub(crate) use delete::delete_message;

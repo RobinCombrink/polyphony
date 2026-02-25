@@ -6,11 +6,7 @@ use axum::{
 };
 use backend_domain::Message;
 
-use crate::{
-    ApiState,
-    auth::AuthenticatedUser,
-    dto::CreateMessageRequest,
-};
+use crate::{ApiState, auth::AuthenticatedUser, dto::CreateMessageRequest};
 
 #[utoipa::path(
     post,

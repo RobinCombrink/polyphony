@@ -19,10 +19,10 @@ use crate::dto::{
         crate::routes::servers::list_servers,
         crate::routes::servers::create_channel,
         crate::routes::servers::list_channels,
-        crate::routes::messages::create_message,
-        crate::routes::messages::update_message,
-        crate::routes::messages::delete_message,
-        crate::routes::messages::list_messages
+        crate::routes::messages::create::create_message,
+        crate::routes::messages::update::update_message,
+        crate::routes::messages::delete::delete_message,
+        crate::routes::messages::list::list_messages
     ),
     components(schemas(
         HealthResponse,
