@@ -1,13 +1,16 @@
-class Server {
-  const Server(
-      {required this.id, required this.name, required this.ownerSubject});
+class ApiServer {
+  const ApiServer({
+    required this.id,
+    required this.name,
+    required this.ownerSubject,
+  });
 
   final String id;
   final String name;
   final String ownerSubject;
 
-  factory Server.fromJson(Map<String, dynamic> json) {
-    return Server(
+  factory ApiServer.fromJson(Map<String, dynamic> json) {
+    return ApiServer(
       id: json["id"] as String,
       name: json["name"] as String,
       ownerSubject: json["owner_subject"] as String,
@@ -15,15 +18,19 @@ class Server {
   }
 }
 
-class Channel {
-  const Channel({required this.id, required this.serverId, required this.name});
+class ApiChannel {
+  const ApiChannel({
+    required this.id,
+    required this.serverId,
+    required this.name,
+  });
 
   final String id;
   final String serverId;
   final String name;
 
-  factory Channel.fromJson(Map<String, dynamic> json) {
-    return Channel(
+  factory ApiChannel.fromJson(Map<String, dynamic> json) {
+    return ApiChannel(
       id: json["id"] as String,
       serverId: json["server_id"] as String,
       name: json["name"] as String,
@@ -31,8 +38,8 @@ class Channel {
   }
 }
 
-class Message {
-  const Message({
+class ApiMessage {
+  const ApiMessage({
     required this.id,
     required this.channelId,
     required this.authorSubject,
@@ -44,8 +51,8 @@ class Message {
   final String authorSubject;
   final String content;
 
-  factory Message.fromJson(Map<String, dynamic> json) {
-    return Message(
+  factory ApiMessage.fromJson(Map<String, dynamic> json) {
+    return ApiMessage(
       id: json["id"] as String,
       channelId: json["channel_id"] as String,
       authorSubject: json["author_subject"] as String,
