@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, Message, Server};
+use backend_domain::{Channel, Message, Server, VoiceSession};
 
 use crate::MutationResult;
 
@@ -29,4 +29,15 @@ pub trait ChatRepository: Send + Sync {
         author_subject: &str,
     ) -> MutationResult;
     async fn list_messages(&self, channel_id: &str) -> Vec<Message>;
+    async fn join_voice_session(
+        &self,
+        channel_id: &str,
+        participant_subject: String,
+    ) -> Option<VoiceSession>;
+    async fn leave_voice_session(
+        &self,
+        channel_id: &str,
+        participant_subject: &str,
+    ) -> MutationResult;
+    async fn list_voice_sessions(&self, channel_id: &str) -> Option<Vec<VoiceSession>>;
 }

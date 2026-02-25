@@ -1,11 +1,16 @@
 use axum::http::StatusCode;
 use backend_api::build_app;
 
-use crate::bdd_support::{
-    create_channel, create_server, join_voice_session, leave_voice_session, list_voice_sessions,
-    response_payload_json, seeded_state,
+#[path = "../common.rs"]
+mod common;
+
+use common::{
+    bdd_support::{
+        create_channel, create_server, join_voice_session, leave_voice_session,
+        list_voice_sessions, response_payload_json, seeded_state,
+    },
+    entity_seeder::EntitySeeder,
 };
-use crate::entity_seeder::EntitySeeder;
 
 #[tokio::test]
 async fn given_existing_channel_when_join_voice_session_then_participant_is_listed() {

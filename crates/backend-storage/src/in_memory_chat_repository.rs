@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, Message, Server};
+use backend_domain::{Channel, Message, Server, VoiceSession};
 use tokio::sync::RwLock;
 
 use crate::{ChatRepository, InMemoryStore, MutationResult};
@@ -90,5 +90,28 @@ impl ChatRepository for InMemoryChatRepository {
     async fn list_messages(&self, channel_id: &str) -> Vec<Message> {
         let store = self.store.read().await;
         store.list_messages(channel_id)
+    }
+
+    async fn join_voice_session(
+        &self,
+        channel_id: &str,
+        participant_subject: String,
+    ) -> Option<VoiceSession> {
+        let mut store = self.store.write().await;
+        store.join_voice_session(channel_id, participant_subject)
+    }
+
+    async fn leave_voice_session(
+        &self,
+        channel_id: &str,
+        participant_subject: &str,
+    ) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.leave_voice_session(channel_id, participant_subject)
+    }
+
+    async fn list_voice_sessions(&self, channel_id: &str) -> Option<Vec<VoiceSession>> {
+        let store = self.store.read().await;
+        store.list_voice_sessions(channel_id)
     }
 }

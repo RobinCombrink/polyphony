@@ -6,13 +6,18 @@ use backend_api::{
     storage::{ChatRepository, InMemoryChatRepository},
 };
 
-use crate::bdd_support::{
-    create_channel, create_channel_with_token, create_message, create_message_with_token,
-    create_server, create_server_with_token, delete_message, delete_message_with_token,
-    list_messages, response_payload_json, seeded_state, seeded_state_with_store, update_message,
-    update_message_with_token,
+#[path = "../common.rs"]
+mod common;
+
+use common::{
+    bdd_support::{
+        create_channel, create_channel_with_token, create_message, create_message_with_token,
+        create_server, create_server_with_token, delete_message, delete_message_with_token,
+        list_messages, response_payload_json, seeded_state, seeded_state_with_store,
+        update_message, update_message_with_token,
+    },
+    entity_seeder::EntitySeeder,
 };
-use crate::entity_seeder::EntitySeeder;
 
 #[tokio::test]
 async fn given_existing_channel_when_create_message_then_message_is_listed_for_channel() {

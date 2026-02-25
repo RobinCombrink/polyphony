@@ -6,8 +6,10 @@ use backend_api::build_app;
 use serde_json::Value;
 use tower::ServiceExt;
 
-use crate::bdd_support::seeded_state;
-use crate::entity_seeder::EntitySeeder;
+#[path = "../common.rs"]
+mod common;
+
+use common::{bdd_support::seeded_state, entity_seeder::EntitySeeder};
 
 #[tokio::test]
 async fn given_backend_started_when_health_requested_then_status_is_200() {

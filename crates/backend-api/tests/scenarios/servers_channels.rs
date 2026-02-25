@@ -1,10 +1,16 @@
 use axum::http::StatusCode;
 use backend_api::build_app;
 
-use crate::bdd_support::{
-    create_channel, create_server, list_channels, list_servers, response_payload_json, seeded_state,
+#[path = "../common.rs"]
+mod common;
+
+use common::{
+    bdd_support::{
+        create_channel, create_server, list_channels, list_servers, response_payload_json,
+        seeded_state,
+    },
+    entity_seeder::EntitySeeder,
 };
-use crate::entity_seeder::EntitySeeder;
 
 #[tokio::test]
 async fn given_authenticated_user_when_create_server_then_created_status_and_server_id_returned() {

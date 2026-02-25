@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use backend_api::domain::{Channel, Message, Server, User};
 use rand::{Rng as _, distr::Alphanumeric};
 
