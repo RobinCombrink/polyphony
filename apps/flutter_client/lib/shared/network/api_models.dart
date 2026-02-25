@@ -60,3 +60,20 @@ class ApiMessage {
     );
   }
 }
+
+class ApiVoiceSession {
+  const ApiVoiceSession({
+    required this.channelId,
+    required this.participantSubject,
+  });
+
+  final String channelId;
+  final String participantSubject;
+
+  factory ApiVoiceSession.fromJson(Map<String, dynamic> json) {
+    return ApiVoiceSession(
+      channelId: json["channel_id"] as String,
+      participantSubject: json["participant_subject"] as String,
+    );
+  }
+}

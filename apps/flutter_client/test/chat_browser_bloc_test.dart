@@ -4,10 +4,12 @@ import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
+import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
 import "entity_seeder.dart";
@@ -134,6 +136,62 @@ void main() {
       exceptionState.error.toString(),
       contains("Failed to delete message: 404"),
     );
+
+    await bloc.close();
+  });
+
+  test("voice sessions bloc loads participants for selected channel", () async {
+    final bloc = VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+    );
+
+    bloc.add(LoadVoiceSessionsRequested(
+      baseUrl: "http://127.0.0.1:5067",
+      channelId: fixture.listedChannel.id,
+    ));
+    await _waitForBloc();
+
+    expect(bloc.state, isA<VoiceSessionsLoadedState>());
+    expect(bloc.state.voiceSessions.length, 1);
+
+    await bloc.close();
+  });
+
+  test("voice sessions bloc emits validation failed on missing channel",
+      () async {
+    final bloc = VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+    );
+
+    bloc.add(const JoinVoiceSessionRequested(
+      baseUrl: "http://127.0.0.1:5067",
+      channelId: "",
+    ));
+    await _waitForBloc();
+
+    expect(bloc.state, isA<VoiceSessionsValidationFailedState>());
+    final validationState = bloc.state as VoiceSessionsValidationFailedState;
+    expect(
+      validationState.issue,
+      VoiceSessionsValidationIssue.channelSelectionRequired,
+    );
+
+    await bloc.close();
+  });
+
+  test("voice sessions bloc leaves voice and reloads empty list", () async {
+    final bloc = VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+    );
+
+    bloc.add(LeaveVoiceSessionRequested(
+      baseUrl: "http://127.0.0.1:5067",
+      channelId: fixture.listedChannel.id,
+    ));
+    await _waitForBloc();
+
+    expect(bloc.state, isA<VoiceSessionsLoadedState>());
+    expect(bloc.state.voiceSessions, isEmpty);
 
     await bloc.close();
   });
@@ -281,5 +339,57 @@ class FakeMessageRepository implements MessageRepo {
 
     messages[messageIndex] = updatedMessage;
     return Ok<Message>(updatedMessage);
+  }
+}
+
+class FakeVoiceSessionRepository implements VoiceSessionRepo {
+  FakeVoiceSessionRepository({
+    required ChatApiFixture fixture,
+    this.forceLeaveNotFound = false,
+  })  : _sessionsByChannel = <String, List<VoiceSession>>{
+          fixture.listedChannel.id: <VoiceSession>[fixture.listedVoiceSession],
+        },
+        _createdVoiceSession = fixture.createdVoiceSession;
+
+  final bool forceLeaveNotFound;
+  final Map<String, List<VoiceSession>> _sessionsByChannel;
+  final VoiceSession _createdVoiceSession;
+
+  @override
+  Future<Result<VoiceSession>> joinVoiceSession({
+    required String baseUrl,
+    required String channelId,
+  }) async {
+    final voiceSessions =
+        _sessionsByChannel.putIfAbsent(channelId, () => <VoiceSession>[]);
+    voiceSessions.add(_createdVoiceSession);
+
+    return Ok<VoiceSession>(_createdVoiceSession);
+  }
+
+  @override
+  Future<Result<void>> leaveVoiceSession({
+    required String baseUrl,
+    required String channelId,
+  }) async {
+    if (forceLeaveNotFound) {
+      return Error<void>(
+          Exception("Failed to leave voice session: 404 Not found"));
+    }
+
+    _sessionsByChannel[channelId] = <VoiceSession>[];
+
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<List<VoiceSession>>> listVoiceSessions({
+    required String baseUrl,
+    required String channelId,
+  }) async {
+    final voiceSessions = _sessionsByChannel[channelId] ?? <VoiceSession>[];
+
+    return Ok<List<VoiceSession>>(
+        List<VoiceSession>.unmodifiable(voiceSessions));
   }
 }

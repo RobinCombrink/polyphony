@@ -131,6 +131,47 @@ class PolyphonyApiClient implements ChatApi {
     );
   }
 
+  @override
+  Future<Result<List<ApiVoiceSession>>> listVoiceSessions({
+    required String baseUrl,
+    required String channelId,
+  }) {
+    return _performListRequest<ApiVoiceSession>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/voice/sessions",
+      operation: "list voice sessions",
+      decodeItem: ApiVoiceSession.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<ApiVoiceSession>> joinVoiceSession({
+    required String baseUrl,
+    required String channelId,
+  }) {
+    return _performPostRequest<ApiVoiceSession>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/voice/sessions",
+      operation: "join voice session",
+      body: const <String, dynamic>{},
+      expectedStatusCode: 201,
+      decodeItem: ApiVoiceSession.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<void>> leaveVoiceSession({
+    required String baseUrl,
+    required String channelId,
+  }) {
+    return _performDeleteRequest(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/voice/sessions/me",
+      operation: "leave voice session",
+      expectedStatusCode: 204,
+    );
+  }
+
   Map<String, String> _headers() {
     final currentAuthState = _authenticationStateSource.currentAuthState;
 

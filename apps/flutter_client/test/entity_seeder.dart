@@ -11,6 +11,8 @@ class ChatApiFixture {
     required this.createdChannel,
     required this.listedMessage,
     required this.createdMessage,
+    required this.listedVoiceSession,
+    required this.createdVoiceSession,
   });
 
   final String ownerSubject;
@@ -20,6 +22,8 @@ class ChatApiFixture {
   final Channel createdChannel;
   final Message listedMessage;
   final Message createdMessage;
+  final VoiceSession listedVoiceSession;
+  final VoiceSession createdVoiceSession;
 }
 
 class EntitySeeder {
@@ -52,6 +56,14 @@ class EntitySeeder {
       authorSubject: ownerSubject,
       content: "new message",
     );
+    final listedVoiceSession = voiceSession(
+      channelId: listedChannel.id,
+      participantSubject: ownerSubject,
+    );
+    final createdVoiceSession = voiceSession(
+      channelId: listedChannel.id,
+      participantSubject: "auth0|u2",
+    );
 
     return ChatApiFixture(
       ownerSubject: ownerSubject,
@@ -61,6 +73,8 @@ class EntitySeeder {
       createdChannel: createdChannel,
       listedMessage: listedMessage,
       createdMessage: createdMessage,
+      listedVoiceSession: listedVoiceSession,
+      createdVoiceSession: createdVoiceSession,
     );
   }
 
@@ -100,6 +114,16 @@ class EntitySeeder {
     );
   }
 
+  VoiceSession voiceSession({
+    required String channelId,
+    required String participantSubject,
+  }) {
+    return VoiceSession(
+      channelId: channelId,
+      participantSubject: participantSubject,
+    );
+  }
+
   Map<String, dynamic> serverJson(Server server) {
     return <String, dynamic>{
       "id": server.id,
@@ -122,6 +146,13 @@ class EntitySeeder {
       "channel_id": message.channelId,
       "author_subject": message.authorSubject,
       "content": message.content,
+    };
+  }
+
+  Map<String, dynamic> voiceSessionJson(VoiceSession voiceSession) {
+    return <String, dynamic>{
+      "channel_id": voiceSession.channelId,
+      "participant_subject": voiceSession.participantSubject,
     };
   }
 

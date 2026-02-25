@@ -62,3 +62,21 @@ extension DomainMessageToApiExtension on Message {
     );
   }
 }
+
+extension ApiVoiceSessionToDomainExtension on ApiVoiceSession {
+  VoiceSession toDomainModel() {
+    return VoiceSession(
+      channelId: channelId,
+      participantSubject: participantSubject,
+    );
+  }
+}
+
+extension DomainVoiceSessionToApiExtension on VoiceSession {
+  ApiVoiceSession toApiModel() {
+    return ApiVoiceSession(
+      channelId: channelId,
+      participantSubject: participantSubject,
+    );
+  }
+}
