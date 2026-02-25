@@ -9,26 +9,20 @@ use crate::dto::{
     CreateChannelRequest, CreateMessageRequest, CreateServerRequest, HealthResponse, MeResponse,
     UpdateMessageRequest,
 };
-use crate::routes::{
-    health::health,
-    me::me,
-    messages::{create_message, delete_message, list_messages, update_message},
-    servers::{create_channel, create_server, list_channels, list_servers},
-};
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        health,
-        me,
-        create_server,
-        list_servers,
-        create_channel,
-        list_channels,
-        create_message,
-        update_message,
-        delete_message,
-        list_messages
+        crate::routes::health::health,
+        crate::routes::me::me,
+        crate::routes::servers::create_server,
+        crate::routes::servers::list_servers,
+        crate::routes::servers::create_channel,
+        crate::routes::servers::list_channels,
+        crate::routes::messages::create_message,
+        crate::routes::messages::update_message,
+        crate::routes::messages::delete_message,
+        crate::routes::messages::list_messages
     ),
     components(schemas(
         HealthResponse,
