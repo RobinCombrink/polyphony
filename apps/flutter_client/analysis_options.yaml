@@ -2,4 +2,54 @@ include: package:flutter_lints/flutter.yaml
 
 linter:
   rules:
+    always_declare_return_types: true
+    always_put_control_body_on_new_line: true
+    always_use_package_imports: true
+    annotate_overrides: true
+    annotate_redeclares: true
+    avoid_annotating_with_dynamic: true
+    avoid_catches_without_on_clauses: true
+    avoid_catching_errors: true
+    avoid_redundant_argument_values: true
+    avoid_final_parameters: true
+    avoid_types_on_closure_parameters: true
+    avoid_unused_constructor_parameters: true
+    cascade_invocations: true
+    directives_ordering: true
+    discarded_futures: true
+    library_names: true
+    matching_super_parameters: true
+    noop_primitive_operations: true
+    omit_obvious_local_variable_types: true
+    omit_obvious_property_types: true
+    only_throw_errors: true
+    parameter_assignments: true
+    prefer_asserts_in_initializer_lists: true
     prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_declarations: true
+    prefer_const_literals_to_create_immutables: true
+    prefer_double_quotes: true
+    prefer_final_fields: true
+    prefer_final_locals: true
+    prefer_foreach: true
+    simplify_variable_pattern: true
+    sized_box_shrink_expand: true
+    tighten_type_of_initializing_formals: true
+    unawaited_futures: true
+    unnecessary_async: true
+    unnecessary_await_in_return: true
+    unnecessary_breaks: true
+    unnecessary_ignore: true
+    unnecessary_lambdas: true
+    unnecessary_null_aware_operator_on_extension_on_nullable: true
+    unnecessary_null_checks: true
+    unnecessary_unawaited: true
+    use_colored_box: true
+    use_decorated_box: true
+    use_enums: true
+    use_is_even_rather_than_modulo: true
+    use_named_constants: true
+    use_test_throws_matchers: true
+    use_to_and_as_if_applicable: true
+    use_truncating_division: true
