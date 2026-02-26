@@ -36,6 +36,21 @@ Connection info:
 - API key `devkey`
 - API secret `secret`
 
+If web clients fail with ICE timeout (for example `Timed out waiting for PeerConnection to connect`):
+- Restart LiveKit after config changes: `docker compose -f docker-compose.local.yml up -d --force-recreate livekit`
+- Ensure Windows Firewall allows:
+	- UDP `50000-50100`
+	- TCP `7881`
+- Keep `rtc.node_ip` in `livekit.local.yaml` set to `127.0.0.1` for same-machine local development.
+- Set `rtc.enable_loopback_candidate: true` for local browser clients on the same machine.
+- For testing from other machines/devices, set `rtc.node_ip` to your host LAN IP instead of `127.0.0.1`.
+
+If Windows app connects but browser does not:
+- Verify browser and LiveKit are on the same host and LiveKit was recreated after config changes.
+- In browser DevTools, inspect `chrome://webrtc-internals` and confirm remote candidates are `127.0.0.1` (same-host test) or your LAN IP (multi-device test), not Docker bridge IPs.
+
+local dev only works on Chrome at the moment due to local ICE caveat
+
 Runtime env configuration used by backend:
 - `LIVEKIT_URL` (default `ws://127.0.0.1:7880`)
 - `LIVEKIT_API_KEY` (default `devkey`)
