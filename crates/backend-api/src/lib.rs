@@ -20,7 +20,7 @@ use routes::{
     health::health,
     me::me,
     messages::{create_message, delete_message, list_messages, update_message},
-    servers::{create_channel, create_server, list_channels, list_servers},
+    servers::{add_server_member, create_channel, create_server, list_channels, list_servers},
     voice::connect_voice_session,
 };
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -63,6 +63,10 @@ pub fn build_app(state: ApiState) -> Router {
         .route(
             "/api/v1/servers/{server_id}/channels",
             post(create_channel).get(list_channels),
+        )
+        .route(
+            "/api/v1/servers/{server_id}/members",
+            post(add_server_member),
         )
         .route(
             "/api/v1/channels/{channel_id}/messages",

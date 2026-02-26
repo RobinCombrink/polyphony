@@ -30,3 +30,9 @@ Feature: Servers and channels
     Then the response status is 200
     And the response contains exactly 1 channel
     And the listed channel name matches the created channel
+
+  Scenario: Non-owner cannot add a user to a server
+    Given the owner created a server
+    And a different authenticated member exists
+    When the non-owner member adds a user to that server
+    Then the response status is 403

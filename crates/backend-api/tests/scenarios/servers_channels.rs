@@ -1,13 +1,16 @@
 use axum::http::StatusCode;
 use backend_api::build_app;
+use std::sync::Arc;
 
 #[path = "../common.rs"]
 mod common;
 
+use backend_api::storage::InMemoryChatRepository;
 use common::{
     bdd_support::{
-        create_channel, create_server, list_channels, list_servers, response_payload_json,
-        seeded_state,
+        add_server_member, add_server_member_with_token, create_channel, create_server,
+        create_server_with_token, list_channels, list_servers, list_servers_with_token,
+        response_payload_json, seeded_state, seeded_state_with_store,
     },
     entity_seeder::EntitySeeder,
 };
@@ -114,4 +117,139 @@ async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_res
         listed_channels[0]["name"].as_str(),
         Some(fixture.channel.name.as_str())
     );
+}
+
+#[tokio::test]
+async fn given_server_owner_when_add_server_member_then_created_membership_is_returned() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+    let additional_user = entity_seeder.user();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let add_server_member_response =
+        add_server_member(&app, &created_server_id, &additional_user.auth0_subject).await;
+
+    assert_eq!(add_server_member_response.status(), StatusCode::CREATED);
+
+    let add_server_member_payload = response_payload_json(add_server_member_response).await;
+    assert_eq!(
+        add_server_member_payload["server_id"].as_str(),
+        Some(created_server_id.as_str())
+    );
+    assert_eq!(
+        add_server_member_payload["user_subject"].as_str(),
+        Some(additional_user.auth0_subject.as_str())
+    );
+}
+
+#[tokio::test]
+async fn given_server_with_added_member_when_member_lists_servers_then_server_is_in_response() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+    let additional_user = entity_seeder.user();
+
+    let shared_store = Arc::new(InMemoryChatRepository::new());
+
+    let owner_state = seeded_state_with_store(
+        &fixture.user.auth0_subject,
+        "owner-token",
+        shared_store.clone(),
+    );
+    let owner_app = build_app(owner_state);
+
+    let member_state =
+        seeded_state_with_store(&additional_user.auth0_subject, "member-token", shared_store);
+    let member_app = build_app(member_state);
+
+    let create_server_response =
+        create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await;
+    assert_eq!(create_server_response.status(), StatusCode::CREATED);
+
+    let create_server_payload = response_payload_json(create_server_response).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let add_member_response = add_server_member_with_token(
+        &owner_app,
+        &created_server_id,
+        &additional_user.auth0_subject,
+        "owner-token",
+    )
+    .await;
+    assert_eq!(add_member_response.status(), StatusCode::CREATED);
+
+    let list_servers_response = list_servers_with_token(&member_app, "member-token").await;
+    assert_eq!(list_servers_response.status(), StatusCode::OK);
+
+    let list_servers_payload = response_payload_json(list_servers_response).await;
+    let listed_servers = list_servers_payload
+        .as_array()
+        .expect("server list payload to be array");
+
+    assert_eq!(listed_servers.len(), 1);
+    assert_eq!(
+        listed_servers[0]["id"].as_str(),
+        Some(created_server_id.as_str())
+    );
+}
+
+#[tokio::test]
+async fn given_non_owner_when_add_server_member_then_status_is_403() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+    let existing_member = entity_seeder.user();
+    let target_user = entity_seeder.user();
+
+    let shared_store = Arc::new(InMemoryChatRepository::new());
+
+    let owner_state = seeded_state_with_store(
+        &fixture.user.auth0_subject,
+        "owner-token",
+        shared_store.clone(),
+    );
+    let owner_app = build_app(owner_state);
+
+    let member_state =
+        seeded_state_with_store(&existing_member.auth0_subject, "member-token", shared_store);
+    let member_app = build_app(member_state);
+
+    let create_server_response =
+        create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await;
+    assert_eq!(create_server_response.status(), StatusCode::CREATED);
+
+    let create_server_payload = response_payload_json(create_server_response).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let add_owner_member_response = add_server_member_with_token(
+        &owner_app,
+        &created_server_id,
+        &existing_member.auth0_subject,
+        "owner-token",
+    )
+    .await;
+    assert_eq!(add_owner_member_response.status(), StatusCode::CREATED);
+
+    let non_owner_add_response = add_server_member_with_token(
+        &member_app,
+        &created_server_id,
+        &target_user.auth0_subject,
+        "member-token",
+    )
+    .await;
+
+    assert_eq!(non_owner_add_response.status(), StatusCode::FORBIDDEN);
 }

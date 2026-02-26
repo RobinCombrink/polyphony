@@ -96,6 +96,36 @@ pub(crate) async fn create_channel_with_token(
         .expect("create channel response from app")
 }
 
+pub(crate) async fn add_server_member(
+    app: &axum::Router,
+    server_id: &str,
+    user_subject: &str,
+) -> axum::response::Response {
+    add_server_member_with_token(app, server_id, user_subject, "valid-token").await
+}
+
+pub(crate) async fn add_server_member_with_token(
+    app: &axum::Router,
+    server_id: &str,
+    user_subject: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/servers/{server_id}/members"))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "user_subject": user_subject }).to_string(),
+                ))
+                .expect("add server member request to be valid"),
+        )
+        .await
+        .expect("add server member response from app")
+}
+
 pub(crate) async fn create_message(
     app: &axum::Router,
     channel_id: &str,
@@ -206,11 +236,18 @@ pub(crate) async fn list_messages(
 }
 
 pub(crate) async fn list_servers(app: &axum::Router) -> axum::response::Response {
+    list_servers_with_token(app, "valid-token").await
+}
+
+pub(crate) async fn list_servers_with_token(
+    app: &axum::Router,
+    bearer_token: &str,
+) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
                 .uri("/api/v1/servers")
-                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .body(Body::empty())
                 .expect("list servers request to be valid"),
         )
@@ -230,7 +267,6 @@ pub(crate) async fn list_channels(app: &axum::Router, server_id: &str) -> axum::
         .await
         .expect("list channels response from app")
 }
-
 
 pub(crate) async fn connect_voice_session(
     app: &axum::Router,
@@ -256,7 +292,6 @@ pub(crate) async fn connect_voice_session_with_token(
         .await
         .expect("connect voice session response from app")
 }
-
 
 pub(crate) async fn response_payload_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(

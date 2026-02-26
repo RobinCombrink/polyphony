@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, Message, Server, VoiceSession};
+use backend_domain::{Channel, Membership, Message, Server, VoiceSession};
 
 use crate::MutationResult;
 
@@ -7,6 +7,13 @@ use crate::MutationResult;
 pub trait ChatRepository: Send + Sync {
     async fn create_server(&self, name: String, owner_subject: String) -> Server;
     async fn list_servers_for_user(&self, owner_subject: &str) -> Vec<Server>;
+    async fn add_server_member(
+        &self,
+        server_id: &str,
+        actor_subject: &str,
+        user_subject: String,
+    ) -> MutationResult;
+    async fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>>;
     async fn create_channel(&self, server_id: &str, name: String) -> Option<Channel>;
     async fn list_channels_for_server(&self, server_id: &str) -> Option<Vec<Channel>>;
     async fn create_message(

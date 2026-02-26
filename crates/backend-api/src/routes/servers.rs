@@ -4,12 +4,13 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_domain::{Channel, Server};
+use backend_domain::{Channel, Membership, Server};
+use backend_storage::MutationResult;
 
 use crate::{
     ApiState,
     auth::AuthenticatedUser,
-    dto::{CreateChannelRequest, CreateServerRequest},
+    dto::{AddServerMemberRequest, CreateChannelRequest, CreateServerRequest},
 };
 
 #[utoipa::path(
@@ -56,6 +57,50 @@ pub(crate) async fn list_servers(
         .await;
 
     (StatusCode::OK, Json(servers))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/servers/{server_id}/members",
+    request_body = AddServerMemberRequest,
+    responses(
+        (status = 201, description = "Server member added", body = Membership),
+        (status = 403, description = "Only server owner can add members"),
+        (status = 404, description = "Server not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("server_id" = String, Path, description = "Server id")),
+    tag = "backend-api"
+)]
+pub(crate) async fn add_server_member(
+    State(state): State<ApiState>,
+    authenticated_user: AuthenticatedUser,
+    Path(server_id): Path<String>,
+    Json(request): Json<AddServerMemberRequest>,
+) -> impl IntoResponse {
+    let mutation_result = state
+        .store
+        .add_server_member(
+            &server_id,
+            &authenticated_user.subject,
+            request.user_subject.clone(),
+        )
+        .await;
+
+    match mutation_result {
+        MutationResult::Updated => (
+            StatusCode::CREATED,
+            Json(Membership {
+                user_subject: request.user_subject,
+                server_id,
+            }),
+        )
+            .into_response(),
+        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
+        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
+        MutationResult::Deleted => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 #[utoipa::path(

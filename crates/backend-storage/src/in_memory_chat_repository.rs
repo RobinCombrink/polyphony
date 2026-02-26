@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, Message, Server, VoiceSession};
+use backend_domain::{Channel, Membership, Message, Server, VoiceSession};
 use tokio::sync::RwLock;
 
 use crate::{ChatRepository, InMemoryStore, MutationResult};
@@ -29,9 +29,29 @@ impl ChatRepository for InMemoryChatRepository {
         store
             .servers
             .values()
-            .filter(|server| server.owner_subject == owner_subject)
+            .filter(|server| {
+                store
+                    .server_members_by_id
+                    .get(&server.id)
+                    .is_some_and(|members| members.iter().any(|subject| subject == owner_subject))
+            })
             .cloned()
             .collect::<Vec<_>>()
+    }
+
+    async fn add_server_member(
+        &self,
+        server_id: &str,
+        actor_subject: &str,
+        user_subject: String,
+    ) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.add_server_member(server_id, actor_subject, user_subject)
+    }
+
+    async fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>> {
+        let store = self.store.read().await;
+        store.list_server_members(server_id)
     }
 
     async fn create_channel(&self, server_id: &str, name: String) -> Option<Channel> {

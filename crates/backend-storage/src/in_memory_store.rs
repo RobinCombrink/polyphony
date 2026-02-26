@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use backend_domain::{Channel, Message, Server, VoiceSession};
+use backend_domain::{Channel, Membership, Message, Server, VoiceSession};
 
 use crate::MutationResult;
 
@@ -10,6 +10,7 @@ pub(crate) struct InMemoryStore {
     pub(crate) next_channel_id: u64,
     pub(crate) next_message_id: u64,
     pub(crate) servers: HashMap<String, Server>,
+    pub(crate) server_members_by_id: HashMap<String, Vec<String>>,
     pub(crate) channels: HashMap<String, Channel>,
     pub(crate) messages_by_channel: HashMap<String, Vec<Message>>,
     pub(crate) voice_participants_by_channel: HashMap<String, Vec<String>>,
@@ -21,11 +22,62 @@ impl InMemoryStore {
         let server = Server {
             id: format!("srv-{}", self.next_server_id),
             name,
-            owner_subject,
+            owner_subject: owner_subject.clone(),
         };
 
         self.servers.insert(server.id.clone(), server.clone());
+        self.server_members_by_id
+            .insert(server.id.clone(), vec![owner_subject]);
         server
+    }
+
+    pub(crate) fn add_server_member(
+        &mut self,
+        server_id: &str,
+        actor_subject: &str,
+        user_subject: String,
+    ) -> MutationResult {
+        let server = match self.servers.get(server_id) {
+            Some(existing_server) => existing_server,
+            None => return MutationResult::NotFound,
+        };
+
+        if server.owner_subject != actor_subject {
+            return MutationResult::Forbidden;
+        }
+
+        let members = self
+            .server_members_by_id
+            .entry(server_id.to_owned())
+            .or_insert_with(|| vec![server.owner_subject.clone()]);
+
+        if !members.contains(&user_subject) {
+            members.push(user_subject);
+        }
+
+        MutationResult::Updated
+    }
+
+    pub(crate) fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>> {
+        if !self.servers.contains_key(server_id) {
+            return None;
+        }
+
+        let members = self
+            .server_members_by_id
+            .get(server_id)
+            .map(|subjects| {
+                subjects
+                    .iter()
+                    .map(|user_subject| Membership {
+                        user_subject: user_subject.clone(),
+                        server_id: server_id.to_owned(),
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        Some(members)
     }
 
     pub(crate) fn create_channel(&mut self, server_id: &str, name: String) -> Option<Channel> {

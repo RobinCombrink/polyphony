@@ -1,3 +1,4 @@
+mod add_server_member_request;
 mod create_channel_request;
 mod create_message_request;
 mod create_server_request;
@@ -6,6 +7,7 @@ mod me_response;
 mod update_message_request;
 mod voice_connect_response;
 
+pub use add_server_member_request::AddServerMemberRequest;
 pub use create_channel_request::CreateChannelRequest;
 pub use create_message_request::CreateMessageRequest;
 pub use create_server_request::CreateServerRequest;
