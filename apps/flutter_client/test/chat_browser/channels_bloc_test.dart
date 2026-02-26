@@ -1,0 +1,127 @@
+import "package:bloc_test/bloc_test.dart";
+import "package:flutter_test/flutter_test.dart";
+import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
+
+import "../entity_seeder.dart";
+import "test_doubles/chat_repository_fakes.dart";
+
+void main() {
+  final fixture = EntitySeeder().chatApiFixture();
+
+  blocTest<ChannelsBloc, ChannelsState>(
+    "emits validation failed when server not selected",
+    build: () => ChannelsBloc(
+      channelRepo: FakeChannelRepository(fixture: fixture),
+    ),
+    act: (bloc) {
+      bloc.add(LoadChannelsRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverId: fixture.listedServer.id,
+      ));
+      bloc.add(const CreateChannelRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverId: "",
+        channelName: "channel",
+      ));
+    },
+    expect: () => <Matcher>[
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>(),
+      isA<ChannelsValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        ChannelsValidationIssue.serverSelectionRequired,
+      ),
+    ],
+  );
+
+  blocTest<ChannelsBloc, ChannelsState>(
+    "loads channels for selected server",
+    build: () => ChannelsBloc(
+      channelRepo: FakeChannelRepository(fixture: fixture),
+    ),
+    act: (bloc) => bloc.add(
+      LoadChannelsRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverId: fixture.listedServer.id,
+      ),
+    ),
+    expect: () => <Matcher>[
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>().having(
+        (state) => state.channels.length,
+        "channels length",
+        1,
+      ),
+    ],
+  );
+
+  blocTest<ChannelsBloc, ChannelsState>(
+    "selects text channel from loaded state",
+    build: () => ChannelsBloc(
+      channelRepo: FakeChannelRepository(fixture: fixture),
+    ),
+    act: (bloc) {
+      bloc.add(LoadChannelsRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverId: fixture.listedServer.id,
+      ));
+      bloc.add(SelectTextChannelRequested(channelId: fixture.listedChannel.id));
+    },
+    expect: () => <Matcher>[
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>(),
+      isA<ChannelsLoadedState>()
+          .having(
+            (state) => state.selectedTextChannelId,
+            "selected text channel",
+            fixture.listedChannel.id,
+          )
+          .having(
+            (state) => state.selectionMode,
+            "selection mode",
+            ChannelSelectionMode.text,
+          ),
+    ],
+  );
+
+  blocTest<ChannelsBloc, ChannelsState>(
+    "selects voice channel from loaded state",
+    build: () => ChannelsBloc(
+      channelRepo: FakeChannelRepository(fixture: fixture),
+    ),
+    act: (bloc) {
+      bloc.add(LoadChannelsRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverId: fixture.listedServer.id,
+      ));
+      bloc
+          .add(SelectVoiceChannelRequested(channelId: fixture.listedChannel.id));
+    },
+    expect: () => <Matcher>[
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>(),
+      isA<ChannelsLoadedState>()
+          .having(
+            (state) => state.selectedVoiceChannelId,
+            "selected voice channel",
+            fixture.listedChannel.id,
+          )
+          .having(
+            (state) => state.selectionMode,
+            "selection mode",
+            ChannelSelectionMode.voice,
+          ),
+    ],
+  );
+
+  blocTest<ChannelsBloc, ChannelsState>(
+    "ignores channel selection before loaded",
+    build: () => ChannelsBloc(
+      channelRepo: FakeChannelRepository(fixture: fixture),
+    ),
+    act: (bloc) =>
+        bloc.add(SelectTextChannelRequested(channelId: fixture.listedChannel.id)),
+    expect: () => <Matcher>[],
+  );
+}
