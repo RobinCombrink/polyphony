@@ -27,7 +27,8 @@ void main() {
     await _waitForBloc();
 
     expect(bloc.state, isA<ServersLoadedState>());
-    expect(bloc.state.servers.length, 1);
+    final loadedState = bloc.state as ServersLoadedState;
+    expect(loadedState.servers.length, 1);
 
     await bloc.close();
   });
@@ -36,6 +37,9 @@ void main() {
     final bloc = ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),
     );
+
+    bloc.add(const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"));
+    await _waitForBloc();
 
     bloc.add(const CreateServerRequested(
       baseUrl: "http://127.0.0.1:5067",
@@ -55,6 +59,12 @@ void main() {
     final bloc = ChannelsBloc(
       channelRepo: FakeChannelRepository(fixture: fixture),
     );
+
+    bloc.add(LoadChannelsRequested(
+      baseUrl: "http://127.0.0.1:5067",
+      serverId: fixture.listedServer.id,
+    ));
+    await _waitForBloc();
 
     bloc.add(const CreateChannelRequested(
       baseUrl: "http://127.0.0.1:5067",
@@ -85,7 +95,8 @@ void main() {
     await _waitForBloc();
 
     expect(bloc.state, isA<ChannelsLoadedState>());
-    expect(bloc.state.channels.length, 1);
+    final loadedState = bloc.state as ChannelsLoadedState;
+    expect(loadedState.channels.length, 1);
 
     await bloc.close();
   });
@@ -110,7 +121,8 @@ void main() {
     await _waitForBloc();
 
     expect(bloc.state, isA<MessagesLoadedState>());
-    expect(bloc.state.messages.first.content, "edited");
+    final loadedState = bloc.state as MessagesLoadedState;
+    expect(loadedState.messages.first.content, "edited");
 
     await bloc.close();
   });
@@ -122,6 +134,12 @@ void main() {
         forceDeleteNotFound: true,
       ),
     );
+
+    bloc.add(LoadMessagesRequested(
+      baseUrl: "http://127.0.0.1:5067",
+      channelId: fixture.listedChannel.id,
+    ));
+    await _waitForBloc();
 
     bloc.add(DeleteMessageRequested(
       baseUrl: "http://127.0.0.1:5067",
@@ -152,7 +170,8 @@ void main() {
     await _waitForBloc();
 
     expect(bloc.state, isA<VoiceSessionsLoadedState>());
-    expect(bloc.state.voiceSessions.length, 1);
+    final loadedState = bloc.state as VoiceSessionsLoadedState;
+    expect(loadedState.voiceSessions.length, 1);
 
     await bloc.close();
   });
@@ -162,6 +181,12 @@ void main() {
     final bloc = VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
     );
+
+    bloc.add(LoadVoiceSessionsRequested(
+      baseUrl: "http://127.0.0.1:5067",
+      channelId: fixture.listedChannel.id,
+    ));
+    await _waitForBloc();
 
     bloc.add(const JoinVoiceSessionRequested(
       baseUrl: "http://127.0.0.1:5067",
@@ -184,6 +209,12 @@ void main() {
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
     );
 
+    bloc.add(LoadVoiceSessionsRequested(
+      baseUrl: "http://127.0.0.1:5067",
+      channelId: fixture.listedChannel.id,
+    ));
+    await _waitForBloc();
+
     bloc.add(LeaveVoiceSessionRequested(
       baseUrl: "http://127.0.0.1:5067",
       channelId: fixture.listedChannel.id,
@@ -191,7 +222,8 @@ void main() {
     await _waitForBloc();
 
     expect(bloc.state, isA<VoiceSessionsLoadedState>());
-    expect(bloc.state.voiceSessions, isEmpty);
+    final loadedState = bloc.state as VoiceSessionsLoadedState;
+    expect(loadedState.voiceSessions, isEmpty);
 
     await bloc.close();
   });

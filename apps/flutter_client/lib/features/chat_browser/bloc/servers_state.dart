@@ -5,39 +5,46 @@ enum ServersValidationIssue {
 }
 
 sealed class ServersState {
-  const ServersState({required this.servers});
-
-  final List<Server> servers;
-
-  bool get isLoading => this is ServersLoadingState;
+  const ServersState();
 }
 
 final class ServersInitialState extends ServersState {
-  const ServersInitialState() : super(servers: const <Server>[]);
+  const ServersInitialState();
 }
 
 final class ServersLoadingState extends ServersState {
-  const ServersLoadingState({required super.servers});
+  const ServersLoadingState();
 }
 
-final class ServersLoadedState extends ServersState {
-  const ServersLoadedState({required super.servers});
+sealed class ServersLoadedDataState extends ServersState {
+  const ServersLoadedDataState({
+    required this.servers,
+    required this.selectedServerId,
+  });
+
+  final List<Server> servers;
+  final String? selectedServerId;
 }
 
-final class ServersValidationFailedState extends ServersState {
+final class ServersLoadedState extends ServersLoadedDataState {
+  const ServersLoadedState({
+    required super.servers,
+    required super.selectedServerId,
+  });
+}
+
+final class ServersValidationFailedState extends ServersLoadedDataState {
   const ServersValidationFailedState({
     required this.issue,
     required super.servers,
+    required super.selectedServerId,
   });
 
   final ServersValidationIssue issue;
 }
 
 final class ServersExceptionState extends ServersState {
-  const ServersExceptionState({
-    required this.error,
-    required super.servers,
-  });
+  const ServersExceptionState({required this.error});
 
   final Exception error;
 }

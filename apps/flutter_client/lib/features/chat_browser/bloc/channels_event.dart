@@ -29,3 +29,15 @@ final class CreateChannelRequested extends ChannelsEvent {
   final String serverId;
   final String channelName;
 }
+
+final class SelectTextChannelRequested extends ChannelsEvent {
+  const SelectTextChannelRequested({required this.channelId});
+
+  final String channelId;
+}
+
+final class SelectVoiceChannelRequested extends ChannelsEvent {
+  const SelectVoiceChannelRequested({required this.channelId});
+
+  final String channelId;
+}

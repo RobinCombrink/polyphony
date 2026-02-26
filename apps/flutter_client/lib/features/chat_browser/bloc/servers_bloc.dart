@@ -13,6 +13,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
         super(const ServersInitialState()) {
     on<LoadServersRequested>(_onLoadServersRequested);
     on<CreateServerRequested>(_onCreateServerRequested);
+    on<SelectServerRequested>(_onSelectServerRequested);
   }
 
   final ServerRepo _serverRepo;
@@ -21,7 +22,9 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     LoadServersRequested event,
     Emitter<ServersState> emit,
   ) async {
-    emit(ServersLoadingState(servers: state.servers));
+    final previousLoadedState = _loadedStateOrNull(state);
+
+    emit(const ServersLoadingState());
 
     final listServersResult = await _serverRepo.listServers(
       baseUrl: event.baseUrl.trim(),
@@ -29,9 +32,18 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
 
     switch (listServersResult) {
       case Ok<List<Server>>(:final value):
-        emit(ServersLoadedState(servers: value));
+        final selectedServerId = value.any(
+          (server) => server.id == previousLoadedState?.selectedServerId,
+        )
+            ? previousLoadedState?.selectedServerId
+            : null;
+
+        emit(ServersLoadedState(
+          servers: value,
+          selectedServerId: selectedServerId,
+        ));
       case Error<List<Server>>(:final error):
-        emit(ServersExceptionState(error: error, servers: state.servers));
+        emit(ServersExceptionState(error: error));
     }
   }
 
@@ -40,16 +52,25 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     Emitter<ServersState> emit,
   ) async {
     final trimmedServerName = event.serverName.trim();
+    final loadedState = _loadedStateOrNull(state);
 
     if (trimmedServerName.isEmpty) {
+      if (loadedState == null) {
+        emit(ServersExceptionState(
+          error: Exception("Servers must be loaded before creating a server."),
+        ));
+        return;
+      }
+
       emit(ServersValidationFailedState(
         issue: ServersValidationIssue.serverNameRequired,
-        servers: state.servers,
+        servers: loadedState.servers,
+        selectedServerId: loadedState.selectedServerId,
       ));
       return;
     }
 
-    emit(ServersLoadingState(servers: state.servers));
+    emit(const ServersLoadingState());
 
     final createServerResult = await _serverRepo.createServer(
       baseUrl: event.baseUrl.trim(),
@@ -57,18 +78,56 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     );
 
     switch (createServerResult) {
-      case Ok<Server>():
+      case Ok<Server>(:final value):
+        final createdServer = value;
         final listServersResult = await _serverRepo.listServers(
           baseUrl: event.baseUrl.trim(),
         );
         switch (listServersResult) {
           case Ok<List<Server>>(:final value):
-            emit(ServersLoadedState(servers: value));
+            final servers = value;
+            emit(ServersLoadedState(
+              servers: servers,
+              selectedServerId: servers.any(
+                (server) => server.id == createdServer.id,
+              )
+                  ? createdServer.id
+                  : null,
+            ));
           case Error<List<Server>>(:final error):
-            emit(ServersExceptionState(error: error, servers: state.servers));
+            emit(ServersExceptionState(error: error));
         }
       case Error<Server>(:final error):
-        emit(ServersExceptionState(error: error, servers: state.servers));
+        emit(ServersExceptionState(error: error));
     }
+  }
+
+  void _onSelectServerRequested(
+    SelectServerRequested event,
+    Emitter<ServersState> emit,
+  ) {
+    final loadedState = _loadedStateOrNull(state);
+    if (loadedState == null) {
+      return;
+    }
+
+    final trimmedServerId = event.serverId.trim();
+    final selectedServerId = loadedState.servers.any(
+      (server) => server.id == trimmedServerId,
+    )
+        ? trimmedServerId
+        : null;
+
+    emit(ServersLoadedState(
+      servers: loadedState.servers,
+      selectedServerId: selectedServerId,
+    ));
+  }
+
+  ServersLoadedDataState? _loadedStateOrNull(ServersState state) {
+    return switch (state) {
+      ServersLoadedDataState() => state,
+      _ => null,
+    };
   }
 }

@@ -5,37 +5,36 @@ enum VoiceSessionsValidationIssue {
 }
 
 sealed class VoiceSessionsState {
-  const VoiceSessionsState({
+  const VoiceSessionsState();
+}
+
+final class VoiceSessionsInitialState extends VoiceSessionsState {
+  const VoiceSessionsInitialState();
+}
+
+final class VoiceSessionsLoadingState extends VoiceSessionsState {
+  const VoiceSessionsLoadingState();
+}
+
+sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
+  const VoiceSessionsLoadedDataState({
     required this.voiceSessions,
     required this.channelId,
   });
 
   final List<VoiceSession> voiceSessions;
-  final String? channelId;
-
-  bool get isLoading => this is VoiceSessionsLoadingState;
+  final String channelId;
 }
 
-final class VoiceSessionsInitialState extends VoiceSessionsState {
-  const VoiceSessionsInitialState()
-      : super(voiceSessions: const <VoiceSession>[], channelId: null);
-}
-
-final class VoiceSessionsLoadingState extends VoiceSessionsState {
-  const VoiceSessionsLoadingState({
-    required super.voiceSessions,
-    required super.channelId,
-  });
-}
-
-final class VoiceSessionsLoadedState extends VoiceSessionsState {
+final class VoiceSessionsLoadedState extends VoiceSessionsLoadedDataState {
   const VoiceSessionsLoadedState({
     required super.voiceSessions,
     required super.channelId,
   });
 }
 
-final class VoiceSessionsValidationFailedState extends VoiceSessionsState {
+final class VoiceSessionsValidationFailedState
+    extends VoiceSessionsLoadedDataState {
   const VoiceSessionsValidationFailedState({
     required this.issue,
     required super.voiceSessions,
@@ -46,11 +45,7 @@ final class VoiceSessionsValidationFailedState extends VoiceSessionsState {
 }
 
 final class VoiceSessionsExceptionState extends VoiceSessionsState {
-  const VoiceSessionsExceptionState({
-    required this.error,
-    required super.voiceSessions,
-    required super.channelId,
-  });
+  const VoiceSessionsExceptionState({required this.error});
 
   final Exception error;
 }

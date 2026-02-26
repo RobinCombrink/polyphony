@@ -14,6 +14,8 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     on<ResetChannelsRequested>(_onResetChannelsRequested);
     on<LoadChannelsRequested>(_onLoadChannelsRequested);
     on<CreateChannelRequested>(_onCreateChannelRequested);
+    on<SelectTextChannelRequested>(_onSelectTextChannelRequested);
+    on<SelectVoiceChannelRequested>(_onSelectVoiceChannelRequested);
   }
 
   final ChannelRepo _channelRepo;
@@ -30,20 +32,28 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     Emitter<ChannelsState> emit,
   ) async {
     final trimmedServerId = event.serverId.trim();
+    final loadedState = _loadedStateOrNull(state);
 
     if (trimmedServerId.isEmpty) {
+      if (loadedState == null) {
+        emit(ChannelsExceptionState(
+          error: Exception("Channels must be loaded before validation."),
+        ));
+        return;
+      }
+
       emit(ChannelsValidationFailedState(
         issue: ChannelsValidationIssue.serverSelectionRequired,
-        channels: state.channels,
-        serverId: state.serverId,
+        channels: loadedState.channels,
+        serverId: loadedState.serverId,
+        selectedTextChannelId: loadedState.selectedTextChannelId,
+        selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
+        selectionMode: loadedState.selectionMode,
       ));
       return;
     }
 
-    emit(ChannelsLoadingState(
-      channels: state.channels,
-      serverId: trimmedServerId,
-    ));
+    emit(const ChannelsLoadingState());
 
     final listChannelsResult = await _channelRepo.listChannels(
       baseUrl: event.baseUrl.trim(),
@@ -52,13 +62,15 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
 
     switch (listChannelsResult) {
       case Ok<List<Channel>>(:final value):
-        emit(ChannelsLoadedState(channels: value, serverId: trimmedServerId));
-      case Error<List<Channel>>(:final error):
-        emit(ChannelsExceptionState(
-          error: error,
-          channels: state.channels,
-          serverId: state.serverId,
+        emit(ChannelsLoadedState(
+          channels: value,
+          serverId: trimmedServerId,
+          selectedTextChannelId: null,
+          selectedVoiceChannelId: null,
+          selectionMode: ChannelSelectionMode.text,
         ));
+      case Error<List<Channel>>(:final error):
+        emit(ChannelsExceptionState(error: error));
     }
   }
 
@@ -68,12 +80,23 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
   ) async {
     final trimmedServerId = event.serverId.trim();
     final trimmedChannelName = event.channelName.trim();
+    final loadedState = _loadedStateOrNull(state);
+
+    if (loadedState == null) {
+      emit(ChannelsExceptionState(
+        error: Exception("Channels must be loaded before creating a channel."),
+      ));
+      return;
+    }
 
     if (trimmedServerId.isEmpty) {
       emit(ChannelsValidationFailedState(
         issue: ChannelsValidationIssue.serverSelectionRequired,
-        channels: state.channels,
-        serverId: state.serverId,
+        channels: loadedState.channels,
+        serverId: loadedState.serverId,
+        selectedTextChannelId: loadedState.selectedTextChannelId,
+        selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
+        selectionMode: loadedState.selectionMode,
       ));
       return;
     }
@@ -81,16 +104,16 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     if (trimmedChannelName.isEmpty) {
       emit(ChannelsValidationFailedState(
         issue: ChannelsValidationIssue.channelNameRequired,
-        channels: state.channels,
+        channels: loadedState.channels,
         serverId: trimmedServerId,
+        selectedTextChannelId: loadedState.selectedTextChannelId,
+        selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
+        selectionMode: loadedState.selectionMode,
       ));
       return;
     }
 
-    emit(ChannelsLoadingState(
-      channels: state.channels,
-      serverId: trimmedServerId,
-    ));
+    emit(const ChannelsLoadingState());
 
     final createChannelResult = await _channelRepo.createChannel(
       baseUrl: event.baseUrl.trim(),
@@ -99,30 +122,87 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     );
 
     switch (createChannelResult) {
-      case Ok<Channel>():
+      case Ok<Channel>(:final value):
+        final createdChannel = value;
         final listChannelsResult = await _channelRepo.listChannels(
           baseUrl: event.baseUrl.trim(),
           serverId: trimmedServerId,
         );
         switch (listChannelsResult) {
           case Ok<List<Channel>>(:final value):
+            final channels = value;
             emit(ChannelsLoadedState(
-              channels: value,
+              channels: channels,
               serverId: trimmedServerId,
+              selectedTextChannelId:
+                  channels.any((channel) => channel.id == createdChannel.id)
+                      ? createdChannel.id
+                      : null,
+              selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
+              selectionMode: ChannelSelectionMode.text,
             ));
           case Error<List<Channel>>(:final error):
-            emit(ChannelsExceptionState(
-              error: error,
-              channels: state.channels,
-              serverId: state.serverId,
-            ));
+            emit(ChannelsExceptionState(error: error));
         }
       case Error<Channel>(:final error):
-        emit(ChannelsExceptionState(
-          error: error,
-          channels: state.channels,
-          serverId: state.serverId,
-        ));
+        emit(ChannelsExceptionState(error: error));
     }
+  }
+
+  void _onSelectTextChannelRequested(
+    SelectTextChannelRequested event,
+    Emitter<ChannelsState> emit,
+  ) {
+    final loadedState = _loadedStateOrNull(state);
+    if (loadedState == null) {
+      return;
+    }
+
+    final trimmedChannelId = event.channelId.trim();
+    final selectedTextChannelId = loadedState.channels.any(
+      (channel) => channel.id == trimmedChannelId,
+    )
+        ? trimmedChannelId
+        : null;
+
+    emit(ChannelsLoadedState(
+      channels: loadedState.channels,
+      serverId: loadedState.serverId,
+      selectedTextChannelId: selectedTextChannelId,
+      selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
+      selectionMode: ChannelSelectionMode.text,
+    ));
+  }
+
+  void _onSelectVoiceChannelRequested(
+    SelectVoiceChannelRequested event,
+    Emitter<ChannelsState> emit,
+  ) {
+    final loadedState = _loadedStateOrNull(state);
+    if (loadedState == null) {
+      return;
+    }
+
+    final trimmedChannelId = event.channelId.trim();
+    final selectedVoiceChannelId = loadedState.channels.any(
+      (channel) => channel.id == trimmedChannelId,
+    )
+        ? trimmedChannelId
+        : null;
+
+    emit(ChannelsLoadedState(
+      channels: loadedState.channels,
+      serverId: loadedState.serverId,
+      selectedTextChannelId: loadedState.selectedTextChannelId,
+      selectedVoiceChannelId: selectedVoiceChannelId,
+      selectionMode: ChannelSelectionMode.voice,
+    ));
+  }
+
+  ChannelsLoadedDataState? _loadedStateOrNull(ChannelsState state) {
+    return switch (state) {
+      ChannelsLoadedDataState() => state,
+      _ => null,
+    };
   }
 }

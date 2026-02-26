@@ -32,20 +32,25 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     Emitter<MessagesState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
+    final loadedState = _loadedStateOrNull(state);
 
     if (trimmedChannelId.isEmpty) {
+      if (loadedState == null) {
+        emit(MessagesExceptionState(
+          error: Exception("Messages must be loaded before validation."),
+        ));
+        return;
+      }
+
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.channelSelectionRequired,
-        messages: state.messages,
-        channelId: state.channelId,
+        messages: loadedState.messages,
+        channelId: loadedState.channelId,
       ));
       return;
     }
 
-    emit(MessagesLoadingState(
-      messages: state.messages,
-      channelId: trimmedChannelId,
-    ));
+    emit(const MessagesLoadingState());
 
     final listMessagesResult = await _messageRepo.listMessages(
       baseUrl: event.baseUrl.trim(),
@@ -56,11 +61,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
       case Ok<List<Message>>(:final value):
         emit(MessagesLoadedState(messages: value, channelId: trimmedChannelId));
       case Error<List<Message>>(:final error):
-        emit(MessagesExceptionState(
-          error: error,
-          messages: state.messages,
-          channelId: state.channelId,
-        ));
+        emit(MessagesExceptionState(error: error));
     }
   }
 
@@ -70,12 +71,20 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
   ) async {
     final trimmedChannelId = event.channelId.trim();
     final trimmedMessageContent = event.messageContent.trim();
+    final loadedState = _loadedStateOrNull(state);
+
+    if (loadedState == null) {
+      emit(MessagesExceptionState(
+        error: Exception("Messages must be loaded before creating a message."),
+      ));
+      return;
+    }
 
     if (trimmedChannelId.isEmpty) {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.channelSelectionRequired,
-        messages: state.messages,
-        channelId: state.channelId,
+        messages: loadedState.messages,
+        channelId: loadedState.channelId,
       ));
       return;
     }
@@ -83,16 +92,13 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     if (trimmedMessageContent.isEmpty) {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.messageContentRequired,
-        messages: state.messages,
+        messages: loadedState.messages,
         channelId: trimmedChannelId,
       ));
       return;
     }
 
-    emit(MessagesLoadingState(
-      messages: state.messages,
-      channelId: trimmedChannelId,
-    ));
+    emit(const MessagesLoadingState());
 
     final createMessageResult = await _messageRepo.createMessage(
       baseUrl: event.baseUrl.trim(),
@@ -113,18 +119,10 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
               channelId: trimmedChannelId,
             ));
           case Error<List<Message>>(:final error):
-            emit(MessagesExceptionState(
-              error: error,
-              messages: state.messages,
-              channelId: state.channelId,
-            ));
+            emit(MessagesExceptionState(error: error));
         }
       case Error<Message>(:final error):
-        emit(MessagesExceptionState(
-          error: error,
-          messages: state.messages,
-          channelId: state.channelId,
-        ));
+        emit(MessagesExceptionState(error: error));
     }
   }
 
@@ -134,12 +132,20 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
   ) async {
     final trimmedChannelId = event.channelId.trim();
     final trimmedMessageContent = event.messageContent.trim();
+    final loadedState = _loadedStateOrNull(state);
+
+    if (loadedState == null) {
+      emit(MessagesExceptionState(
+        error: Exception("Messages must be loaded before updating a message."),
+      ));
+      return;
+    }
 
     if (trimmedChannelId.isEmpty) {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.channelSelectionRequired,
-        messages: state.messages,
-        channelId: state.channelId,
+        messages: loadedState.messages,
+        channelId: loadedState.channelId,
       ));
       return;
     }
@@ -147,16 +153,13 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     if (trimmedMessageContent.isEmpty) {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.updatedContentRequired,
-        messages: state.messages,
+        messages: loadedState.messages,
         channelId: trimmedChannelId,
       ));
       return;
     }
 
-    emit(MessagesLoadingState(
-      messages: state.messages,
-      channelId: trimmedChannelId,
-    ));
+    emit(const MessagesLoadingState());
 
     final updateMessageResult = await _messageRepo.updateMessage(
       baseUrl: event.baseUrl.trim(),
@@ -178,18 +181,10 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
               channelId: trimmedChannelId,
             ));
           case Error<List<Message>>(:final error):
-            emit(MessagesExceptionState(
-              error: error,
-              messages: state.messages,
-              channelId: state.channelId,
-            ));
+            emit(MessagesExceptionState(error: error));
         }
       case Error<Message>(:final error):
-        emit(MessagesExceptionState(
-          error: error,
-          messages: state.messages,
-          channelId: state.channelId,
-        ));
+        emit(MessagesExceptionState(error: error));
     }
   }
 
@@ -198,20 +193,25 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     Emitter<MessagesState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
+    final loadedState = _loadedStateOrNull(state);
 
-    if (trimmedChannelId.isEmpty) {
-      emit(MessagesValidationFailedState(
-        issue: MessagesValidationIssue.channelSelectionRequired,
-        messages: state.messages,
-        channelId: state.channelId,
+    if (loadedState == null) {
+      emit(MessagesExceptionState(
+        error: Exception("Messages must be loaded before deleting a message."),
       ));
       return;
     }
 
-    emit(MessagesLoadingState(
-      messages: state.messages,
-      channelId: trimmedChannelId,
-    ));
+    if (trimmedChannelId.isEmpty) {
+      emit(MessagesValidationFailedState(
+        issue: MessagesValidationIssue.channelSelectionRequired,
+        messages: loadedState.messages,
+        channelId: loadedState.channelId,
+      ));
+      return;
+    }
+
+    emit(const MessagesLoadingState());
 
     final deleteMessageResult = await _messageRepo.deleteMessage(
       baseUrl: event.baseUrl.trim(),
@@ -232,18 +232,17 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
               channelId: trimmedChannelId,
             ));
           case Error<List<Message>>(:final error):
-            emit(MessagesExceptionState(
-              error: error,
-              messages: state.messages,
-              channelId: state.channelId,
-            ));
+            emit(MessagesExceptionState(error: error));
         }
       case Error<void>(:final error):
-        emit(MessagesExceptionState(
-          error: error,
-          messages: state.messages,
-          channelId: state.channelId,
-        ));
+        emit(MessagesExceptionState(error: error));
     }
+  }
+
+  MessagesLoadedDataState? _loadedStateOrNull(MessagesState state) {
+    return switch (state) {
+      MessagesLoadedDataState() => state,
+      _ => null,
+    };
   }
 }

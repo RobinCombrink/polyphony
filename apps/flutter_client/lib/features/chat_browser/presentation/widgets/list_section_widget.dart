@@ -12,6 +12,7 @@ class ListSectionWidget<T> extends StatelessWidget {
     required this.createLabel,
     required this.createActionLabel,
     required this.onCreate,
+    this.showCreateControls = true,
     this.subtitle,
     this.trailing,
     super.key,
@@ -29,6 +30,7 @@ class ListSectionWidget<T> extends StatelessWidget {
   final String createLabel;
   final String createActionLabel;
   final VoidCallback onCreate;
+  final bool showCreateControls;
 
   @override
   Widget build(BuildContext context) {
@@ -44,24 +46,25 @@ class ListSectionWidget<T> extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: TextField(
-                    controller: createController,
-                    decoration: InputDecoration(labelText: createLabel),
+          if (showCreateControls)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: TextField(
+                      controller: createController,
+                      decoration: InputDecoration(labelText: createLabel),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: isLoading ? null : onCreate,
-                  child: Text(createActionLabel),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: isLoading ? null : onCreate,
+                    child: Text(createActionLabel),
+                  ),
+                ],
+              ),
             ),
-          ),
           Expanded(
             child: ListView.builder(
               itemCount: items.length,

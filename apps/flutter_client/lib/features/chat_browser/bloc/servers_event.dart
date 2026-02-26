@@ -19,3 +19,9 @@ final class CreateServerRequested extends ServersEvent {
   final String baseUrl;
   final String serverName;
 }
+
+final class SelectServerRequested extends ServersEvent {
+  const SelectServerRequested({required this.serverId});
+
+  final String serverId;
+}

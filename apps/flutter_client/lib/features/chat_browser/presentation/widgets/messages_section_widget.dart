@@ -34,15 +34,19 @@ SectionStatus? buildMessagesSectionStatus(MessagesState state) {
 class MessagesSectionWidget extends StatelessWidget {
   const MessagesSectionWidget({
     required this.messages,
+    required this.currentUserSubject,
     required this.createController,
     required this.isLoading,
     required this.onCreate,
     required this.onEdit,
     required this.onDelete,
+    this.channelName,
     super.key,
   });
 
   final List<Message> messages;
+  final String? currentUserSubject;
+  final String? channelName;
   final TextEditingController createController;
   final bool isLoading;
   final VoidCallback onCreate;
@@ -57,11 +61,17 @@ class MessagesSectionWidget extends StatelessWidget {
         children: <Widget>[
           const Padding(
             padding: EdgeInsets.all(12),
-            child: Text(
-              "Messages",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            child:
+                Text("Messages", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
+          if (channelName != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                "# ${channelName!}",
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(8),
@@ -70,6 +80,8 @@ class MessagesSectionWidget extends StatelessWidget {
                 Expanded(
                   child: TextField(
                     controller: createController,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => onCreate(),
                     decoration:
                         const InputDecoration(labelText: "Send message"),
                   ),
@@ -87,24 +99,58 @@ class MessagesSectionWidget extends StatelessWidget {
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];
+                final isOwnMessage = currentUserSubject != null &&
+                    message.authorSubject == currentUserSubject;
 
-                return ListTile(
-                  title: Text(message.content),
-                  subtitle: Text(message.authorSubject),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      IconButton(
-                        onPressed: isLoading ? null : () => onEdit(message),
-                        icon: const Icon(Icons.edit),
-                        tooltip: "Edit message",
+                return Align(
+                  alignment: isOwnMessage
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
                       ),
-                      IconButton(
-                        onPressed: isLoading ? null : () => onDelete(message),
-                        icon: const Icon(Icons.delete),
-                        tooltip: "Delete message",
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: isOwnMessage
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              message.authorSubject,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(message.content),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                IconButton(
+                                  onPressed:
+                                      isLoading ? null : () => onEdit(message),
+                                  icon: const Icon(Icons.edit),
+                                  tooltip: "Edit message",
+                                ),
+                                IconButton(
+                                  onPressed: isLoading
+                                      ? null
+                                      : () => onDelete(message),
+                                  icon: const Icon(Icons.delete),
+                                  tooltip: "Delete message",
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
                   ),
                 );
               },

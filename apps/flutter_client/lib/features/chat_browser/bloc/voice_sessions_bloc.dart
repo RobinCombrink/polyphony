@@ -31,20 +31,25 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     Emitter<VoiceSessionsState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
+    final loadedState = _loadedStateOrNull(state);
 
     if (trimmedChannelId.isEmpty) {
+      if (loadedState == null) {
+        emit(VoiceSessionsExceptionState(
+          error: Exception("Voice sessions must be loaded before validation."),
+        ));
+        return;
+      }
+
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
-        voiceSessions: state.voiceSessions,
-        channelId: state.channelId,
+        voiceSessions: loadedState.voiceSessions,
+        channelId: loadedState.channelId,
       ));
       return;
     }
 
-    emit(VoiceSessionsLoadingState(
-      voiceSessions: state.voiceSessions,
-      channelId: trimmedChannelId,
-    ));
+    emit(const VoiceSessionsLoadingState());
 
     final listVoiceSessionsResult = await _voiceSessionRepo.listVoiceSessions(
       baseUrl: event.baseUrl.trim(),
@@ -58,11 +63,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           channelId: trimmedChannelId,
         ));
       case Error<List<VoiceSession>>(:final error):
-        emit(VoiceSessionsExceptionState(
-          error: error,
-          voiceSessions: state.voiceSessions,
-          channelId: state.channelId,
-        ));
+        emit(VoiceSessionsExceptionState(error: error));
     }
   }
 
@@ -71,20 +72,25 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     Emitter<VoiceSessionsState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
+    final loadedState = _loadedStateOrNull(state);
 
-    if (trimmedChannelId.isEmpty) {
-      emit(VoiceSessionsValidationFailedState(
-        issue: VoiceSessionsValidationIssue.channelSelectionRequired,
-        voiceSessions: state.voiceSessions,
-        channelId: state.channelId,
+    if (loadedState == null) {
+      emit(VoiceSessionsExceptionState(
+        error: Exception("Voice sessions must be loaded before joining."),
       ));
       return;
     }
 
-    emit(VoiceSessionsLoadingState(
-      voiceSessions: state.voiceSessions,
-      channelId: trimmedChannelId,
-    ));
+    if (trimmedChannelId.isEmpty) {
+      emit(VoiceSessionsValidationFailedState(
+        issue: VoiceSessionsValidationIssue.channelSelectionRequired,
+        voiceSessions: loadedState.voiceSessions,
+        channelId: loadedState.channelId,
+      ));
+      return;
+    }
+
+    emit(const VoiceSessionsLoadingState());
 
     final joinVoiceSessionResult = await _voiceSessionRepo.joinVoiceSession(
       baseUrl: event.baseUrl.trim(),
@@ -105,18 +111,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
               channelId: trimmedChannelId,
             ));
           case Error<List<VoiceSession>>(:final error):
-            emit(VoiceSessionsExceptionState(
-              error: error,
-              voiceSessions: state.voiceSessions,
-              channelId: state.channelId,
-            ));
+            emit(VoiceSessionsExceptionState(error: error));
         }
       case Error<VoiceSession>(:final error):
-        emit(VoiceSessionsExceptionState(
-          error: error,
-          voiceSessions: state.voiceSessions,
-          channelId: state.channelId,
-        ));
+        emit(VoiceSessionsExceptionState(error: error));
     }
   }
 
@@ -125,20 +123,25 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     Emitter<VoiceSessionsState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
+    final loadedState = _loadedStateOrNull(state);
 
-    if (trimmedChannelId.isEmpty) {
-      emit(VoiceSessionsValidationFailedState(
-        issue: VoiceSessionsValidationIssue.channelSelectionRequired,
-        voiceSessions: state.voiceSessions,
-        channelId: state.channelId,
+    if (loadedState == null) {
+      emit(VoiceSessionsExceptionState(
+        error: Exception("Voice sessions must be loaded before leaving."),
       ));
       return;
     }
 
-    emit(VoiceSessionsLoadingState(
-      voiceSessions: state.voiceSessions,
-      channelId: trimmedChannelId,
-    ));
+    if (trimmedChannelId.isEmpty) {
+      emit(VoiceSessionsValidationFailedState(
+        issue: VoiceSessionsValidationIssue.channelSelectionRequired,
+        voiceSessions: loadedState.voiceSessions,
+        channelId: loadedState.channelId,
+      ));
+      return;
+    }
+
+    emit(const VoiceSessionsLoadingState());
 
     final leaveVoiceSessionResult = await _voiceSessionRepo.leaveVoiceSession(
       baseUrl: event.baseUrl.trim(),
@@ -159,18 +162,17 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
               channelId: trimmedChannelId,
             ));
           case Error<List<VoiceSession>>(:final error):
-            emit(VoiceSessionsExceptionState(
-              error: error,
-              voiceSessions: state.voiceSessions,
-              channelId: state.channelId,
-            ));
+            emit(VoiceSessionsExceptionState(error: error));
         }
       case Error<void>(:final error):
-        emit(VoiceSessionsExceptionState(
-          error: error,
-          voiceSessions: state.voiceSessions,
-          channelId: state.channelId,
-        ));
+        emit(VoiceSessionsExceptionState(error: error));
     }
+  }
+
+  VoiceSessionsLoadedDataState? _loadedStateOrNull(VoiceSessionsState state) {
+    return switch (state) {
+      VoiceSessionsLoadedDataState() => state,
+      _ => null,
+    };
   }
 }
