@@ -7,3 +7,6 @@ For Rust tests, use the EntitySeeder pattern and only pass properties that are p
 UI display text must never be part of BLoC state or BLoC logic. BLoCs expose semantic state and required data only; UI widgets decide what text and how it is displayed to users.
 Conversions between API models and domain models must be implemented as extension methods in api/domain_extensions/api_model_extensions files, not inline in services, repositories, or BLoCs.
 API clients should return Result<T> types and not throw exceptions; errors should be captured in the Result type and handled in the UI layer.
+Never catch Object, Error, or any other type which is not explicitly an Exception (or inherits from Exception). Only ever catch exceptions
+Use Widgets instead of methods for reusable UI components in Flutter. This allows for better composition and separation of concerns between UI and logic.
+UI Logic should be implemented in BLoCs and not in UI widgets. Widgets should only be responsible for rendering the UI based on the state provided by the BLoC.
