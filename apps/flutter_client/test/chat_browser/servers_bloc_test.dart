@@ -78,4 +78,57 @@ void main() {
         bloc.add(SelectServerRequested(serverId: fixture.listedServer.id)),
     expect: () => <Matcher>[],
   );
+
+  blocTest<ServersBloc, ServersState>(
+    "adds server member after server is selected",
+    build: () => ServersBloc(
+      serverRepo: FakeServerRepository(fixture: fixture),
+    ),
+    act: (bloc) {
+      bloc.add(const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"));
+      bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
+      bloc.add(AddServerMemberRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverId: fixture.listedServer.id,
+        userSubject: "auth0|new_member",
+      ));
+    },
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>().having(
+        (state) => state.selectedServerId,
+        "selected server id",
+        fixture.listedServer.id,
+      ),
+    ],
+  );
+
+  blocTest<ServersBloc, ServersState>(
+    "emits validation failed when add-member subject is empty",
+    build: () => ServersBloc(
+      serverRepo: FakeServerRepository(fixture: fixture),
+    ),
+    act: (bloc) {
+      bloc.add(const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"));
+      bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
+      bloc.add(AddServerMemberRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverId: fixture.listedServer.id,
+        userSubject: "   ",
+      ));
+    },
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        ServersValidationIssue.userSubjectRequired,
+      ),
+    ],
+  );
 }

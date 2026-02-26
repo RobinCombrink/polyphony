@@ -42,4 +42,22 @@ class RestServerService implements ServerService {
 
     return _chatApi.createServer(baseUrl: baseUrl, name: name);
   }
+
+  @override
+  Future<Result<void>> addServerMember({
+    required String baseUrl,
+    required String serverId,
+    required String userSubject,
+  }) async {
+    if (_authenticationStateSource.currentAuthState
+        is! AuthenticationAuthenticatedState) {
+      return _missingTokenError();
+    }
+
+    return _chatApi.addServerMember(
+      baseUrl: baseUrl,
+      serverId: serverId,
+      userSubject: userSubject,
+    );
+  }
 }

@@ -8,6 +8,12 @@ SectionStatus? buildServersSectionStatus(ServersState state) {
     return switch (state.issue) {
       ServersValidationIssue.serverNameRequired =>
         const SectionStatus(message: "Server name is required.", isError: true),
+      ServersValidationIssue.serverSelectionRequired =>
+        const SectionStatus(message: "Select a server first.", isError: true),
+      ServersValidationIssue.userSubjectRequired => const SectionStatus(
+          message: "User subject is required.",
+          isError: true,
+        ),
     };
   }
 

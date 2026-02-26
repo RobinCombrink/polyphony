@@ -26,6 +26,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   final baseUrlController =
       TextEditingController(text: PolyphonyConfig.backendBaseUrl);
   final createServerController = TextEditingController();
+  final addServerMemberController = TextEditingController();
   final createChannelController = TextEditingController();
   final createMessageController = TextEditingController();
 
@@ -33,6 +34,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   void dispose() {
     baseUrlController.dispose();
     createServerController.dispose();
+    addServerMemberController.dispose();
     createChannelController.dispose();
     createMessageController.dispose();
     super.dispose();
@@ -81,6 +83,16 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
             baseUrl: baseUrlController.text,
             serverId: selectedServerId ?? "",
             channelName: createChannelController.text,
+          ),
+        );
+  }
+
+  void _requestAddServerMember(BuildContext context, String serverId) {
+    context.read<ServersBloc>().add(
+          AddServerMemberRequested(
+            baseUrl: baseUrlController.text,
+            serverId: serverId,
+            userSubject: addServerMemberController.text,
           ),
         );
   }
@@ -287,6 +299,34 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                     width: 360,
                                     child: Column(
                                       children: <Widget>[
+                                        Row(
+                                          children: <Widget>[
+                                            Expanded(
+                                              child: TextField(
+                                                controller:
+                                                    addServerMemberController,
+                                                enabled: !isLoading,
+                                                decoration:
+                                                    const InputDecoration(
+                                                  labelText:
+                                                      "User subject to add",
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            FilledButton.tonal(
+                                              onPressed: isLoading
+                                                  ? null
+                                                  : () =>
+                                                      _requestAddServerMember(
+                                                        context,
+                                                        selectedServerId,
+                                                      ),
+                                              child: const Text("Add user"),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
                                         Expanded(
                                           child: TextChannelsSectionWidget(
                                             channels: channels,

@@ -39,4 +39,17 @@ class ServerRepository implements ServerRepo {
       Error<ApiServer>(:final error) => Error<Server>(error),
     };
   }
+
+  @override
+  Future<Result<void>> addServerMember({
+    required String baseUrl,
+    required String serverId,
+    required String userSubject,
+  }) {
+    return _serverService.addServerMember(
+      baseUrl: baseUrl,
+      serverId: serverId,
+      userSubject: userSubject,
+    );
+  }
 }

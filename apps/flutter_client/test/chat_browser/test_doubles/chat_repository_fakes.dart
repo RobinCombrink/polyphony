@@ -9,10 +9,13 @@ import "package:polyphony_flutter_client/shared/services/voice_runtime_service.d
 import "../../entity_seeder.dart";
 
 class FakeServerRepository implements ServerRepo {
-  FakeServerRepository({required ChatApiFixture fixture})
-      : _servers = <Server>[fixture.listedServer],
+  FakeServerRepository({
+    required ChatApiFixture fixture,
+    this.forceAddMemberError = false,
+  })  : _servers = <Server>[fixture.listedServer],
         _createdServer = fixture.createdServer;
 
+  final bool forceAddMemberError;
   final List<Server> _servers;
   final Server _createdServer;
 
@@ -30,6 +33,22 @@ class FakeServerRepository implements ServerRepo {
     required String baseUrl,
   }) async {
     return Ok<List<Server>>(List<Server>.unmodifiable(_servers));
+  }
+
+  @override
+  Future<Result<void>> addServerMember({
+    required String baseUrl,
+    required String serverId,
+    required String userSubject,
+  }) async {
+    final _ignoredServerId = serverId;
+    final _ignoredUserSubject = userSubject;
+
+    if (forceAddMemberError) {
+      return Error<void>(Exception("Failed to add server member"));
+    }
+
+    return const Ok<void>(null);
   }
 }
 

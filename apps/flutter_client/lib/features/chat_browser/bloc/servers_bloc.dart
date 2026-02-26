@@ -14,6 +14,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     on<LoadServersRequested>(_onLoadServersRequested);
     on<CreateServerRequested>(_onCreateServerRequested);
     on<SelectServerRequested>(_onSelectServerRequested);
+    on<AddServerMemberRequested>(_onAddServerMemberRequested);
   }
 
   final ServerRepo _serverRepo;
@@ -122,6 +123,73 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
       servers: loadedState.servers,
       selectedServerId: selectedServerId,
     ));
+  }
+
+  Future<void> _onAddServerMemberRequested(
+    AddServerMemberRequested event,
+    Emitter<ServersState> emit,
+  ) async {
+    final loadedState = _loadedStateOrNull(state);
+
+    if (loadedState == null) {
+      emit(ServersExceptionState(
+        error: Exception("Servers must be loaded before adding a member."),
+      ));
+      return;
+    }
+
+    final trimmedServerId = event.serverId.trim();
+    final trimmedUserSubject = event.userSubject.trim();
+
+    if (trimmedServerId.isEmpty ||
+        !loadedState.servers.any((server) => server.id == trimmedServerId)) {
+      emit(ServersValidationFailedState(
+        issue: ServersValidationIssue.serverSelectionRequired,
+        servers: loadedState.servers,
+        selectedServerId: loadedState.selectedServerId,
+      ));
+      return;
+    }
+
+    if (trimmedUserSubject.isEmpty) {
+      emit(ServersValidationFailedState(
+        issue: ServersValidationIssue.userSubjectRequired,
+        servers: loadedState.servers,
+        selectedServerId: loadedState.selectedServerId,
+      ));
+      return;
+    }
+
+    emit(const ServersLoadingState());
+
+    final addMemberResult = await _serverRepo.addServerMember(
+      baseUrl: event.baseUrl.trim(),
+      serverId: trimmedServerId,
+      userSubject: trimmedUserSubject,
+    );
+
+    switch (addMemberResult) {
+      case Ok<void>():
+        final listServersResult = await _serverRepo.listServers(
+          baseUrl: event.baseUrl.trim(),
+        );
+
+        switch (listServersResult) {
+          case Ok<List<Server>>(:final value):
+            emit(ServersLoadedState(
+              servers: value,
+              selectedServerId: value.any(
+                (server) => server.id == trimmedServerId,
+              )
+                  ? trimmedServerId
+                  : null,
+            ));
+          case Error<List<Server>>(:final error):
+            emit(ServersExceptionState(error: error));
+        }
+      case Error<void>(:final error):
+        emit(ServersExceptionState(error: error));
+    }
   }
 
   ServersLoadedDataState? _loadedStateOrNull(ServersState state) {

@@ -10,4 +10,10 @@ abstract interface class ServerRepo {
     required String baseUrl,
     required String name,
   });
+
+  Future<Result<void>> addServerMember({
+    required String baseUrl,
+    required String serverId,
+    required String userSubject,
+  });
 }

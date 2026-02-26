@@ -69,6 +69,21 @@ class PolyphonyApiClient implements ChatApi {
   }
 
   @override
+  Future<Result<void>> addServerMember({
+    required String baseUrl,
+    required String serverId,
+    required String userSubject,
+  }) {
+    return _performPostRequestWithoutResponseBody(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/servers/$serverId/members",
+      operation: "add server member",
+      body: <String, dynamic>{"user_subject": userSubject},
+      expectedStatusCode: 201,
+    );
+  }
+
+  @override
   Future<Result<ApiChannel>> createChannel({
     required String baseUrl,
     required String serverId,
@@ -258,10 +273,6 @@ class PolyphonyApiClient implements ChatApi {
       return Ok<T>(decodeItem(decoded));
     } on Exception catch (error) {
       return Error<T>(error);
-    } on Object catch (error) {
-      return Error<T>(
-        Exception("Unexpected error while trying to $operation: $error"),
-      );
     }
   }
 
@@ -288,10 +299,34 @@ class PolyphonyApiClient implements ChatApi {
       return const Ok<void>(null);
     } on Exception catch (error) {
       return Error<void>(error);
-    } on Object catch (error) {
-      return Error<void>(
-        Exception("Unexpected error while trying to $operation: $error"),
+    }
+  }
+
+  Future<Result<void>> _performPostRequestWithoutResponseBody({
+    required String baseUrl,
+    required String endpoint,
+    required String operation,
+    required Map<String, dynamic> body,
+    required int expectedStatusCode,
+  }) async {
+    try {
+      final response = await _httpClient.post(
+        Uri.parse("$baseUrl$endpoint"),
+        headers: _headers(),
+        body: jsonEncode(body),
       );
+
+      if (response.statusCode != expectedStatusCode) {
+        return Error<void>(
+          Exception(
+            "Failed to $operation: ${response.statusCode} ${response.body}",
+          ),
+        );
+      }
+
+      return const Ok<void>(null);
+    } on Exception catch (error) {
+      return Error<void>(error);
     }
   }
 }

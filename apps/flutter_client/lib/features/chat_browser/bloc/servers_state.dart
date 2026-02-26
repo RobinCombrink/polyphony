@@ -2,6 +2,8 @@ part of "servers_bloc.dart";
 
 enum ServersValidationIssue {
   serverNameRequired,
+  serverSelectionRequired,
+  userSubjectRequired,
 }
 
 sealed class ServersState {
