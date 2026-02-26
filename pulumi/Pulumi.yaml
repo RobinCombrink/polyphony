@@ -1,0 +1,6 @@
+name: polyphony-infrastructure
+runtime:
+  name: dotnet
+description:  Polyphony infrastructure on Pulumi
+
+pulumiConfig:
