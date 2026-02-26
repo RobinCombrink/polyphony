@@ -170,13 +170,9 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                         }
                       }
 
-                      final isLoading = serversState is ServersInitialState ||
-                          serversState is ServersLoadingState ||
-                          channelsState is ChannelsInitialState ||
+                      final isLoading = serversState is ServersLoadingState ||
                           channelsState is ChannelsLoadingState ||
-                          messagesState is MessagesInitialState ||
                           messagesState is MessagesLoadingState ||
-                          voiceSessionsState is VoiceSessionsInitialState ||
                           voiceSessionsState is VoiceSessionsLoadingState;
 
                       final sectionStatus = buildServersSectionStatus(
