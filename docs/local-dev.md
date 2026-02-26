@@ -22,6 +22,19 @@ Or with Docker Compose:
 docker compose -f docker-compose.local.yml up --build
 ```
 
+## LiveKit 
+This local setup is single-node and intentionally does not use Redis.
+
+With Docker Compose, this starts both backend-api and LiveKit:
+```bash
+docker compose -f docker-compose.local.yml up --build
+```
+
+Connection info:
+- `ws://127.0.0.1:7880`
+- API key `devkey`
+- API secret `secret`
+
 ## Developing the server
 ```bash
 cargo install cargo-watch systemfd

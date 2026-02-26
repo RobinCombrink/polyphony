@@ -1,14 +1,10 @@
 services:
-  backend-api:
-    image: rust:1.90
-    working_dir: /workspace
+  livekit:
+    image: livekit/livekit-server:latest
+    command: ["--config", "/etc/livekit.yaml"]
     volumes:
-      - ./:/workspace
-    command: ["bash", "-lc", "cargo run -p backend-api"]
-    environment:
-      AUTH0_ISSUER: ${AUTH0_ISSUER:-https://example-dev.us.auth0.com/}
-      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:-polyphony-api}
-      AUTH0_ACCESS_TOKEN_DURATION_HOURS: ${AUTH0_ACCESS_TOKEN_DURATION_HOURS:-18}
-      BACKEND_API_BIND: 0.0.0.0:5067
+      - ./livekit.local.yaml:/etc/livekit.yaml:ro
     ports:
-      - "5067:5067"
+      - "7880:7880/tcp"
+      - "7881:7881/tcp"
+      - "50000-50100:50000-50100/udp"
