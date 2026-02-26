@@ -1,105 +1,13 @@
+use crate::dto::VoiceConnectResponse;
 use axum::{
     Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_domain::VoiceSession;
-use backend_storage::MutationResult;
 use livekit_api::access_token::{AccessToken, VideoGrants};
-use livekit_api::services::{
-    ServiceError, TwirpError, TwirpErrorCode,
-    room::RoomClient,
-};
-
-use crate::dto::{LiveRoomParticipantsResponse, VoiceConnectResponse};
 
 use crate::{ApiState, auth::AuthenticatedUser};
-
-#[utoipa::path(
-    post,
-    path = "/api/v1/channels/{channel_id}/voice/sessions",
-    responses(
-        (status = 201, description = "Voice session joined", body = VoiceSession),
-        (status = 404, description = "Channel not found"),
-        (status = 401, description = "Authentication failed")
-    ),
-    security(("bearer_auth" = [])),
-    params(("channel_id" = String, Path, description = "Channel id")),
-    tag = "backend-api"
-)]
-pub(crate) async fn join_voice_session(
-    State(state): State<ApiState>,
-    authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<String>,
-) -> impl IntoResponse {
-    let joined_session = state
-        .store
-        .join_voice_session(&channel_id, authenticated_user.subject)
-        .await;
-
-    match joined_session {
-        Some(session) => (StatusCode::CREATED, Json(session)).into_response(),
-        None => StatusCode::NOT_FOUND.into_response(),
-    }
-}
-
-#[utoipa::path(
-    delete,
-    path = "/api/v1/channels/{channel_id}/voice/sessions/me",
-    responses(
-        (status = 204, description = "Voice session left"),
-        (status = 404, description = "Channel or participant session not found"),
-        (status = 401, description = "Authentication failed")
-    ),
-    security(("bearer_auth" = [])),
-    params(("channel_id" = String, Path, description = "Channel id")),
-    tag = "backend-api"
-)]
-pub(crate) async fn leave_voice_session(
-    State(state): State<ApiState>,
-    authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<String>,
-) -> impl IntoResponse {
-    let mutation_result = state
-        .store
-        .leave_voice_session(&channel_id, &authenticated_user.subject)
-        .await;
-
-    match mutation_result {
-        MutationResult::Deleted => StatusCode::NO_CONTENT.into_response(),
-        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
-        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
-        MutationResult::Updated => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    }
-}
-
-#[utoipa::path(
-    get,
-    path = "/api/v1/channels/{channel_id}/voice/sessions",
-    responses(
-        (status = 200, description = "Voice sessions listed", body = [VoiceSession]),
-        (status = 404, description = "Channel not found"),
-        (status = 401, description = "Authentication failed")
-    ),
-    security(("bearer_auth" = [])),
-    params(("channel_id" = String, Path, description = "Channel id")),
-    tag = "backend-api"
-)]
-pub(crate) async fn list_voice_sessions(
-    State(state): State<ApiState>,
-    authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<String>,
-) -> impl IntoResponse {
-    let _ = authenticated_user;
-
-    let sessions = state.store.list_voice_sessions(&channel_id).await;
-
-    match sessions {
-        Some(voice_sessions) => (StatusCode::OK, Json(voice_sessions)).into_response(),
-        None => StatusCode::NOT_FOUND.into_response(),
-    }
-}
 
 #[utoipa::path(
     post,
@@ -121,12 +29,7 @@ pub(crate) async fn connect_voice_session(
 ) -> impl IntoResponse {
     let participant_subject = authenticated_user.subject;
 
-    let joined_session = state
-        .store
-        .join_voice_session(&channel_id, participant_subject.clone())
-        .await;
-
-    if joined_session.is_none() {
+    if state.store.list_voice_sessions(&channel_id).await.is_none() {
         return StatusCode::NOT_FOUND.into_response();
     }
 
@@ -160,61 +63,6 @@ pub(crate) async fn connect_voice_session(
             access_token,
             channel_id,
             participant_subject,
-        }),
-    )
-        .into_response()
-}
-
-#[utoipa::path(
-    get,
-    path = "/api/v1/channels/{channel_id}/voice/rooms/participants",
-    responses(
-        (status = 200, description = "Live room participants listed", body = LiveRoomParticipantsResponse),
-        (status = 404, description = "Channel not found"),
-        (status = 502, description = "LiveKit room query failed"),
-        (status = 401, description = "Authentication failed")
-    ),
-    security(("bearer_auth" = [])),
-    params(("channel_id" = String, Path, description = "Channel id")),
-    tag = "backend-api"
-)]
-pub(crate) async fn list_live_room_participants(
-    State(state): State<ApiState>,
-    authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<String>,
-) -> impl IntoResponse {
-    let _ = authenticated_user;
-
-    if state.store.list_voice_sessions(&channel_id).await.is_none() {
-        return StatusCode::NOT_FOUND.into_response();
-    }
-
-    let room_client = RoomClient::with_api_key(
-        &state.livekit_config.server_api_url,
-        &state.livekit_config.api_key,
-        &state.livekit_config.api_secret,
-    );
-
-    let participants = match room_client.list_participants(&channel_id).await {
-        Ok(participants) => participants,
-        Err(ServiceError::Twirp(TwirpError::Twirp(error_code)))
-            if error_code.code == TwirpErrorCode::NOT_FOUND =>
-        {
-            Vec::new()
-        }
-        Err(_) => return StatusCode::BAD_GATEWAY.into_response(),
-    };
-
-    let participant_subjects = participants
-        .into_iter()
-        .map(|participant| participant.identity)
-        .collect::<Vec<_>>();
-
-    (
-        StatusCode::OK,
-        Json(LiveRoomParticipantsResponse {
-            channel_id,
-            participant_subjects,
         }),
     )
         .into_response()

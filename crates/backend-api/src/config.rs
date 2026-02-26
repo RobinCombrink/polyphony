@@ -69,8 +69,8 @@ impl LiveKitConfig {
         let default_config = Self::default();
 
         let url = std::env::var("LIVEKIT_URL").unwrap_or(default_config.url);
-        let server_api_url = std::env::var("LIVEKIT_SERVER_API_URL")
-            .unwrap_or(default_config.server_api_url);
+        let server_api_url =
+            std::env::var("LIVEKIT_SERVER_API_URL").unwrap_or(default_config.server_api_url);
         let api_key = std::env::var("LIVEKIT_API_KEY").unwrap_or(default_config.api_key);
         let api_secret = std::env::var("LIVEKIT_API_SECRET").unwrap_or(default_config.api_secret);
         let token_ttl_seconds = std::env::var("LIVEKIT_TOKEN_TTL_SECONDS")

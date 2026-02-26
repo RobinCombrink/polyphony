@@ -231,71 +231,6 @@ pub(crate) async fn list_channels(app: &axum::Router, server_id: &str) -> axum::
         .expect("list channels response from app")
 }
 
-pub(crate) async fn join_voice_session(
-    app: &axum::Router,
-    channel_id: &str,
-) -> axum::response::Response {
-    join_voice_session_with_token(app, channel_id, "valid-token").await
-}
-
-pub(crate) async fn join_voice_session_with_token(
-    app: &axum::Router,
-    channel_id: &str,
-    bearer_token: &str,
-) -> axum::response::Response {
-    app.clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!("/api/v1/channels/{channel_id}/voice/sessions"))
-                .method("POST")
-                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
-                .body(Body::empty())
-                .expect("join voice session request to be valid"),
-        )
-        .await
-        .expect("join voice session response from app")
-}
-
-pub(crate) async fn leave_voice_session(
-    app: &axum::Router,
-    channel_id: &str,
-) -> axum::response::Response {
-    leave_voice_session_with_token(app, channel_id, "valid-token").await
-}
-
-pub(crate) async fn leave_voice_session_with_token(
-    app: &axum::Router,
-    channel_id: &str,
-    bearer_token: &str,
-) -> axum::response::Response {
-    app.clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!("/api/v1/channels/{channel_id}/voice/sessions/me"))
-                .method("DELETE")
-                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
-                .body(Body::empty())
-                .expect("leave voice session request to be valid"),
-        )
-        .await
-        .expect("leave voice session response from app")
-}
-
-pub(crate) async fn list_voice_sessions(
-    app: &axum::Router,
-    channel_id: &str,
-) -> axum::response::Response {
-    app.clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!("/api/v1/channels/{channel_id}/voice/sessions"))
-                .header(header::AUTHORIZATION, "Bearer valid-token")
-                .body(Body::empty())
-                .expect("list voice sessions request to be valid"),
-        )
-        .await
-        .expect("list voice sessions response from app")
-}
 
 pub(crate) async fn connect_voice_session(
     app: &axum::Router,
@@ -322,23 +257,6 @@ pub(crate) async fn connect_voice_session_with_token(
         .expect("connect voice session response from app")
 }
 
-pub(crate) async fn list_live_room_participants(
-    app: &axum::Router,
-    channel_id: &str,
-) -> axum::response::Response {
-    app.clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!(
-                    "/api/v1/channels/{channel_id}/voice/rooms/participants"
-                ))
-                .header(header::AUTHORIZATION, "Bearer valid-token")
-                .body(Body::empty())
-                .expect("list live room participants request to be valid"),
-        )
-        .await
-        .expect("list live room participants response from app")
-}
 
 pub(crate) async fn response_payload_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(
