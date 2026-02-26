@@ -18,8 +18,8 @@ final class LoadVoiceSessionsRequested extends VoiceSessionsEvent {
   final String channelId;
 }
 
-final class JoinVoiceSessionRequested extends VoiceSessionsEvent {
-  const JoinVoiceSessionRequested({
+final class ConnectVoiceSessionRequested extends VoiceSessionsEvent {
+  const ConnectVoiceSessionRequested({
     required this.baseUrl,
     required this.channelId,
   });
@@ -28,8 +28,8 @@ final class JoinVoiceSessionRequested extends VoiceSessionsEvent {
   final String channelId;
 }
 
-final class LeaveVoiceSessionRequested extends VoiceSessionsEvent {
-  const LeaveVoiceSessionRequested({
+final class DisconnectVoiceSessionRequested extends VoiceSessionsEvent {
+  const DisconnectVoiceSessionRequested({
     required this.baseUrl,
     required this.channelId,
   });

@@ -46,17 +46,12 @@ abstract interface class ChatApi {
     required String messageId,
   });
 
-  Future<Result<List<ApiVoiceSession>>> listVoiceSessions({
+  Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
     required String baseUrl,
     required String channelId,
   });
 
-  Future<Result<ApiVoiceSession>> joinVoiceSession({
-    required String baseUrl,
-    required String channelId,
-  });
-
-  Future<Result<void>> leaveVoiceSession({
+  Future<Result<void>> disconnectVoiceSession({
     required String baseUrl,
     required String channelId,
   });

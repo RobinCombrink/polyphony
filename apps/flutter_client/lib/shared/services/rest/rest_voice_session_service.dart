@@ -19,7 +19,7 @@ class RestVoiceSessionService implements VoiceSessionService {
   }
 
   @override
-  Future<Result<List<ApiVoiceSession>>> listVoiceSessions({
+  Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
     required String baseUrl,
     required String channelId,
   }) async {
@@ -28,14 +28,14 @@ class RestVoiceSessionService implements VoiceSessionService {
       return _missingTokenError();
     }
 
-    return _chatApi.listVoiceSessions(
+    return _chatApi.connectVoiceSession(
       baseUrl: baseUrl,
       channelId: channelId,
     );
   }
 
   @override
-  Future<Result<ApiVoiceSession>> joinVoiceSession({
+  Future<Result<void>> disconnectVoiceSession({
     required String baseUrl,
     required String channelId,
   }) async {
@@ -44,23 +44,7 @@ class RestVoiceSessionService implements VoiceSessionService {
       return _missingTokenError();
     }
 
-    return _chatApi.joinVoiceSession(
-      baseUrl: baseUrl,
-      channelId: channelId,
-    );
-  }
-
-  @override
-  Future<Result<void>> leaveVoiceSession({
-    required String baseUrl,
-    required String channelId,
-  }) async {
-    if (_authenticationStateSource.currentAuthState
-        is! AuthenticationAuthenticatedState) {
-      return _missingTokenError();
-    }
-
-    return _chatApi.leaveVoiceSession(
+    return _chatApi.disconnectVoiceSession(
       baseUrl: baseUrl,
       channelId: channelId,
     );

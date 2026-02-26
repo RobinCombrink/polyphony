@@ -63,18 +63,22 @@ extension DomainMessageToApiExtension on Message {
   }
 }
 
-extension ApiVoiceSessionToDomainExtension on ApiVoiceSession {
-  VoiceSession toDomainModel() {
-    return VoiceSession(
+extension ApiVoiceConnectSessionToDomainExtension on ApiVoiceConnectSession {
+  VoiceConnectSession toDomainModel() {
+    return VoiceConnectSession(
+      livekitUrl: livekitUrl,
+      accessToken: accessToken,
       channelId: channelId,
       participantSubject: participantSubject,
     );
   }
 }
 
-extension DomainVoiceSessionToApiExtension on VoiceSession {
-  ApiVoiceSession toApiModel() {
-    return ApiVoiceSession(
+extension DomainVoiceConnectSessionToApiExtension on VoiceConnectSession {
+  ApiVoiceConnectSession toApiModel() {
+    return ApiVoiceConnectSession(
+      livekitUrl: livekitUrl,
+      accessToken: accessToken,
       channelId: channelId,
       participantSubject: participantSubject,
     );

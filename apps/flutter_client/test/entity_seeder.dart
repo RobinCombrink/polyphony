@@ -11,8 +11,7 @@ class ChatApiFixture {
     required this.createdChannel,
     required this.listedMessage,
     required this.createdMessage,
-    required this.listedVoiceSession,
-    required this.createdVoiceSession,
+    required this.connectedVoiceSession,
   });
 
   final String ownerSubject;
@@ -22,8 +21,7 @@ class ChatApiFixture {
   final Channel createdChannel;
   final Message listedMessage;
   final Message createdMessage;
-  final VoiceSession listedVoiceSession;
-  final VoiceSession createdVoiceSession;
+  final VoiceConnectSession connectedVoiceSession;
 }
 
 class EntitySeeder {
@@ -56,13 +54,11 @@ class EntitySeeder {
       authorSubject: ownerSubject,
       content: "new message",
     );
-    final listedVoiceSession = voiceSession(
+    final connectedVoiceSession = voiceConnectSession(
+      livekitUrl: "ws://127.0.0.1:7880",
+      accessToken: "test-access-token",
       channelId: listedChannel.id,
       participantSubject: ownerSubject,
-    );
-    final createdVoiceSession = voiceSession(
-      channelId: listedChannel.id,
-      participantSubject: "auth0|u2",
     );
 
     return ChatApiFixture(
@@ -73,8 +69,7 @@ class EntitySeeder {
       createdChannel: createdChannel,
       listedMessage: listedMessage,
       createdMessage: createdMessage,
-      listedVoiceSession: listedVoiceSession,
-      createdVoiceSession: createdVoiceSession,
+      connectedVoiceSession: connectedVoiceSession,
     );
   }
 
@@ -114,11 +109,15 @@ class EntitySeeder {
     );
   }
 
-  VoiceSession voiceSession({
+  VoiceConnectSession voiceConnectSession({
+    required String livekitUrl,
+    required String accessToken,
     required String channelId,
     required String participantSubject,
   }) {
-    return VoiceSession(
+    return VoiceConnectSession(
+      livekitUrl: livekitUrl,
+      accessToken: accessToken,
       channelId: channelId,
       participantSubject: participantSubject,
     );
@@ -149,10 +148,14 @@ class EntitySeeder {
     };
   }
 
-  Map<String, dynamic> voiceSessionJson(VoiceSession voiceSession) {
+  Map<String, dynamic> voiceConnectSessionJson(
+    VoiceConnectSession voiceConnectSession,
+  ) {
     return <String, dynamic>{
-      "channel_id": voiceSession.channelId,
-      "participant_subject": voiceSession.participantSubject,
+      "livekit_url": voiceConnectSession.livekitUrl,
+      "access_token": voiceConnectSession.accessToken,
+      "channel_id": voiceConnectSession.channelId,
+      "participant_subject": voiceConnectSession.participantSubject,
     };
   }
 

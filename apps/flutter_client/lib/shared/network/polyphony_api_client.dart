@@ -132,44 +132,27 @@ class PolyphonyApiClient implements ChatApi {
   }
 
   @override
-  Future<Result<List<ApiVoiceSession>>> listVoiceSessions({
+  Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
     required String baseUrl,
     required String channelId,
   }) {
-    return _performListRequest<ApiVoiceSession>(
+    return _performPostRequest<ApiVoiceConnectSession>(
       baseUrl: baseUrl,
-      endpoint: "/api/v1/channels/$channelId/voice/sessions",
-      operation: "list voice sessions",
-      decodeItem: ApiVoiceSession.fromJson,
-    );
-  }
-
-  @override
-  Future<Result<ApiVoiceSession>> joinVoiceSession({
-    required String baseUrl,
-    required String channelId,
-  }) {
-    return _performPostRequest<ApiVoiceSession>(
-      baseUrl: baseUrl,
-      endpoint: "/api/v1/channels/$channelId/voice/sessions",
-      operation: "join voice session",
+      endpoint: "/api/v1/channels/$channelId/voice/connect",
+      operation: "connect voice session",
       body: const <String, dynamic>{},
-      expectedStatusCode: 201,
-      decodeItem: ApiVoiceSession.fromJson,
+      expectedStatusCode: 200,
+      decodeItem: ApiVoiceConnectSession.fromJson,
     );
   }
 
   @override
-  Future<Result<void>> leaveVoiceSession({
+  Future<Result<void>> disconnectVoiceSession({
     required String baseUrl,
     required String channelId,
   }) {
-    return _performDeleteRequest(
-      baseUrl: baseUrl,
-      endpoint: "/api/v1/channels/$channelId/voice/sessions/me",
-      operation: "leave voice session",
-      expectedStatusCode: 204,
-    );
+    final _ = channelId;
+    return Future<Result<void>>.value(const Ok<void>(null));
   }
 
   Map<String, String> _headers() {

@@ -2,17 +2,12 @@ import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
 abstract interface class VoiceSessionService {
-  Future<Result<List<ApiVoiceSession>>> listVoiceSessions({
+  Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
     required String baseUrl,
     required String channelId,
   });
 
-  Future<Result<ApiVoiceSession>> joinVoiceSession({
-    required String baseUrl,
-    required String channelId,
-  });
-
-  Future<Result<void>> leaveVoiceSession({
+  Future<Result<void>> disconnectVoiceSession({
     required String baseUrl,
     required String channelId,
   });

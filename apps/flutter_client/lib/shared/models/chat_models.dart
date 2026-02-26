@@ -70,3 +70,17 @@ class VoiceSession {
     );
   }
 }
+
+class VoiceConnectSession {
+  const VoiceConnectSession({
+    required this.livekitUrl,
+    required this.accessToken,
+    required this.channelId,
+    required this.participantSubject,
+  });
+
+  final String livekitUrl;
+  final String accessToken;
+  final String channelId;
+  final String participantSubject;
+}

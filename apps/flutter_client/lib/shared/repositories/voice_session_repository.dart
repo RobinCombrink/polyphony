@@ -13,47 +13,29 @@ class VoiceSessionRepository implements VoiceSessionRepo {
   final VoiceSessionService _voiceSessionService;
 
   @override
-  Future<Result<List<VoiceSession>>> listVoiceSessions({
+  Future<Result<VoiceConnectSession>> connectVoiceSession({
     required String baseUrl,
     required String channelId,
   }) async {
-    final serviceResult = await _voiceSessionService.listVoiceSessions(
+    final serviceResult = await _voiceSessionService.connectVoiceSession(
       baseUrl: baseUrl,
       channelId: channelId,
     );
 
     return switch (serviceResult) {
-      Ok<List<ApiVoiceSession>>(:final value) => Ok<List<VoiceSession>>(
-          value.map((voiceSession) => voiceSession.toDomainModel()).toList(),
-        ),
-      Error<List<ApiVoiceSession>>(:final error) =>
-        Error<List<VoiceSession>>(error),
+      Ok<ApiVoiceConnectSession>(:final value) =>
+        Ok<VoiceConnectSession>(value.toDomainModel()),
+      Error<ApiVoiceConnectSession>(:final error) =>
+        Error<VoiceConnectSession>(error),
     };
   }
 
   @override
-  Future<Result<VoiceSession>> joinVoiceSession({
-    required String baseUrl,
-    required String channelId,
-  }) async {
-    final serviceResult = await _voiceSessionService.joinVoiceSession(
-      baseUrl: baseUrl,
-      channelId: channelId,
-    );
-
-    return switch (serviceResult) {
-      Ok<ApiVoiceSession>(:final value) =>
-        Ok<VoiceSession>(value.toDomainModel()),
-      Error<ApiVoiceSession>(:final error) => Error<VoiceSession>(error),
-    };
-  }
-
-  @override
-  Future<Result<void>> leaveVoiceSession({
+  Future<Result<void>> disconnectVoiceSession({
     required String baseUrl,
     required String channelId,
   }) {
-    return _voiceSessionService.leaveVoiceSession(
+    return _voiceSessionService.disconnectVoiceSession(
       baseUrl: baseUrl,
       channelId: channelId,
     );

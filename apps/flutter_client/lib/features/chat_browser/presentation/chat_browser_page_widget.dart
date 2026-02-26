@@ -146,8 +146,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                           channelsData?.channels ?? const <Channel>[];
                       final messages =
                           messagesData?.messages ?? const <Message>[];
-                      final voiceSessions =
-                          voiceData?.voiceSessions ?? const <VoiceSession>[];
+                      final activeVoiceConnection = voiceData?.activeConnection;
                       final selectedServerId = serversData?.selectedServerId;
                       final selectedTextChannelId =
                           channelsData?.selectedTextChannelId;
@@ -235,7 +234,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                             const Text("Working...")
                           else
                             Text(
-                              "Loaded ${servers.length} server(s), ${channels.length} channel(s), ${messages.length} message(s), ${voiceSessions.length} voice participant(s).",
+                              "Loaded ${servers.length} server(s), ${channels.length} channel(s), ${messages.length} message(s), ${activeVoiceConnection == null ? 0 : 1} voice participant(s).",
                             ),
                           const SizedBox(height: 12),
                           Expanded(
@@ -302,7 +301,9 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                     ? selectedTextChannelId
                                                     : null,
                                             voiceParticipantCount:
-                                                voiceSessions.length,
+                                                activeVoiceConnection == null
+                                                    ? 0
+                                                    : 1,
                                             isLoading: isLoading,
                                             createController:
                                                 createChannelController,
@@ -344,7 +345,9 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                     ? selectedVoiceChannelId
                                                     : null,
                                             voiceParticipantCount:
-                                                voiceSessions.length,
+                                                activeVoiceConnection == null
+                                                    ? 0
+                                                    : 1,
                                             isLoading: isLoading,
                                             createController:
                                                 createChannelController,
@@ -377,12 +380,13 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                         SizedBox(
                                           height: 180,
                                           child: VoiceChannelsSectionWidget(
-                                            voiceSessions: voiceSessions,
+                                            activeConnection:
+                                                activeVoiceConnection,
                                             isLoading: isLoading,
-                                            onJoin: () => context
+                                            onConnect: () => context
                                                 .read<VoiceSessionsBloc>()
                                                 .add(
-                                                  JoinVoiceSessionRequested(
+                                                  ConnectVoiceSessionRequested(
                                                     baseUrl:
                                                         baseUrlController.text,
                                                     channelId:
@@ -390,21 +394,10 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                             "",
                                                   ),
                                                 ),
-                                            onLeave: () => context
+                                            onDisconnect: () => context
                                                 .read<VoiceSessionsBloc>()
                                                 .add(
-                                                  LeaveVoiceSessionRequested(
-                                                    baseUrl:
-                                                        baseUrlController.text,
-                                                    channelId:
-                                                        activeVoiceChannelId ??
-                                                            "",
-                                                  ),
-                                                ),
-                                            onRefresh: () => context
-                                                .read<VoiceSessionsBloc>()
-                                                .add(
-                                                  LoadVoiceSessionsRequested(
+                                                  DisconnectVoiceSessionRequested(
                                                     baseUrl:
                                                         baseUrlController.text,
                                                     channelId:

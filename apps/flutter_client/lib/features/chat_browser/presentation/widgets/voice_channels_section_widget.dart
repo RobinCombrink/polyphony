@@ -23,19 +23,17 @@ SectionStatus? buildVoiceChannelsSectionStatus(VoiceSessionsState state) {
 
 class VoiceChannelsSectionWidget extends StatelessWidget {
   const VoiceChannelsSectionWidget({
-    required this.voiceSessions,
+    required this.activeConnection,
     required this.isLoading,
-    required this.onJoin,
-    required this.onLeave,
-    required this.onRefresh,
+    required this.onConnect,
+    required this.onDisconnect,
     super.key,
   });
 
-  final List<VoiceSession> voiceSessions;
+  final VoiceConnectSession? activeConnection;
   final bool isLoading;
-  final VoidCallback onJoin;
-  final VoidCallback onLeave;
-  final VoidCallback onRefresh;
+  final VoidCallback onConnect;
+  final VoidCallback onDisconnect;
 
   @override
   Widget build(BuildContext context) {
@@ -58,32 +56,31 @@ class VoiceChannelsSectionWidget extends StatelessWidget {
               runSpacing: 8,
               children: <Widget>[
                 FilledButton(
-                  onPressed: isLoading ? null : onJoin,
-                  child: const Text("Join"),
+                  onPressed: isLoading ? null : onConnect,
+                  child: const Text("Connect"),
                 ),
                 FilledButton.tonal(
-                  onPressed: isLoading ? null : onLeave,
-                  child: const Text("Leave"),
-                ),
-                OutlinedButton(
-                  onPressed: isLoading ? null : onRefresh,
-                  child: const Text("Refresh"),
+                  onPressed: isLoading ? null : onDisconnect,
+                  child: const Text("Disconnect"),
                 ),
               ],
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: voiceSessions.length,
-              itemBuilder: (context, index) {
-                final voiceSession = voiceSessions[index];
-
-                return ListTile(
-                  leading: const Icon(Icons.mic),
-                  title: Text(voiceSession.participantSubject),
-                  subtitle: Text("Channel ${voiceSession.channelId}"),
-                );
-              },
+            child: ListView(
+              children: <Widget>[
+                if (activeConnection == null)
+                  const ListTile(
+                    leading: Icon(Icons.mic_off),
+                    title: Text("No active voice connection"),
+                  )
+                else
+                  ListTile(
+                    leading: const Icon(Icons.mic),
+                    title: Text(activeConnection!.participantSubject),
+                    subtitle: Text("Channel ${activeConnection!.channelId}"),
+                  ),
+              ],
             ),
           ),
         ],

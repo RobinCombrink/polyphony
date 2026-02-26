@@ -61,17 +61,23 @@ class ApiMessage {
   }
 }
 
-class ApiVoiceSession {
-  const ApiVoiceSession({
+class ApiVoiceConnectSession {
+  const ApiVoiceConnectSession({
+    required this.livekitUrl,
+    required this.accessToken,
     required this.channelId,
     required this.participantSubject,
   });
 
+  final String livekitUrl;
+  final String accessToken;
   final String channelId;
   final String participantSubject;
 
-  factory ApiVoiceSession.fromJson(Map<String, dynamic> json) {
-    return ApiVoiceSession(
+  factory ApiVoiceConnectSession.fromJson(Map<String, dynamic> json) {
+    return ApiVoiceConnectSession(
+      livekitUrl: json["livekit_url"] as String,
+      accessToken: json["access_token"] as String,
       channelId: json["channel_id"] as String,
       participantSubject: json["participant_subject"] as String,
     );

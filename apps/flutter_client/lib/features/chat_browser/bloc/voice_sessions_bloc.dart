@@ -1,29 +1,45 @@
 import "package:flutter_bloc/flutter_bloc.dart";
+import "package:bloc_concurrency/bloc_concurrency.dart";
 
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/voice_runtime_service.dart";
 
 part "voice_sessions_event.dart";
 part "voice_sessions_state.dart";
 
 class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
-  VoiceSessionsBloc({required VoiceSessionRepo voiceSessionRepo})
-      : _voiceSessionRepo = voiceSessionRepo,
+  VoiceSessionsBloc({
+    required VoiceSessionRepo voiceSessionRepo,
+    required VoiceRuntimeService voiceRuntimeService,
+  })  : _voiceSessionRepo = voiceSessionRepo,
+        _voiceRuntimeService = voiceRuntimeService,
         super(const VoiceSessionsInitialState()) {
-    on<ResetVoiceSessionsRequested>(_onResetVoiceSessionsRequested);
-    on<LoadVoiceSessionsRequested>(_onLoadVoiceSessionsRequested);
-    on<JoinVoiceSessionRequested>(_onJoinVoiceSessionRequested);
-    on<LeaveVoiceSessionRequested>(_onLeaveVoiceSessionRequested);
+    on<VoiceSessionsEvent>(
+      _onVoiceSessionsEvent,
+      transformer: sequential(),
+    );
   }
 
   final VoiceSessionRepo _voiceSessionRepo;
+  final VoiceRuntimeService _voiceRuntimeService;
 
-  void _onResetVoiceSessionsRequested(
-    ResetVoiceSessionsRequested event,
+  Future<void> _onVoiceSessionsEvent(
+    VoiceSessionsEvent event,
     Emitter<VoiceSessionsState> emit,
-  ) {
-    emit(const VoiceSessionsInitialState());
+  ) async {
+    switch (event) {
+      case ResetVoiceSessionsRequested():
+        await _voiceRuntimeService.disconnect();
+        emit(const VoiceSessionsInitialState());
+      case LoadVoiceSessionsRequested():
+        await _onLoadVoiceSessionsRequested(event, emit);
+      case ConnectVoiceSessionRequested():
+        await _onConnectVoiceSessionRequested(event, emit);
+      case DisconnectVoiceSessionRequested():
+        await _onDisconnectVoiceSessionRequested(event, emit);
+    }
   }
 
   Future<void> _onLoadVoiceSessionsRequested(
@@ -43,32 +59,22 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
-        voiceSessions: loadedState.voiceSessions,
+        activeConnection: loadedState.activeConnection,
         channelId: loadedState.channelId,
       ));
       return;
     }
 
-    emit(const VoiceSessionsLoadingState());
-
-    final listVoiceSessionsResult = await _voiceSessionRepo.listVoiceSessions(
-      baseUrl: event.baseUrl.trim(),
+    emit(VoiceSessionsLoadedState(
+      activeConnection: loadedState?.channelId == trimmedChannelId
+          ? loadedState?.activeConnection
+          : null,
       channelId: trimmedChannelId,
-    );
-
-    switch (listVoiceSessionsResult) {
-      case Ok<List<VoiceSession>>(:final value):
-        emit(VoiceSessionsLoadedState(
-          voiceSessions: value,
-          channelId: trimmedChannelId,
-        ));
-      case Error<List<VoiceSession>>(:final error):
-        emit(VoiceSessionsExceptionState(error: error));
-    }
+    ));
   }
 
-  Future<void> _onJoinVoiceSessionRequested(
-    JoinVoiceSessionRequested event,
+  Future<void> _onConnectVoiceSessionRequested(
+    ConnectVoiceSessionRequested event,
     Emitter<VoiceSessionsState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
@@ -84,7 +90,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     if (trimmedChannelId.isEmpty) {
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
-        voiceSessions: loadedState.voiceSessions,
+        activeConnection: loadedState.activeConnection,
         channelId: loadedState.channelId,
       ));
       return;
@@ -92,34 +98,35 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     emit(const VoiceSessionsLoadingState());
 
-    final joinVoiceSessionResult = await _voiceSessionRepo.joinVoiceSession(
+    final connectVoiceSessionResult =
+        await _voiceSessionRepo.connectVoiceSession(
       baseUrl: event.baseUrl.trim(),
       channelId: trimmedChannelId,
     );
 
-    switch (joinVoiceSessionResult) {
-      case Ok<VoiceSession>():
-        final listVoiceSessionsResult =
-            await _voiceSessionRepo.listVoiceSessions(
-          baseUrl: event.baseUrl.trim(),
-          channelId: trimmedChannelId,
+    switch (connectVoiceSessionResult) {
+      case Ok<VoiceConnectSession>(:final value):
+        final runtimeConnectResult = await _voiceRuntimeService.connect(
+          livekitUrl: value.livekitUrl,
+          accessToken: value.accessToken,
         );
-        switch (listVoiceSessionsResult) {
-          case Ok<List<VoiceSession>>(:final value):
+
+        switch (runtimeConnectResult) {
+          case Ok<void>():
             emit(VoiceSessionsLoadedState(
-              voiceSessions: value,
+              activeConnection: value,
               channelId: trimmedChannelId,
             ));
-          case Error<List<VoiceSession>>(:final error):
+          case Error<void>(:final error):
             emit(VoiceSessionsExceptionState(error: error));
         }
-      case Error<VoiceSession>(:final error):
+      case Error<VoiceConnectSession>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
     }
   }
 
-  Future<void> _onLeaveVoiceSessionRequested(
-    LeaveVoiceSessionRequested event,
+  Future<void> _onDisconnectVoiceSessionRequested(
+    DisconnectVoiceSessionRequested event,
     Emitter<VoiceSessionsState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
@@ -135,7 +142,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     if (trimmedChannelId.isEmpty) {
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
-        voiceSessions: loadedState.voiceSessions,
+        activeConnection: loadedState.activeConnection,
         channelId: loadedState.channelId,
       ));
       return;
@@ -143,27 +150,25 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     emit(const VoiceSessionsLoadingState());
 
-    final leaveVoiceSessionResult = await _voiceSessionRepo.leaveVoiceSession(
+    final runtimeDisconnectResult = await _voiceRuntimeService.disconnect();
+
+    if (runtimeDisconnectResult case Error<void>(:final error)) {
+      emit(VoiceSessionsExceptionState(error: error));
+      return;
+    }
+
+    final backendDisconnectResult =
+        await _voiceSessionRepo.disconnectVoiceSession(
       baseUrl: event.baseUrl.trim(),
       channelId: trimmedChannelId,
     );
 
-    switch (leaveVoiceSessionResult) {
+    switch (backendDisconnectResult) {
       case Ok<void>():
-        final listVoiceSessionsResult =
-            await _voiceSessionRepo.listVoiceSessions(
-          baseUrl: event.baseUrl.trim(),
+        emit(VoiceSessionsLoadedState(
+          activeConnection: null,
           channelId: trimmedChannelId,
-        );
-        switch (listVoiceSessionsResult) {
-          case Ok<List<VoiceSession>>(:final value):
-            emit(VoiceSessionsLoadedState(
-              voiceSessions: value,
-              channelId: trimmedChannelId,
-            ));
-          case Error<List<VoiceSession>>(:final error):
-            emit(VoiceSessionsExceptionState(error: error));
-        }
+        ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
     }

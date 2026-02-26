@@ -22,7 +22,9 @@ import "package:polyphony_flutter_client/shared/services/rest/rest_channel_servi
 import "package:polyphony_flutter_client/shared/services/rest/rest_message_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_server_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_voice_session_service.dart";
+import "package:polyphony_flutter_client/shared/services/livekit/livekit_voice_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/server_service.dart";
+import "package:polyphony_flutter_client/shared/services/voice_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/voice_session_service.dart";
 import "package:provider/provider.dart";
 
@@ -78,6 +80,9 @@ class PolyphonyApp extends StatelessWidget {
             chatApi: context.read<ChatApi>(),
             authenticationStateSource: context.read<AuthenticationBloc>(),
           ),
+        ),
+        Provider<VoiceRuntimeService>(
+          create: (_) => LivekitVoiceRuntimeService(),
         ),
         Provider<ServerRepo>(
           create: (context) =>

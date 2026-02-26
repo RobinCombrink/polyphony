@@ -4,6 +4,7 @@ import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/voice_runtime_service.dart";
 
 import "../../entity_seeder.dart";
 
@@ -151,51 +152,69 @@ class FakeMessageRepository implements MessageRepo {
 class FakeVoiceSessionRepository implements VoiceSessionRepo {
   FakeVoiceSessionRepository({
     required ChatApiFixture fixture,
-    this.forceLeaveNotFound = false,
-  })  : _sessionsByChannel = <String, List<VoiceSession>>{
-          fixture.listedChannel.id: <VoiceSession>[fixture.listedVoiceSession],
-        },
-        _createdVoiceSession = fixture.createdVoiceSession;
+    this.forceDisconnectError = false,
+  }) : _connectedVoiceSession = fixture.connectedVoiceSession;
 
-  final bool forceLeaveNotFound;
-  final Map<String, List<VoiceSession>> _sessionsByChannel;
-  final VoiceSession _createdVoiceSession;
+  final bool forceDisconnectError;
+  final VoiceConnectSession _connectedVoiceSession;
 
   @override
-  Future<Result<VoiceSession>> joinVoiceSession({
+  Future<Result<VoiceConnectSession>> connectVoiceSession({
     required String baseUrl,
     required String channelId,
   }) async {
-    final voiceSessions =
-        _sessionsByChannel.putIfAbsent(channelId, () => <VoiceSession>[]);
-    voiceSessions.add(_createdVoiceSession);
-
-    return Ok<VoiceSession>(_createdVoiceSession);
+    return Ok<VoiceConnectSession>(
+      VoiceConnectSession(
+        livekitUrl: _connectedVoiceSession.livekitUrl,
+        accessToken: _connectedVoiceSession.accessToken,
+        channelId: channelId,
+        participantSubject: _connectedVoiceSession.participantSubject,
+      ),
+    );
   }
 
   @override
-  Future<Result<void>> leaveVoiceSession({
+  Future<Result<void>> disconnectVoiceSession({
     required String baseUrl,
     required String channelId,
   }) async {
-    if (forceLeaveNotFound) {
-      return Error<void>(
-          Exception("Failed to leave voice session: 404 Not found"));
+    final _ = channelId;
+
+    if (forceDisconnectError) {
+      return Error<void>(Exception("Failed to disconnect voice session"));
     }
 
-    _sessionsByChannel[channelId] = <VoiceSession>[];
+    return const Ok<void>(null);
+  }
+}
+
+class FakeVoiceRuntimeService implements VoiceRuntimeService {
+  FakeVoiceRuntimeService({
+    this.forceConnectError = false,
+    this.forceDisconnectError = false,
+  });
+
+  final bool forceConnectError;
+  final bool forceDisconnectError;
+
+  @override
+  Future<Result<void>> connect({
+    required String livekitUrl,
+    required String accessToken,
+  }) async {
+    if (forceConnectError) {
+      return Error<void>(Exception("Failed to connect to livekit"));
+    }
 
     return const Ok<void>(null);
   }
 
   @override
-  Future<Result<List<VoiceSession>>> listVoiceSessions({
-    required String baseUrl,
-    required String channelId,
-  }) async {
-    final voiceSessions = _sessionsByChannel[channelId] ?? <VoiceSession>[];
+  Future<Result<void>> disconnect() async {
+    if (forceDisconnectError) {
+      return Error<void>(Exception("Failed to disconnect from livekit"));
+    }
 
-    return Ok<List<VoiceSession>>(
-        List<VoiceSession>.unmodifiable(voiceSessions));
+    return const Ok<void>(null);
   }
 }
