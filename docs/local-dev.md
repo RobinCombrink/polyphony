@@ -14,6 +14,7 @@ Optionally set these environment variables to override defaults at runtime:
 - `AUTH0_AUDIENCE` (for example `polyphony-api`)
 - `AUTH0_ACCESS_TOKEN_DURATION_HOURS=18`
 - `BACKEND_API_BIND` (for example `127.0.0.1:5067`)
+- `BACKEND_API_CORS_ALLOWED_ORIGINS` (comma-separated, defaults to `http://localhost:3000,http://127.0.0.1:3000`)
 
 Auth0 organization support is intentionally disabled for MVP.
 

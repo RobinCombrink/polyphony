@@ -14,6 +14,7 @@ use auth::{AuthState, JwksTokenVerifier, TokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
 use backend_storage::{ChatRepository, InMemoryChatRepository};
+use http::{HeaderValue, Method};
 use openapi::ApiDocumentation;
 use routes::{
     health::health,
@@ -22,6 +23,7 @@ use routes::{
     servers::{create_channel, create_server, list_channels, list_servers},
     voice::connect_voice_session,
 };
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
@@ -80,5 +82,54 @@ pub fn build_app(state: ApiState) -> Router {
                 .config(Config::default().try_it_out_enabled(true)),
         )
         .with_state(state)
+        .layer(build_cors_layer())
         .layer(TraceLayer::new_for_http())
+}
+
+fn build_cors_layer() -> CorsLayer {
+    let default_origins = ["http://localhost:3000", "http://127.0.0.1:3000"];
+
+    let configured_origins = std::env::var("BACKEND_API_CORS_ALLOWED_ORIGINS")
+        .ok()
+        .map(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .filter(|origin| !origin.is_empty())
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .filter(|origins| !origins.is_empty())
+        .unwrap_or_else(|| {
+            default_origins
+                .iter()
+                .map(|origin| origin.to_string())
+                .collect()
+        });
+
+    let allowed_origins = configured_origins
+        .iter()
+        .filter_map(|origin| HeaderValue::from_str(origin).ok())
+        .collect::<Vec<_>>();
+
+    let allow_origin = if allowed_origins.is_empty() {
+        AllowOrigin::list(
+            default_origins
+                .iter()
+                .filter_map(|origin| HeaderValue::from_str(origin).ok()),
+        )
+    } else {
+        AllowOrigin::list(allowed_origins)
+    };
+
+    CorsLayer::new()
+        .allow_origin(allow_origin)
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers(tower_http::cors::Any)
 }
