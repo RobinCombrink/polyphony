@@ -10,3 +10,4 @@ API clients should return Result<T> types and not throw exceptions; errors shoul
 Never catch Object, Error, or any other type which is not explicitly an Exception (or inherits from Exception). Only ever catch exceptions
 Use Widgets instead of methods for reusable UI components in Flutter. This allows for better composition and separation of concerns between UI and logic.
 UI Logic should be implemented in BLoCs and not in UI widgets. Widgets should only be responsible for rendering the UI based on the state provided by the BLoC.
+When upding bdd tests, always update the feature files first to ensure that the test scenarios are clearly defined and serve as documentation for the expected behavior of the system. Then implement the step definitions in Rust or Flutter as needed to make the tests pass.
