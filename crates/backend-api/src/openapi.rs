@@ -7,7 +7,7 @@ use utoipa::{Modify, OpenApi};
 
 use crate::dto::{
     CreateChannelRequest, CreateMessageRequest, CreateServerRequest, HealthResponse, MeResponse,
-    UpdateMessageRequest, VoiceConnectResponse,
+    LiveRoomParticipantsResponse, UpdateMessageRequest, VoiceConnectResponse,
 };
 
 #[derive(OpenApi)]
@@ -26,7 +26,8 @@ use crate::dto::{
         crate::routes::voice::join_voice_session,
         crate::routes::voice::leave_voice_session,
         crate::routes::voice::list_voice_sessions,
-        crate::routes::voice::connect_voice_session
+        crate::routes::voice::connect_voice_session,
+        crate::routes::voice::list_live_room_participants
     ),
     components(schemas(
         HealthResponse,
@@ -36,6 +37,7 @@ use crate::dto::{
         Message,
         VoiceSession,
         VoiceConnectResponse,
+        LiveRoomParticipantsResponse,
         CreateServerRequest,
         CreateChannelRequest,
         CreateMessageRequest,

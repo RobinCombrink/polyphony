@@ -7,7 +7,7 @@ mod common;
 use common::{
     bdd_support::{
         connect_voice_session, create_channel, create_server, join_voice_session, leave_voice_session,
-        list_voice_sessions, response_payload_json, seeded_state,
+        list_live_room_participants, list_voice_sessions, response_payload_json, seeded_state,
     },
     entity_seeder::EntitySeeder,
 };
@@ -182,4 +182,53 @@ async fn given_missing_channel_when_connect_voice_session_then_status_is_404() {
     let connect_response = connect_voice_session(&app, "chn-missing").await;
 
     assert_eq!(connect_response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn given_missing_channel_when_listing_live_room_participants_then_status_is_404() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let response = list_live_room_participants(&app, "chn-missing").await;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn given_existing_channel_when_listing_live_room_participants_then_status_is_200() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let response = list_live_room_participants(&app, &created_channel_id).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let payload = response_payload_json(response).await;
+    assert_eq!(
+        payload["channel_id"].as_str(),
+        Some(created_channel_id.as_str())
+    );
+    assert!(payload["participant_subjects"].is_array());
 }

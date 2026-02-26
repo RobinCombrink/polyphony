@@ -20,7 +20,10 @@ use routes::{
     me::me,
     messages::{create_message, delete_message, list_messages, update_message},
     servers::{create_channel, create_server, list_channels, list_servers},
-    voice::{connect_voice_session, join_voice_session, leave_voice_session, list_voice_sessions},
+    voice::{
+        connect_voice_session, join_voice_session, leave_voice_session,
+        list_live_room_participants, list_voice_sessions,
+    },
 };
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
@@ -81,6 +84,10 @@ pub fn build_app(state: ApiState) -> Router {
         .route(
             "/api/v1/channels/{channel_id}/voice/connect",
             post(connect_voice_session),
+        )
+        .route(
+            "/api/v1/channels/{channel_id}/voice/rooms/participants",
+            get(list_live_room_participants),
         )
         .merge(
             SwaggerUi::new("/openapi")

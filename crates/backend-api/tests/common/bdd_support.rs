@@ -322,6 +322,24 @@ pub(crate) async fn connect_voice_session_with_token(
         .expect("connect voice session response from app")
 }
 
+pub(crate) async fn list_live_room_participants(
+    app: &axum::Router,
+    channel_id: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/channels/{channel_id}/voice/rooms/participants"
+                ))
+                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .body(Body::empty())
+                .expect("list live room participants request to be valid"),
+        )
+        .await
+        .expect("list live room participants response from app")
+}
+
 pub(crate) async fn response_payload_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(
         &axum::body::to_bytes(response.into_body(), 1024 * 1024)

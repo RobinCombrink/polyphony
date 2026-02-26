@@ -7,8 +7,12 @@ use axum::{
 use backend_domain::VoiceSession;
 use backend_storage::MutationResult;
 use livekit_api::access_token::{AccessToken, VideoGrants};
+use livekit_api::services::{
+    ServiceError, TwirpError, TwirpErrorCode,
+    room::RoomClient,
+};
 
-use crate::dto::VoiceConnectResponse;
+use crate::dto::{LiveRoomParticipantsResponse, VoiceConnectResponse};
 
 use crate::{ApiState, auth::AuthenticatedUser};
 
@@ -156,6 +160,61 @@ pub(crate) async fn connect_voice_session(
             access_token,
             channel_id,
             participant_subject,
+        }),
+    )
+        .into_response()
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/channels/{channel_id}/voice/rooms/participants",
+    responses(
+        (status = 200, description = "Live room participants listed", body = LiveRoomParticipantsResponse),
+        (status = 404, description = "Channel not found"),
+        (status = 502, description = "LiveKit room query failed"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("channel_id" = String, Path, description = "Channel id")),
+    tag = "backend-api"
+)]
+pub(crate) async fn list_live_room_participants(
+    State(state): State<ApiState>,
+    authenticated_user: AuthenticatedUser,
+    Path(channel_id): Path<String>,
+) -> impl IntoResponse {
+    let _ = authenticated_user;
+
+    if state.store.list_voice_sessions(&channel_id).await.is_none() {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
+    let room_client = RoomClient::with_api_key(
+        &state.livekit_config.server_api_url,
+        &state.livekit_config.api_key,
+        &state.livekit_config.api_secret,
+    );
+
+    let participants = match room_client.list_participants(&channel_id).await {
+        Ok(participants) => participants,
+        Err(ServiceError::Twirp(TwirpError::Twirp(error_code)))
+            if error_code.code == TwirpErrorCode::NOT_FOUND =>
+        {
+            Vec::new()
+        }
+        Err(_) => return StatusCode::BAD_GATEWAY.into_response(),
+    };
+
+    let participant_subjects = participants
+        .into_iter()
+        .map(|participant| participant.identity)
+        .collect::<Vec<_>>();
+
+    (
+        StatusCode::OK,
+        Json(LiveRoomParticipantsResponse {
+            channel_id,
+            participant_subjects,
         }),
     )
         .into_response()
