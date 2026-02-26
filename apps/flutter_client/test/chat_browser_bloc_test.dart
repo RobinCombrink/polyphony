@@ -1,5 +1,6 @@
 // ignore_for_file: cascade_invocations
 
+import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/messages_bloc.dart";
@@ -18,219 +19,228 @@ void main() {
   final entitySeeder = EntitySeeder();
   final fixture = entitySeeder.chatApiFixture();
 
-  test("servers bloc loads servers and emits loaded state", () async {
-    final bloc = ServersBloc(
+  blocTest<ServersBloc, ServersState>(
+    "servers bloc loads servers and emits loaded state",
+    build: () => ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),
-    );
+    ),
+    act: (bloc) => bloc.add(
+      const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"),
+    ),
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>().having(
+        (state) => state.servers.length,
+        "servers length",
+        1,
+      ),
+    ],
+  );
 
-    bloc.add(const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"));
-    await _waitForBloc();
-
-    expect(bloc.state, isA<ServersLoadedState>());
-    final loadedState = bloc.state as ServersLoadedState;
-    expect(loadedState.servers.length, 1);
-
-    await bloc.close();
-  });
-
-  test("servers bloc emits validation failed on empty server name", () async {
-    final bloc = ServersBloc(
+  blocTest<ServersBloc, ServersState>(
+    "servers bloc emits validation failed on empty server name",
+    build: () => ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),
-    );
+    ),
+    act: (bloc) {
+      bloc.add(const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"));
+      bloc.add(const CreateServerRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverName: "   ",
+      ));
+    },
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        ServersValidationIssue.serverNameRequired,
+      ),
+    ],
+  );
 
-    bloc.add(const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"));
-    await _waitForBloc();
-
-    bloc.add(const CreateServerRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      serverName: "   ",
-    ));
-    await _waitForBloc();
-
-    expect(bloc.state, isA<ServersValidationFailedState>());
-    final validationState = bloc.state as ServersValidationFailedState;
-    expect(validationState.issue, ServersValidationIssue.serverNameRequired);
-
-    await bloc.close();
-  });
-
-  test("channels bloc emits validation failed when server not selected",
-      () async {
-    final bloc = ChannelsBloc(
+  blocTest<ChannelsBloc, ChannelsState>(
+    "channels bloc emits validation failed when server not selected",
+    build: () => ChannelsBloc(
       channelRepo: FakeChannelRepository(fixture: fixture),
-    );
+    ),
+    act: (bloc) {
+      bloc.add(LoadChannelsRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverId: fixture.listedServer.id,
+      ));
+      bloc.add(const CreateChannelRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverId: "",
+        channelName: "channel",
+      ));
+    },
+    expect: () => <Matcher>[
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>(),
+      isA<ChannelsValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        ChannelsValidationIssue.serverSelectionRequired,
+      ),
+    ],
+  );
 
-    bloc.add(LoadChannelsRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      serverId: fixture.listedServer.id,
-    ));
-    await _waitForBloc();
-
-    bloc.add(const CreateChannelRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      serverId: "",
-      channelName: "channel",
-    ));
-    await _waitForBloc();
-
-    expect(bloc.state, isA<ChannelsValidationFailedState>());
-    final validationState = bloc.state as ChannelsValidationFailedState;
-    expect(
-      validationState.issue,
-      ChannelsValidationIssue.serverSelectionRequired,
-    );
-
-    await bloc.close();
-  });
-
-  test("channels bloc loads channels for selected server", () async {
-    final bloc = ChannelsBloc(
+  blocTest<ChannelsBloc, ChannelsState>(
+    "channels bloc loads channels for selected server",
+    build: () => ChannelsBloc(
       channelRepo: FakeChannelRepository(fixture: fixture),
-    );
+    ),
+    act: (bloc) => bloc.add(
+      LoadChannelsRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        serverId: fixture.listedServer.id,
+      ),
+    ),
+    expect: () => <Matcher>[
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>().having(
+        (state) => state.channels.length,
+        "channels length",
+        1,
+      ),
+    ],
+  );
 
-    bloc.add(LoadChannelsRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      serverId: fixture.listedServer.id,
-    ));
-    await _waitForBloc();
-
-    expect(bloc.state, isA<ChannelsLoadedState>());
-    final loadedState = bloc.state as ChannelsLoadedState;
-    expect(loadedState.channels.length, 1);
-
-    await bloc.close();
-  });
-
-  test("messages bloc updates message and emits loaded state", () async {
-    final bloc = MessagesBloc(
+  blocTest<MessagesBloc, MessagesState>(
+    "messages bloc updates message and emits loaded state",
+    build: () => MessagesBloc(
       messageRepo: FakeMessageRepository(fixture: fixture),
-    );
+    ),
+    act: (bloc) {
+      bloc.add(LoadMessagesRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        channelId: fixture.listedChannel.id,
+      ));
+      bloc.add(UpdateMessageRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        channelId: fixture.listedChannel.id,
+        messageId: fixture.listedMessage.id,
+        messageContent: "edited",
+      ));
+    },
+    expect: () => <Matcher>[
+      isA<MessagesLoadingState>(),
+      isA<MessagesLoadedState>(),
+      isA<MessagesLoadingState>(),
+      isA<MessagesLoadedState>().having(
+        (state) => state.messages.first.content,
+        "updated content",
+        "edited",
+      ),
+    ],
+  );
 
-    bloc.add(LoadMessagesRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      channelId: fixture.listedChannel.id,
-    ));
-    await _waitForBloc();
-
-    bloc.add(UpdateMessageRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      channelId: fixture.listedChannel.id,
-      messageId: fixture.listedMessage.id,
-      messageContent: "edited",
-    ));
-    await _waitForBloc();
-
-    expect(bloc.state, isA<MessagesLoadedState>());
-    final loadedState = bloc.state as MessagesLoadedState;
-    expect(loadedState.messages.first.content, "edited");
-
-    await bloc.close();
-  });
-
-  test("messages bloc emits exception state when delete fails", () async {
-    final bloc = MessagesBloc(
+  blocTest<MessagesBloc, MessagesState>(
+    "messages bloc emits exception state when delete fails",
+    build: () => MessagesBloc(
       messageRepo: FakeMessageRepository(
         fixture: fixture,
         forceDeleteNotFound: true,
       ),
-    );
+    ),
+    act: (bloc) {
+      bloc.add(LoadMessagesRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        channelId: fixture.listedChannel.id,
+      ));
+      bloc.add(DeleteMessageRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        channelId: fixture.listedChannel.id,
+        messageId: fixture.listedMessage.id,
+      ));
+    },
+    expect: () => <Matcher>[
+      isA<MessagesLoadingState>(),
+      isA<MessagesLoadedState>(),
+      isA<MessagesLoadingState>(),
+      isA<MessagesExceptionState>().having(
+        (state) => state.error.toString(),
+        "error",
+        contains("Failed to delete message: 404"),
+      ),
+    ],
+  );
 
-    bloc.add(LoadMessagesRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      channelId: fixture.listedChannel.id,
-    ));
-    await _waitForBloc();
-
-    bloc.add(DeleteMessageRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      channelId: fixture.listedChannel.id,
-      messageId: fixture.listedMessage.id,
-    ));
-    await _waitForBloc();
-
-    expect(bloc.state, isA<MessagesExceptionState>());
-    final exceptionState = bloc.state as MessagesExceptionState;
-    expect(
-      exceptionState.error.toString(),
-      contains("Failed to delete message: 404"),
-    );
-
-    await bloc.close();
-  });
-
-  test("voice sessions bloc loads participants for selected channel", () async {
-    final bloc = VoiceSessionsBloc(
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "voice sessions bloc loads participants for selected channel",
+    build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
-    );
+    ),
+    act: (bloc) => bloc.add(
+      LoadVoiceSessionsRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        channelId: fixture.listedChannel.id,
+      ),
+    ),
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.voiceSessions.length,
+        "voice sessions length",
+        1,
+      ),
+    ],
+  );
 
-    bloc.add(LoadVoiceSessionsRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      channelId: fixture.listedChannel.id,
-    ));
-    await _waitForBloc();
-
-    expect(bloc.state, isA<VoiceSessionsLoadedState>());
-    final loadedState = bloc.state as VoiceSessionsLoadedState;
-    expect(loadedState.voiceSessions.length, 1);
-
-    await bloc.close();
-  });
-
-  test("voice sessions bloc emits validation failed on missing channel",
-      () async {
-    final bloc = VoiceSessionsBloc(
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "voice sessions bloc emits validation failed on missing channel",
+    build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
-    );
+    ),
+    act: (bloc) {
+      bloc.add(LoadVoiceSessionsRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        channelId: fixture.listedChannel.id,
+      ));
+      bloc.add(const JoinVoiceSessionRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        channelId: "",
+      ));
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        VoiceSessionsValidationIssue.channelSelectionRequired,
+      ),
+    ],
+  );
 
-    bloc.add(LoadVoiceSessionsRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      channelId: fixture.listedChannel.id,
-    ));
-    await _waitForBloc();
-
-    bloc.add(const JoinVoiceSessionRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      channelId: "",
-    ));
-    await _waitForBloc();
-
-    expect(bloc.state, isA<VoiceSessionsValidationFailedState>());
-    final validationState = bloc.state as VoiceSessionsValidationFailedState;
-    expect(
-      validationState.issue,
-      VoiceSessionsValidationIssue.channelSelectionRequired,
-    );
-
-    await bloc.close();
-  });
-
-  test("voice sessions bloc leaves voice and reloads empty list", () async {
-    final bloc = VoiceSessionsBloc(
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "voice sessions bloc leaves voice and reloads empty list",
+    build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
-    );
-
-    bloc.add(LoadVoiceSessionsRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      channelId: fixture.listedChannel.id,
-    ));
-    await _waitForBloc();
-
-    bloc.add(LeaveVoiceSessionRequested(
-      baseUrl: "http://127.0.0.1:5067",
-      channelId: fixture.listedChannel.id,
-    ));
-    await _waitForBloc();
-
-    expect(bloc.state, isA<VoiceSessionsLoadedState>());
-    final loadedState = bloc.state as VoiceSessionsLoadedState;
-    expect(loadedState.voiceSessions, isEmpty);
-
-    await bloc.close();
-  });
-}
-
-Future<void> _waitForBloc() async {
-  await Future<void>.delayed(const Duration(milliseconds: 20));
+    ),
+    act: (bloc) {
+      bloc.add(LoadVoiceSessionsRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        channelId: fixture.listedChannel.id,
+      ));
+      bloc.add(LeaveVoiceSessionRequested(
+        baseUrl: "http://127.0.0.1:5067",
+        channelId: fixture.listedChannel.id,
+      ));
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.voiceSessions,
+        "voice sessions",
+        isEmpty,
+      ),
+    ],
+  );
 }
 
 class FakeServerRepository implements ServerRepo {
