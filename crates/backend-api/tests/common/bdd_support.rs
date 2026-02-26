@@ -10,6 +10,7 @@ use axum::{
 use backend_api::{
     ApiState,
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
+    config::LiveKitConfig,
     storage::{ChatRepository, InMemoryChatRepository},
 };
 use serde_json::Value;
@@ -296,6 +297,31 @@ pub(crate) async fn list_voice_sessions(
         .expect("list voice sessions response from app")
 }
 
+pub(crate) async fn connect_voice_session(
+    app: &axum::Router,
+    channel_id: &str,
+) -> axum::response::Response {
+    connect_voice_session_with_token(app, channel_id, "valid-token").await
+}
+
+pub(crate) async fn connect_voice_session_with_token(
+    app: &axum::Router,
+    channel_id: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/channels/{channel_id}/voice/connect"))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("connect voice session request to be valid"),
+        )
+        .await
+        .expect("connect voice session response from app")
+}
+
 pub(crate) async fn response_payload_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(
         &axum::body::to_bytes(response.into_body(), 1024 * 1024)
@@ -328,5 +354,6 @@ pub(crate) fn seeded_state_with_store(
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
         store,
+        livekit_config: Arc::new(LiveKitConfig::default()),
     }
 }

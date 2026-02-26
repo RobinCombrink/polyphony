@@ -35,6 +35,26 @@ Connection info:
 - API key `devkey`
 - API secret `secret`
 
+Runtime env configuration used by backend:
+- `LIVEKIT_URL` (default `ws://127.0.0.1:7880`)
+- `LIVEKIT_API_KEY` (default `devkey`)
+- `LIVEKIT_API_SECRET` (default `secret`)
+- `LIVEKIT_TOKEN_TTL_SECONDS` (default `3600`)
+
+## Live Audio Architecture (Current)
+- LiveKit handles media transport, room signaling, and participant media plumbing.
+- Backend API handles domain policy checks and token issuance only.
+- Token generation is implemented via LiveKit Rust Server SDK (`livekit-api`), not custom JWT assembly.
+
+Current backend voice connect endpoint:
+- `POST /api/v1/channels/{channel_id}/voice/connect`
+- Requires bearer auth.
+- Returns: `livekit_url`, `access_token`, `channel_id`, `participant_subject`.
+
+Responsibilities split:
+- Backend-owned: membership/authorization checks, channel-to-room mapping, audit/business rules.
+- LiveKit-owned: media session internals, WebRTC signaling/media semantics, token grant interpretation.
+
 ## Developing the server
 ```bash
 cargo install cargo-watch systemfd

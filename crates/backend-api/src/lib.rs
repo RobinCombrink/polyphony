@@ -20,7 +20,7 @@ use routes::{
     me::me,
     messages::{create_message, delete_message, list_messages, update_message},
     servers::{create_channel, create_server, list_channels, list_servers},
-    voice::{join_voice_session, leave_voice_session, list_voice_sessions},
+    voice::{connect_voice_session, join_voice_session, leave_voice_session, list_voice_sessions},
 };
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
@@ -30,6 +30,7 @@ use utoipa_swagger_ui::{Config, SwaggerUi};
 pub struct ApiState {
     pub auth_state: Arc<AuthState>,
     pub store: Arc<dyn ChatRepository>,
+    pub livekit_config: Arc<config::LiveKitConfig>,
 }
 
 pub fn default_bind_address() -> SocketAddr {
@@ -37,7 +38,8 @@ pub fn default_bind_address() -> SocketAddr {
 }
 
 pub async fn default_api_state() -> ApiState {
-    let auth_config = config::BackendApiConfig::from_environment().auth0;
+    let backend_config = config::BackendApiConfig::from_environment();
+    let auth_config = backend_config.auth0;
     let token_verifier: Arc<dyn TokenVerifier> = Arc::new(
         JwksTokenVerifier::new(auth_config.clone())
             .await
@@ -47,6 +49,7 @@ pub async fn default_api_state() -> ApiState {
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
         store: Arc::new(InMemoryChatRepository::new()),
+        livekit_config: Arc::new(backend_config.livekit),
     }
 }
 
@@ -74,6 +77,10 @@ pub fn build_app(state: ApiState) -> Router {
         .route(
             "/api/v1/channels/{channel_id}/voice/sessions/me",
             axum::routing::delete(leave_voice_session),
+        )
+        .route(
+            "/api/v1/channels/{channel_id}/voice/connect",
+            post(connect_voice_session),
         )
         .merge(
             SwaggerUi::new("/openapi")
