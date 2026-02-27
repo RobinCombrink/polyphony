@@ -2,6 +2,7 @@
 
 use backend_api::domain::{Channel, DisplayName, Message, Server, User};
 use rand::{Rng as _, distr::Alphanumeric};
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct ChatFixture {
@@ -52,7 +53,7 @@ impl EntitySeeder {
             .to_lowercase();
 
         Server {
-            id: format!("srv-seeded-{random_segment}"),
+            id: Uuid::new_v4().to_string(),
             name: format!("Server-{random_segment}"),
             owner_subject: format!("auth0|owner_{random_segment}"),
         }

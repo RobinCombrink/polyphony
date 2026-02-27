@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use backend_domain::{Channel, DisplayName, Membership, Message, Server, User, VoiceSession};
+use uuid::Uuid;
 
 use crate::MutationResult;
 
 #[derive(Debug, Default)]
 pub(crate) struct InMemoryStore {
-    pub(crate) next_server_id: u64,
     pub(crate) next_channel_id: u64,
     pub(crate) next_message_id: u64,
     pub(crate) users_by_subject: HashMap<String, User>,
@@ -51,9 +51,8 @@ impl InMemoryStore {
     }
 
     pub(crate) fn create_server(&mut self, name: String, owner_subject: String) -> Server {
-        self.next_server_id += 1;
         let server = Server {
-            id: format!("srv-{}", self.next_server_id),
+            id: Uuid::new_v4().to_string(),
             name,
             owner_subject: owner_subject.clone(),
         };

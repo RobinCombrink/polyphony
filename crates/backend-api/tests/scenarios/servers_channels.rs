@@ -8,10 +8,10 @@ mod common;
 use backend_api::storage::InMemoryChatRepository;
 use common::{
     bdd_support::{
-        add_server_member, add_server_member_with_token, create_channel, create_server,
-        create_server_with_token, delete_channel, delete_channel_with_token, delete_server,
-        delete_server_with_token, list_channels, list_servers, list_servers_with_token,
-        response_payload_json, seeded_state, seeded_state_with_store,
+        add_server_member, add_server_member_with_token, create_channel, create_channel_with_token,
+        create_server, create_server_with_token, delete_channel, delete_channel_with_token,
+        delete_server, delete_server_with_token, list_channels, list_servers,
+        list_servers_with_token, response_payload_json, seeded_state, seeded_state_with_store,
     },
     entity_seeder::EntitySeeder,
 };
@@ -338,7 +338,7 @@ async fn given_missing_server_when_delete_server_then_status_is_404() {
     let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
-    let delete_server_response = delete_server(&app, "srv-missing").await;
+    let delete_server_response = delete_server(&app, "00000000-0000-0000-0000-000000000001").await;
 
     assert_eq!(delete_server_response.status(), StatusCode::NOT_FOUND);
 }
@@ -419,7 +419,13 @@ async fn given_non_owner_when_delete_channel_then_status_is_403() {
     assert_eq!(add_member_response.status(), StatusCode::CREATED);
 
     let create_channel_payload = response_payload_json(
-        create_channel(&owner_app, &created_server_id, &fixture.channel.name).await,
+        create_channel_with_token(
+            &owner_app,
+            &created_server_id,
+            &fixture.channel.name,
+            "owner-token",
+        )
+        .await,
     )
     .await;
     let created_channel_id = create_channel_payload["id"]

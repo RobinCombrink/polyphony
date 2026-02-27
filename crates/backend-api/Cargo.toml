@@ -30,3 +30,4 @@ url = "2.5"
 
 [dev-dependencies]
 cucumber = "0.21"
+uuid = { version = "1.18", features = ["v4"] }
