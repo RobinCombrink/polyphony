@@ -3,12 +3,12 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 class RuntimeTextMessage {
   const RuntimeTextMessage({
     required this.channelId,
-    required this.authorSubject,
+    required this.authorUserId,
     required this.content,
   });
 
   final String channelId;
-  final String authorSubject;
+  final String authorUserId;
   final String content;
 }
 

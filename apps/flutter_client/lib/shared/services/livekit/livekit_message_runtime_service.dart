@@ -53,7 +53,7 @@ class LivekitMessageRuntimeService implements MessageRuntimeService {
             _textMessagesController.add(
               RuntimeTextMessage(
                 channelId: channelId,
-                authorSubject: participant.identity,
+                authorUserId: participant.identity,
                 content: content,
               ),
             );

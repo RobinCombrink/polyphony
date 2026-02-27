@@ -4,7 +4,7 @@ import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 class ChatApiFixture {
   const ChatApiFixture({
-    required this.ownerSubject,
+    required this.ownerUserId,
     required this.listedServer,
     required this.createdServer,
     required this.listedChannel,
@@ -14,7 +14,7 @@ class ChatApiFixture {
     required this.connectedVoiceSession,
   });
 
-  final String ownerSubject;
+  final String ownerUserId;
   final Server listedServer;
   final Server createdServer;
   final Channel listedChannel;
@@ -36,33 +36,33 @@ class EntitySeeder {
   }
 
   ChatApiFixture chatApiFixture() {
-    const ownerSubject = "auth0|u1";
+    const ownerUserId = "auth0|u1";
 
-    final listedServer = server(id: "srv-1", ownerSubject: ownerSubject);
-    final createdServer = server(id: "srv-2", ownerSubject: ownerSubject);
+    final listedServer = server(id: "srv-1", ownerUserId: ownerUserId);
+    final createdServer = server(id: "srv-2", ownerUserId: ownerUserId);
     final listedChannel = channel(id: "chn-1", serverId: listedServer.id);
     final createdChannel = channel(id: "chn-2", serverId: listedServer.id);
     final listedMessage = message(
       id: "msg-1",
       channelId: listedChannel.id,
-      authorSubject: ownerSubject,
+      authorUserId: ownerUserId,
       content: "hello",
     );
     final createdMessage = message(
       id: "msg-2",
       channelId: listedChannel.id,
-      authorSubject: ownerSubject,
+      authorUserId: ownerUserId,
       content: "new message",
     );
     final connectedVoiceSession = voiceConnectSession(
       livekitUrl: "ws://127.0.0.1:7880",
       accessToken: "test-access-token",
       channelId: listedChannel.id,
-      participantSubject: ownerSubject,
+      participantUserId: ownerUserId,
     );
 
     return ChatApiFixture(
-      ownerSubject: ownerSubject,
+      ownerUserId: ownerUserId,
       listedServer: listedServer,
       createdServer: createdServer,
       listedChannel: listedChannel,
@@ -73,13 +73,13 @@ class EntitySeeder {
     );
   }
 
-  Server server({String? id, String? name, String? ownerSubject}) {
+  Server server({String? id, String? name, String? ownerUserId}) {
     final randomSegment = _randomSegment();
 
     return Server(
       id: id ?? "srv-seeded-$randomSegment",
       name: name ?? "Server-$randomSegment",
-      ownerSubject: authSubject(value: ownerSubject),
+      ownerUserId: authSubject(value: ownerUserId),
     );
   }
 
@@ -95,7 +95,7 @@ class EntitySeeder {
 
   Message message({
     required String channelId,
-    required String authorSubject,
+    required String authorUserId,
     String? id,
     String? content,
   }) {
@@ -104,7 +104,7 @@ class EntitySeeder {
     return Message(
       id: id ?? "msg-seeded-$randomSegment",
       channelId: channelId,
-      authorSubject: authorSubject,
+      authorUserId: authorUserId,
       content: content ?? "Message-$randomSegment",
     );
   }
@@ -113,13 +113,13 @@ class EntitySeeder {
     required String livekitUrl,
     required String accessToken,
     required String channelId,
-    required String participantSubject,
+    required String participantUserId,
   }) {
     return VoiceConnectSession(
       livekitUrl: livekitUrl,
       accessToken: accessToken,
       channelId: channelId,
-      participantSubject: participantSubject,
+      participantUserId: participantUserId,
     );
   }
 
@@ -127,7 +127,7 @@ class EntitySeeder {
     return <String, dynamic>{
       "id": server.id,
       "name": server.name,
-      "owner_subject": server.ownerSubject,
+      "owner_user_id": server.ownerUserId,
     };
   }
 
@@ -143,7 +143,7 @@ class EntitySeeder {
     return <String, dynamic>{
       "id": message.id,
       "channel_id": message.channelId,
-      "author_subject": message.authorSubject,
+      "author_user_id": message.authorUserId,
       "content": message.content,
     };
   }
@@ -155,7 +155,7 @@ class EntitySeeder {
       "livekit_url": voiceConnectSession.livekitUrl,
       "access_token": voiceConnectSession.accessToken,
       "channel_id": voiceConnectSession.channelId,
-      "participant_subject": voiceConnectSession.participantSubject,
+      "participant_user_id": voiceConnectSession.participantUserId,
     };
   }
 

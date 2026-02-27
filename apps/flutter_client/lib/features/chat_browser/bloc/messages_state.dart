@@ -22,19 +22,19 @@ sealed class MessagesLoadedDataState extends MessagesState {
   const MessagesLoadedDataState({
     required this.messages,
     required this.channelId,
-    this.authorDisplayNamesBySubject = const <String, String?>{},
+    this.authorDisplayNamesByUserId = const <String, String?>{},
   });
 
   final List<Message> messages;
   final String channelId;
-  final Map<String, String?> authorDisplayNamesBySubject;
+  final Map<String, String?> authorDisplayNamesByUserId;
 }
 
 final class MessagesLoadedState extends MessagesLoadedDataState {
   const MessagesLoadedState({
     required super.messages,
     required super.channelId,
-    super.authorDisplayNamesBySubject,
+    super.authorDisplayNamesByUserId,
   });
 }
 
@@ -43,7 +43,7 @@ final class MessagesValidationFailedState extends MessagesLoadedDataState {
     required this.issue,
     required super.messages,
     required super.channelId,
-    super.authorDisplayNamesBySubject,
+    super.authorDisplayNamesByUserId,
   });
 
   final MessagesValidationIssue issue;

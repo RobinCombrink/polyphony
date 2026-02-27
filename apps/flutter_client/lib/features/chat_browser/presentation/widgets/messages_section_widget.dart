@@ -34,9 +34,9 @@ SectionStatus? buildMessagesSectionStatus(MessagesState state) {
 class MessagesSectionWidget extends StatelessWidget {
   const MessagesSectionWidget({
     required this.messages,
-    required this.currentUserSubject,
+    required this.currentUserId,
     required this.currentUserDisplayName,
-    required this.authorDisplayNamesBySubject,
+    required this.authorDisplayNamesByUserId,
     required this.createController,
     required this.isLoading,
     required this.onCreate,
@@ -47,9 +47,9 @@ class MessagesSectionWidget extends StatelessWidget {
   });
 
   final List<Message> messages;
-  final String? currentUserSubject;
+  final String? currentUserId;
   final String? currentUserDisplayName;
-  final Map<String, String?> authorDisplayNamesBySubject;
+  final Map<String, String?> authorDisplayNamesByUserId;
   final String? channelName;
   final TextEditingController createController;
   final bool isLoading;
@@ -57,9 +57,9 @@ class MessagesSectionWidget extends StatelessWidget {
   final Future<void> Function(Message message) onEdit;
   final void Function(Message message) onDelete;
 
-  String _authorLabel(String authorSubject, bool isOwnMessage) {
+  String _authorLabel(String authorUserId, bool isOwnMessage) {
     final resolvedDisplayName =
-        authorDisplayNamesBySubject[authorSubject]?.trim();
+        authorDisplayNamesByUserId[authorUserId]?.trim();
 
     if (isOwnMessage) {
       return currentUserDisplayName?.trim().isNotEmpty == true
@@ -120,8 +120,8 @@ class MessagesSectionWidget extends StatelessWidget {
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];
-                final isOwnMessage = currentUserSubject != null &&
-                    message.authorSubject == currentUserSubject;
+                final isOwnMessage = currentUserId != null &&
+                    message.authorUserId == currentUserId;
 
                 return Align(
                   alignment: isOwnMessage
@@ -145,7 +145,7 @@ class MessagesSectionWidget extends StatelessWidget {
                               : CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              _authorLabel(message.authorSubject, isOwnMessage),
+                              _authorLabel(message.authorUserId, isOwnMessage),
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
                             const SizedBox(height: 4),

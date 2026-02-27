@@ -1,5 +1,4 @@
 import "dart:async";
-import "dart:convert";
 
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
@@ -51,29 +50,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
     super.dispose();
   }
 
-  String? _currentUserSubject(AuthenticationState authenticationState) {
-    if (authenticationState is! AuthenticationAuthenticatedState) {
-      return null;
-    }
-
-    final tokenParts = authenticationState.bearerToken.split(".");
-    if (tokenParts.length != 3) {
-      return null;
-    }
-
-    try {
-      final payload = utf8.decode(
-        base64Url.decode(base64Url.normalize(tokenParts[1])),
-      );
-      final claims = jsonDecode(payload) as Map<String, dynamic>;
-      final subject = claims["sub"];
-
-      return subject is String ? subject : null;
-    } on Exception {
-      return null;
-    }
-  }
-
   void _requestUpdateDisplayName(BuildContext context, String displayName) {
     context.read<ProfileBloc>().add(
           UpdateDisplayNameRequested(
@@ -106,7 +82,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
     final bearerToken = authenticationState is AuthenticationAuthenticatedState
         ? authenticationState.bearerToken
         : "";
-    final currentUserSubject = _currentUserSubject(authenticationState);
 
     return DefaultTabController(
       length: 2,
@@ -143,7 +118,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
         ),
         body: TabBarView(
           children: <Widget>[
-            _buildChatTab(context, currentUserSubject),
+            _buildChatTab(context),
             TokenTabWidget(bearerToken: bearerToken),
           ],
         ),
@@ -151,7 +126,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
     );
   }
 
-  Widget _buildChatTab(BuildContext context, String? currentUserSubject) {
+  Widget _buildChatTab(BuildContext context) {
     return MultiBlocListener(
       listeners: [
         BlocListener<ProfileBloc, ProfileState>(
@@ -270,7 +245,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                         child: _ServerWorkspaceWidget(
                           createChannelController: createChannelController,
                           createMessageController: createMessageController,
-                          currentUserSubject: currentUserSubject,
                         ),
                       ),
                     ],
@@ -371,12 +345,10 @@ class _ServerWorkspaceWidget extends StatelessWidget {
   const _ServerWorkspaceWidget({
     required this.createChannelController,
     required this.createMessageController,
-    required this.currentUserSubject,
   });
 
   final TextEditingController createChannelController;
   final TextEditingController createMessageController;
-  final String? currentUserSubject;
 
   @override
   Widget build(BuildContext context) {
@@ -433,7 +405,6 @@ class _ServerWorkspaceWidget extends StatelessWidget {
                       const VoiceParticipantsPaneWidget(),
                     ChannelSelectionMode.text => MessagesPaneWidget(
                         createController: createMessageController,
-                        currentUserSubject: currentUserSubject,
                       ),
                   };
                 },

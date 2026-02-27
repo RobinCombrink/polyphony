@@ -6,7 +6,7 @@ extension ApiServerToDomainExtension on ApiServer {
     return Server(
       id: id,
       name: name,
-      ownerSubject: ownerSubject,
+      ownerUserId: ownerUserId,
     );
   }
 }
@@ -16,7 +16,7 @@ extension DomainServerToApiExtension on Server {
     return ApiServer(
       id: id,
       name: name,
-      ownerSubject: ownerSubject,
+      ownerUserId: ownerUserId,
     );
   }
 }
@@ -46,7 +46,7 @@ extension ApiMessageToDomainExtension on ApiMessage {
     return Message(
       id: id,
       channelId: channelId,
-      authorSubject: authorSubject,
+      authorUserId: authorUserId,
       content: content,
     );
   }
@@ -57,7 +57,7 @@ extension DomainMessageToApiExtension on Message {
     return ApiMessage(
       id: id,
       channelId: channelId,
-      authorSubject: authorSubject,
+      authorUserId: authorUserId,
       content: content,
     );
   }
@@ -69,7 +69,7 @@ extension ApiVoiceConnectSessionToDomainExtension on ApiVoiceConnectSession {
       livekitUrl: livekitUrl,
       accessToken: accessToken,
       channelId: channelId,
-      participantSubject: participantSubject,
+      participantUserId: participantUserId,
     );
   }
 }
@@ -80,7 +80,7 @@ extension DomainVoiceConnectSessionToApiExtension on VoiceConnectSession {
       livekitUrl: livekitUrl,
       accessToken: accessToken,
       channelId: channelId,
-      participantSubject: participantSubject,
+      participantUserId: participantUserId,
     );
   }
 }

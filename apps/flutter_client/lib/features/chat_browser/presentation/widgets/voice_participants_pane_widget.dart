@@ -14,7 +14,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
     return List<VoiceParticipant>.generate(
       6,
       (index) => VoiceParticipant(
-        subject: "participant-skeleton-$index",
+        userId: "participant-skeleton-$index",
         displayName: "Participant ${index + 1}",
       ),
     );

@@ -2,18 +2,18 @@ class ApiServer {
   const ApiServer({
     required this.id,
     required this.name,
-    required this.ownerSubject,
+    required this.ownerUserId,
   });
 
   final String id;
   final String name;
-  final String ownerSubject;
+  final String ownerUserId;
 
   factory ApiServer.fromJson(Map<String, dynamic> json) {
     return ApiServer(
       id: json["id"] as String,
       name: json["name"] as String,
-      ownerSubject: json["owner_user_id"] as String,
+      ownerUserId: json["owner_user_id"] as String,
     );
   }
 }
@@ -42,20 +42,20 @@ class ApiMessage {
   const ApiMessage({
     required this.id,
     required this.channelId,
-    required this.authorSubject,
+    required this.authorUserId,
     required this.content,
   });
 
   final String id;
   final String channelId;
-  final String authorSubject;
+  final String authorUserId;
   final String content;
 
   factory ApiMessage.fromJson(Map<String, dynamic> json) {
     return ApiMessage(
       id: json["id"] as String,
       channelId: json["channel_id"] as String,
-      authorSubject: json["author_user_id"] as String,
+      authorUserId: json["author_user_id"] as String,
       content: json["content"] as String,
     );
   }
@@ -66,20 +66,20 @@ class ApiVoiceConnectSession {
     required this.livekitUrl,
     required this.accessToken,
     required this.channelId,
-    required this.participantSubject,
+    required this.participantUserId,
   });
 
   final String livekitUrl;
   final String accessToken;
   final String channelId;
-  final String participantSubject;
+  final String participantUserId;
 
   factory ApiVoiceConnectSession.fromJson(Map<String, dynamic> json) {
     return ApiVoiceConnectSession(
       livekitUrl: json["livekit_url"] as String,
       accessToken: json["access_token"] as String,
       channelId: json["channel_id"] as String,
-      participantSubject: json["participant_user_id"] as String,
+      participantUserId: json["participant_user_id"] as String,
     );
   }
 }

@@ -51,11 +51,11 @@ final class DeleteMessageRequested extends MessagesEvent {
 final class RealtimeMessageReceived extends MessagesEvent {
   const RealtimeMessageReceived({
     required this.channelId,
-    required this.authorSubject,
+    required this.authorUserId,
     required this.content,
   });
 
   final String channelId;
-  final String authorSubject;
+  final String authorUserId;
   final String content;
 }

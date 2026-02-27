@@ -12,7 +12,7 @@ void main() {
     "loads profile with no display name",
     build: () => ProfileBloc(
       profileRepo: FakeProfileRepository(
-        userId: fixture.ownerSubject,
+        userId: fixture.ownerUserId,
         initialDisplayName: null,
       ),
     ),
@@ -20,7 +20,7 @@ void main() {
     expect: () => <Matcher>[
       isA<ProfileLoadingState>(),
       isA<ProfileLoadedState>()
-          .having((state) => state.userId, "user id", fixture.ownerSubject)
+          .having((state) => state.userId, "user id", fixture.ownerUserId)
           .having((state) => state.displayName, "display name", isNull),
     ],
   );
@@ -29,7 +29,7 @@ void main() {
     "emits validation failed when display name is empty",
     build: () => ProfileBloc(
       profileRepo: FakeProfileRepository(
-        userId: fixture.ownerSubject,
+        userId: fixture.ownerUserId,
         initialDisplayName: null,
       ),
     ),
@@ -55,7 +55,7 @@ void main() {
     "updates display name successfully",
     build: () => ProfileBloc(
       profileRepo: FakeProfileRepository(
-        userId: fixture.ownerSubject,
+        userId: fixture.ownerUserId,
         initialDisplayName: null,
       ),
     ),

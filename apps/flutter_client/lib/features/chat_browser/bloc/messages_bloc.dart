@@ -33,7 +33,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         _messageRuntimeService.textMessages().listen((runtimeMessage) {
       add(RealtimeMessageReceived(
         channelId: runtimeMessage.channelId,
-        authorSubject: runtimeMessage.authorSubject,
+        authorUserId: runtimeMessage.authorUserId,
         content: runtimeMessage.content,
       ));
     });
@@ -92,7 +92,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: loadedState.messages,
         channelId: loadedState.channelId,
-        authorDisplayNamesBySubject: loadedState.authorDisplayNamesBySubject,
+        authorDisplayNamesByUserId: loadedState.authorDisplayNamesByUserId,
       ));
       return;
     }
@@ -129,12 +129,12 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     switch (listMessagesResult) {
       case Ok<Iterable<Message>>(:final value):
         final messages = value.toList();
-        final authorDisplayNamesBySubject =
+        final authorDisplayNamesByUserId =
             await _loadAuthorDisplayNames(messages);
         emit(MessagesLoadedState(
           messages: messages,
           channelId: trimmedChannelId,
-          authorDisplayNamesBySubject: authorDisplayNamesBySubject,
+          authorDisplayNamesByUserId: authorDisplayNamesByUserId,
         ));
       case Error<Iterable<Message>>(:final error):
         emit(MessagesExceptionState(error: error));
@@ -156,7 +156,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: currentMessages,
         channelId: currentChannelId,
-        authorDisplayNamesBySubject: loadedState?.authorDisplayNamesBySubject ??
+        authorDisplayNamesByUserId: loadedState?.authorDisplayNamesByUserId ??
             const <String, String?>{},
       ));
       return;
@@ -167,7 +167,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.messageContentRequired,
         messages: currentMessages,
         channelId: trimmedChannelId,
-        authorDisplayNamesBySubject: loadedState?.authorDisplayNamesBySubject ??
+        authorDisplayNamesByUserId: loadedState?.authorDisplayNamesByUserId ??
             const <String, String?>{},
       ));
       return;
@@ -195,12 +195,12 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     switch (createMessageResult) {
       case Ok<Message>(:final value):
         final messages = List<Message>.from(currentMessages)..add(value);
-        final authorDisplayNamesBySubject =
+        final authorDisplayNamesByUserId =
             await _loadAuthorDisplayNames(messages);
         emit(MessagesLoadedState(
           messages: messages,
           channelId: trimmedChannelId,
-          authorDisplayNamesBySubject: authorDisplayNamesBySubject,
+          authorDisplayNamesByUserId: authorDisplayNamesByUserId,
         ));
       case Error<Message>(:final error):
         emit(MessagesExceptionState(error: error));
@@ -227,7 +227,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: loadedState.messages,
         channelId: loadedState.channelId,
-        authorDisplayNamesBySubject: loadedState.authorDisplayNamesBySubject,
+        authorDisplayNamesByUserId: loadedState.authorDisplayNamesByUserId,
       ));
       return;
     }
@@ -237,7 +237,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.updatedContentRequired,
         messages: loadedState.messages,
         channelId: trimmedChannelId,
-        authorDisplayNamesBySubject: loadedState.authorDisplayNamesBySubject,
+        authorDisplayNamesByUserId: loadedState.authorDisplayNamesByUserId,
       ));
       return;
     }
@@ -259,12 +259,12 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
               (message) => message.id == value.id ? value : message,
             )
             .toList();
-        final authorDisplayNamesBySubject =
+        final authorDisplayNamesByUserId =
             await _loadAuthorDisplayNames(messages);
         emit(MessagesLoadedState(
           messages: messages,
           channelId: trimmedChannelId,
-          authorDisplayNamesBySubject: authorDisplayNamesBySubject,
+          authorDisplayNamesByUserId: authorDisplayNamesByUserId,
         ));
       case Error<Message>(:final error):
         emit(MessagesExceptionState(error: error));
@@ -290,7 +290,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: loadedState.messages,
         channelId: loadedState.channelId,
-        authorDisplayNamesBySubject: loadedState.authorDisplayNamesBySubject,
+        authorDisplayNamesByUserId: loadedState.authorDisplayNamesByUserId,
       ));
       return;
     }
@@ -309,12 +309,12 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         final messages = loadedState.messages
             .where((message) => message.id != event.messageId)
             .toList();
-        final authorDisplayNamesBySubject =
+        final authorDisplayNamesByUserId =
             await _loadAuthorDisplayNames(messages);
         emit(MessagesLoadedState(
           messages: messages,
           channelId: trimmedChannelId,
-          authorDisplayNamesBySubject: authorDisplayNamesBySubject,
+          authorDisplayNamesByUserId: authorDisplayNamesByUserId,
         ));
       case Error<void>(:final error):
         emit(MessagesExceptionState(error: error));
@@ -340,16 +340,16 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         Message(
           id: "rt-${DateTime.now().microsecondsSinceEpoch}",
           channelId: event.channelId,
-          authorSubject: event.authorSubject,
+          authorUserId: event.authorUserId,
           content: trimmedContent,
         ),
       );
 
-    final authorDisplayNamesBySubject = await _loadAuthorDisplayNames(messages);
+    final authorDisplayNamesByUserId = await _loadAuthorDisplayNames(messages);
     emit(MessagesLoadedState(
       messages: messages,
       channelId: loadedState.channelId,
-      authorDisplayNamesBySubject: authorDisplayNamesBySubject,
+      authorDisplayNamesByUserId: authorDisplayNamesByUserId,
     ));
   }
 
@@ -364,14 +364,14 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     List<Message> messages,
   ) async {
     final subjects = messages
-        .map((message) => message.authorSubject)
+        .map((message) => message.authorUserId)
         .toSet()
         .toList(growable: false);
 
-    final authorDisplayNamesBySubject = <String, String?>{};
-    for (final subject in subjects) {
+    final authorDisplayNamesByUserId = <String, String?>{};
+    for (final userId in subjects) {
       final profileResult = await _profileRepo.getUserById(
-        query: GetUserProfileByIdQuery(userId: subject),
+        query: GetUserProfileByIdQuery(userId: userId),
       );
 
       final displayName = switch (profileResult) {
@@ -379,11 +379,11 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         Error<UserProfile>() => null,
       };
 
-      authorDisplayNamesBySubject[subject] =
+      authorDisplayNamesByUserId[userId] =
           displayName != null && displayName.isNotEmpty ? displayName : null;
     }
 
-    return authorDisplayNamesBySubject;
+    return authorDisplayNamesByUserId;
   }
 
   @override

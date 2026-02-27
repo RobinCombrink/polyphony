@@ -8,5 +8,5 @@ abstract interface class VoiceRuntimeService {
 
   Future<Result<void>> disconnect();
 
-  Iterable<String> currentParticipantSubjects();
+  Iterable<String> currentParticipantUserIds();
 }

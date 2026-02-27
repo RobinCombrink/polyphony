@@ -44,7 +44,7 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
   }
 
   @override
-  Iterable<String> currentParticipantSubjects() {
+  Iterable<String> currentParticipantUserIds() {
     final activeRoom = _room;
     if (activeRoom == null) {
       return const <String>[];

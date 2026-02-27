@@ -15,7 +15,7 @@ void main() {
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
       voiceRuntimeService: FakeVoiceRuntimeService(),
       profileRepo: FakeProfileRepository(
-        userId: fixture.ownerSubject,
+        userId: fixture.ownerUserId,
         displayNamesByUserId: const <String, String?>{
           "auth0|local_user": "Local User",
         },
@@ -46,7 +46,7 @@ void main() {
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
       voiceRuntimeService: FakeVoiceRuntimeService(),
-      profileRepo: FakeProfileRepository(userId: fixture.ownerSubject),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
     ),
     act: (bloc) {
       bloc.add(LoadVoiceSessionsRequested(
@@ -71,7 +71,7 @@ void main() {
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
       voiceRuntimeService: FakeVoiceRuntimeService(),
-      profileRepo: FakeProfileRepository(userId: fixture.ownerSubject),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
     ),
     act: (bloc) {
       bloc.add(LoadVoiceSessionsRequested(

@@ -13,9 +13,9 @@ void main() {
     build: () => MessagesBloc(
       messageRepo: FakeMessageRepository(fixture: fixture),
       profileRepo: FakeProfileRepository(
-        userId: fixture.ownerSubject,
+        userId: fixture.ownerUserId,
         displayNamesByUserId: <String, String?>{
-          fixture.listedMessage.authorSubject: "Listed Author",
+          fixture.listedMessage.authorUserId: "Listed Author",
         },
       ),
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
@@ -42,8 +42,8 @@ void main() {
             "edited",
           )
           .having(
-            (state) => state.authorDisplayNamesBySubject[
-                fixture.listedMessage.authorSubject],
+            (state) => state
+                .authorDisplayNamesByUserId[fixture.listedMessage.authorUserId],
             "author display name",
             "Listed Author",
           ),
@@ -58,7 +58,7 @@ void main() {
         forceDeleteNotFound: true,
       ),
       profileRepo: FakeProfileRepository(
-        userId: fixture.ownerSubject,
+        userId: fixture.ownerUserId,
       ),
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
       messageRuntimeService: FakeMessageRuntimeService(),

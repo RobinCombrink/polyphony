@@ -11,12 +11,10 @@ import "package:skeletonizer/skeletonizer.dart";
 class MessagesPaneWidget extends StatefulWidget {
   const MessagesPaneWidget({
     required this.createController,
-    required this.currentUserSubject,
     super.key,
   });
 
   final TextEditingController createController;
-  final String? currentUserSubject;
 
   @override
   State<MessagesPaneWidget> createState() => _MessagesPaneWidgetState();
@@ -29,7 +27,7 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
       (index) => Message(
         id: "msg-skeleton-$index",
         channelId: channelId,
-        authorSubject: "author-skeleton",
+        authorUserId: "author-skeleton",
         content: "Loading message $index",
       ),
     );
@@ -124,6 +122,10 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                   ProfileLoadedDataState(:final displayName) => displayName,
                   _ => null,
                 };
+                final currentUserId = switch (profileState) {
+                  ProfileLoadedDataState(:final userId) => userId,
+                  _ => null,
+                };
 
                 final messages = loadedData?.messages ?? const <Message>[];
                 final visibleMessages = isLoading && messages.isEmpty
@@ -134,10 +136,10 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                   enabled: isLoading,
                   child: MessagesSectionWidget(
                     messages: visibleMessages,
-                    currentUserSubject: widget.currentUserSubject,
+                    currentUserId: currentUserId,
                     currentUserDisplayName: currentDisplayName,
-                    authorDisplayNamesBySubject:
-                        loadedData?.authorDisplayNamesBySubject ??
+                    authorDisplayNamesByUserId:
+                        loadedData?.authorDisplayNamesByUserId ??
                             const <String, String?>{},
                     channelName: selectedTextChannel.name,
                     createController: widget.createController,

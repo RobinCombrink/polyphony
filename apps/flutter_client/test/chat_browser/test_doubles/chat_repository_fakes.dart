@@ -149,7 +149,7 @@ class FakeMessageRepository implements MessageRepo {
     final updatedMessage = Message(
       id: existingMessage.id,
       channelId: existingMessage.channelId,
-      authorSubject: existingMessage.authorSubject,
+      authorUserId: existingMessage.authorUserId,
       content: command.content,
     );
 
@@ -176,7 +176,7 @@ class FakeVoiceSessionRepository implements VoiceSessionRepo {
         livekitUrl: _connectedVoiceSession.livekitUrl,
         accessToken: _connectedVoiceSession.accessToken,
         channelId: command.channelId,
-        participantSubject: _connectedVoiceSession.participantSubject,
+        participantUserId: _connectedVoiceSession.participantUserId,
       ),
     );
   }
@@ -224,7 +224,7 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
   }
 
   @override
-  Iterable<String> currentParticipantSubjects() {
+  Iterable<String> currentParticipantUserIds() {
     return const <String>["auth0|local_user"];
   }
 }

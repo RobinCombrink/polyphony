@@ -69,7 +69,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
       (index) => Server(
         id: "srv-skeleton-$index",
         name: "Server ${index + 1}",
-        ownerSubject: "owner-skeleton",
+        ownerUserId: "owner-skeleton",
       ),
     );
   }

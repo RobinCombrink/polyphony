@@ -71,8 +71,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     final participants = loadedState?.channelId == trimmedChannelId
         ? await _resolveParticipants(
-            runtimeSubjects:
-                _voiceRuntimeService.currentParticipantSubjects().toList(),
+            runtimeUserIds:
+                _voiceRuntimeService.currentParticipantUserIds().toList(),
             fallbackParticipants: loadedState?.participants,
             activeConnection: loadedState?.activeConnection,
           )
@@ -115,8 +115,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     if (activeConnection != null &&
         activeConnection.channelId == trimmedChannelId) {
       final participants = await _resolveParticipants(
-        runtimeSubjects:
-            _voiceRuntimeService.currentParticipantSubjects().toList(),
+        runtimeUserIds:
+            _voiceRuntimeService.currentParticipantUserIds().toList(),
         fallbackParticipants: loadedState.participants,
         activeConnection: activeConnection,
       );
@@ -166,8 +166,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         switch (runtimeConnectResult) {
           case Ok<void>():
             final participants = await _resolveParticipants(
-              runtimeSubjects:
-                  _voiceRuntimeService.currentParticipantSubjects().toList(),
+              runtimeUserIds:
+                  _voiceRuntimeService.currentParticipantUserIds().toList(),
               fallbackParticipants: const <VoiceParticipant>[],
               activeConnection: value,
             );
@@ -242,49 +242,48 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     };
   }
 
-  List<String> _participantSubjectsOrFallback({
-    required List<String> runtimeSubjects,
+  List<String> _participantUserIdsOrFallback({
+    required List<String> runtimeUserIds,
     required List<VoiceParticipant>? fallbackParticipants,
     required VoiceConnectSession? activeConnection,
   }) {
-    if (runtimeSubjects.isNotEmpty) {
-      return runtimeSubjects.toSet().toList();
+    if (runtimeUserIds.isNotEmpty) {
+      return runtimeUserIds.toSet().toList();
     }
 
-    final fallbackSubjects = fallbackParticipants
-        ?.map((participant) => participant.subject)
-        .toList();
-    if (fallbackSubjects != null && fallbackSubjects.isNotEmpty) {
-      return fallbackSubjects.toSet().toList();
+    final fallbackUserIds =
+        fallbackParticipants?.map((participant) => participant.userId).toList();
+    if (fallbackUserIds != null && fallbackUserIds.isNotEmpty) {
+      return fallbackUserIds.toSet().toList();
     }
 
-    final participantSubject = activeConnection?.participantSubject;
-    if (participantSubject != null && participantSubject.isNotEmpty) {
-      return <String>[participantSubject];
+    final participantUserId = activeConnection?.participantUserId;
+    if (participantUserId != null && participantUserId.isNotEmpty) {
+      return <String>[participantUserId];
     }
 
     return const <String>[];
   }
 
   Future<List<VoiceParticipant>> _resolveParticipants({
-    required List<String> runtimeSubjects,
+    required List<String> runtimeUserIds,
     required List<VoiceParticipant>? fallbackParticipants,
     required VoiceConnectSession? activeConnection,
   }) async {
-    final participantSubjects = _participantSubjectsOrFallback(
-      runtimeSubjects: runtimeSubjects,
+    final participantUserIds = _participantUserIdsOrFallback(
+      runtimeUserIds: runtimeUserIds,
       fallbackParticipants: fallbackParticipants,
       activeConnection: activeConnection,
     );
 
-    if (participantSubjects.isEmpty) {
+    if (participantUserIds.isEmpty) {
       return const <VoiceParticipant>[];
     }
 
     final participants = <VoiceParticipant>[];
-    for (final participantSubject in participantSubjects) {
+    for (final participantUserId in participantUserIds) {
       final profileResult = await _profileRepo.getUserById(
-        query: GetUserProfileByIdQuery(userId: participantSubject),
+        query: GetUserProfileByIdQuery(userId: participantUserId),
       );
 
       final resolvedDisplayName = switch (profileResult) {
@@ -294,7 +293,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
       participants.add(
         VoiceParticipant(
-          subject: participantSubject,
+          userId: participantUserId,
           displayName:
               resolvedDisplayName == null || resolvedDisplayName.isEmpty
                   ? "Member"
