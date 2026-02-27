@@ -13,10 +13,11 @@ import "package:polyphony_flutter_client/features/chat_browser/presentation/widg
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/servers_section_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/something_went_wrong_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/text_channels_section_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/top_right_error_toast.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/token_tab_widget.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/top_right_error_toast.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_channels_section_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:skeletonizer/skeletonizer.dart";
 
 class ChatBrowserPageWidget extends StatefulWidget {
   const ChatBrowserPageWidget({super.key});
@@ -398,6 +399,27 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                     is VoiceSessionsExceptionState
                                 ? voiceSessionsState.error.toString()
                                 : null;
+                            final visibleServers = isLoading && servers.isEmpty
+                                ? _skeletonServers()
+                                : servers;
+                            final visibleChannels =
+                                isLoading && channels.isEmpty
+                                    ? _skeletonChannels(
+                                        selectedServerId ?? "srv-skeleton",
+                                      )
+                                    : channels;
+                            final visibleMessages =
+                                isLoading && messages.isEmpty
+                                    ? _skeletonMessages(
+                                        selectedTextChannelId ??
+                                            "chn-skeleton-text",
+                                      )
+                                    : messages;
+                            final visibleVoiceParticipants = isLoading &&
+                                    (voiceData?.participants.isEmpty ?? true)
+                                ? _skeletonVoiceParticipants()
+                                : (voiceData?.participants ??
+                                    const <VoiceParticipant>[]);
                             return Stack(
                               children: <Widget>[
                                 Column(
@@ -409,8 +431,11 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                         message: profileErrorMessage,
                                       )
                                     else
-                                      Text(
-                                        "Display name: ${currentDisplayName ?? "Not set"}",
+                                      Skeletonizer(
+                                        enabled: isLoading,
+                                        child: Text(
+                                          "Display name: ${currentDisplayName ?? "Not set"}",
+                                        ),
                                       ),
                                     const SizedBox(height: 12),
                                     if (isLoading)
@@ -430,55 +455,61 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                     message:
                                                         serversErrorMessage,
                                                   )
-                                                : ServersSectionWidget(
-                                                    servers: servers,
-                                                    selectedServerId:
-                                                        selectedServerId,
-                                                    isLoading: isLoading,
-                                                    createController:
-                                                        createServerController,
-                                                    onTap: (server) {
-                                                      context
-                                                          .read<ServersBloc>()
-                                                          .add(
-                                                            SelectServerRequested(
-                                                              serverId:
-                                                                  server.id,
-                                                            ),
-                                                          );
-                                                      context
-                                                          .read<MessagesBloc>()
-                                                          .add(
-                                                            const ResetMessagesRequested(),
-                                                          );
-                                                      context
-                                                          .read<
-                                                              VoiceSessionsBloc>()
-                                                          .add(
-                                                            const ResetVoiceSessionsRequested(),
-                                                          );
-                                                      context
-                                                          .read<ChannelsBloc>()
-                                                          .add(
-                                                            const ResetChannelsRequested(),
-                                                          );
-                                                      context
-                                                          .read<ChannelsBloc>()
-                                                          .add(
-                                                            LoadChannelsRequested(
-                                                              serverId:
-                                                                  server.id,
-                                                            ),
-                                                          );
-                                                    },
-                                                    onAddUser: (server) =>
-                                                        _showAddUserToServerDialog(
-                                                      context,
-                                                      server.id,
-                                                    ),
-                                                    onCreate: () =>
-                                                        _requestCreateServer(
-                                                      context,
+                                                : Skeletonizer(
+                                                    enabled: isLoading,
+                                                    child: ServersSectionWidget(
+                                                      servers: visibleServers,
+                                                      selectedServerId:
+                                                          selectedServerId,
+                                                      isLoading: isLoading,
+                                                      createController:
+                                                          createServerController,
+                                                      onTap: (server) {
+                                                        context
+                                                            .read<ServersBloc>()
+                                                            .add(
+                                                              SelectServerRequested(
+                                                                serverId:
+                                                                    server.id,
+                                                              ),
+                                                            );
+                                                        context
+                                                            .read<
+                                                                MessagesBloc>()
+                                                            .add(
+                                                              const ResetMessagesRequested(),
+                                                            );
+                                                        context
+                                                            .read<
+                                                                VoiceSessionsBloc>()
+                                                            .add(
+                                                              const ResetVoiceSessionsRequested(),
+                                                            );
+                                                        context
+                                                            .read<
+                                                                ChannelsBloc>()
+                                                            .add(
+                                                              const ResetChannelsRequested(),
+                                                            );
+                                                        context
+                                                            .read<
+                                                                ChannelsBloc>()
+                                                            .add(
+                                                              LoadChannelsRequested(
+                                                                serverId:
+                                                                    server.id,
+                                                              ),
+                                                            );
+                                                      },
+                                                      onAddUser: (server) =>
+                                                          _showAddUserToServerDialog(
+                                                        context,
+                                                        server.id,
+                                                      ),
+                                                      onCreate: () =>
+                                                          _requestCreateServer(
+                                                        context,
+                                                      ),
                                                     ),
                                                   ),
                                           ),
@@ -508,44 +539,47 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                             message:
                                                                 channelsErrorMessage,
                                                           )
-                                                        : TextChannelsSectionWidget(
-                                                            channels: channels,
-                                                            selectedChannelId:
-                                                                selectedTextChannelId,
-                                                            voiceParticipantCount:
-                                                                activeVoiceConnection ==
-                                                                        null
-                                                                    ? 0
-                                                                    : 1,
-                                                            isLoading:
-                                                                isLoading,
-                                                            createController:
-                                                                createChannelController,
-                                                            onTap: (channel) {
-                                                              context
-                                                                  .read<
-                                                                      ChannelsBloc>()
-                                                                  .add(
-                                                                    SelectTextChannelRequested(
-                                                                      channelId:
-                                                                          channel
-                                                                              .id,
-                                                                    ),
-                                                                  );
-                                                              context
-                                                                  .read<
-                                                                      MessagesBloc>()
-                                                                  .add(
-                                                                    LoadMessagesRequested(
-                                                                      channelId:
-                                                                          channel
-                                                                              .id,
-                                                                    ),
-                                                                  );
-                                                            },
-                                                            onCreate: () =>
-                                                                _requestCreateChannel(
-                                                              context,
+                                                        : Skeletonizer(
+                                                            enabled: isLoading,
+                                                            child:
+                                                                TextChannelsSectionWidget(
+                                                              channels:
+                                                                  visibleChannels,
+                                                              selectedChannelId:
+                                                                  selectedTextChannelId,
+                                                              voiceParticipantCount:
+                                                                  activeVoiceConnection ==
+                                                                          null
+                                                                      ? 0
+                                                                      : 1,
+                                                              isLoading:
+                                                                  isLoading,
+                                                              createController:
+                                                                  createChannelController,
+                                                              onTap: (channel) {
+                                                                context
+                                                                    .read<
+                                                                        ChannelsBloc>()
+                                                                    .add(
+                                                                      SelectTextChannelRequested(
+                                                                        channelId:
+                                                                            channel.id,
+                                                                      ),
+                                                                    );
+                                                                context
+                                                                    .read<
+                                                                        MessagesBloc>()
+                                                                    .add(
+                                                                      LoadMessagesRequested(
+                                                                        channelId:
+                                                                            channel.id,
+                                                                      ),
+                                                                    );
+                                                              },
+                                                              onCreate: () =>
+                                                                  _requestCreateChannel(
+                                                                context,
+                                                              ),
                                                             ),
                                                           ),
                                                   ),
@@ -557,62 +591,64 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                             message:
                                                                 channelsErrorMessage,
                                                           )
-                                                        : TextChannelsSectionWidget(
-                                                            channels: channels,
-                                                            selectedChannelId:
-                                                                selectedVoiceChannelId,
-                                                            voiceParticipantCount:
-                                                                activeVoiceConnection ==
-                                                                        null
-                                                                    ? 0
-                                                                    : 1,
-                                                            isLoading:
-                                                                isLoading,
-                                                            createController:
-                                                                createChannelController,
-                                                            title:
-                                                                "Voice channels",
-                                                            createLabel: "",
-                                                            createActionLabel:
-                                                                "",
-                                                            showCreateControls:
-                                                                false,
-                                                            interactionType:
-                                                                ChannelInteractionType
-                                                                    .voice,
-                                                            onTap: (channel) {
-                                                              context
-                                                                  .read<
-                                                                      ChannelsBloc>()
-                                                                  .add(
-                                                                    SelectVoiceChannelRequested(
-                                                                      channelId:
-                                                                          channel
-                                                                              .id,
-                                                                    ),
-                                                                  );
-                                                              context
-                                                                  .read<
-                                                                      VoiceSessionsBloc>()
-                                                                  .add(
-                                                                    LoadVoiceSessionsRequested(
-                                                                      channelId:
-                                                                          channel
-                                                                              .id,
-                                                                    ),
-                                                                  );
-                                                              context
-                                                                  .read<
-                                                                      VoiceSessionsBloc>()
-                                                                  .add(
-                                                                    ConnectVoiceSessionRequested(
-                                                                      channelId:
-                                                                          channel
-                                                                              .id,
-                                                                    ),
-                                                                  );
-                                                            },
-                                                            onCreate: () {},
+                                                        : Skeletonizer(
+                                                            enabled: isLoading,
+                                                            child:
+                                                                TextChannelsSectionWidget(
+                                                              channels:
+                                                                  visibleChannels,
+                                                              selectedChannelId:
+                                                                  selectedVoiceChannelId,
+                                                              voiceParticipantCount:
+                                                                  activeVoiceConnection ==
+                                                                          null
+                                                                      ? 0
+                                                                      : 1,
+                                                              isLoading:
+                                                                  isLoading,
+                                                              createController:
+                                                                  createChannelController,
+                                                              title:
+                                                                  "Voice channels",
+                                                              createLabel: "",
+                                                              createActionLabel:
+                                                                  "",
+                                                              showCreateControls:
+                                                                  false,
+                                                              interactionType:
+                                                                  ChannelInteractionType
+                                                                      .voice,
+                                                              onTap: (channel) {
+                                                                context
+                                                                    .read<
+                                                                        ChannelsBloc>()
+                                                                    .add(
+                                                                      SelectVoiceChannelRequested(
+                                                                        channelId:
+                                                                            channel.id,
+                                                                      ),
+                                                                    );
+                                                                context
+                                                                    .read<
+                                                                        VoiceSessionsBloc>()
+                                                                    .add(
+                                                                      LoadVoiceSessionsRequested(
+                                                                        channelId:
+                                                                            channel.id,
+                                                                      ),
+                                                                    );
+                                                                context
+                                                                    .read<
+                                                                        VoiceSessionsBloc>()
+                                                                    .add(
+                                                                      ConnectVoiceSessionRequested(
+                                                                        channelId:
+                                                                            channel.id,
+                                                                      ),
+                                                                    );
+                                                              },
+                                                              onCreate: () {},
+                                                            ),
                                                           ),
                                                   ),
                                                 ],
@@ -643,25 +679,28 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                           : (() {
                                                               final voiceChannel =
                                                                   selectedVoiceChannel;
-                                                              return VoiceChannelsSectionWidget(
-                                                                participants: voiceData
-                                                                        ?.participants ??
-                                                                    const <VoiceParticipant>[],
-                                                                channelName:
-                                                                    voiceChannel!
-                                                                        .name,
-                                                                isLoading:
+                                                              return Skeletonizer(
+                                                                enabled:
                                                                     isLoading,
-                                                                onLeave: () =>
-                                                                    context
-                                                                        .read<
-                                                                            VoiceSessionsBloc>()
-                                                                        .add(
-                                                                          DisconnectVoiceSessionRequested(
-                                                                            channelId:
-                                                                                voiceChannel.id,
+                                                                child:
+                                                                    VoiceChannelsSectionWidget(
+                                                                  participants:
+                                                                      visibleVoiceParticipants,
+                                                                  channelName:
+                                                                      voiceChannel!
+                                                                          .name,
+                                                                  isLoading:
+                                                                      isLoading,
+                                                                  onLeave: () =>
+                                                                      context
+                                                                          .read<
+                                                                              VoiceSessionsBloc>()
+                                                                          .add(
+                                                                            DisconnectVoiceSessionRequested(
+                                                                              channelId: voiceChannel.id,
+                                                                            ),
                                                                           ),
-                                                                        ),
+                                                                ),
                                                               );
                                                             })(),
                                                 ChannelSelectionMode.text =>
@@ -672,53 +711,59 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                         )
                                                       : selectedTextChannel !=
                                                               null
-                                                          ? MessagesSectionWidget(
-                                                              messages:
-                                                                  messages,
-                                                              currentUserSubject:
-                                                                  currentUserSubject,
-                                                              currentUserDisplayName:
-                                                                  currentDisplayName,
-                                                              authorDisplayNamesBySubject:
-                                                                  messagesData
-                                                                          ?.authorDisplayNamesBySubject ??
-                                                                      const <String,
-                                                                          String?>{},
-                                                              channelName:
-                                                                  selectedTextChannel
-                                                                      .name,
-                                                              createController:
-                                                                  createMessageController,
-                                                              isLoading:
+                                                          ? Skeletonizer(
+                                                              enabled:
                                                                   isLoading,
-                                                              onCreate: () =>
-                                                                  context
-                                                                      .read<
-                                                                          MessagesBloc>()
-                                                                      .add(
-                                                                        CreateMessageRequested(
-                                                                          channelId:
-                                                                              selectedTextChannel?.id ?? "",
-                                                                          messageContent:
-                                                                              createMessageController.text,
-                                                                        ),
-                                                                      ),
-                                                              onEdit: (message) =>
-                                                                  _showEditMessageDialog(
-                                                                context,
-                                                                message,
-                                                              ),
-                                                              onDelete:
-                                                                  (message) =>
-                                                                      context
-                                                                          .read<
-                                                                              MessagesBloc>()
-                                                                          .add(
-                                                                            DeleteMessageRequested(
-                                                                              channelId: selectedTextChannel?.id ?? "",
-                                                                              messageId: message.id,
-                                                                            ),
+                                                              child:
+                                                                  MessagesSectionWidget(
+                                                                messages:
+                                                                    visibleMessages,
+                                                                currentUserSubject:
+                                                                    currentUserSubject,
+                                                                currentUserDisplayName:
+                                                                    currentDisplayName,
+                                                                authorDisplayNamesBySubject:
+                                                                    messagesData
+                                                                            ?.authorDisplayNamesBySubject ??
+                                                                        const <String,
+                                                                            String?>{},
+                                                                channelName:
+                                                                    selectedTextChannel
+                                                                        .name,
+                                                                createController:
+                                                                    createMessageController,
+                                                                isLoading:
+                                                                    isLoading,
+                                                                onCreate: () =>
+                                                                    context
+                                                                        .read<
+                                                                            MessagesBloc>()
+                                                                        .add(
+                                                                          CreateMessageRequested(
+                                                                            channelId:
+                                                                                selectedTextChannel?.id ?? "",
+                                                                            messageContent:
+                                                                                createMessageController.text,
                                                                           ),
+                                                                        ),
+                                                                onEdit: (message) =>
+                                                                    _showEditMessageDialog(
+                                                                  context,
+                                                                  message,
+                                                                ),
+                                                                onDelete: (message) =>
+                                                                    context
+                                                                        .read<
+                                                                            MessagesBloc>()
+                                                                        .add(
+                                                                          DeleteMessageRequested(
+                                                                            channelId:
+                                                                                selectedTextChannel?.id ?? "",
+                                                                            messageId:
+                                                                                message.id,
+                                                                          ),
+                                                                        ),
+                                                              ),
                                                             )
                                                           : const Card(
                                                               child: Center(
@@ -908,5 +953,49 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
       VoiceSessionsLoadedDataState() => state,
       _ => null,
     };
+  }
+
+  List<Server> _skeletonServers() {
+    return List<Server>.generate(
+      6,
+      (index) => Server(
+        id: "srv-skeleton-$index",
+        name: "Server ${index + 1}",
+        ownerSubject: "owner-skeleton",
+      ),
+    );
+  }
+
+  List<Channel> _skeletonChannels(String serverId) {
+    return List<Channel>.generate(
+      6,
+      (index) => Channel(
+        id: "chn-skeleton-$index",
+        serverId: serverId,
+        name: "channel-${index + 1}",
+      ),
+    );
+  }
+
+  List<Message> _skeletonMessages(String channelId) {
+    return List<Message>.generate(
+      5,
+      (index) => Message(
+        id: "msg-skeleton-$index",
+        channelId: channelId,
+        authorSubject: "author-skeleton",
+        content: "Loading message $index",
+      ),
+    );
+  }
+
+  List<VoiceParticipant> _skeletonVoiceParticipants() {
+    return List<VoiceParticipant>.generate(
+      4,
+      (index) => VoiceParticipant(
+        subject: "participant-skeleton-$index",
+        displayName: "Participant ${index + 1}",
+      ),
+    );
   }
 }
