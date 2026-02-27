@@ -32,7 +32,7 @@ pub(crate) async fn create_server(
 ) -> impl IntoResponse {
     let created_server = state
         .chat_repository
-        .create_server(request.name, authenticated_user.subject)
+        .create_server(request.name, authenticated_user.user_id)
         .await;
 
     (StatusCode::CREATED, Json(created_server))
@@ -54,7 +54,7 @@ pub(crate) async fn list_servers(
 ) -> impl IntoResponse {
     let servers = state
         .chat_repository
-        .list_servers_for_user(&authenticated_user.subject)
+        .list_servers_for_user(authenticated_user.user_id)
         .await;
 
     (StatusCode::OK, Json(servers))
@@ -84,8 +84,8 @@ pub(crate) async fn add_server_member(
         .chat_repository
         .add_server_member(
             server_id,
-            &authenticated_user.subject,
-            request.user_subject.clone(),
+            authenticated_user.user_id,
+            request.user_id,
         )
         .await;
 
@@ -93,7 +93,7 @@ pub(crate) async fn add_server_member(
         MutationResult::Updated => (
             StatusCode::CREATED,
             Json(Membership {
-                user_subject: request.user_subject,
+                user_id: request.user_id,
                 server_id,
             }),
         )
@@ -124,7 +124,7 @@ pub(crate) async fn delete_server(
 ) -> impl IntoResponse {
     let mutation_result = state
         .chat_repository
-        .delete_server(server_id, &authenticated_user.subject)
+        .delete_server(server_id, authenticated_user.user_id)
         .await;
 
     match mutation_result {
@@ -187,7 +187,7 @@ pub(crate) async fn delete_channel(
 ) -> impl IntoResponse {
     let mutation_result = state
         .chat_repository
-        .delete_channel(channel_id, &authenticated_user.subject)
+        .delete_channel(channel_id, authenticated_user.user_id)
         .await;
 
     match mutation_result {

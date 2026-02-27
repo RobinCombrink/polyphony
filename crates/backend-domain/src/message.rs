@@ -6,6 +6,6 @@ use uuid::Uuid;
 pub struct Message {
     pub id: Uuid,
     pub channel_id: Uuid,
-    pub author_subject: String,
+    pub author_user_id: Uuid,
     pub content: String,
 }

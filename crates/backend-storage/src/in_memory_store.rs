@@ -7,95 +7,105 @@ use crate::MutationResult;
 
 #[derive(Debug, Default)]
 pub(crate) struct InMemoryStore {
-    pub(crate) users_by_subject: HashMap<String, User>,
+    pub(crate) users_by_id: HashMap<Uuid, User>,
+    pub(crate) user_id_by_external_reference: HashMap<String, Uuid>,
     pub(crate) servers: HashMap<Uuid, Server>,
-    pub(crate) server_members_by_id: HashMap<Uuid, Vec<String>>,
+    pub(crate) server_members_by_id: HashMap<Uuid, Vec<Uuid>>,
     pub(crate) channels: HashMap<Uuid, Channel>,
     pub(crate) messages_by_channel: HashMap<Uuid, Vec<Message>>,
-    pub(crate) voice_participants_by_channel: HashMap<Uuid, Vec<String>>,
+    pub(crate) voice_participants_by_channel: HashMap<Uuid, Vec<Uuid>>,
 }
 
 impl InMemoryStore {
-    pub(crate) fn find_user_by_subject(&self, auth0_subject: &str) -> Option<User> {
-        self.users_by_subject.get(auth0_subject).cloned()
+    pub(crate) fn find_user_by_id(&self, user_id: Uuid) -> Option<User> {
+        self.users_by_id.get(&user_id).cloned()
     }
 
-    pub(crate) fn get_or_create_user(&mut self, auth0_subject: &str) -> User {
-        if let Some(existing_user) = self.users_by_subject.get(auth0_subject) {
+    pub(crate) fn find_user_by_external_reference(&self, external_reference: &str) -> Option<User> {
+        let user_id = self.user_id_by_external_reference.get(external_reference)?;
+        self.users_by_id.get(user_id).cloned()
+    }
+
+    pub(crate) fn get_or_create_user_by_external_reference(
+        &mut self,
+        external_reference: &str,
+    ) -> User {
+        if let Some(existing_user) = self.find_user_by_external_reference(external_reference) {
             return existing_user.clone();
         }
 
         let user = User {
-            auth0_subject: auth0_subject.to_owned(),
+            id: Uuid::new_v4(),
+            external_reference: external_reference.to_owned(),
             display_name: None,
         };
 
-        self.users_by_subject
-            .insert(auth0_subject.to_owned(), user.clone());
+        self.user_id_by_external_reference
+            .insert(external_reference.to_owned(), user.id);
+        self.users_by_id.insert(user.id, user.clone());
 
         user
     }
 
     pub(crate) fn set_user_display_name(
         &mut self,
-        auth0_subject: &str,
+        user_id: Uuid,
         display_name: String,
-    ) -> User {
-        let mut user = self.get_or_create_user(auth0_subject);
+    ) -> Option<User> {
+        let mut user = self.find_user_by_id(user_id)?;
         user.display_name = Some(DisplayName::new(display_name));
-        self.users_by_subject
-            .insert(auth0_subject.to_owned(), user.clone());
-        user
+        self.users_by_id.insert(user_id, user.clone());
+        Some(user)
     }
 
-    pub(crate) fn create_server(&mut self, name: String, owner_subject: String) -> Server {
+    pub(crate) fn create_server(&mut self, name: String, owner_user_id: Uuid) -> Server {
         let server_id = Uuid::new_v4();
         let server = Server {
             id: server_id,
             name,
-            owner_subject: owner_subject.clone(),
+            owner_user_id,
         };
 
         self.servers.insert(server.id, server.clone());
         self.server_members_by_id
-            .insert(server.id, vec![owner_subject]);
+            .insert(server.id, vec![owner_user_id]);
         server
     }
 
     pub(crate) fn add_server_member(
         &mut self,
         server_id: Uuid,
-        actor_subject: &str,
-        user_subject: String,
+        actor_user_id: Uuid,
+        user_id: Uuid,
     ) -> MutationResult {
         let server = match self.servers.get(&server_id) {
             Some(existing_server) => existing_server,
             None => return MutationResult::NotFound,
         };
 
-        if server.owner_subject != actor_subject {
+        if server.owner_user_id != actor_user_id {
             return MutationResult::Forbidden;
         }
 
         let members = self
             .server_members_by_id
             .entry(server_id)
-            .or_insert_with(|| vec![server.owner_subject.clone()]);
+            .or_insert_with(|| vec![server.owner_user_id]);
 
-        if !members.contains(&user_subject) {
-            members.push(user_subject);
+        if !members.contains(&user_id) {
+            members.push(user_id);
         }
 
         MutationResult::Updated
     }
 
-    pub(crate) fn delete_server(&mut self, server_id: Uuid, actor_subject: &str) -> MutationResult {
+    pub(crate) fn delete_server(&mut self, server_id: Uuid, actor_user_id: Uuid) -> MutationResult {
         let server = match self.servers.get(&server_id) {
             Some(existing_server) => existing_server,
             None => return MutationResult::NotFound,
         };
 
-        if server.owner_subject != actor_subject {
+        if server.owner_user_id != actor_user_id {
             return MutationResult::Forbidden;
         }
 
@@ -126,11 +136,11 @@ impl InMemoryStore {
         let members = self
             .server_members_by_id
             .get(&server_id)
-            .map(|subjects| {
-                subjects
+            .map(|user_ids| {
+                user_ids
                     .iter()
-                    .map(|user_subject| Membership {
-                        user_subject: user_subject.clone(),
+                    .map(|user_id| Membership {
+                        user_id: *user_id,
                         server_id,
                     })
                     .collect::<Vec<_>>()
@@ -158,7 +168,7 @@ impl InMemoryStore {
     pub(crate) fn delete_channel(
         &mut self,
         channel_id: Uuid,
-        actor_subject: &str,
+        actor_user_id: Uuid,
     ) -> MutationResult {
         let channel = match self.channels.get(&channel_id) {
             Some(existing_channel) => existing_channel,
@@ -170,7 +180,7 @@ impl InMemoryStore {
             None => return MutationResult::NotFound,
         };
 
-        if server.owner_subject != actor_subject {
+        if server.owner_user_id != actor_user_id {
             return MutationResult::Forbidden;
         }
 
@@ -184,7 +194,7 @@ impl InMemoryStore {
     pub(crate) fn create_message(
         &mut self,
         channel_id: Uuid,
-        author_subject: String,
+        author_user_id: Uuid,
         content: String,
     ) -> Option<Message> {
         if !self.channels.contains_key(&channel_id) {
@@ -194,7 +204,7 @@ impl InMemoryStore {
         let message = Message {
             id: Uuid::new_v4(),
             channel_id,
-            author_subject,
+            author_user_id,
             content,
         };
 
@@ -217,7 +227,7 @@ impl InMemoryStore {
         &mut self,
         channel_id: Uuid,
         message_id: Uuid,
-        author_subject: &str,
+        author_user_id: Uuid,
         content: String,
     ) -> MutationResult {
         let messages = match self.messages_by_channel.get_mut(&channel_id) {
@@ -228,7 +238,7 @@ impl InMemoryStore {
         let maybe_message = messages.iter_mut().find(|message| message.id == message_id);
 
         match maybe_message {
-            Some(message) if message.author_subject == author_subject => {
+            Some(message) if message.author_user_id == author_user_id => {
                 message.content = content;
                 MutationResult::Updated
             }
@@ -241,7 +251,7 @@ impl InMemoryStore {
         &mut self,
         channel_id: Uuid,
         message_id: Uuid,
-        author_subject: &str,
+        author_user_id: Uuid,
     ) -> MutationResult {
         let messages = match self.messages_by_channel.get_mut(&channel_id) {
             Some(existing_messages) => existing_messages,
@@ -251,7 +261,7 @@ impl InMemoryStore {
         let message_index = messages.iter().position(|message| message.id == message_id);
 
         match message_index {
-            Some(index) if messages[index].author_subject == author_subject => {
+            Some(index) if messages[index].author_user_id == author_user_id => {
                 messages.remove(index);
                 MutationResult::Deleted
             }
@@ -263,7 +273,7 @@ impl InMemoryStore {
     pub(crate) fn join_voice_session(
         &mut self,
         channel_id: Uuid,
-        participant_subject: String,
+        participant_user_id: Uuid,
     ) -> Option<VoiceSession> {
         if !self.channels.contains_key(&channel_id) {
             return None;
@@ -274,20 +284,20 @@ impl InMemoryStore {
             .entry(channel_id)
             .or_default();
 
-        if !participants.contains(&participant_subject) {
-            participants.push(participant_subject.clone());
+        if !participants.contains(&participant_user_id) {
+            participants.push(participant_user_id);
         }
 
         Some(VoiceSession {
             channel_id,
-            participant_subject,
+            participant_user_id,
         })
     }
 
     pub(crate) fn leave_voice_session(
         &mut self,
         channel_id: Uuid,
-        participant_subject: &str,
+        participant_user_id: Uuid,
     ) -> MutationResult {
         if !self.channels.contains_key(&channel_id) {
             return MutationResult::NotFound;
@@ -300,7 +310,7 @@ impl InMemoryStore {
 
         match participants
             .iter()
-            .position(|subject| subject == participant_subject)
+            .position(|user_id| *user_id == participant_user_id)
         {
             Some(index) => {
                 participants.remove(index);
@@ -318,12 +328,12 @@ impl InMemoryStore {
         let sessions = self
             .voice_participants_by_channel
             .get(&channel_id)
-            .map(|participants| {
-                participants
+            .map(|participant_user_ids| {
+                participant_user_ids
                     .iter()
-                    .map(|participant_subject| VoiceSession {
+                    .map(|participant_user_id| VoiceSession {
                         channel_id,
-                        participant_subject: participant_subject.clone(),
+                        participant_user_id: *participant_user_id,
                     })
                     .collect::<Vec<_>>()
             })

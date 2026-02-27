@@ -21,7 +21,7 @@ async fn given_existing_channel_when_create_message_then_message_is_listed_for_c
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
@@ -65,7 +65,7 @@ async fn given_existing_message_when_update_message_then_updated_content_is_list
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
@@ -122,7 +122,7 @@ async fn given_existing_message_when_delete_message_then_message_is_removed_from
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
@@ -311,7 +311,7 @@ async fn given_missing_message_when_update_message_then_status_is_404() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
@@ -346,7 +346,7 @@ async fn given_missing_channel_when_update_message_then_status_is_404() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let response = update_message(
@@ -365,7 +365,7 @@ async fn given_missing_message_when_delete_message_then_status_is_404() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
@@ -384,8 +384,12 @@ async fn given_missing_message_when_delete_message_then_status_is_404() {
         .expect("created channel id to be present")
         .to_owned();
 
-    let response =
-        delete_message(&app, &created_channel_id, "00000000-0000-0000-0000-000000000001").await;
+    let response = delete_message(
+        &app,
+        &created_channel_id,
+        "00000000-0000-0000-0000-000000000001",
+    )
+    .await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
@@ -395,7 +399,7 @@ async fn given_missing_channel_when_delete_message_then_status_is_404() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let response = delete_message(

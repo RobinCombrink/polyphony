@@ -30,7 +30,7 @@ pub(crate) async fn create_message(
 ) -> impl IntoResponse {
     let created_message = state
         .message_repository
-        .create_message(channel_id, authenticated_user.subject, request.content)
+        .create_message(channel_id, authenticated_user.user_id, request.content)
         .await;
 
     match created_message {

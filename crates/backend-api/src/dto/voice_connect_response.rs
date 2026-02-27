@@ -6,5 +6,5 @@ pub struct VoiceConnectResponse {
     pub livekit_url: String,
     pub access_token: String,
     pub channel_id: String,
-    pub participant_subject: String,
+    pub participant_user_id: String,
 }

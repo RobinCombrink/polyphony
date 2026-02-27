@@ -28,7 +28,7 @@ pub(crate) async fn connect_voice_session(
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    let participant_subject = authenticated_user.subject;
+    let participant_user_id = authenticated_user.user_id;
 
     if state
         .chat_repository
@@ -51,7 +51,7 @@ pub(crate) async fn connect_voice_session(
         &state.livekit_config.api_key,
         &state.livekit_config.api_secret,
     )
-    .with_identity(&participant_subject)
+    .with_identity(&participant_user_id.to_string())
     .with_ttl(std::time::Duration::from_secs(
         state.livekit_config.token_ttl_seconds,
     ))
@@ -68,7 +68,7 @@ pub(crate) async fn connect_voice_session(
             livekit_url: state.livekit_config.url.clone(),
             access_token,
             channel_id: channel_id.to_string(),
-            participant_subject,
+            participant_user_id: participant_user_id.to_string(),
         }),
     )
         .into_response()

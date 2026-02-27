@@ -10,7 +10,7 @@ use common::{
     bdd_support::{
         add_server_member, add_server_member_with_token, create_channel, create_channel_with_token,
         create_server, create_server_with_token, delete_channel, delete_channel_with_token,
-        delete_server, delete_server_with_token, list_channels, list_servers,
+        delete_server, delete_server_with_token, get_me_with_token, list_channels, list_servers,
         list_servers_with_token, response_payload_json, seeded_state, seeded_state_with_store,
     },
     entity_seeder::EntitySeeder,
@@ -21,7 +21,7 @@ async fn given_authenticated_user_when_create_server_then_created_status_and_ser
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_response = create_server(&app, &fixture.server.name).await;
@@ -37,7 +37,7 @@ async fn given_existing_server_when_list_servers_then_seeded_server_is_in_respon
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_response = create_server(&app, &fixture.server.name).await;
@@ -63,7 +63,7 @@ async fn given_existing_server_when_create_channel_then_created_status_and_chann
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
@@ -91,7 +91,7 @@ async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_res
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
@@ -126,7 +126,7 @@ async fn given_server_owner_when_add_server_member_then_created_membership_is_re
     let fixture = entity_seeder.chat_fixture();
     let additional_user = entity_seeder.user();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
@@ -137,18 +137,19 @@ async fn given_server_owner_when_add_server_member_then_created_membership_is_re
         .to_owned();
 
     let add_server_member_response =
-        add_server_member(&app, &created_server_id, &additional_user.auth0_subject).await;
+        add_server_member(&app, &created_server_id, &additional_user.id.to_string()).await;
 
     assert_eq!(add_server_member_response.status(), StatusCode::CREATED);
 
     let add_server_member_payload = response_payload_json(add_server_member_response).await;
+    let additional_user_id = additional_user.id.to_string();
     assert_eq!(
         add_server_member_payload["server_id"].as_str(),
         Some(created_server_id.as_str())
     );
     assert_eq!(
-        add_server_member_payload["user_subject"].as_str(),
-        Some(additional_user.auth0_subject.as_str())
+        add_server_member_payload["user_id"].as_str(),
+        Some(additional_user_id.as_str())
     );
 }
 
@@ -161,14 +162,17 @@ async fn given_server_with_added_member_when_member_lists_servers_then_server_is
     let shared_store = Arc::new(InMemoryChatRepository::new());
 
     let owner_state = seeded_state_with_store(
-        &fixture.user.auth0_subject,
+        &fixture.user.external_reference,
         "owner-token",
         shared_store.clone(),
     );
     let owner_app = build_app(owner_state);
 
-    let member_state =
-        seeded_state_with_store(&additional_user.auth0_subject, "member-token", shared_store);
+    let member_state = seeded_state_with_store(
+        &additional_user.external_reference,
+        "member-token",
+        shared_store,
+    );
     let member_app = build_app(member_state);
 
     let create_server_response =
@@ -181,10 +185,17 @@ async fn given_server_with_added_member_when_member_lists_servers_then_server_is
         .expect("created server id to be present")
         .to_owned();
 
+    let member_me_payload =
+        response_payload_json(get_me_with_token(&member_app, "member-token").await).await;
+    let member_user_id = member_me_payload["user_id"]
+        .as_str()
+        .expect("member user id to be present")
+        .to_owned();
+
     let add_member_response = add_server_member_with_token(
         &owner_app,
         &created_server_id,
-        &additional_user.auth0_subject,
+        &member_user_id,
         "owner-token",
     )
     .await;
@@ -215,14 +226,17 @@ async fn given_non_owner_when_add_server_member_then_status_is_403() {
     let shared_store = Arc::new(InMemoryChatRepository::new());
 
     let owner_state = seeded_state_with_store(
-        &fixture.user.auth0_subject,
+        &fixture.user.external_reference,
         "owner-token",
         shared_store.clone(),
     );
     let owner_app = build_app(owner_state);
 
-    let member_state =
-        seeded_state_with_store(&existing_member.auth0_subject, "member-token", shared_store);
+    let member_state = seeded_state_with_store(
+        &existing_member.external_reference,
+        "member-token",
+        shared_store,
+    );
     let member_app = build_app(member_state);
 
     let create_server_response =
@@ -238,7 +252,7 @@ async fn given_non_owner_when_add_server_member_then_status_is_403() {
     let add_owner_member_response = add_server_member_with_token(
         &owner_app,
         &created_server_id,
-        &existing_member.auth0_subject,
+        &existing_member.id.to_string(),
         "owner-token",
     )
     .await;
@@ -247,7 +261,7 @@ async fn given_non_owner_when_add_server_member_then_status_is_403() {
     let non_owner_add_response = add_server_member_with_token(
         &member_app,
         &created_server_id,
-        &target_user.auth0_subject,
+        &target_user.id.to_string(),
         "member-token",
     )
     .await;
@@ -260,7 +274,7 @@ async fn given_server_owner_when_delete_server_then_status_is_204_and_server_rem
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_response = create_server(&app, &fixture.server.name).await;
@@ -295,14 +309,17 @@ async fn given_non_owner_when_delete_server_then_status_is_403() {
     let shared_store = Arc::new(InMemoryChatRepository::new());
 
     let owner_state = seeded_state_with_store(
-        &fixture.user.auth0_subject,
+        &fixture.user.external_reference,
         "owner-token",
         shared_store.clone(),
     );
     let owner_app = build_app(owner_state);
 
-    let member_state =
-        seeded_state_with_store(&member_user.auth0_subject, "member-token", shared_store);
+    let member_state = seeded_state_with_store(
+        &member_user.external_reference,
+        "member-token",
+        shared_store,
+    );
     let member_app = build_app(member_state);
 
     let create_server_response =
@@ -318,7 +335,7 @@ async fn given_non_owner_when_delete_server_then_status_is_403() {
     let add_member_response = add_server_member_with_token(
         &owner_app,
         &created_server_id,
-        &member_user.auth0_subject,
+        &member_user.id.to_string(),
         "owner-token",
     )
     .await;
@@ -335,7 +352,7 @@ async fn given_missing_server_when_delete_server_then_status_is_404() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let delete_server_response = delete_server(&app, "00000000-0000-0000-0000-000000000001").await;
@@ -348,7 +365,7 @@ async fn given_server_owner_when_delete_channel_then_status_is_204_and_channel_r
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
@@ -390,14 +407,17 @@ async fn given_non_owner_when_delete_channel_then_status_is_403() {
     let shared_store = Arc::new(InMemoryChatRepository::new());
 
     let owner_state = seeded_state_with_store(
-        &fixture.user.auth0_subject,
+        &fixture.user.external_reference,
         "owner-token",
         shared_store.clone(),
     );
     let owner_app = build_app(owner_state);
 
-    let member_state =
-        seeded_state_with_store(&member_user.auth0_subject, "member-token", shared_store);
+    let member_state = seeded_state_with_store(
+        &member_user.external_reference,
+        "member-token",
+        shared_store,
+    );
     let member_app = build_app(member_state);
 
     let create_server_payload = response_payload_json(
@@ -412,7 +432,7 @@ async fn given_non_owner_when_delete_channel_then_status_is_403() {
     let add_member_response = add_server_member_with_token(
         &owner_app,
         &created_server_id,
-        &member_user.auth0_subject,
+        &member_user.id.to_string(),
         "owner-token",
     )
     .await;
@@ -444,7 +464,7 @@ async fn given_missing_channel_when_delete_channel_then_status_is_404() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let delete_channel_response =

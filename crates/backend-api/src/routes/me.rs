@@ -16,14 +16,12 @@ pub(crate) async fn me(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
 ) -> impl IntoResponse {
-    let user = state
-        .chat_repository
-        .get_or_create_user(&authenticated_user.subject)
-        .await;
+    let user = state.chat_repository.find_user_by_id(authenticated_user.user_id).await;
 
     let response = MeResponse {
-        user_id: authenticated_user.subject,
-        display_name: user.display_name.map(String::from),
+        user_id: authenticated_user.user_id,
+        external_reference: authenticated_user.external_reference,
+        display_name: user.and_then(|value| value.display_name).map(String::from),
         issuer: state.auth_state.config.issuer.to_string(),
         token_duration_hours: state.auth_state.config.token_duration_hours,
     };
@@ -56,13 +54,18 @@ pub(crate) async fn update_me(
 
     let updated_user = state
         .chat_repository
-        .set_user_display_name(&authenticated_user.subject, trimmed_display_name.to_owned())
+        .set_user_display_name(authenticated_user.user_id, trimmed_display_name.to_owned())
         .await;
+
+    let Some(updated_user) = updated_user else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
 
     (
         StatusCode::OK,
         Json(MeResponse {
-            user_id: updated_user.auth0_subject,
+            user_id: updated_user.id,
+            external_reference: updated_user.external_reference,
             display_name: updated_user.display_name.map(String::from),
             issuer: state.auth_state.config.issuer.to_string(),
             token_duration_hours: state.auth_state.config.token_duration_hours,

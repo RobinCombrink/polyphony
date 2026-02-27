@@ -31,7 +31,7 @@ pub(crate) async fn delete_message(
 ) -> impl IntoResponse {
     let mutation_result = state
         .message_repository
-        .delete_message(channel_id, message_id, &authenticated_user.subject)
+        .delete_message(channel_id, message_id, authenticated_user.user_id)
         .await;
 
     match mutation_result {

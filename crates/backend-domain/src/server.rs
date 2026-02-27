@@ -6,5 +6,5 @@ use uuid::Uuid;
 pub struct Server {
     pub id: Uuid,
     pub name: String,
-    pub owner_subject: String,
+    pub owner_user_id: Uuid,
 }

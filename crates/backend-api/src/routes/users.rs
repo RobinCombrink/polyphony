@@ -4,6 +4,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use uuid::Uuid;
 
 use crate::{
     ApiState,
@@ -15,7 +16,7 @@ use crate::{
     get,
     path = "/api/v1/users/{user_id}",
     params(
-        ("user_id" = String, Path, description = "User identifier (Auth0 subject)")
+        ("user_id" = Uuid, Path, description = "User identifier")
     ),
     responses(
         (status = 200, description = "User profile by id", body = UserLookupResponse),
@@ -28,16 +29,16 @@ use crate::{
 pub(crate) async fn get_user_by_id(
     State(state): State<ApiState>,
     _authenticated_user: AuthenticatedUser,
-    Path(user_id): Path<String>,
+    Path(user_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    let Some(user) = state.chat_repository.find_user_by_subject(&user_id).await else {
+    let Some(user) = state.chat_repository.find_user_by_id(user_id).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
 
     (
         StatusCode::OK,
         Json(UserLookupResponse {
-            id: user.auth0_subject,
+            id: user.id,
             display_name: user.display_name.map(String::from),
         }),
     )

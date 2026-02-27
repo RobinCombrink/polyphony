@@ -1,5 +1,6 @@
 use axum::http::StatusCode;
 use backend_api::build_app;
+use uuid::Uuid;
 
 #[path = "../common.rs"]
 mod common;
@@ -16,7 +17,7 @@ async fn given_existing_channel_when_connect_voice_session_then_returns_livekit_
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let create_server_payload =
@@ -45,10 +46,10 @@ async fn given_existing_channel_when_connect_voice_session_then_returns_livekit_
         payload["channel_id"].as_str(),
         Some(created_channel_id.as_str())
     );
-    assert_eq!(
-        payload["participant_subject"].as_str(),
-        Some(fixture.user.auth0_subject.as_str())
-    );
+    let participant_user_id = payload["participant_user_id"]
+        .as_str()
+        .expect("participant user id to be present");
+    assert!(Uuid::parse_str(participant_user_id).is_ok());
     assert_eq!(payload["livekit_url"].as_str(), Some("ws://127.0.0.1:7880"));
     assert!(
         payload["access_token"]
@@ -64,7 +65,7 @@ async fn given_missing_channel_when_connect_voice_session_then_status_is_404() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
-    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
     let connect_response =

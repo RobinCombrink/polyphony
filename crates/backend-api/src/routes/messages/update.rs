@@ -38,7 +38,7 @@ pub(crate) async fn update_message(
         .update_message(
             channel_id,
             message_id,
-            &authenticated_user.subject,
+            authenticated_user.user_id,
             request.content,
         )
         .await;

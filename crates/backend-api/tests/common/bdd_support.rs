@@ -16,10 +16,11 @@ use backend_api::{
 use serde_json::Value;
 use tower::ServiceExt;
 use url::Url;
+use uuid::Uuid;
 
 struct TestTokenVerifier {
     expected_token: String,
-    subject: String,
+    external_reference: String,
 }
 
 #[async_trait]
@@ -30,7 +31,8 @@ impl TokenVerifier for TestTokenVerifier {
     ) -> Result<AuthenticatedUser, backend_api::auth::AuthError> {
         if bearer_token == self.expected_token {
             return Ok(AuthenticatedUser {
-                subject: self.subject.clone(),
+                user_id: Uuid::nil(),
+                external_reference: self.external_reference.clone(),
             });
         }
 
@@ -124,15 +126,15 @@ pub(crate) async fn delete_channel_with_token(
 pub(crate) async fn add_server_member(
     app: &axum::Router,
     server_id: &str,
-    user_subject: &str,
+    user_id: &str,
 ) -> axum::response::Response {
-    add_server_member_with_token(app, server_id, user_subject, "valid-token").await
+    add_server_member_with_token(app, server_id, user_id, "valid-token").await
 }
 
 pub(crate) async fn add_server_member_with_token(
     app: &axum::Router,
     server_id: &str,
-    user_subject: &str,
+    user_id: &str,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
@@ -143,7 +145,7 @@ pub(crate) async fn add_server_member_with_token(
                 .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(
-                    serde_json::json!({ "user_subject": user_subject }).to_string(),
+                    serde_json::json!({ "user_id": user_id }).to_string(),
                 ))
                 .expect("add server member request to be valid"),
         )
@@ -403,12 +405,12 @@ pub(crate) async fn response_payload_json(response: axum::response::Response) ->
     .expect("valid json payload")
 }
 
-pub(crate) fn seeded_state(subject: &str, token: &str) -> ApiState {
-    seeded_state_with_store(subject, token, Arc::new(InMemoryChatRepository::new()))
+pub(crate) fn seeded_state(external_reference: &str, token: &str) -> ApiState {
+    seeded_state_with_store(external_reference, token, Arc::new(InMemoryChatRepository::new()))
 }
 
 pub(crate) fn seeded_state_with_store(
-    subject: &str,
+    external_reference: &str,
     token: &str,
     repository: Arc<InMemoryChatRepository>,
 ) -> ApiState {
@@ -420,7 +422,7 @@ pub(crate) fn seeded_state_with_store(
 
     let token_verifier = Arc::new(TestTokenVerifier {
         expected_token: token.to_owned(),
-        subject: subject.to_owned(),
+        external_reference: external_reference.to_owned(),
     });
 
     let chat_store: Arc<dyn ChatRepository> = repository.clone();

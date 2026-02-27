@@ -18,9 +18,9 @@ pub struct EntitySeeder;
 impl EntitySeeder {
     pub fn chat_fixture(&self) -> ChatFixture {
         let user = self.user();
-        let server = self.server();
+        let server = self.server(user.id);
         let channel = self.channel(server.id);
-        let message = self.message(channel.id, &user.auth0_subject);
+        let message = self.message(channel.id, user.id);
 
         ChatFixture {
             user,
@@ -39,12 +39,13 @@ impl EntitySeeder {
             .to_lowercase();
 
         User {
-            auth0_subject: format!("auth0|user_{random_segment}"),
+            id: Uuid::new_v4(),
+            external_reference: format!("auth0|user_{random_segment}"),
             display_name: Some(DisplayName::new(format!("User-{random_segment}"))),
         }
     }
 
-    pub fn server(&self) -> Server {
+    pub fn server(&self, owner_user_id: Uuid) -> Server {
         let random_segment = rand::rng()
             .sample_iter(Alphanumeric)
             .take(8)
@@ -55,7 +56,7 @@ impl EntitySeeder {
         Server {
             id: Uuid::new_v4(),
             name: format!("Server-{random_segment}"),
-            owner_subject: format!("auth0|owner_{random_segment}"),
+            owner_user_id,
         }
     }
 
@@ -74,7 +75,7 @@ impl EntitySeeder {
         }
     }
 
-    pub fn message(&self, channel_id: Uuid, author_subject: &str) -> Message {
+    pub fn message(&self, channel_id: Uuid, author_user_id: Uuid) -> Message {
         let random_segment = rand::rng()
             .sample_iter(Alphanumeric)
             .take(8)
@@ -85,7 +86,7 @@ impl EntitySeeder {
         Message {
             id: Uuid::new_v4(),
             channel_id,
-            author_subject: author_subject.to_owned(),
+            author_user_id,
             content: format!("Message-{random_segment}"),
         }
     }

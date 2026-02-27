@@ -10,6 +10,7 @@ use jwt_authorizer::{Authorizer, JwtAuthorizer, Validation};
 use serde::Deserialize;
 use thiserror::Error;
 use url::Url;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AuthState {
@@ -76,7 +77,8 @@ impl Auth0Config {
 
 #[derive(Clone, Debug)]
 pub struct AuthenticatedUser {
-    pub subject: String,
+    pub user_id: Uuid,
+    pub external_reference: String,
 }
 
 #[async_trait::async_trait]
@@ -118,7 +120,8 @@ impl TokenVerifier for JwksTokenVerifier {
             .map_err(|error| AuthError::InvalidToken(error.to_string()))?;
 
         let authenticated_user = AuthenticatedUser {
-            subject: token_data.claims.sub,
+            user_id: Uuid::nil(),
+            external_reference: token_data.claims.sub,
         };
 
         Ok(authenticated_user)
@@ -145,18 +148,15 @@ impl IntoResponse for AuthError {
     }
 }
 
-impl<S> FromRequestParts<S> for AuthenticatedUser
-where
-    Arc<AuthState>: FromRef<S>,
-    S: Send + Sync,
-{
+impl FromRequestParts<crate::ApiState> for AuthenticatedUser {
     type Rejection = AuthError;
 
     fn from_request_parts(
         parts: &mut Parts,
-        state: &S,
+        state: &crate::ApiState,
     ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
-        let auth_state = Arc::<AuthState>::from_ref(state);
+        let auth_state = state.auth_state.clone();
+        let chat_repository = state.chat_repository.clone();
 
         let authorization_header = parts
             .headers
@@ -171,7 +171,15 @@ where
 
         async move {
             let bearer_token = authorization_header?;
-            auth_state.token_verifier.verify(&bearer_token).await
+            let verified_user = auth_state.token_verifier.verify(&bearer_token).await?;
+            let user = chat_repository
+                .get_or_create_user_by_external_reference(&verified_user.external_reference)
+                .await;
+
+            Ok(AuthenticatedUser {
+                user_id: user.id,
+                external_reference: verified_user.external_reference,
+            })
         }
     }
 }

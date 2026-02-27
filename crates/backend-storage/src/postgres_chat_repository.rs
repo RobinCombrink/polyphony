@@ -69,28 +69,28 @@ impl MessageRepository for PostgresChatRepository {
     async fn create_message(
         &self,
         channel_id: Uuid,
-        author_subject: String,
+        author_user_id: Uuid,
         content: String,
     ) -> Option<Message> {
         if !self.channel_exists(channel_id).await.ok()? {
             return None;
         }
 
-        sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
-            "INSERT INTO messages (id, channel_id, author_subject, content)
+        sqlx::query_as::<_, (Uuid, Uuid, Uuid, String)>(
+            "INSERT INTO messages (id, channel_id, author_user_id, content)
             VALUES (gen_random_uuid(), $1, $2, $3)
-            RETURNING id, channel_id, author_subject, content",
+            RETURNING id, channel_id, author_user_id, content",
         )
         .bind(channel_id)
-        .bind(author_subject)
+        .bind(author_user_id)
         .bind(content)
         .fetch_one(&self.pool)
         .await
         .ok()
-        .map(|(id, channel_id, author_subject, content)| Message {
+        .map(|(id, channel_id, author_user_id, content)| Message {
             id,
             channel_id,
-            author_subject,
+            author_user_id,
             content,
         })
     }
@@ -99,11 +99,11 @@ impl MessageRepository for PostgresChatRepository {
         &self,
         channel_id: Uuid,
         message_id: Uuid,
-        author_subject: &str,
+        author_user_id: Uuid,
         content: String,
     ) -> MutationResult {
-        let existing_author = sqlx::query_scalar::<_, String>(
-            "SELECT author_subject FROM messages WHERE channel_id = $1 AND id = $2",
+        let existing_author = sqlx::query_scalar::<_, Uuid>(
+            "SELECT author_user_id FROM messages WHERE channel_id = $1 AND id = $2",
         )
         .bind(channel_id)
         .bind(message_id)
@@ -119,7 +119,7 @@ impl MessageRepository for PostgresChatRepository {
             return MutationResult::NotFound;
         };
 
-        if existing_author != author_subject {
+        if existing_author != author_user_id {
             return MutationResult::Forbidden;
         }
 
@@ -142,10 +142,10 @@ impl MessageRepository for PostgresChatRepository {
         &self,
         channel_id: Uuid,
         message_id: Uuid,
-        author_subject: &str,
+        author_user_id: Uuid,
     ) -> MutationResult {
-        let existing_author = sqlx::query_scalar::<_, String>(
-            "SELECT author_subject FROM messages WHERE channel_id = $1 AND id = $2",
+        let existing_author = sqlx::query_scalar::<_, Uuid>(
+            "SELECT author_user_id FROM messages WHERE channel_id = $1 AND id = $2",
         )
         .bind(channel_id)
         .bind(message_id)
@@ -161,7 +161,7 @@ impl MessageRepository for PostgresChatRepository {
             return MutationResult::NotFound;
         };
 
-        if existing_author != author_subject {
+        if existing_author != author_user_id {
             return MutationResult::Forbidden;
         }
 
@@ -179,8 +179,8 @@ impl MessageRepository for PostgresChatRepository {
     }
 
     async fn list_messages(&self, channel_id: Uuid) -> Vec<Message> {
-        sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
-            "SELECT id, channel_id, author_subject, content
+        sqlx::query_as::<_, (Uuid, Uuid, Uuid, String)>(
+            "SELECT id, channel_id, author_user_id, content
              FROM messages
              WHERE channel_id = $1
              ORDER BY created_order ASC",
@@ -190,10 +190,10 @@ impl MessageRepository for PostgresChatRepository {
         .await
         .unwrap_or_default()
         .into_iter()
-        .map(|(id, channel_id, author_subject, content)| Message {
+        .map(|(id, channel_id, author_user_id, content)| Message {
             id,
             channel_id,
-            author_subject,
+            author_user_id,
             content,
         })
         .collect()
@@ -202,76 +202,90 @@ impl MessageRepository for PostgresChatRepository {
 
 #[async_trait]
 impl ChatRepository for PostgresChatRepository {
-    async fn find_user_by_subject(&self, auth0_subject: &str) -> Option<User> {
-        sqlx::query_as::<_, (String, Option<String>)>(
-            "SELECT auth0_subject, display_name
+    async fn find_user_by_id(&self, user_id: Uuid) -> Option<User> {
+        sqlx::query_as::<_, (Uuid, String, Option<String>)>(
+            "SELECT id, external_reference, display_name
              FROM users
-             WHERE auth0_subject = $1",
+             WHERE id = $1",
         )
-        .bind(auth0_subject)
+        .bind(user_id)
         .fetch_optional(&self.pool)
         .await
         .ok()
         .flatten()
-        .map(|(auth0_subject, display_name)| User {
-            auth0_subject,
+        .map(|(id, external_reference, display_name)| User {
+            id,
+            external_reference,
             display_name: display_name.map(DisplayName::new),
         })
     }
 
-    async fn get_or_create_user(&self, auth0_subject: &str) -> User {
-        let _ = sqlx::query(
-            "INSERT INTO users (auth0_subject, display_name)
-             VALUES ($1, NULL)
-             ON CONFLICT (auth0_subject) DO NOTHING",
+    async fn find_user_by_external_reference(&self, external_reference: &str) -> Option<User> {
+        sqlx::query_as::<_, (Uuid, String, Option<String>)>(
+            "SELECT id, external_reference, display_name
+             FROM users
+             WHERE external_reference = $1",
         )
-        .bind(auth0_subject)
+        .bind(external_reference)
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .map(|(id, external_reference, display_name)| User {
+            id,
+            external_reference,
+            display_name: display_name.map(DisplayName::new),
+        })
+    }
+
+    async fn get_or_create_user_by_external_reference(&self, external_reference: &str) -> User {
+        let _ = sqlx::query(
+            "INSERT INTO users (id, external_reference, display_name)
+             VALUES (gen_random_uuid(), $1, NULL)
+             ON CONFLICT (external_reference) DO NOTHING",
+        )
+        .bind(external_reference)
         .execute(&self.pool)
         .await;
 
-        self.find_user_by_subject(auth0_subject)
+        self.find_user_by_external_reference(external_reference)
             .await
             .unwrap_or(User {
-                auth0_subject: auth0_subject.to_owned(),
+                id: Uuid::new_v4(),
+                external_reference: external_reference.to_owned(),
                 display_name: None,
             })
     }
 
-    async fn set_user_display_name(&self, auth0_subject: &str, display_name: String) -> User {
+    async fn set_user_display_name(&self, user_id: Uuid, display_name: String) -> Option<User> {
         let _ = sqlx::query(
-            "INSERT INTO users (auth0_subject, display_name)
-             VALUES ($1, $2)
-             ON CONFLICT (auth0_subject)
-             DO UPDATE SET display_name = EXCLUDED.display_name",
+            "UPDATE users
+             SET display_name = $2
+             WHERE id = $1",
         )
-        .bind(auth0_subject)
+        .bind(user_id)
         .bind(display_name)
         .execute(&self.pool)
         .await;
 
-        self.find_user_by_subject(auth0_subject)
-            .await
-            .unwrap_or(User {
-                auth0_subject: auth0_subject.to_owned(),
-                display_name: None,
-            })
+        self.find_user_by_id(user_id).await
     }
 
-    async fn create_server(&self, name: String, owner_subject: String) -> Server {
-        let (server_id, owner_subject_created) = sqlx::query_as::<_, (Uuid, String)>(
+    async fn create_server(&self, name: String, owner_user_id: Uuid) -> Server {
+        let (server_id, owner_user_id_created) = sqlx::query_as::<_, (Uuid, Uuid)>(
             "WITH inserted AS (
-                INSERT INTO servers (id, name, owner_subject)
+                INSERT INTO servers (id, name, owner_user_id)
                 VALUES (gen_random_uuid(), $1, $2)
-                RETURNING id, owner_subject
+                RETURNING id, owner_user_id
             )
-            INSERT INTO server_members (server_id, user_subject)
-            SELECT id, owner_subject
+            INSERT INTO server_members (server_id, user_id)
+            SELECT id, owner_user_id
             FROM inserted
-            ON CONFLICT (server_id, user_subject) DO NOTHING
-            RETURNING server_id, user_subject",
+            ON CONFLICT (server_id, user_id) DO NOTHING
+            RETURNING server_id, user_id",
         )
         .bind(&name)
-        .bind(&owner_subject)
+        .bind(owner_user_id)
         .fetch_one(&self.pool)
         .await
         .expect("create server in postgres to succeed");
@@ -279,27 +293,27 @@ impl ChatRepository for PostgresChatRepository {
         Server {
             id: server_id,
             name,
-            owner_subject: owner_subject_created,
+            owner_user_id: owner_user_id_created,
         }
     }
 
-    async fn list_servers_for_user(&self, owner_subject: &str) -> Vec<Server> {
-        sqlx::query_as::<_, (Uuid, String, String)>(
-            "SELECT s.id, s.name, s.owner_subject
+    async fn list_servers_for_user(&self, user_id: Uuid) -> Vec<Server> {
+        sqlx::query_as::<_, (Uuid, String, Uuid)>(
+            "SELECT s.id, s.name, s.owner_user_id
              FROM servers s
              INNER JOIN server_members sm ON sm.server_id = s.id
-             WHERE sm.user_subject = $1
+             WHERE sm.user_id = $1
              ORDER BY s.id ASC",
         )
-        .bind(owner_subject)
+        .bind(user_id)
         .fetch_all(&self.pool)
         .await
         .unwrap_or_default()
         .into_iter()
-        .map(|(id, name, owner_subject)| Server {
+        .map(|(id, name, owner_user_id)| Server {
             id,
             name,
-            owner_subject,
+            owner_user_id,
         })
         .collect()
     }
@@ -307,35 +321,35 @@ impl ChatRepository for PostgresChatRepository {
     async fn add_server_member(
         &self,
         server_id: Uuid,
-        actor_subject: &str,
-        user_subject: String,
+        actor_user_id: Uuid,
+        user_id: Uuid,
     ) -> MutationResult {
-        let owner_subject =
-            sqlx::query_scalar::<_, String>("SELECT owner_subject FROM servers WHERE id = $1")
+        let owner_user_id =
+            sqlx::query_scalar::<_, Uuid>("SELECT owner_user_id FROM servers WHERE id = $1")
                 .bind(server_id)
                 .fetch_optional(&self.pool)
                 .await;
 
-        let owner_subject = match owner_subject {
+        let owner_user_id = match owner_user_id {
             Ok(value) => value,
             Err(_) => return MutationResult::NotFound,
         };
 
-        let Some(owner_subject) = owner_subject else {
+        let Some(owner_user_id) = owner_user_id else {
             return MutationResult::NotFound;
         };
 
-        if owner_subject != actor_subject {
+        if owner_user_id != actor_user_id {
             return MutationResult::Forbidden;
         }
 
         let inserted = sqlx::query(
-            "INSERT INTO server_members (server_id, user_subject)
+            "INSERT INTO server_members (server_id, user_id)
              VALUES ($1, $2)
-             ON CONFLICT (server_id, user_subject) DO NOTHING",
+             ON CONFLICT (server_id, user_id) DO NOTHING",
         )
         .bind(server_id)
-        .bind(user_subject)
+        .bind(user_id)
         .execute(&self.pool)
         .await;
 
@@ -345,23 +359,23 @@ impl ChatRepository for PostgresChatRepository {
         }
     }
 
-    async fn delete_server(&self, server_id: Uuid, actor_subject: &str) -> MutationResult {
-        let owner_subject =
-            sqlx::query_scalar::<_, String>("SELECT owner_subject FROM servers WHERE id = $1")
+    async fn delete_server(&self, server_id: Uuid, actor_user_id: Uuid) -> MutationResult {
+        let owner_user_id =
+            sqlx::query_scalar::<_, Uuid>("SELECT owner_user_id FROM servers WHERE id = $1")
                 .bind(server_id)
                 .fetch_optional(&self.pool)
                 .await;
 
-        let owner_subject = match owner_subject {
+        let owner_user_id = match owner_user_id {
             Ok(value) => value,
             Err(_) => return MutationResult::NotFound,
         };
 
-        let Some(owner_subject) = owner_subject else {
+        let Some(owner_user_id) = owner_user_id else {
             return MutationResult::NotFound;
         };
 
-        if owner_subject != actor_subject {
+        if owner_user_id != actor_user_id {
             return MutationResult::Forbidden;
         }
 
@@ -382,21 +396,18 @@ impl ChatRepository for PostgresChatRepository {
             return None;
         }
 
-        let members = sqlx::query_as::<_, (Uuid, String)>(
-            "SELECT server_id, user_subject
+        let members = sqlx::query_as::<_, (Uuid, Uuid)>(
+            "SELECT server_id, user_id
              FROM server_members
              WHERE server_id = $1
-             ORDER BY user_subject ASC",
+             ORDER BY user_id ASC",
         )
         .bind(server_id)
         .fetch_all(&self.pool)
         .await
         .ok()?
         .into_iter()
-        .map(|(server_id, user_subject)| Membership {
-            user_subject,
-            server_id,
-        })
+        .map(|(server_id, user_id)| Membership { user_id, server_id })
         .collect();
 
         Some(members)
@@ -424,9 +435,9 @@ impl ChatRepository for PostgresChatRepository {
         })
     }
 
-    async fn delete_channel(&self, channel_id: Uuid, actor_subject: &str) -> MutationResult {
-        let owner_subject = sqlx::query_scalar::<_, String>(
-            "SELECT s.owner_subject
+    async fn delete_channel(&self, channel_id: Uuid, actor_user_id: Uuid) -> MutationResult {
+        let owner_user_id = sqlx::query_scalar::<_, Uuid>(
+            "SELECT s.owner_user_id
              FROM channels c
              INNER JOIN servers s ON s.id = c.server_id
              WHERE c.id = $1",
@@ -435,16 +446,16 @@ impl ChatRepository for PostgresChatRepository {
         .fetch_optional(&self.pool)
         .await;
 
-        let owner_subject = match owner_subject {
+        let owner_user_id = match owner_user_id {
             Ok(value) => value,
             Err(_) => return MutationResult::NotFound,
         };
 
-        let Some(owner_subject) = owner_subject else {
+        let Some(owner_user_id) = owner_user_id else {
             return MutationResult::NotFound;
         };
 
-        if owner_subject != actor_subject {
+        if owner_user_id != actor_user_id {
             return MutationResult::Forbidden;
         }
 
@@ -489,19 +500,19 @@ impl ChatRepository for PostgresChatRepository {
     async fn join_voice_session(
         &self,
         channel_id: Uuid,
-        participant_subject: String,
+        participant_user_id: Uuid,
     ) -> Option<VoiceSession> {
         if !self.channel_exists(channel_id).await.ok()? {
             return None;
         }
 
         let inserted = sqlx::query(
-            "INSERT INTO voice_sessions (channel_id, participant_subject)
+            "INSERT INTO voice_sessions (channel_id, participant_user_id)
              VALUES ($1, $2)
-             ON CONFLICT (channel_id, participant_subject) DO NOTHING",
+               ON CONFLICT (channel_id, participant_user_id) DO NOTHING",
         )
         .bind(channel_id)
-        .bind(&participant_subject)
+        .bind(participant_user_id)
         .execute(&self.pool)
         .await;
 
@@ -511,14 +522,14 @@ impl ChatRepository for PostgresChatRepository {
 
         Some(VoiceSession {
             channel_id,
-            participant_subject,
+            participant_user_id,
         })
     }
 
     async fn leave_voice_session(
         &self,
         channel_id: Uuid,
-        participant_subject: &str,
+        participant_user_id: Uuid,
     ) -> MutationResult {
         if !self.channel_exists(channel_id).await.unwrap_or(false) {
             return MutationResult::NotFound;
@@ -526,10 +537,10 @@ impl ChatRepository for PostgresChatRepository {
 
         let deleted = sqlx::query(
             "DELETE FROM voice_sessions
-             WHERE channel_id = $1 AND participant_subject = $2",
+               WHERE channel_id = $1 AND participant_user_id = $2",
         )
         .bind(channel_id)
-        .bind(participant_subject)
+        .bind(participant_user_id)
         .execute(&self.pool)
         .await;
 
@@ -545,20 +556,20 @@ impl ChatRepository for PostgresChatRepository {
             return None;
         }
 
-        let sessions = sqlx::query_as::<_, (Uuid, String)>(
-            "SELECT channel_id, participant_subject
+        let sessions = sqlx::query_as::<_, (Uuid, Uuid)>(
+            "SELECT channel_id, participant_user_id
              FROM voice_sessions
              WHERE channel_id = $1
-             ORDER BY participant_subject ASC",
+             ORDER BY participant_user_id ASC",
         )
         .bind(channel_id)
         .fetch_all(&self.pool)
         .await
         .ok()?
         .into_iter()
-        .map(|(channel_id, participant_subject)| VoiceSession {
+        .map(|(channel_id, participant_user_id)| VoiceSession {
             channel_id,
-            participant_subject,
+            participant_user_id,
         })
         .collect();
 
