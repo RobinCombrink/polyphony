@@ -78,7 +78,7 @@ class PolyphonyApiClient implements ChatApi {
       baseUrl: baseUrl,
       endpoint: "/api/v1/servers/$serverId/members",
       operation: "add server member",
-      body: <String, dynamic>{"user_subject": userSubject},
+      body: <String, dynamic>{"user_id": userSubject},
       expectedStatusCode: 201,
     );
   }
@@ -224,8 +224,15 @@ class PolyphonyApiClient implements ChatApi {
   }
 
   List<Map<String, dynamic>> _decodeList(String body) {
-    final decoded = jsonDecode(body) as List<dynamic>;
-    return decoded.cast<Map<String, dynamic>>();
+    final decoded = jsonDecode(body);
+    if (decoded is! List) {
+      return const <Map<String, dynamic>>[];
+    }
+
+    return decoded
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
   }
 
   Future<Result<List<T>>> _performListRequest<T>({
@@ -274,8 +281,14 @@ class PolyphonyApiClient implements ChatApi {
         );
       }
 
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-      return Ok<T>(decodeItem(decoded));
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) {
+        return Error<T>(
+          Exception("Failed to $operation: invalid response payload"),
+        );
+      }
+
+      return Ok<T>(decodeItem(Map<String, dynamic>.from(decoded)));
     } on Exception catch (error) {
       return Error<T>(error);
     }
@@ -304,8 +317,14 @@ class PolyphonyApiClient implements ChatApi {
         );
       }
 
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-      return Ok<T>(decodeItem(decoded));
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) {
+        return Error<T>(
+          Exception("Failed to $operation: invalid response payload"),
+        );
+      }
+
+      return Ok<T>(decodeItem(Map<String, dynamic>.from(decoded)));
     } on Exception catch (error) {
       return Error<T>(error);
     }
@@ -334,8 +353,14 @@ class PolyphonyApiClient implements ChatApi {
         );
       }
 
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-      return Ok<T>(decodeItem(decoded));
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) {
+        return Error<T>(
+          Exception("Failed to $operation: invalid response payload"),
+        );
+      }
+
+      return Ok<T>(decodeItem(Map<String, dynamic>.from(decoded)));
     } on Exception catch (error) {
       return Error<T>(error);
     }

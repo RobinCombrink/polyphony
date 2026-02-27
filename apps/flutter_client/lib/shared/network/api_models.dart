@@ -13,7 +13,7 @@ class ApiServer {
     return ApiServer(
       id: json["id"] as String,
       name: json["name"] as String,
-      ownerSubject: json["owner_subject"] as String,
+      ownerSubject: json["owner_user_id"] as String,
     );
   }
 }
@@ -55,7 +55,7 @@ class ApiMessage {
     return ApiMessage(
       id: json["id"] as String,
       channelId: json["channel_id"] as String,
-      authorSubject: json["author_subject"] as String,
+      authorSubject: json["author_user_id"] as String,
       content: json["content"] as String,
     );
   }
@@ -79,7 +79,7 @@ class ApiVoiceConnectSession {
       livekitUrl: json["livekit_url"] as String,
       accessToken: json["access_token"] as String,
       channelId: json["channel_id"] as String,
-      participantSubject: json["participant_subject"] as String,
+      participantSubject: json["participant_user_id"] as String,
     );
   }
 }
