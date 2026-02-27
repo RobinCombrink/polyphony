@@ -104,6 +104,37 @@ pub(crate) async fn add_server_member(
 }
 
 #[utoipa::path(
+    delete,
+    path = "/api/v1/servers/{server_id}",
+    responses(
+        (status = 204, description = "Server deleted"),
+        (status = 403, description = "Only server owner can delete server"),
+        (status = 404, description = "Server not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("server_id" = String, Path, description = "Server id")),
+    tag = "backend-api"
+)]
+pub(crate) async fn delete_server(
+    State(state): State<ApiState>,
+    authenticated_user: AuthenticatedUser,
+    Path(server_id): Path<String>,
+) -> impl IntoResponse {
+    let mutation_result = state
+        .chat_repository
+        .delete_server(&server_id, &authenticated_user.subject)
+        .await;
+
+    match mutation_result {
+        MutationResult::Deleted => StatusCode::NO_CONTENT.into_response(),
+        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
+        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
+        MutationResult::Updated => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
+}
+
+#[utoipa::path(
     post,
     path = "/api/v1/servers/{server_id}/channels",
     request_body = CreateChannelRequest,

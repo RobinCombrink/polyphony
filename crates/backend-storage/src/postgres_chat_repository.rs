@@ -414,6 +414,38 @@ impl ChatRepository for PostgresChatRepository {
         }
     }
 
+    async fn delete_server(&self, server_id: &str, actor_subject: &str) -> MutationResult {
+        let owner_subject =
+            sqlx::query_scalar::<_, String>("SELECT owner_subject FROM servers WHERE id = $1")
+                .bind(server_id)
+                .fetch_optional(&self.pool)
+                .await;
+
+        let owner_subject = match owner_subject {
+            Ok(value) => value,
+            Err(_) => return MutationResult::NotFound,
+        };
+
+        let Some(owner_subject) = owner_subject else {
+            return MutationResult::NotFound;
+        };
+
+        if owner_subject != actor_subject {
+            return MutationResult::Forbidden;
+        }
+
+        let deleted = sqlx::query("DELETE FROM servers WHERE id = $1")
+            .bind(server_id)
+            .execute(&self.pool)
+            .await;
+
+        match deleted {
+            Ok(result) if result.rows_affected() > 0 => MutationResult::Deleted,
+            Ok(_) => MutationResult::NotFound,
+            Err(_) => MutationResult::NotFound,
+        }
+    }
+
     async fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>> {
         if !self.server_exists(server_id).await.ok()? {
             return None;

@@ -20,7 +20,10 @@ use routes::{
     health::health,
     me::{me, update_me},
     messages::{create_message, delete_message, list_messages, update_message},
-    servers::{add_server_member, create_channel, create_server, list_channels, list_servers},
+    servers::{
+        add_server_member, create_channel, create_server, delete_server, list_channels,
+        list_servers,
+    },
     users::get_user_by_id,
     voice::connect_voice_session,
 };
@@ -79,6 +82,10 @@ pub fn build_app(state: ApiState) -> Router {
         .route("/api/v1/me", get(me).patch(update_me))
         .route("/api/v1/users/{user_id}", get(get_user_by_id))
         .route("/api/v1/servers", post(create_server).get(list_servers))
+        .route(
+            "/api/v1/servers/{server_id}",
+            axum::routing::delete(delete_server),
+        )
         .route(
             "/api/v1/servers/{server_id}/channels",
             post(create_channel).get(list_channels),

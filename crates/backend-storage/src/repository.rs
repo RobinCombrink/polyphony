@@ -40,6 +40,7 @@ pub trait ChatRepository: Send + Sync {
         actor_subject: &str,
         user_subject: String,
     ) -> MutationResult;
+    async fn delete_server(&self, server_id: &str, actor_subject: &str) -> MutationResult;
     async fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>>;
     async fn create_channel(&self, server_id: &str, name: String) -> Option<Channel>;
     async fn list_channels_for_server(&self, server_id: &str) -> Option<Vec<Channel>>;

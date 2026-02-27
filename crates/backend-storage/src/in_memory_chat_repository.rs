@@ -103,6 +103,11 @@ impl ChatRepository for InMemoryChatRepository {
         store.add_server_member(server_id, actor_subject, user_subject)
     }
 
+    async fn delete_server(&self, server_id: &str, actor_subject: &str) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.delete_server(server_id, actor_subject)
+    }
+
     async fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>> {
         let store = self.store.read().await;
         store.list_server_members(server_id)

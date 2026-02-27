@@ -9,8 +9,9 @@ use backend_api::storage::InMemoryChatRepository;
 use common::{
     bdd_support::{
         add_server_member, add_server_member_with_token, create_channel, create_server,
-        create_server_with_token, list_channels, list_servers, list_servers_with_token,
-        response_payload_json, seeded_state, seeded_state_with_store,
+        create_server_with_token, delete_server, delete_server_with_token, list_channels,
+        list_servers, list_servers_with_token, response_payload_json, seeded_state,
+        seeded_state_with_store,
     },
     entity_seeder::EntitySeeder,
 };
@@ -252,4 +253,92 @@ async fn given_non_owner_when_add_server_member_then_status_is_403() {
     .await;
 
     assert_eq!(non_owner_add_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn given_server_owner_when_delete_server_then_status_is_204_and_server_removed() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let create_server_response = create_server(&app, &fixture.server.name).await;
+    assert_eq!(create_server_response.status(), StatusCode::CREATED);
+
+    let create_server_payload = response_payload_json(create_server_response).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let delete_server_response = delete_server(&app, &created_server_id).await;
+    assert_eq!(delete_server_response.status(), StatusCode::NO_CONTENT);
+
+    let list_servers_response = list_servers(&app).await;
+    assert_eq!(list_servers_response.status(), StatusCode::OK);
+
+    let list_servers_payload = response_payload_json(list_servers_response).await;
+    let listed_servers = list_servers_payload
+        .as_array()
+        .expect("server list payload to be array");
+
+    assert!(listed_servers.is_empty());
+}
+
+#[tokio::test]
+async fn given_non_owner_when_delete_server_then_status_is_403() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+    let member_user = entity_seeder.user();
+
+    let shared_store = Arc::new(InMemoryChatRepository::new());
+
+    let owner_state = seeded_state_with_store(
+        &fixture.user.auth0_subject,
+        "owner-token",
+        shared_store.clone(),
+    );
+    let owner_app = build_app(owner_state);
+
+    let member_state =
+        seeded_state_with_store(&member_user.auth0_subject, "member-token", shared_store);
+    let member_app = build_app(member_state);
+
+    let create_server_response =
+        create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await;
+    assert_eq!(create_server_response.status(), StatusCode::CREATED);
+
+    let create_server_payload = response_payload_json(create_server_response).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let add_member_response = add_server_member_with_token(
+        &owner_app,
+        &created_server_id,
+        &member_user.auth0_subject,
+        "owner-token",
+    )
+    .await;
+    assert_eq!(add_member_response.status(), StatusCode::CREATED);
+
+    let delete_server_response =
+        delete_server_with_token(&member_app, &created_server_id, "member-token").await;
+
+    assert_eq!(delete_server_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn given_missing_server_when_delete_server_then_status_is_404() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let delete_server_response = delete_server(&app, "srv-missing").await;
+
+    assert_eq!(delete_server_response.status(), StatusCode::NOT_FOUND);
 }

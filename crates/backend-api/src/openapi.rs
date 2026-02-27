@@ -21,6 +21,7 @@ use crate::dto::{
         crate::routes::servers::create_server,
         crate::routes::servers::list_servers,
         crate::routes::servers::add_server_member,
+        crate::routes::servers::delete_server,
         crate::routes::servers::create_channel,
         crate::routes::servers::list_channels,
         crate::routes::messages::create::create_message,

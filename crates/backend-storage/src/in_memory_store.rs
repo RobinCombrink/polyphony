@@ -91,6 +91,35 @@ impl InMemoryStore {
         MutationResult::Updated
     }
 
+    pub(crate) fn delete_server(&mut self, server_id: &str, actor_subject: &str) -> MutationResult {
+        let server = match self.servers.get(server_id) {
+            Some(existing_server) => existing_server,
+            None => return MutationResult::NotFound,
+        };
+
+        if server.owner_subject != actor_subject {
+            return MutationResult::Forbidden;
+        }
+
+        self.servers.remove(server_id);
+        self.server_members_by_id.remove(server_id);
+
+        let channel_ids = self
+            .channels
+            .values()
+            .filter(|channel| channel.server_id == server_id)
+            .map(|channel| channel.id.clone())
+            .collect::<Vec<_>>();
+
+        for channel_id in channel_ids {
+            self.channels.remove(&channel_id);
+            self.messages_by_channel.remove(&channel_id);
+            self.voice_participants_by_channel.remove(&channel_id);
+        }
+
+        MutationResult::Deleted
+    }
+
     pub(crate) fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>> {
         if !self.servers.contains_key(server_id) {
             return None;

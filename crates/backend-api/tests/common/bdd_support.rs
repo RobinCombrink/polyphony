@@ -126,6 +126,28 @@ pub(crate) async fn add_server_member_with_token(
         .expect("add server member response from app")
 }
 
+pub(crate) async fn delete_server(app: &axum::Router, server_id: &str) -> axum::response::Response {
+    delete_server_with_token(app, server_id, "valid-token").await
+}
+
+pub(crate) async fn delete_server_with_token(
+    app: &axum::Router,
+    server_id: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/servers/{server_id}"))
+                .method("DELETE")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("delete server request to be valid"),
+        )
+        .await
+        .expect("delete server response from app")
+}
+
 pub(crate) async fn create_message(
     app: &axum::Router,
     channel_id: &str,
