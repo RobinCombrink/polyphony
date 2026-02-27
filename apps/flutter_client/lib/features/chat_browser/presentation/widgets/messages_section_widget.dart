@@ -34,8 +34,7 @@ SectionStatus? buildMessagesSectionStatus(MessagesState state) {
 class MessagesSectionWidget extends StatelessWidget {
   const MessagesSectionWidget({
     required this.messages,
-    required this.currentUserId,
-    required this.currentUserDisplayName,
+    required this.currentUser,
     required this.authorDisplayNamesByUserId,
     required this.createController,
     required this.isLoading,
@@ -47,8 +46,7 @@ class MessagesSectionWidget extends StatelessWidget {
   });
 
   final List<Message> messages;
-  final String? currentUserId;
-  final String? currentUserDisplayName;
+  final UserProfile currentUser;
   final Map<String, String?> authorDisplayNamesByUserId;
   final String? channelName;
   final TextEditingController createController;
@@ -60,9 +58,10 @@ class MessagesSectionWidget extends StatelessWidget {
   String _authorLabel(String authorUserId, bool isOwnMessage) {
     final resolvedDisplayName =
         authorDisplayNamesByUserId[authorUserId]?.trim();
+    final currentUserDisplayName = currentUser.displayName?.trim();
 
     if (isOwnMessage) {
-      return currentUserDisplayName?.trim().isNotEmpty == true
+      return currentUserDisplayName?.isNotEmpty == true
           ? currentUserDisplayName!
           : (resolvedDisplayName?.isNotEmpty == true
               ? resolvedDisplayName!
@@ -120,8 +119,7 @@ class MessagesSectionWidget extends StatelessWidget {
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];
-                final isOwnMessage = currentUserId != null &&
-                    message.authorUserId == currentUserId;
+                final isOwnMessage = message.authorUserId == currentUser.userId;
 
                 return Align(
                   alignment: isOwnMessage

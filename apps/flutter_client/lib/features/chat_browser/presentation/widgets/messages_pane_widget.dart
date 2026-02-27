@@ -118,14 +118,14 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
 
             return BlocBuilder<ProfileBloc, ProfileState>(
               builder: (context, profileState) {
-                final currentDisplayName = switch (profileState) {
-                  ProfileLoadedDataState(:final displayName) => displayName,
-                  _ => null,
-                };
-                final currentUserId = switch (profileState) {
-                  ProfileLoadedDataState(:final userId) => userId,
-                  _ => null,
-                };
+                if (profileState is! ProfileLoadedDataState) {
+                  return const SizedBox.shrink();
+                }
+
+                final currentUser = UserProfile(
+                  userId: profileState.userId,
+                  displayName: profileState.displayName,
+                );
 
                 final messages = loadedData?.messages ?? const <Message>[];
                 final visibleMessages = isLoading && messages.isEmpty
@@ -136,8 +136,7 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                   enabled: isLoading,
                   child: MessagesSectionWidget(
                     messages: visibleMessages,
-                    currentUserId: currentUserId,
-                    currentUserDisplayName: currentDisplayName,
+                    currentUser: currentUser,
                     authorDisplayNamesByUserId:
                         loadedData?.authorDisplayNamesByUserId ??
                             const <String, String?>{},
