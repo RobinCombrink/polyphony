@@ -293,6 +293,43 @@ pub(crate) async fn connect_voice_session_with_token(
         .expect("connect voice session response from app")
 }
 
+pub(crate) async fn get_me_with_token(
+    app: &axum::Router,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/me")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("get me request to be valid"),
+        )
+        .await
+        .expect("get me response from app")
+}
+
+pub(crate) async fn patch_me_display_name_with_token(
+    app: &axum::Router,
+    display_name: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/me")
+                .method("PATCH")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "display_name": display_name }).to_string(),
+                ))
+                .expect("patch me request to be valid"),
+        )
+        .await
+        .expect("patch me response from app")
+}
+
 pub(crate) async fn response_payload_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(
         &axum::body::to_bytes(response.into_body(), 1024 * 1024)

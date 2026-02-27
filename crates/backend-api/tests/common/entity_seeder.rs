@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use backend_api::domain::{Channel, Message, Server, User};
+use backend_api::domain::{Channel, DisplayName, Message, Server, User};
 use rand::{Rng as _, distr::Alphanumeric};
 
 #[derive(Debug, Clone)]
@@ -39,7 +39,7 @@ impl EntitySeeder {
 
         User {
             auth0_subject: format!("auth0|user_{random_segment}"),
-            display_name: format!("User-{random_segment}"),
+            display_name: Some(DisplayName::new(format!("User-{random_segment}"))),
         }
     }
 

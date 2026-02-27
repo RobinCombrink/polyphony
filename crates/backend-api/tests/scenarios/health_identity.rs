@@ -1,6 +1,6 @@
 use axum::{
     body::Body,
-    http::{Request, StatusCode, header},
+    http::{Request, StatusCode},
 };
 use backend_api::build_app;
 use serde_json::Value;
@@ -9,7 +9,10 @@ use tower::ServiceExt;
 #[path = "../common.rs"]
 mod common;
 
-use common::{bdd_support::seeded_state, entity_seeder::EntitySeeder};
+use common::{
+    bdd_support::{get_me_with_token, patch_me_display_name_with_token, seeded_state},
+    entity_seeder::EntitySeeder,
+};
 
 #[tokio::test]
 async fn given_backend_started_when_health_requested_then_status_is_200() {
@@ -34,21 +37,11 @@ async fn given_seeded_user_when_authenticated_me_requested_then_subject_matches_
     let entity_seeder = EntitySeeder;
     let seeded_user = entity_seeder.user();
     let expected_subject = seeded_user.auth0_subject.clone();
-    assert!(!seeded_user.display_name.is_empty());
 
     let state = seeded_state(&expected_subject, "valid-token");
     let app = build_app(state);
 
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/me")
-                .header(header::AUTHORIZATION, "Bearer valid-token")
-                .body(Body::empty())
-                .expect("me request to be valid"),
-        )
-        .await
-        .expect("me response from app");
+    let response = get_me_with_token(&app, "valid-token").await;
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -58,4 +51,34 @@ async fn given_seeded_user_when_authenticated_me_requested_then_subject_matches_
     let payload: Value = serde_json::from_slice(&body).expect("valid json payload");
 
     assert_eq!(payload["user_id"].as_str(), Some(expected_subject.as_str()));
+    assert!(payload["display_name"].is_null());
+}
+
+#[tokio::test]
+async fn given_authenticated_user_when_updating_display_name_then_me_returns_updated_display_name() {
+    let entity_seeder = EntitySeeder;
+    let seeded_user = entity_seeder.user();
+    let expected_subject = seeded_user.auth0_subject.clone();
+    let updated_display_name = "Polyphony User";
+
+    let state = seeded_state(&expected_subject, "valid-token");
+    let app = build_app(state);
+
+    let patch_response =
+        patch_me_display_name_with_token(&app, updated_display_name, "valid-token").await;
+
+    assert_eq!(patch_response.status(), StatusCode::OK);
+
+    let patch_payload = common::bdd_support::response_payload_json(patch_response).await;
+    assert_eq!(
+        patch_payload["display_name"].as_str(),
+        Some(updated_display_name)
+    );
+
+    let me_response = get_me_with_token(&app, "valid-token").await;
+    assert_eq!(me_response.status(), StatusCode::OK);
+
+    let me_payload = common::bdd_support::response_payload_json(me_response).await;
+    assert_eq!(me_payload["user_id"].as_str(), Some(expected_subject.as_str()));
+    assert_eq!(me_payload["display_name"].as_str(), Some(updated_display_name));
 }

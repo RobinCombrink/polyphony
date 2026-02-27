@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, Membership, Message, Server, VoiceSession};
+use backend_domain::{Channel, Membership, Message, Server, User, VoiceSession};
 use tokio::sync::RwLock;
 
 use crate::{ChatRepository, InMemoryStore, MutationResult};
@@ -19,6 +19,16 @@ impl InMemoryChatRepository {
 
 #[async_trait]
 impl ChatRepository for InMemoryChatRepository {
+    async fn get_or_create_user(&self, auth0_subject: &str) -> User {
+        let mut store = self.store.write().await;
+        store.get_or_create_user(auth0_subject)
+    }
+
+    async fn set_user_display_name(&self, auth0_subject: &str, display_name: String) -> User {
+        let mut store = self.store.write().await;
+        store.set_user_display_name(auth0_subject, display_name)
+    }
+
     async fn create_server(&self, name: String, owner_subject: String) -> Server {
         let mut store = self.store.write().await;
         store.create_server(name, owner_subject)

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use backend_domain::{Channel, Membership, Message, Server, VoiceSession};
+use backend_domain::{Channel, DisplayName, Membership, Message, Server, User, VoiceSession};
 
 use crate::MutationResult;
 
@@ -9,6 +9,7 @@ pub(crate) struct InMemoryStore {
     pub(crate) next_server_id: u64,
     pub(crate) next_channel_id: u64,
     pub(crate) next_message_id: u64,
+    pub(crate) users_by_subject: HashMap<String, User>,
     pub(crate) servers: HashMap<String, Server>,
     pub(crate) server_members_by_id: HashMap<String, Vec<String>>,
     pub(crate) channels: HashMap<String, Channel>,
@@ -17,6 +18,34 @@ pub(crate) struct InMemoryStore {
 }
 
 impl InMemoryStore {
+    pub(crate) fn get_or_create_user(&mut self, auth0_subject: &str) -> User {
+        if let Some(existing_user) = self.users_by_subject.get(auth0_subject) {
+            return existing_user.clone();
+        }
+
+        let user = User {
+            auth0_subject: auth0_subject.to_owned(),
+            display_name: None,
+        };
+
+        self.users_by_subject
+            .insert(auth0_subject.to_owned(), user.clone());
+
+        user
+    }
+
+    pub(crate) fn set_user_display_name(
+        &mut self,
+        auth0_subject: &str,
+        display_name: String,
+    ) -> User {
+        let mut user = self.get_or_create_user(auth0_subject);
+        user.display_name = Some(DisplayName::new(display_name));
+        self.users_by_subject
+            .insert(auth0_subject.to_owned(), user.clone());
+        user
+    }
+
     pub(crate) fn create_server(&mut self, name: String, owner_subject: String) -> Server {
         self.next_server_id += 1;
         let server = Server {

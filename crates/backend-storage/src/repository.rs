@@ -1,10 +1,12 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, Membership, Message, Server, VoiceSession};
+use backend_domain::{Channel, Membership, Message, Server, User, VoiceSession};
 
 use crate::MutationResult;
 
 #[async_trait]
 pub trait ChatRepository: Send + Sync {
+    async fn get_or_create_user(&self, auth0_subject: &str) -> User;
+    async fn set_user_display_name(&self, auth0_subject: &str, display_name: String) -> User;
     async fn create_server(&self, name: String, owner_subject: String) -> Server;
     async fn list_servers_for_user(&self, owner_subject: &str) -> Vec<Server>;
     async fn add_server_member(
