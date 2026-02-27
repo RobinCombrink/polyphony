@@ -118,6 +118,11 @@ impl ChatRepository for InMemoryChatRepository {
         store.create_channel(server_id, name)
     }
 
+    async fn delete_channel(&self, channel_id: &str, actor_subject: &str) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.delete_channel(channel_id, actor_subject)
+    }
+
     async fn list_channels_for_server(&self, server_id: &str) -> Option<Vec<Channel>> {
         let store = self.store.read().await;
 

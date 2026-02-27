@@ -167,6 +167,37 @@ pub(crate) async fn create_channel(
 }
 
 #[utoipa::path(
+    delete,
+    path = "/api/v1/channels/{channel_id}",
+    responses(
+        (status = 204, description = "Channel deleted"),
+        (status = 403, description = "Only server owner can delete channel"),
+        (status = 404, description = "Channel not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("channel_id" = String, Path, description = "Channel id")),
+    tag = "backend-api"
+)]
+pub(crate) async fn delete_channel(
+    State(state): State<ApiState>,
+    authenticated_user: AuthenticatedUser,
+    Path(channel_id): Path<String>,
+) -> impl IntoResponse {
+    let mutation_result = state
+        .chat_repository
+        .delete_channel(&channel_id, &authenticated_user.subject)
+        .await;
+
+    match mutation_result {
+        MutationResult::Deleted => StatusCode::NO_CONTENT.into_response(),
+        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
+        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
+        MutationResult::Updated => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
+}
+
+#[utoipa::path(
     get,
     path = "/api/v1/servers/{server_id}/channels",
     responses(

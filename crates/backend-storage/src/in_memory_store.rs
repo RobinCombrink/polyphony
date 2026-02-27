@@ -158,6 +158,32 @@ impl InMemoryStore {
         Some(channel)
     }
 
+    pub(crate) fn delete_channel(
+        &mut self,
+        channel_id: &str,
+        actor_subject: &str,
+    ) -> MutationResult {
+        let channel = match self.channels.get(channel_id) {
+            Some(existing_channel) => existing_channel,
+            None => return MutationResult::NotFound,
+        };
+
+        let server = match self.servers.get(&channel.server_id) {
+            Some(existing_server) => existing_server,
+            None => return MutationResult::NotFound,
+        };
+
+        if server.owner_subject != actor_subject {
+            return MutationResult::Forbidden;
+        }
+
+        self.channels.remove(channel_id);
+        self.messages_by_channel.remove(channel_id);
+        self.voice_participants_by_channel.remove(channel_id);
+
+        MutationResult::Deleted
+    }
+
     pub(crate) fn create_message(
         &mut self,
         channel_id: &str,

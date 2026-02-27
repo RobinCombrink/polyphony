@@ -96,6 +96,31 @@ pub(crate) async fn create_channel_with_token(
         .expect("create channel response from app")
 }
 
+pub(crate) async fn delete_channel(
+    app: &axum::Router,
+    channel_id: &str,
+) -> axum::response::Response {
+    delete_channel_with_token(app, channel_id, "valid-token").await
+}
+
+pub(crate) async fn delete_channel_with_token(
+    app: &axum::Router,
+    channel_id: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/channels/{channel_id}"))
+                .method("DELETE")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("delete channel request to be valid"),
+        )
+        .await
+        .expect("delete channel response from app")
+}
+
 pub(crate) async fn add_server_member(
     app: &axum::Router,
     server_id: &str,

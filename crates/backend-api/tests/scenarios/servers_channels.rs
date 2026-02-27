@@ -9,9 +9,9 @@ use backend_api::storage::InMemoryChatRepository;
 use common::{
     bdd_support::{
         add_server_member, add_server_member_with_token, create_channel, create_server,
-        create_server_with_token, delete_server, delete_server_with_token, list_channels,
-        list_servers, list_servers_with_token, response_payload_json, seeded_state,
-        seeded_state_with_store,
+        create_server_with_token, delete_channel, delete_channel_with_token, delete_server,
+        delete_server_with_token, list_channels, list_servers, list_servers_with_token,
+        response_payload_json, seeded_state, seeded_state_with_store,
     },
     entity_seeder::EntitySeeder,
 };
@@ -341,4 +341,107 @@ async fn given_missing_server_when_delete_server_then_status_is_404() {
     let delete_server_response = delete_server(&app, "srv-missing").await;
 
     assert_eq!(delete_server_response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn given_server_owner_when_delete_channel_then_status_is_204_and_channel_removed() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let delete_channel_response = delete_channel(&app, &created_channel_id).await;
+    assert_eq!(delete_channel_response.status(), StatusCode::NO_CONTENT);
+
+    let list_channels_response = list_channels(&app, &created_server_id).await;
+    assert_eq!(list_channels_response.status(), StatusCode::OK);
+
+    let list_channels_payload = response_payload_json(list_channels_response).await;
+    let listed_channels = list_channels_payload
+        .as_array()
+        .expect("channel list payload to be array");
+
+    assert!(listed_channels.is_empty());
+}
+
+#[tokio::test]
+async fn given_non_owner_when_delete_channel_then_status_is_403() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+    let member_user = entity_seeder.user();
+
+    let shared_store = Arc::new(InMemoryChatRepository::new());
+
+    let owner_state = seeded_state_with_store(
+        &fixture.user.auth0_subject,
+        "owner-token",
+        shared_store.clone(),
+    );
+    let owner_app = build_app(owner_state);
+
+    let member_state =
+        seeded_state_with_store(&member_user.auth0_subject, "member-token", shared_store);
+    let member_app = build_app(member_state);
+
+    let create_server_payload = response_payload_json(
+        create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
+    )
+    .await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let add_member_response = add_server_member_with_token(
+        &owner_app,
+        &created_server_id,
+        &member_user.auth0_subject,
+        "owner-token",
+    )
+    .await;
+    assert_eq!(add_member_response.status(), StatusCode::CREATED);
+
+    let create_channel_payload = response_payload_json(
+        create_channel(&owner_app, &created_server_id, &fixture.channel.name).await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let delete_channel_response =
+        delete_channel_with_token(&member_app, &created_channel_id, "member-token").await;
+
+    assert_eq!(delete_channel_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn given_missing_channel_when_delete_channel_then_status_is_404() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
+    let app = build_app(state);
+
+    let delete_channel_response = delete_channel(&app, "chn-missing").await;
+
+    assert_eq!(delete_channel_response.status(), StatusCode::NOT_FOUND);
 }
