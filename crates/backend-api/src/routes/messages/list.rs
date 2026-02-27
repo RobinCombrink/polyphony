@@ -26,7 +26,7 @@ pub(crate) async fn list_messages(
 ) -> impl IntoResponse {
     let _ = authenticated_user;
 
-    let messages = state.store.list_messages(&channel_id).await;
+    let messages = state.message_repository.list_messages(&channel_id).await;
 
     (StatusCode::OK, Json(messages))
 }

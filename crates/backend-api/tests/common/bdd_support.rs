@@ -11,7 +11,7 @@ use backend_api::{
     ApiState,
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
-    storage::{ChatRepository, InMemoryChatRepository},
+    storage::{ChatRepository, InMemoryChatRepository, MessageRepository},
 };
 use serde_json::Value;
 use tower::ServiceExt;
@@ -363,7 +363,7 @@ pub(crate) fn seeded_state(subject: &str, token: &str) -> ApiState {
 pub(crate) fn seeded_state_with_store(
     subject: &str,
     token: &str,
-    store: Arc<dyn ChatRepository>,
+    repository: Arc<InMemoryChatRepository>,
 ) -> ApiState {
     let auth_config = Auth0Config {
         issuer: Url::parse("https://example-dev.us.auth0.com/").expect("valid issuer url"),
@@ -376,9 +376,13 @@ pub(crate) fn seeded_state_with_store(
         subject: subject.to_owned(),
     });
 
+    let chat_store: Arc<dyn ChatRepository> = repository.clone();
+    let message_store: Arc<dyn MessageRepository> = repository;
+
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
-        store,
+        chat_repository: chat_store,
+        message_repository: message_store,
         livekit_config: Arc::new(LiveKitConfig::default()),
     }
 }

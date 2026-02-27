@@ -30,7 +30,7 @@ pub(crate) async fn create_server(
     Json(request): Json<CreateServerRequest>,
 ) -> impl IntoResponse {
     let created_server = state
-        .store
+        .chat_repository
         .create_server(request.name, authenticated_user.subject)
         .await;
 
@@ -52,7 +52,7 @@ pub(crate) async fn list_servers(
     authenticated_user: AuthenticatedUser,
 ) -> impl IntoResponse {
     let servers = state
-        .store
+        .chat_repository
         .list_servers_for_user(&authenticated_user.subject)
         .await;
 
@@ -80,7 +80,7 @@ pub(crate) async fn add_server_member(
     Json(request): Json<AddServerMemberRequest>,
 ) -> impl IntoResponse {
     let mutation_result = state
-        .store
+        .chat_repository
         .add_server_member(
             &server_id,
             &authenticated_user.subject,
@@ -124,7 +124,10 @@ pub(crate) async fn create_channel(
 ) -> impl IntoResponse {
     let _ = authenticated_user;
 
-    let created_channel = state.store.create_channel(&server_id, request.name).await;
+    let created_channel = state
+        .chat_repository
+        .create_channel(&server_id, request.name)
+        .await;
 
     match created_channel {
         Some(channel) => (StatusCode::CREATED, Json(channel)).into_response(),
@@ -151,7 +154,7 @@ pub(crate) async fn list_channels(
 ) -> impl IntoResponse {
     let _ = authenticated_user;
 
-    let channels = state.store.list_channels_for_server(&server_id).await;
+    let channels = state.chat_repository.list_channels_for_server(&server_id).await;
 
     match channels {
         Some(server_channels) => (StatusCode::OK, Json(server_channels)).into_response(),

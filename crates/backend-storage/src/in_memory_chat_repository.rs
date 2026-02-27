@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use backend_domain::{Channel, Membership, Message, Server, User, VoiceSession};
 use tokio::sync::RwLock;
 
-use crate::{ChatRepository, InMemoryStore, MutationResult};
+use crate::{ChatRepository, InMemoryStore, MessageRepository, MutationResult};
 
 #[derive(Debug, Default)]
 pub struct InMemoryChatRepository {
@@ -14,6 +14,45 @@ impl InMemoryChatRepository {
         Self {
             store: RwLock::new(InMemoryStore::default()),
         }
+    }
+}
+
+#[async_trait]
+impl MessageRepository for InMemoryChatRepository {
+    async fn create_message(
+        &self,
+        channel_id: &str,
+        author_subject: String,
+        content: String,
+    ) -> Option<Message> {
+        let mut store = self.store.write().await;
+        store.create_message(channel_id, author_subject, content)
+    }
+
+    async fn update_message(
+        &self,
+        channel_id: &str,
+        message_id: &str,
+        author_subject: &str,
+        content: String,
+    ) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.update_message(channel_id, message_id, author_subject, content)
+    }
+
+    async fn delete_message(
+        &self,
+        channel_id: &str,
+        message_id: &str,
+        author_subject: &str,
+    ) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.delete_message(channel_id, message_id, author_subject)
+    }
+
+    async fn list_messages(&self, channel_id: &str) -> Vec<Message> {
+        let store = self.store.read().await;
+        store.list_messages(channel_id)
     }
 }
 
@@ -89,42 +128,6 @@ impl ChatRepository for InMemoryChatRepository {
             .collect::<Vec<_>>();
 
         Some(channels)
-    }
-
-    async fn create_message(
-        &self,
-        channel_id: &str,
-        author_subject: String,
-        content: String,
-    ) -> Option<Message> {
-        let mut store = self.store.write().await;
-        store.create_message(channel_id, author_subject, content)
-    }
-
-    async fn update_message(
-        &self,
-        channel_id: &str,
-        message_id: &str,
-        author_subject: &str,
-        content: String,
-    ) -> MutationResult {
-        let mut store = self.store.write().await;
-        store.update_message(channel_id, message_id, author_subject, content)
-    }
-
-    async fn delete_message(
-        &self,
-        channel_id: &str,
-        message_id: &str,
-        author_subject: &str,
-    ) -> MutationResult {
-        let mut store = self.store.write().await;
-        store.delete_message(channel_id, message_id, author_subject)
-    }
-
-    async fn list_messages(&self, channel_id: &str) -> Vec<Message> {
-        let store = self.store.read().await;
-        store.list_messages(channel_id)
     }
 
     async fn join_voice_session(

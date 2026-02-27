@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use axum::http::StatusCode;
-use backend_api::{
-    build_app,
-    storage::{ChatRepository, InMemoryChatRepository},
-};
+use backend_api::{build_app, storage::InMemoryChatRepository};
 
 #[path = "../common.rs"]
 mod common;
@@ -173,7 +170,7 @@ async fn given_message_owned_by_another_user_when_update_message_then_status_is_
 
     let owner_subject = "auth0|owner-user";
     let other_subject = "auth0|other-user";
-    let shared_store: Arc<dyn ChatRepository> = Arc::new(InMemoryChatRepository::new());
+    let shared_store = Arc::new(InMemoryChatRepository::new());
 
     let owner_app = build_app(seeded_state_with_store(
         owner_subject,
@@ -245,7 +242,7 @@ async fn given_message_owned_by_another_user_when_delete_message_then_status_is_
 
     let owner_subject = "auth0|owner-user";
     let other_subject = "auth0|other-user";
-    let shared_store: Arc<dyn ChatRepository> = Arc::new(InMemoryChatRepository::new());
+    let shared_store = Arc::new(InMemoryChatRepository::new());
 
     let owner_app = build_app(seeded_state_with_store(
         owner_subject,

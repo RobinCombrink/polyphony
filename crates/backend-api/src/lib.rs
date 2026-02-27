@@ -13,7 +13,7 @@ use std::{net::SocketAddr, sync::Arc};
 use auth::{AuthState, JwksTokenVerifier, TokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
-use backend_storage::{ChatRepository, InMemoryChatRepository};
+use backend_storage::{ChatRepository, InMemoryChatRepository, MessageRepository};
 use http::{HeaderValue, Method};
 use openapi::ApiDocumentation;
 use routes::{
@@ -32,7 +32,8 @@ use utoipa_swagger_ui::{Config, SwaggerUi};
 #[derive(Clone)]
 pub struct ApiState {
     pub auth_state: Arc<AuthState>,
-    pub store: Arc<dyn ChatRepository>,
+    pub chat_repository: Arc<dyn ChatRepository>,
+    pub message_repository: Arc<dyn MessageRepository>,
     pub livekit_config: Arc<config::LiveKitConfig>,
 }
 
@@ -49,9 +50,14 @@ pub async fn default_api_state() -> ApiState {
             .expect("jwt authorizer initialization to succeed"),
     );
 
+    let repository = Arc::new(InMemoryChatRepository::new());
+    let chat_store: Arc<dyn ChatRepository> = repository.clone();
+    let message_store: Arc<dyn MessageRepository> = repository;
+
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
-        store: Arc::new(InMemoryChatRepository::new()),
+        chat_repository: chat_store,
+        message_repository: message_store,
         livekit_config: Arc::new(backend_config.livekit),
     }
 }

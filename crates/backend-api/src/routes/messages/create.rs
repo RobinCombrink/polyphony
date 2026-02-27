@@ -28,7 +28,7 @@ pub(crate) async fn create_message(
     Json(request): Json<CreateMessageRequest>,
 ) -> impl IntoResponse {
     let created_message = state
-        .store
+        .message_repository
         .create_message(&channel_id, authenticated_user.subject, request.content)
         .await;
 

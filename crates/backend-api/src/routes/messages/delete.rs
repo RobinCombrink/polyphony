@@ -29,7 +29,7 @@ pub(crate) async fn delete_message(
     Path((channel_id, message_id)): Path<(String, String)>,
 ) -> impl IntoResponse {
     let mutation_result = state
-        .store
+        .message_repository
         .delete_message(&channel_id, &message_id, &authenticated_user.subject)
         .await;
 

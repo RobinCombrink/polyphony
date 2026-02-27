@@ -4,21 +4,7 @@ use backend_domain::{Channel, Membership, Message, Server, User, VoiceSession};
 use crate::MutationResult;
 
 #[async_trait]
-pub trait ChatRepository: Send + Sync {
-    async fn find_user_by_subject(&self, auth0_subject: &str) -> Option<User>;
-    async fn get_or_create_user(&self, auth0_subject: &str) -> User;
-    async fn set_user_display_name(&self, auth0_subject: &str, display_name: String) -> User;
-    async fn create_server(&self, name: String, owner_subject: String) -> Server;
-    async fn list_servers_for_user(&self, owner_subject: &str) -> Vec<Server>;
-    async fn add_server_member(
-        &self,
-        server_id: &str,
-        actor_subject: &str,
-        user_subject: String,
-    ) -> MutationResult;
-    async fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>>;
-    async fn create_channel(&self, server_id: &str, name: String) -> Option<Channel>;
-    async fn list_channels_for_server(&self, server_id: &str) -> Option<Vec<Channel>>;
+pub trait MessageRepository: Send + Sync {
     async fn create_message(
         &self,
         channel_id: &str,
@@ -39,6 +25,24 @@ pub trait ChatRepository: Send + Sync {
         author_subject: &str,
     ) -> MutationResult;
     async fn list_messages(&self, channel_id: &str) -> Vec<Message>;
+}
+
+#[async_trait]
+pub trait ChatRepository: Send + Sync {
+    async fn find_user_by_subject(&self, auth0_subject: &str) -> Option<User>;
+    async fn get_or_create_user(&self, auth0_subject: &str) -> User;
+    async fn set_user_display_name(&self, auth0_subject: &str, display_name: String) -> User;
+    async fn create_server(&self, name: String, owner_subject: String) -> Server;
+    async fn list_servers_for_user(&self, owner_subject: &str) -> Vec<Server>;
+    async fn add_server_member(
+        &self,
+        server_id: &str,
+        actor_subject: &str,
+        user_subject: String,
+    ) -> MutationResult;
+    async fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>>;
+    async fn create_channel(&self, server_id: &str, name: String) -> Option<Channel>;
+    async fn list_channels_for_server(&self, server_id: &str) -> Option<Vec<Channel>>;
     async fn join_voice_session(
         &self,
         channel_id: &str,

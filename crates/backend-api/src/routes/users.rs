@@ -30,7 +30,7 @@ pub(crate) async fn get_user_by_id(
     _authenticated_user: AuthenticatedUser,
     Path(user_id): Path<String>,
 ) -> impl IntoResponse {
-    let Some(user) = state.store.find_user_by_subject(&user_id).await else {
+    let Some(user) = state.chat_repository.find_user_by_subject(&user_id).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
 

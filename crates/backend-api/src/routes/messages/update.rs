@@ -7,11 +7,7 @@ use axum::{
 use backend_domain::Message;
 use backend_storage::MutationResult;
 
-use crate::{
-    ApiState,
-    auth::AuthenticatedUser,
-    dto::UpdateMessageRequest,
-};
+use crate::{ApiState, auth::AuthenticatedUser, dto::UpdateMessageRequest};
 
 #[utoipa::path(
     patch,
@@ -37,7 +33,7 @@ pub(crate) async fn update_message(
     Json(request): Json<UpdateMessageRequest>,
 ) -> impl IntoResponse {
     let mutation_result = state
-        .store
+        .message_repository
         .update_message(
             &channel_id,
             &message_id,
@@ -49,7 +45,7 @@ pub(crate) async fn update_message(
     match mutation_result {
         MutationResult::Updated => {
             let updated_message = state
-                .store
+                .message_repository
                 .list_messages(&channel_id)
                 .await
                 .into_iter()

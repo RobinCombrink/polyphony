@@ -17,7 +17,7 @@ pub(crate) async fn me(
     authenticated_user: AuthenticatedUser,
 ) -> impl IntoResponse {
     let user = state
-        .store
+        .chat_repository
         .get_or_create_user(&authenticated_user.subject)
         .await;
 
@@ -55,7 +55,7 @@ pub(crate) async fn update_me(
     }
 
     let updated_user = state
-        .store
+        .chat_repository
         .set_user_display_name(&authenticated_user.subject, trimmed_display_name.to_owned())
         .await;
 

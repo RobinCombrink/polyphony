@@ -29,7 +29,12 @@ pub(crate) async fn connect_voice_session(
 ) -> impl IntoResponse {
     let participant_subject = authenticated_user.subject;
 
-    if state.store.list_voice_sessions(&channel_id).await.is_none() {
+    if state
+        .chat_repository
+        .list_voice_sessions(&channel_id)
+        .await
+        .is_none()
+    {
         return StatusCode::NOT_FOUND.into_response();
     }
 
