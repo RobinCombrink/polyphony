@@ -28,51 +28,79 @@ class TextChannelsPaneWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ChannelsBloc, ChannelsState>(
-      builder: (context, channelsState) {
-        final isLoading = channelsState is ChannelsInitialState ||
-            channelsState is ChannelsLoadingState;
-        final loadedData =
-            channelsState is ChannelsLoadedDataState ? channelsState : null;
-        final errorMessage = channelsState is ChannelsExceptionState
-            ? channelsState.error.toString()
-            : null;
+    return BlocListener<ChannelsBloc, ChannelsState>(
+      listenWhen: (previous, current) {
+        final previousSelectedTextChannelId = switch (previous) {
+          ChannelsLoadedDataState(:final selectedTextChannelId) =>
+            selectedTextChannelId,
+          _ => null,
+        };
+        final currentSelectedTextChannelId = switch (current) {
+          ChannelsLoadedDataState(:final selectedTextChannelId) =>
+            selectedTextChannelId,
+          _ => null,
+        };
 
-        if (errorMessage != null) {
-          return SomethingWentWrongWidget(message: errorMessage);
+        return previousSelectedTextChannelId != currentSelectedTextChannelId;
+      },
+      listener: (context, state) {
+        final selectedTextChannelId = switch (state) {
+          ChannelsLoadedDataState(:final selectedTextChannelId) =>
+            selectedTextChannelId,
+          _ => null,
+        };
+
+        if (selectedTextChannelId == null) {
+          return;
         }
 
-        final channels = loadedData?.channels ?? const <Channel>[];
-        final visibleChannels =
-            isLoading && channels.isEmpty ? _skeletonChannels() : channels;
-
-        return Skeletonizer(
-          enabled: isLoading,
-          child: TextChannelsSectionWidget(
-            channels: visibleChannels,
-            selectedChannelId: loadedData?.selectedTextChannelId,
-            voiceParticipantCount: 0,
-            isLoading: isLoading,
-            createController: createController,
-            onTap: (textChannel) {
-              context.read<ChannelsBloc>().add(
-                    SelectTextChannelRequested(
-                      channelId: textChannel.id,
-                    ),
-                  );
-              context.read<MessagesBloc>().add(
-                    LoadMessagesRequested(channelId: textChannel.id),
-                  );
-            },
-            onCreate: () => context.read<ChannelsBloc>().add(
-                  CreateChannelRequested(
-                    serverId: loadedData?.serverId ?? "",
-                    channelName: createController.text,
-                  ),
-                ),
-          ),
-        );
+        context.read<MessagesBloc>().add(
+              LoadMessagesRequested(channelId: selectedTextChannelId),
+            );
       },
+      child: BlocBuilder<ChannelsBloc, ChannelsState>(
+        builder: (context, channelsState) {
+          final isLoading = channelsState is ChannelsInitialState ||
+              channelsState is ChannelsLoadingState;
+          final loadedData =
+              channelsState is ChannelsLoadedDataState ? channelsState : null;
+          final errorMessage = channelsState is ChannelsExceptionState
+              ? channelsState.error.toString()
+              : null;
+
+          if (errorMessage != null) {
+            return SomethingWentWrongWidget(message: errorMessage);
+          }
+
+          final channels = loadedData?.channels ?? const <Channel>[];
+          final visibleChannels =
+              isLoading && channels.isEmpty ? _skeletonChannels() : channels;
+
+          return Skeletonizer(
+            enabled: isLoading,
+            child: TextChannelsSectionWidget(
+              channels: visibleChannels,
+              selectedChannelId: loadedData?.selectedTextChannelId,
+              voiceParticipantCount: 0,
+              isLoading: isLoading,
+              createController: createController,
+              onTap: (textChannel) {
+                context.read<ChannelsBloc>().add(
+                      SelectTextChannelRequested(
+                        channelId: textChannel.id,
+                      ),
+                    );
+              },
+              onCreate: () => context.read<ChannelsBloc>().add(
+                    CreateChannelRequested(
+                      serverId: loadedData?.serverId ?? "",
+                      channelName: createController.text,
+                    ),
+                  ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
