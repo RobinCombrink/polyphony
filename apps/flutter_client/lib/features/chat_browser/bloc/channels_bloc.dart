@@ -55,21 +55,22 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
 
     emit(const ChannelsLoadingState());
 
-    final listChannelsResult = await _channelRepo.listChannels(
-      baseUrl: event.baseUrl.trim(),
-      serverId: trimmedServerId,
+    final listChannelsResult = await _channelRepo.getMany(
+      query: GetChannelsQuery(
+        serverId: trimmedServerId,
+      ),
     );
 
     switch (listChannelsResult) {
-      case Ok<List<Channel>>(:final value):
+      case Ok<Iterable<Channel>>(:final value):
         emit(ChannelsLoadedState(
-          channels: value,
+          channels: value.toList(),
           serverId: trimmedServerId,
           selectedTextChannelId: null,
           selectedVoiceChannelId: null,
           selectionMode: ChannelSelectionMode.text,
         ));
-      case Error<List<Channel>>(:final error):
+      case Error<Iterable<Channel>>(:final error):
         emit(ChannelsExceptionState(error: error));
     }
   }
@@ -115,22 +116,24 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
 
     emit(const ChannelsLoadingState());
 
-    final createChannelResult = await _channelRepo.createChannel(
-      baseUrl: event.baseUrl.trim(),
-      serverId: trimmedServerId,
-      name: trimmedChannelName,
+    final createChannelResult = await _channelRepo.createOne(
+      command: CreateChannelCommand(
+        serverId: trimmedServerId,
+        name: trimmedChannelName,
+      ),
     );
 
     switch (createChannelResult) {
       case Ok<Channel>(:final value):
         final createdChannel = value;
-        final listChannelsResult = await _channelRepo.listChannels(
-          baseUrl: event.baseUrl.trim(),
-          serverId: trimmedServerId,
+        final listChannelsResult = await _channelRepo.getMany(
+          query: GetChannelsQuery(
+            serverId: trimmedServerId,
+          ),
         );
         switch (listChannelsResult) {
-          case Ok<List<Channel>>(:final value):
-            final channels = value;
+          case Ok<Iterable<Channel>>(:final value):
+            final channels = value.toList();
             emit(ChannelsLoadedState(
               channels: channels,
               serverId: trimmedServerId,
@@ -141,7 +144,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
               selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
               selectionMode: ChannelSelectionMode.text,
             ));
-          case Error<List<Channel>>(:final error):
+          case Error<Iterable<Channel>>(:final error):
             emit(ChannelsExceptionState(error: error));
         }
       case Error<Channel>(:final error):

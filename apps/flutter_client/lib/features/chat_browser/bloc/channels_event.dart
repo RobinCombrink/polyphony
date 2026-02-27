@@ -10,22 +10,18 @@ final class ResetChannelsRequested extends ChannelsEvent {
 
 final class LoadChannelsRequested extends ChannelsEvent {
   const LoadChannelsRequested({
-    required this.baseUrl,
     required this.serverId,
   });
 
-  final String baseUrl;
   final String serverId;
 }
 
 final class CreateChannelRequested extends ChannelsEvent {
   const CreateChannelRequested({
-    required this.baseUrl,
     required this.serverId,
     required this.channelName,
   });
 
-  final String baseUrl;
   final String serverId;
   final String channelName;
 }

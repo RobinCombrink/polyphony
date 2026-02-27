@@ -3,25 +3,21 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 
 abstract interface class MessageService {
   Future<Result<List<ApiMessage>>> listMessages({
-    required String baseUrl,
     required String channelId,
   });
 
   Future<Result<ApiMessage>> createMessage({
-    required String baseUrl,
     required String channelId,
     required String content,
   });
 
   Future<Result<ApiMessage>> updateMessage({
-    required String baseUrl,
     required String channelId,
     required String messageId,
     required String content,
   });
 
   Future<Result<void>> deleteMessage({
-    required String baseUrl,
     required String channelId,
     required String messageId,
   });

@@ -12,32 +12,27 @@ class ChannelRepository implements ChannelRepo {
   final ChannelService _channelService;
 
   @override
-  Future<Result<List<Channel>>> listChannels({
-    required String baseUrl,
-    required String serverId,
+  Future<Result<Iterable<Channel>>> getMany({
+    required GetChannelsQuery query,
   }) async {
     final serviceResult = await _channelService.listChannels(
-      baseUrl: baseUrl,
-      serverId: serverId,
+      serverId: query.serverId,
     );
 
     return switch (serviceResult) {
-      Ok<List<ApiChannel>>(:final value) => Ok<List<Channel>>(
+      Ok<List<ApiChannel>>(:final value) => Ok<Iterable<Channel>>(
           value.map((channel) => channel.toDomainModel()).toList()),
-      Error<List<ApiChannel>>(:final error) => Error<List<Channel>>(error),
+      Error<List<ApiChannel>>(:final error) => Error<Iterable<Channel>>(error),
     };
   }
 
   @override
-  Future<Result<Channel>> createChannel({
-    required String baseUrl,
-    required String serverId,
-    required String name,
+  Future<Result<Channel>> createOne({
+    required CreateChannelCommand command,
   }) async {
     final serviceResult = await _channelService.createChannel(
-      baseUrl: baseUrl,
-      serverId: serverId,
-      name: name,
+      serverId: command.serverId,
+      name: command.name,
     );
 
     return switch (serviceResult) {

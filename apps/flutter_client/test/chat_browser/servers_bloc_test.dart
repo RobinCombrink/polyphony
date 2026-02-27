@@ -13,9 +13,7 @@ void main() {
     build: () => ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
-    act: (bloc) => bloc.add(
-      const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"),
-    ),
+    act: (bloc) => bloc.add(const LoadServersRequested()),
     expect: () => <Matcher>[
       isA<ServersLoadingState>(),
       isA<ServersLoadedState>().having(
@@ -32,9 +30,8 @@ void main() {
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
     act: (bloc) {
-      bloc.add(const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"));
+      bloc.add(const LoadServersRequested());
       bloc.add(const CreateServerRequested(
-        baseUrl: "http://127.0.0.1:5067",
         serverName: "   ",
       ));
     },
@@ -55,7 +52,7 @@ void main() {
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
     act: (bloc) {
-      bloc.add(const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"));
+      bloc.add(const LoadServersRequested());
       bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
     },
     expect: () => <Matcher>[
@@ -85,10 +82,9 @@ void main() {
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
     act: (bloc) {
-      bloc.add(const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"));
+      bloc.add(const LoadServersRequested());
       bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
       bloc.add(AddServerMemberRequested(
-        baseUrl: "http://127.0.0.1:5067",
         serverId: fixture.listedServer.id,
         userSubject: "auth0|new_member",
       ));
@@ -112,10 +108,9 @@ void main() {
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
     act: (bloc) {
-      bloc.add(const LoadServersRequested(baseUrl: "http://127.0.0.1:5067"));
+      bloc.add(const LoadServersRequested());
       bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
       bloc.add(AddServerMemberRequested(
-        baseUrl: "http://127.0.0.1:5067",
         serverId: fixture.listedServer.id,
         userSubject: "   ",
       ));

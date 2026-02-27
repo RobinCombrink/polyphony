@@ -1,14 +1,23 @@
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
-import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
 
-abstract interface class VoiceSessionRepo {
-  Future<Result<VoiceConnectSession>> connectVoiceSession({
-    required String baseUrl,
-    required String channelId,
+class ConnectVoiceSessionCommand {
+  const ConnectVoiceSessionCommand({
+    required this.channelId,
   });
 
-  Future<Result<void>> disconnectVoiceSession({
-    required String baseUrl,
-    required String channelId,
-  });
+  final String channelId;
 }
+
+class DisconnectVoiceSessionCommand {
+  const DisconnectVoiceSessionCommand({
+    required this.channelId,
+  });
+
+  final String channelId;
+}
+
+abstract interface class VoiceSessionRepo
+    with
+        RepositoryCreateOne<VoiceConnectSession, ConnectVoiceSessionCommand>,
+        RepositoryDeleteOne<DisconnectVoiceSessionCommand> {}

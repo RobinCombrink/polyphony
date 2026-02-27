@@ -14,15 +14,14 @@ void main() {
       channelRepo: FakeChannelRepository(fixture: fixture),
     ),
     act: (bloc) {
-      bloc.add(LoadChannelsRequested(
-        baseUrl: "http://127.0.0.1:5067",
-        serverId: fixture.listedServer.id,
-      ));
-      bloc.add(const CreateChannelRequested(
-        baseUrl: "http://127.0.0.1:5067",
-        serverId: "",
-        channelName: "channel",
-      ));
+      bloc
+        ..add(LoadChannelsRequested(
+          serverId: fixture.listedServer.id,
+        ))
+        ..add(const CreateChannelRequested(
+          serverId: "",
+          channelName: "channel",
+        ));
     },
     expect: () => <Matcher>[
       isA<ChannelsLoadingState>(),
@@ -42,7 +41,6 @@ void main() {
     ),
     act: (bloc) => bloc.add(
       LoadChannelsRequested(
-        baseUrl: "http://127.0.0.1:5067",
         serverId: fixture.listedServer.id,
       ),
     ),
@@ -62,11 +60,11 @@ void main() {
       channelRepo: FakeChannelRepository(fixture: fixture),
     ),
     act: (bloc) {
-      bloc.add(LoadChannelsRequested(
-        baseUrl: "http://127.0.0.1:5067",
-        serverId: fixture.listedServer.id,
-      ));
-      bloc.add(SelectTextChannelRequested(channelId: fixture.listedChannel.id));
+      bloc
+        ..add(LoadChannelsRequested(
+          serverId: fixture.listedServer.id,
+        ))
+        ..add(SelectTextChannelRequested(channelId: fixture.listedChannel.id));
     },
     expect: () => <Matcher>[
       isA<ChannelsLoadingState>(),
@@ -91,12 +89,11 @@ void main() {
       channelRepo: FakeChannelRepository(fixture: fixture),
     ),
     act: (bloc) {
-      bloc.add(LoadChannelsRequested(
-        baseUrl: "http://127.0.0.1:5067",
-        serverId: fixture.listedServer.id,
-      ));
       bloc
-          .add(SelectVoiceChannelRequested(channelId: fixture.listedChannel.id));
+        ..add(LoadChannelsRequested(
+          serverId: fixture.listedServer.id,
+        ))
+        ..add(SelectVoiceChannelRequested(channelId: fixture.listedChannel.id));
     },
     expect: () => <Matcher>[
       isA<ChannelsLoadingState>(),
@@ -120,8 +117,8 @@ void main() {
     build: () => ChannelsBloc(
       channelRepo: FakeChannelRepository(fixture: fixture),
     ),
-    act: (bloc) =>
-        bloc.add(SelectTextChannelRequested(channelId: fixture.listedChannel.id)),
+    act: (bloc) => bloc
+        .add(SelectTextChannelRequested(channelId: fixture.listedChannel.id)),
     expect: () => <Matcher>[],
   );
 }

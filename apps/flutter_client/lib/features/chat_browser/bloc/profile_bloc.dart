@@ -22,8 +22,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     emit(const ProfileLoadingState());
 
-    final profileResult = await _profileRepo.getMe(
-      baseUrl: event.baseUrl.trim(),
+    final profileResult = await _profileRepo.getOne(
+      query: const GetProfileQuery(),
     );
 
     switch (profileResult) {
@@ -63,9 +63,10 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
 
     emit(const ProfileLoadingState());
 
-    final updateResult = await _profileRepo.updateDisplayName(
-      baseUrl: event.baseUrl.trim(),
-      displayName: trimmedDisplayName,
+    final updateResult = await _profileRepo.updateOne(
+      command: UpdateDisplayNameCommand(
+        displayName: trimmedDisplayName,
+      ),
     );
 
     switch (updateResult) {

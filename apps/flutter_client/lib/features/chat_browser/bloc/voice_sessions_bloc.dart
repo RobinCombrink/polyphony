@@ -97,10 +97,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     emit(const VoiceSessionsLoadingState());
 
-    final connectVoiceSessionResult =
-        await _voiceSessionRepo.connectVoiceSession(
-      baseUrl: event.baseUrl.trim(),
-      channelId: trimmedChannelId,
+    final connectVoiceSessionResult = await _voiceSessionRepo.createOne(
+      command: ConnectVoiceSessionCommand(
+        channelId: trimmedChannelId,
+      ),
     );
 
     switch (connectVoiceSessionResult) {
@@ -156,10 +156,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return;
     }
 
-    final backendDisconnectResult =
-        await _voiceSessionRepo.disconnectVoiceSession(
-      baseUrl: event.baseUrl.trim(),
-      channelId: trimmedChannelId,
+    final backendDisconnectResult = await _voiceSessionRepo.deleteOne(
+      command: DisconnectVoiceSessionCommand(
+        channelId: trimmedChannelId,
+      ),
     );
 
     switch (backendDisconnectResult) {

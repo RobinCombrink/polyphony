@@ -12,33 +12,28 @@ class MessageRepository implements MessageRepo {
   final MessageService _messageService;
 
   @override
-  Future<Result<List<Message>>> listMessages({
-    required String baseUrl,
-    required String channelId,
+  Future<Result<Iterable<Message>>> getMany({
+    required GetMessagesQuery query,
   }) async {
     final serviceResult = await _messageService.listMessages(
-      baseUrl: baseUrl,
-      channelId: channelId,
+      channelId: query.channelId,
     );
 
     return switch (serviceResult) {
-      Ok<List<ApiMessage>>(:final value) => Ok<List<Message>>(
+      Ok<List<ApiMessage>>(:final value) => Ok<Iterable<Message>>(
           value.map((message) => message.toDomainModel()).toList(),
         ),
-      Error<List<ApiMessage>>(:final error) => Error<List<Message>>(error),
+      Error<List<ApiMessage>>(:final error) => Error<Iterable<Message>>(error),
     };
   }
 
   @override
-  Future<Result<Message>> createMessage({
-    required String baseUrl,
-    required String channelId,
-    required String content,
+  Future<Result<Message>> createOne({
+    required CreateMessageCommand command,
   }) async {
     final serviceResult = await _messageService.createMessage(
-      baseUrl: baseUrl,
-      channelId: channelId,
-      content: content,
+      channelId: command.channelId,
+      content: command.content,
     );
 
     return switch (serviceResult) {
@@ -48,17 +43,13 @@ class MessageRepository implements MessageRepo {
   }
 
   @override
-  Future<Result<Message>> updateMessage({
-    required String baseUrl,
-    required String channelId,
-    required String messageId,
-    required String content,
+  Future<Result<Message>> updateOne({
+    required UpdateMessageCommand command,
   }) async {
     final serviceResult = await _messageService.updateMessage(
-      baseUrl: baseUrl,
-      channelId: channelId,
-      messageId: messageId,
-      content: content,
+      channelId: command.channelId,
+      messageId: command.messageId,
+      content: command.content,
     );
 
     return switch (serviceResult) {
@@ -68,15 +59,10 @@ class MessageRepository implements MessageRepo {
   }
 
   @override
-  Future<Result<void>> deleteMessage({
-    required String baseUrl,
-    required String channelId,
-    required String messageId,
-  }) {
+  Future<Result<void>> deleteOne({required DeleteMessageCommand command}) {
     return _messageService.deleteMessage(
-      baseUrl: baseUrl,
-      channelId: channelId,
-      messageId: messageId,
+      channelId: command.channelId,
+      messageId: command.messageId,
     );
   }
 }

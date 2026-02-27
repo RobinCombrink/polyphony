@@ -5,17 +5,13 @@ sealed class ProfileEvent {
 }
 
 final class LoadProfileRequested extends ProfileEvent {
-  const LoadProfileRequested({required this.baseUrl});
-
-  final String baseUrl;
+  const LoadProfileRequested();
 }
 
 final class UpdateDisplayNameRequested extends ProfileEvent {
   const UpdateDisplayNameRequested({
-    required this.baseUrl,
     required this.displayName,
   });
 
-  final String baseUrl;
   final String displayName;
 }

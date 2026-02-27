@@ -27,12 +27,13 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
 
     emit(const ServersLoadingState());
 
-    final listServersResult = await _serverRepo.listServers(
-      baseUrl: event.baseUrl.trim(),
+    final listServersResult = await _serverRepo.getMany(
+      query: const GetServersQuery(),
     );
 
     switch (listServersResult) {
-      case Ok<List<Server>>(:final value):
+      case Ok<Iterable<Server>>(:final value):
+        final servers = value.toList();
         final selectedServerId = value.any(
           (server) => server.id == previousLoadedState?.selectedServerId,
         )
@@ -40,10 +41,10 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
             : null;
 
         emit(ServersLoadedState(
-          servers: value,
+          servers: servers,
           selectedServerId: selectedServerId,
         ));
-      case Error<List<Server>>(:final error):
+      case Error<Iterable<Server>>(:final error):
         emit(ServersExceptionState(error: error));
     }
   }
@@ -73,20 +74,21 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
 
     emit(const ServersLoadingState());
 
-    final createServerResult = await _serverRepo.createServer(
-      baseUrl: event.baseUrl.trim(),
-      name: trimmedServerName,
+    final createServerResult = await _serverRepo.createOne(
+      command: CreateServerCommand(
+        name: trimmedServerName,
+      ),
     );
 
     switch (createServerResult) {
       case Ok<Server>(:final value):
         final createdServer = value;
-        final listServersResult = await _serverRepo.listServers(
-          baseUrl: event.baseUrl.trim(),
+        final listServersResult = await _serverRepo.getMany(
+          query: const GetServersQuery(),
         );
         switch (listServersResult) {
-          case Ok<List<Server>>(:final value):
-            final servers = value;
+          case Ok<Iterable<Server>>(:final value):
+            final servers = value.toList();
             emit(ServersLoadedState(
               servers: servers,
               selectedServerId: servers.any(
@@ -95,7 +97,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
                   ? createdServer.id
                   : null,
             ));
-          case Error<List<Server>>(:final error):
+          case Error<Iterable<Server>>(:final error):
             emit(ServersExceptionState(error: error));
         }
       case Error<Server>(:final error):
@@ -162,29 +164,31 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
 
     emit(const ServersLoadingState());
 
-    final addMemberResult = await _serverRepo.addServerMember(
-      baseUrl: event.baseUrl.trim(),
-      serverId: trimmedServerId,
-      userSubject: trimmedUserSubject,
+    final addMemberResult = await _serverRepo.updateOne(
+      command: AddServerMemberCommand(
+        serverId: trimmedServerId,
+        userSubject: trimmedUserSubject,
+      ),
     );
 
     switch (addMemberResult) {
       case Ok<void>():
-        final listServersResult = await _serverRepo.listServers(
-          baseUrl: event.baseUrl.trim(),
+        final listServersResult = await _serverRepo.getMany(
+          query: const GetServersQuery(),
         );
 
         switch (listServersResult) {
-          case Ok<List<Server>>(:final value):
+          case Ok<Iterable<Server>>(:final value):
+            final servers = value.toList();
             emit(ServersLoadedState(
-              servers: value,
-              selectedServerId: value.any(
+              servers: servers,
+              selectedServerId: servers.any(
                 (server) => server.id == trimmedServerId,
               )
                   ? trimmedServerId
                   : null,
             ));
-          case Error<List<Server>>(:final error):
+          case Error<Iterable<Server>>(:final error):
             emit(ServersExceptionState(error: error));
         }
       case Error<void>(:final error):

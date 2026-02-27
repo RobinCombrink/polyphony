@@ -15,11 +15,9 @@ void main() {
     ),
     act: (bloc) {
       bloc.add(LoadMessagesRequested(
-        baseUrl: "http://127.0.0.1:5067",
         channelId: fixture.listedChannel.id,
       ));
       bloc.add(UpdateMessageRequested(
-        baseUrl: "http://127.0.0.1:5067",
         channelId: fixture.listedChannel.id,
         messageId: fixture.listedMessage.id,
         messageContent: "edited",
@@ -47,11 +45,9 @@ void main() {
     ),
     act: (bloc) {
       bloc.add(LoadMessagesRequested(
-        baseUrl: "http://127.0.0.1:5067",
         channelId: fixture.listedChannel.id,
       ));
       bloc.add(DeleteMessageRequested(
-        baseUrl: "http://127.0.0.1:5067",
         channelId: fixture.listedChannel.id,
         messageId: fixture.listedMessage.id,
       ));

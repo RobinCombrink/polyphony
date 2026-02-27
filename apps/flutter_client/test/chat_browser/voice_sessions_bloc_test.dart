@@ -16,7 +16,6 @@ void main() {
     ),
     act: (bloc) => bloc.add(
       LoadVoiceSessionsRequested(
-        baseUrl: "http://127.0.0.1:5067",
         channelId: fixture.listedChannel.id,
       ),
     ),
@@ -37,11 +36,9 @@ void main() {
     ),
     act: (bloc) {
       bloc.add(LoadVoiceSessionsRequested(
-        baseUrl: "http://127.0.0.1:5067",
         channelId: fixture.listedChannel.id,
       ));
       bloc.add(const ConnectVoiceSessionRequested(
-        baseUrl: "http://127.0.0.1:5067",
         channelId: "",
       ));
     },
@@ -63,15 +60,12 @@ void main() {
     ),
     act: (bloc) {
       bloc.add(LoadVoiceSessionsRequested(
-        baseUrl: "http://127.0.0.1:5067",
         channelId: fixture.listedChannel.id,
       ));
       bloc.add(ConnectVoiceSessionRequested(
-        baseUrl: "http://127.0.0.1:5067",
         channelId: fixture.listedChannel.id,
       ));
       bloc.add(DisconnectVoiceSessionRequested(
-        baseUrl: "http://127.0.0.1:5067",
         channelId: fixture.listedChannel.id,
       ));
     },

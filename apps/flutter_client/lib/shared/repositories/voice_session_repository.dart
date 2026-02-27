@@ -13,13 +13,11 @@ class VoiceSessionRepository implements VoiceSessionRepo {
   final VoiceSessionService _voiceSessionService;
 
   @override
-  Future<Result<VoiceConnectSession>> connectVoiceSession({
-    required String baseUrl,
-    required String channelId,
+  Future<Result<VoiceConnectSession>> createOne({
+    required ConnectVoiceSessionCommand command,
   }) async {
     final serviceResult = await _voiceSessionService.connectVoiceSession(
-      baseUrl: baseUrl,
-      channelId: channelId,
+      channelId: command.channelId,
     );
 
     return switch (serviceResult) {
@@ -31,13 +29,11 @@ class VoiceSessionRepository implements VoiceSessionRepo {
   }
 
   @override
-  Future<Result<void>> disconnectVoiceSession({
-    required String baseUrl,
-    required String channelId,
+  Future<Result<void>> deleteOne({
+    required DisconnectVoiceSessionCommand command,
   }) {
     return _voiceSessionService.disconnectVoiceSession(
-      baseUrl: baseUrl,
-      channelId: channelId,
+      channelId: command.channelId,
     );
   }
 }

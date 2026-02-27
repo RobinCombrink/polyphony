@@ -12,26 +12,24 @@ class ServerRepository implements ServerRepo {
   final ServerService _serverService;
 
   @override
-  Future<Result<List<Server>>> listServers({
-    required String baseUrl,
+  Future<Result<Iterable<Server>>> getMany({
+    required GetServersQuery query,
   }) async {
-    final serviceResult = await _serverService.listServers(baseUrl: baseUrl);
+    final serviceResult = await _serverService.listServers();
 
     return switch (serviceResult) {
-      Ok<List<ApiServer>>(:final value) => Ok<List<Server>>(
+      Ok<List<ApiServer>>(:final value) => Ok<Iterable<Server>>(
           value.map((server) => server.toDomainModel()).toList()),
-      Error<List<ApiServer>>(:final error) => Error<List<Server>>(error),
+      Error<List<ApiServer>>(:final error) => Error<Iterable<Server>>(error),
     };
   }
 
   @override
-  Future<Result<Server>> createServer({
-    required String baseUrl,
-    required String name,
+  Future<Result<Server>> createOne({
+    required CreateServerCommand command,
   }) async {
     final serviceResult = await _serverService.createServer(
-      baseUrl: baseUrl,
-      name: name,
+      name: command.name,
     );
 
     return switch (serviceResult) {
@@ -41,15 +39,10 @@ class ServerRepository implements ServerRepo {
   }
 
   @override
-  Future<Result<void>> addServerMember({
-    required String baseUrl,
-    required String serverId,
-    required String userSubject,
-  }) {
+  Future<Result<void>> updateOne({required AddServerMemberCommand command}) {
     return _serverService.addServerMember(
-      baseUrl: baseUrl,
-      serverId: serverId,
-      userSubject: userSubject,
+      serverId: command.serverId,
+      userSubject: command.userSubject,
     );
   }
 }

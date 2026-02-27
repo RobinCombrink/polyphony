@@ -3,12 +3,10 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 
 abstract interface class VoiceSessionService {
   Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
-    required String baseUrl,
     required String channelId,
   });
 
   Future<Result<void>> disconnectVoiceSession({
-    required String baseUrl,
     required String channelId,
   });
 }

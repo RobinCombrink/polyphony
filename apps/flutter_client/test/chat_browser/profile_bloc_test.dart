@@ -16,9 +16,7 @@ void main() {
         initialDisplayName: null,
       ),
     ),
-    act: (bloc) => bloc.add(
-      const LoadProfileRequested(baseUrl: "http://127.0.0.1:5067"),
-    ),
+    act: (bloc) => bloc.add(const LoadProfileRequested()),
     expect: () => <Matcher>[
       isA<ProfileLoadingState>(),
       isA<ProfileLoadedState>()
@@ -37,9 +35,8 @@ void main() {
     ),
     act: (bloc) {
       bloc
-        ..add(const LoadProfileRequested(baseUrl: "http://127.0.0.1:5067"))
+        ..add(const LoadProfileRequested())
         ..add(const UpdateDisplayNameRequested(
-          baseUrl: "http://127.0.0.1:5067",
           displayName: "   ",
         ));
     },
@@ -64,9 +61,8 @@ void main() {
     ),
     act: (bloc) {
       bloc
-        ..add(const LoadProfileRequested(baseUrl: "http://127.0.0.1:5067"))
+        ..add(const LoadProfileRequested())
         ..add(const UpdateDisplayNameRequested(
-          baseUrl: "http://127.0.0.1:5067",
           displayName: "Polyphony User",
         ));
     },

@@ -1,4 +1,5 @@
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
+import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -13,6 +14,7 @@ class RestMessageService implements MessageService {
 
   final ChatApi _chatApi;
   final AuthenticationStateSource _authenticationStateSource;
+  final String _baseUrl = PolyphonyConfig.backendBaseUrl;
 
   Result<T> _missingTokenError<T>() {
     return Error<T>(Exception("Auth token is required."));
@@ -20,7 +22,6 @@ class RestMessageService implements MessageService {
 
   @override
   Future<Result<List<ApiMessage>>> listMessages({
-    required String baseUrl,
     required String channelId,
   }) async {
     if (_authenticationStateSource.currentAuthState
@@ -28,12 +29,11 @@ class RestMessageService implements MessageService {
       return _missingTokenError();
     }
 
-    return _chatApi.listMessages(baseUrl: baseUrl, channelId: channelId);
+    return _chatApi.listMessages(baseUrl: _baseUrl, channelId: channelId);
   }
 
   @override
   Future<Result<ApiMessage>> createMessage({
-    required String baseUrl,
     required String channelId,
     required String content,
   }) async {
@@ -43,7 +43,7 @@ class RestMessageService implements MessageService {
     }
 
     return _chatApi.createMessage(
-      baseUrl: baseUrl,
+      baseUrl: _baseUrl,
       channelId: channelId,
       content: content,
     );
@@ -51,7 +51,6 @@ class RestMessageService implements MessageService {
 
   @override
   Future<Result<ApiMessage>> updateMessage({
-    required String baseUrl,
     required String channelId,
     required String messageId,
     required String content,
@@ -62,7 +61,7 @@ class RestMessageService implements MessageService {
     }
 
     return _chatApi.updateMessage(
-      baseUrl: baseUrl,
+      baseUrl: _baseUrl,
       channelId: channelId,
       messageId: messageId,
       content: content,
@@ -71,7 +70,6 @@ class RestMessageService implements MessageService {
 
   @override
   Future<Result<void>> deleteMessage({
-    required String baseUrl,
     required String channelId,
     required String messageId,
   }) async {
@@ -81,7 +79,7 @@ class RestMessageService implements MessageService {
     }
 
     return _chatApi.deleteMessage(
-      baseUrl: baseUrl,
+      baseUrl: _baseUrl,
       channelId: channelId,
       messageId: messageId,
     );

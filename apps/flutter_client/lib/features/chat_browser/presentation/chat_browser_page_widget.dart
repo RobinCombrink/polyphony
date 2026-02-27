@@ -15,7 +15,6 @@ import "package:polyphony_flutter_client/features/chat_browser/presentation/widg
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/text_channels_section_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/token_tab_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_channels_section_widget.dart";
-import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 class ChatBrowserPageWidget extends StatefulWidget {
@@ -26,8 +25,6 @@ class ChatBrowserPageWidget extends StatefulWidget {
 }
 
 class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
-  final baseUrlController =
-      TextEditingController(text: PolyphonyConfig.backendBaseUrl);
   final createServerController = TextEditingController();
   final addServerMemberController = TextEditingController();
   final createChannelController = TextEditingController();
@@ -44,14 +41,13 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
       }
 
       context.read<ProfileBloc>().add(
-            LoadProfileRequested(baseUrl: baseUrlController.text),
+            const LoadProfileRequested(),
           );
     });
   }
 
   @override
   void dispose() {
-    baseUrlController.dispose();
     createServerController.dispose();
     addServerMemberController.dispose();
     createChannelController.dispose();
@@ -85,7 +81,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   void _requestCreateServer(BuildContext context) {
     context.read<ServersBloc>().add(
           CreateServerRequested(
-            baseUrl: baseUrlController.text,
             serverName: createServerController.text,
           ),
         );
@@ -99,7 +94,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
 
     context.read<ChannelsBloc>().add(
           CreateChannelRequested(
-            baseUrl: baseUrlController.text,
             serverId: selectedServerId ?? "",
             channelName: createChannelController.text,
           ),
@@ -109,7 +103,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   void _requestAddServerMember(BuildContext context, String serverId) {
     context.read<ServersBloc>().add(
           AddServerMemberRequested(
-            baseUrl: baseUrlController.text,
             serverId: serverId,
             userSubject: addServerMemberController.text,
           ),
@@ -119,7 +112,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   void _requestUpdateDisplayName(BuildContext context, String displayName) {
     context.read<ProfileBloc>().add(
           UpdateDisplayNameRequested(
-            baseUrl: baseUrlController.text,
             displayName: displayName,
           ),
         );
@@ -275,13 +267,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: <Widget>[
-                                TextField(
-                                  controller: baseUrlController,
-                                  decoration: const InputDecoration(
-                                    labelText: "Backend base URL",
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
                                 FilledButton(
                                   onPressed: isLoading
                                       ? null
@@ -296,16 +281,10 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                 const ResetVoiceSessionsRequested(),
                                               );
                                           context.read<ProfileBloc>().add(
-                                                LoadProfileRequested(
-                                                  baseUrl:
-                                                      baseUrlController.text,
-                                                ),
+                                                const LoadProfileRequested(),
                                               );
                                           context.read<ServersBloc>().add(
-                                                LoadServersRequested(
-                                                  baseUrl:
-                                                      baseUrlController.text,
-                                                ),
+                                                const LoadServersRequested(),
                                               );
                                         },
                                   child: const Text("Load Servers"),
@@ -356,8 +335,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                 );
                                             context.read<ChannelsBloc>().add(
                                                   LoadChannelsRequested(
-                                                    baseUrl:
-                                                        baseUrlController.text,
                                                     serverId: server.id,
                                                   ),
                                                 );
@@ -444,9 +421,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                         .read<MessagesBloc>()
                                                         .add(
                                                           LoadMessagesRequested(
-                                                            baseUrl:
-                                                                baseUrlController
-                                                                    .text,
                                                             channelId:
                                                                 channel.id,
                                                           ),
@@ -456,9 +430,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                             VoiceSessionsBloc>()
                                                         .add(
                                                           LoadVoiceSessionsRequested(
-                                                            baseUrl:
-                                                                baseUrlController
-                                                                    .text,
                                                             channelId:
                                                                 channel.id,
                                                           ),
@@ -509,9 +480,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                             VoiceSessionsBloc>()
                                                         .add(
                                                           LoadVoiceSessionsRequested(
-                                                            baseUrl:
-                                                                baseUrlController
-                                                                    .text,
                                                             channelId:
                                                                 channel.id,
                                                           ),
@@ -532,9 +500,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                       .read<VoiceSessionsBloc>()
                                                       .add(
                                                         ConnectVoiceSessionRequested(
-                                                          baseUrl:
-                                                              baseUrlController
-                                                                  .text,
                                                           channelId:
                                                               activeVoiceChannelId ??
                                                                   "",
@@ -544,9 +509,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                       .read<VoiceSessionsBloc>()
                                                       .add(
                                                         DisconnectVoiceSessionRequested(
-                                                          baseUrl:
-                                                              baseUrlController
-                                                                  .text,
                                                           channelId:
                                                               activeVoiceChannelId ??
                                                                   "",
@@ -575,9 +537,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                       .read<MessagesBloc>()
                                                       .add(
                                                         CreateMessageRequested(
-                                                          baseUrl:
-                                                              baseUrlController
-                                                                  .text,
                                                           channelId:
                                                               selectedTextChannel
                                                                       ?.id ??
@@ -596,9 +555,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                       .read<MessagesBloc>()
                                                       .add(
                                                         DeleteMessageRequested(
-                                                          baseUrl:
-                                                              baseUrlController
-                                                                  .text,
                                                           channelId:
                                                               selectedTextChannel
                                                                       ?.id ??
@@ -739,7 +695,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
 
     context.read<MessagesBloc>().add(
           UpdateMessageRequested(
-            baseUrl: baseUrlController.text,
             channelId: selectedTextChannelId ?? "",
             messageId: message.id,
             messageContent: result,

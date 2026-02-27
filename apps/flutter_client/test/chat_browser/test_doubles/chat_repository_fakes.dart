@@ -21,30 +21,24 @@ class FakeServerRepository implements ServerRepo {
   final Server _createdServer;
 
   @override
-  Future<Result<Server>> createServer({
-    required String baseUrl,
-    required String name,
+  Future<Result<Server>> createOne({
+    required CreateServerCommand command,
   }) async {
     _servers.add(_createdServer);
     return Ok<Server>(_createdServer);
   }
 
   @override
-  Future<Result<List<Server>>> listServers({
-    required String baseUrl,
+  Future<Result<Iterable<Server>>> getMany({
+    required GetServersQuery query,
   }) async {
-    return Ok<List<Server>>(List<Server>.unmodifiable(_servers));
+    return Ok<Iterable<Server>>(List<Server>.unmodifiable(_servers));
   }
 
   @override
-  Future<Result<void>> addServerMember({
-    required String baseUrl,
-    required String serverId,
-    required String userSubject,
+  Future<Result<void>> updateOne({
+    required AddServerMemberCommand command,
   }) async {
-    final ignoredServerId = serverId;
-    final ignoredUserSubject = userSubject;
-
     if (forceAddMemberError) {
       return Error<void>(Exception("Failed to add server member"));
     }
@@ -64,23 +58,23 @@ class FakeChannelRepository implements ChannelRepo {
   final Channel _createdChannel;
 
   @override
-  Future<Result<Channel>> createChannel({
-    required String baseUrl,
-    required String serverId,
-    required String name,
+  Future<Result<Channel>> createOne({
+    required CreateChannelCommand command,
   }) async {
-    final channels = _channelsByServer.putIfAbsent(serverId, () => <Channel>[]);
+    final channels = _channelsByServer.putIfAbsent(
+      command.serverId,
+      () => <Channel>[],
+    );
     channels.add(_createdChannel);
     return Ok<Channel>(_createdChannel);
   }
 
   @override
-  Future<Result<List<Channel>>> listChannels({
-    required String baseUrl,
-    required String serverId,
+  Future<Result<Iterable<Channel>>> getMany({
+    required GetChannelsQuery query,
   }) async {
-    final channels = _channelsByServer[serverId] ?? <Channel>[];
-    return Ok<List<Channel>>(List<Channel>.unmodifiable(channels));
+    final channels = _channelsByServer[query.serverId] ?? <Channel>[];
+    return Ok<Iterable<Channel>>(List<Channel>.unmodifiable(channels));
   }
 }
 
@@ -100,56 +94,48 @@ class FakeMessageRepository implements MessageRepo {
   final Message _createdMessage;
 
   @override
-  Future<Result<Message>> createMessage({
-    required String baseUrl,
-    required String channelId,
-    required String content,
+  Future<Result<Message>> createOne({
+    required CreateMessageCommand command,
   }) async {
     final messages =
-        _messagesByChannel.putIfAbsent(channelId, () => <Message>[]);
+        _messagesByChannel.putIfAbsent(command.channelId, () => <Message>[]);
     messages.add(_createdMessage);
     return Ok<Message>(_createdMessage);
   }
 
   @override
-  Future<Result<void>> deleteMessage({
-    required String baseUrl,
-    required String channelId,
-    required String messageId,
+  Future<Result<void>> deleteOne({
+    required DeleteMessageCommand command,
   }) async {
     if (forceDeleteNotFound) {
       return Error<void>(Exception("Failed to delete message: 404 Not found"));
     }
 
-    final messages = _messagesByChannel[channelId] ?? <Message>[];
-    messages.removeWhere((message) => message.id == messageId);
+    final messages = _messagesByChannel[command.channelId] ?? <Message>[];
+    messages.removeWhere((message) => message.id == command.messageId);
     return const Ok<void>(null);
   }
 
   @override
-  Future<Result<List<Message>>> listMessages({
-    required String baseUrl,
-    required String channelId,
+  Future<Result<Iterable<Message>>> getMany({
+    required GetMessagesQuery query,
   }) async {
-    final messages = _messagesByChannel[channelId] ?? <Message>[];
-    return Ok<List<Message>>(List<Message>.unmodifiable(messages));
+    final messages = _messagesByChannel[query.channelId] ?? <Message>[];
+    return Ok<Iterable<Message>>(List<Message>.unmodifiable(messages));
   }
 
   @override
-  Future<Result<Message>> updateMessage({
-    required String baseUrl,
-    required String channelId,
-    required String messageId,
-    required String content,
+  Future<Result<Message>> updateOne({
+    required UpdateMessageCommand command,
   }) async {
     if (forceUpdateNotFound) {
       return Error<Message>(
           Exception("Failed to update message: 404 Not found"));
     }
 
-    final messages = _messagesByChannel[channelId] ?? <Message>[];
+    final messages = _messagesByChannel[command.channelId] ?? <Message>[];
     final messageIndex =
-        messages.indexWhere((message) => message.id == messageId);
+        messages.indexWhere((message) => message.id == command.messageId);
 
     if (messageIndex == -1) {
       return Error<Message>(
@@ -161,7 +147,7 @@ class FakeMessageRepository implements MessageRepo {
       id: existingMessage.id,
       channelId: existingMessage.channelId,
       authorSubject: existingMessage.authorSubject,
-      content: content,
+      content: command.content,
     );
 
     messages[messageIndex] = updatedMessage;
@@ -179,27 +165,23 @@ class FakeVoiceSessionRepository implements VoiceSessionRepo {
   final VoiceConnectSession _connectedVoiceSession;
 
   @override
-  Future<Result<VoiceConnectSession>> connectVoiceSession({
-    required String baseUrl,
-    required String channelId,
+  Future<Result<VoiceConnectSession>> createOne({
+    required ConnectVoiceSessionCommand command,
   }) async {
     return Ok<VoiceConnectSession>(
       VoiceConnectSession(
         livekitUrl: _connectedVoiceSession.livekitUrl,
         accessToken: _connectedVoiceSession.accessToken,
-        channelId: channelId,
+        channelId: command.channelId,
         participantSubject: _connectedVoiceSession.participantSubject,
       ),
     );
   }
 
   @override
-  Future<Result<void>> disconnectVoiceSession({
-    required String baseUrl,
-    required String channelId,
+  Future<Result<void>> deleteOne({
+    required DisconnectVoiceSessionCommand command,
   }) async {
-    final _ = channelId;
-
     if (forceDisconnectError) {
       return Error<void>(Exception("Failed to disconnect voice session"));
     }
@@ -254,7 +236,7 @@ class FakeProfileRepository implements ProfileRepo {
   String? _displayName;
 
   @override
-  Future<Result<UserProfile>> getMe({required String baseUrl}) async {
+  Future<Result<UserProfile>> getOne({required GetProfileQuery query}) async {
     if (forceGetError) {
       return Error<UserProfile>(Exception("Failed to get profile"));
     }
@@ -268,15 +250,14 @@ class FakeProfileRepository implements ProfileRepo {
   }
 
   @override
-  Future<Result<UserProfile>> updateDisplayName({
-    required String baseUrl,
-    required String displayName,
+  Future<Result<UserProfile>> updateOne({
+    required UpdateDisplayNameCommand command,
   }) async {
     if (forceUpdateError) {
       return Error<UserProfile>(Exception("Failed to update display name"));
     }
 
-    _displayName = displayName;
+    _displayName = command.displayName;
     return Ok<UserProfile>(
       UserProfile(
         userId: userId,

@@ -1,4 +1,5 @@
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
+import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -13,6 +14,7 @@ class RestVoiceSessionService implements VoiceSessionService {
 
   final ChatApi _chatApi;
   final AuthenticationStateSource _authenticationStateSource;
+  final String _baseUrl = PolyphonyConfig.backendBaseUrl;
 
   Result<T> _missingTokenError<T>() {
     return Error<T>(Exception("Auth token is required."));
@@ -20,7 +22,6 @@ class RestVoiceSessionService implements VoiceSessionService {
 
   @override
   Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
-    required String baseUrl,
     required String channelId,
   }) async {
     if (_authenticationStateSource.currentAuthState
@@ -29,14 +30,13 @@ class RestVoiceSessionService implements VoiceSessionService {
     }
 
     return _chatApi.connectVoiceSession(
-      baseUrl: baseUrl,
+      baseUrl: _baseUrl,
       channelId: channelId,
     );
   }
 
   @override
   Future<Result<void>> disconnectVoiceSession({
-    required String baseUrl,
     required String channelId,
   }) async {
     if (_authenticationStateSource.currentAuthState
@@ -45,7 +45,7 @@ class RestVoiceSessionService implements VoiceSessionService {
     }
 
     return _chatApi.disconnectVoiceSession(
-      baseUrl: baseUrl,
+      baseUrl: _baseUrl,
       channelId: channelId,
     );
   }

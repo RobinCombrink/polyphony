@@ -52,15 +52,19 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     emit(const MessagesLoadingState());
 
-    final listMessagesResult = await _messageRepo.listMessages(
-      baseUrl: event.baseUrl.trim(),
-      channelId: trimmedChannelId,
+    final listMessagesResult = await _messageRepo.getMany(
+      query: GetMessagesQuery(
+        channelId: trimmedChannelId,
+      ),
     );
 
     switch (listMessagesResult) {
-      case Ok<List<Message>>(:final value):
-        emit(MessagesLoadedState(messages: value, channelId: trimmedChannelId));
-      case Error<List<Message>>(:final error):
+      case Ok<Iterable<Message>>(:final value):
+        emit(MessagesLoadedState(
+          messages: value.toList(),
+          channelId: trimmedChannelId,
+        ));
+      case Error<Iterable<Message>>(:final error):
         emit(MessagesExceptionState(error: error));
     }
   }
@@ -100,25 +104,27 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     emit(const MessagesLoadingState());
 
-    final createMessageResult = await _messageRepo.createMessage(
-      baseUrl: event.baseUrl.trim(),
-      channelId: trimmedChannelId,
-      content: trimmedMessageContent,
+    final createMessageResult = await _messageRepo.createOne(
+      command: CreateMessageCommand(
+        channelId: trimmedChannelId,
+        content: trimmedMessageContent,
+      ),
     );
 
     switch (createMessageResult) {
       case Ok<Message>():
-        final listMessagesResult = await _messageRepo.listMessages(
-          baseUrl: event.baseUrl.trim(),
-          channelId: trimmedChannelId,
+        final listMessagesResult = await _messageRepo.getMany(
+          query: GetMessagesQuery(
+            channelId: trimmedChannelId,
+          ),
         );
         switch (listMessagesResult) {
-          case Ok<List<Message>>(:final value):
+          case Ok<Iterable<Message>>(:final value):
             emit(MessagesLoadedState(
-              messages: value,
+              messages: value.toList(),
               channelId: trimmedChannelId,
             ));
-          case Error<List<Message>>(:final error):
+          case Error<Iterable<Message>>(:final error):
             emit(MessagesExceptionState(error: error));
         }
       case Error<Message>(:final error):
@@ -161,26 +167,28 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     emit(const MessagesLoadingState());
 
-    final updateMessageResult = await _messageRepo.updateMessage(
-      baseUrl: event.baseUrl.trim(),
-      channelId: trimmedChannelId,
-      messageId: event.messageId,
-      content: trimmedMessageContent,
+    final updateMessageResult = await _messageRepo.updateOne(
+      command: UpdateMessageCommand(
+        channelId: trimmedChannelId,
+        messageId: event.messageId,
+        content: trimmedMessageContent,
+      ),
     );
 
     switch (updateMessageResult) {
       case Ok<Message>():
-        final listMessagesResult = await _messageRepo.listMessages(
-          baseUrl: event.baseUrl.trim(),
-          channelId: trimmedChannelId,
+        final listMessagesResult = await _messageRepo.getMany(
+          query: GetMessagesQuery(
+            channelId: trimmedChannelId,
+          ),
         );
         switch (listMessagesResult) {
-          case Ok<List<Message>>(:final value):
+          case Ok<Iterable<Message>>(:final value):
             emit(MessagesLoadedState(
-              messages: value,
+              messages: value.toList(),
               channelId: trimmedChannelId,
             ));
-          case Error<List<Message>>(:final error):
+          case Error<Iterable<Message>>(:final error):
             emit(MessagesExceptionState(error: error));
         }
       case Error<Message>(:final error):
@@ -213,25 +221,27 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     emit(const MessagesLoadingState());
 
-    final deleteMessageResult = await _messageRepo.deleteMessage(
-      baseUrl: event.baseUrl.trim(),
-      channelId: trimmedChannelId,
-      messageId: event.messageId,
+    final deleteMessageResult = await _messageRepo.deleteOne(
+      command: DeleteMessageCommand(
+        channelId: trimmedChannelId,
+        messageId: event.messageId,
+      ),
     );
 
     switch (deleteMessageResult) {
       case Ok<void>():
-        final listMessagesResult = await _messageRepo.listMessages(
-          baseUrl: event.baseUrl.trim(),
-          channelId: trimmedChannelId,
+        final listMessagesResult = await _messageRepo.getMany(
+          query: GetMessagesQuery(
+            channelId: trimmedChannelId,
+          ),
         );
         switch (listMessagesResult) {
-          case Ok<List<Message>>(:final value):
+          case Ok<Iterable<Message>>(:final value):
             emit(MessagesLoadedState(
-              messages: value,
+              messages: value.toList(),
               channelId: trimmedChannelId,
             ));
-          case Error<List<Message>>(:final error):
+          case Error<Iterable<Message>>(:final error):
             emit(MessagesExceptionState(error: error));
         }
       case Error<void>(:final error):

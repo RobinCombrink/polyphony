@@ -12,8 +12,8 @@ class ProfileRepository implements ProfileRepo {
   final ProfileService _profileService;
 
   @override
-  Future<Result<UserProfile>> getMe({required String baseUrl}) async {
-    final serviceResult = await _profileService.getMe(baseUrl: baseUrl);
+  Future<Result<UserProfile>> getOne({required GetProfileQuery query}) async {
+    final serviceResult = await _profileService.getMe();
 
     return switch (serviceResult) {
       Ok<ApiMe>(:final value) => Ok<UserProfile>(value.toDomainModel()),
@@ -22,13 +22,11 @@ class ProfileRepository implements ProfileRepo {
   }
 
   @override
-  Future<Result<UserProfile>> updateDisplayName({
-    required String baseUrl,
-    required String displayName,
+  Future<Result<UserProfile>> updateOne({
+    required UpdateDisplayNameCommand command,
   }) async {
     final serviceResult = await _profileService.updateDisplayName(
-      baseUrl: baseUrl,
-      displayName: displayName,
+      displayName: command.displayName,
     );
 
     return switch (serviceResult) {
