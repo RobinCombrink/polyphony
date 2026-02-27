@@ -22,7 +22,7 @@ BEGIN
 END $$;
 
 INSERT INTO users (id, external_reference, display_name)
-SELECT gen_random_uuid(), external_refs.external_reference, NULL
+SELECT gen_random_uuid(), external_references.external_reference, NULL
 FROM (
     SELECT DISTINCT owner_subject AS external_reference
     FROM servers
@@ -39,8 +39,8 @@ FROM (
     SELECT DISTINCT participant_subject AS external_reference
     FROM voice_sessions
     WHERE participant_subject IS NOT NULL
-) AS external_refs
-LEFT JOIN users ON users.external_reference = external_refs.external_reference
+) AS external_references
+LEFT JOIN users ON users.external_reference = external_references.external_reference
 WHERE users.external_reference IS NULL;
 
 ALTER TABLE users ALTER COLUMN id SET NOT NULL;
