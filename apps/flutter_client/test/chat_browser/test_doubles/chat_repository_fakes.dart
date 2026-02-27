@@ -41,8 +41,8 @@ class FakeServerRepository implements ServerRepo {
     required String serverId,
     required String userSubject,
   }) async {
-    final _ignoredServerId = serverId;
-    final _ignoredUserSubject = userSubject;
+    final ignoredServerId = serverId;
+    final ignoredUserSubject = userSubject;
 
     if (forceAddMemberError) {
       return Error<void>(Exception("Failed to add server member"));
