@@ -119,6 +119,8 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
               itemCount: widget.servers.length,
               itemBuilder: (context, index) {
                 final server = widget.servers[index];
+                final isSelected = server.id == widget.selectedServerId;
+                final colorScheme = Theme.of(context).colorScheme;
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(
@@ -131,12 +133,30 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
                       borderRadius: BorderRadius.circular(999),
                       onTap:
                           widget.isLoading ? null : () => widget.onTap(server),
-                      child: CircleAvatar(
-                        radius: 20,
-                        child: Text(
-                          server.name.isEmpty
-                              ? "S"
-                              : server.name.substring(0, 1).toUpperCase(),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? colorScheme.primary
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor:
+                              isSelected ? colorScheme.primaryContainer : null,
+                          foregroundColor: isSelected
+                              ? colorScheme.onPrimaryContainer
+                              : null,
+                          child: Text(
+                            server.name.isEmpty
+                                ? "S"
+                                : server.name.substring(0, 1).toUpperCase(),
+                          ),
                         ),
                       ),
                     ),
