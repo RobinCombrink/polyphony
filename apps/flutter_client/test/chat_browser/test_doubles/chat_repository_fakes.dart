@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
@@ -198,6 +200,8 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
 
   final bool forceConnectError;
   final bool forceDisconnectError;
+  final StreamController<RuntimeTextMessage> _textMessagesController =
+      StreamController<RuntimeTextMessage>.broadcast();
 
   @override
   Future<Result<void>> connect({
@@ -223,6 +227,26 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
   @override
   Iterable<String> currentParticipantSubjects() {
     return const <String>["auth0|local_user"];
+  }
+
+  @override
+  Stream<RuntimeTextMessage> textMessages() {
+    return _textMessagesController.stream;
+  }
+
+  @override
+  Future<Result<void>> sendTextMessage({
+    required String channelId,
+    required String content,
+  }) async {
+    final trimmedChannelId = channelId.trim();
+    final trimmedContent = content.trim();
+
+    if (trimmedChannelId.isEmpty || trimmedContent.isEmpty) {
+      return Error<void>(Exception("Channel id and content are required."));
+    }
+
+    return const Ok<void>(null);
   }
 }
 

@@ -118,6 +118,7 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
                 create: (context) => MessagesBloc(
                   messageRepo: context.read<MessageRepo>(),
                   profileRepo: context.read<ProfileRepo>(),
+                  voiceRuntimeService: context.read<VoiceRuntimeService>(),
                 ),
               ),
               BlocProvider<ProfileBloc>(

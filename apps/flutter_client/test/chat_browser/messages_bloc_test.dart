@@ -18,6 +18,7 @@ void main() {
           fixture.listedMessage.authorSubject: "Listed Author",
         },
       ),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
     ),
     act: (bloc) {
       bloc.add(LoadMessagesRequested(
@@ -58,6 +59,7 @@ void main() {
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerSubject,
       ),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
     ),
     act: (bloc) {
       bloc.add(LoadMessagesRequested(

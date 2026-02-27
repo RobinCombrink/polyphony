@@ -1,10 +1,13 @@
 import "package:bloc_concurrency/bloc_concurrency.dart";
+import "dart:async";
+
 import "package:flutter_bloc/flutter_bloc.dart";
 
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/voice_runtime_service.dart";
 
 part "messages_event.dart";
 part "messages_state.dart";
@@ -13,17 +16,30 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
   MessagesBloc({
     required MessageRepo messageRepo,
     required ProfileRepo profileRepo,
+    required VoiceRuntimeService voiceRuntimeService,
   })  : _messageRepo = messageRepo,
         _profileRepo = profileRepo,
+        _voiceRuntimeService = voiceRuntimeService,
         super(const MessagesInitialState()) {
     on<MessagesEvent>(
       _onMessagesEvent,
       transformer: sequential(),
     );
+
+    _runtimeTextSubscription =
+        _voiceRuntimeService.textMessages().listen((runtimeMessage) {
+      add(RealtimeMessageReceived(
+        channelId: runtimeMessage.channelId,
+        authorSubject: runtimeMessage.authorSubject,
+        content: runtimeMessage.content,
+      ));
+    });
   }
 
   final MessageRepo _messageRepo;
   final ProfileRepo _profileRepo;
+  final VoiceRuntimeService _voiceRuntimeService;
+  StreamSubscription<RuntimeTextMessage>? _runtimeTextSubscription;
 
   Future<void> _onMessagesEvent(
     MessagesEvent event,
@@ -40,6 +56,8 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         await _onUpdateMessageRequested(event, emit);
       case DeleteMessageRequested():
         await _onDeleteMessageRequested(event, emit);
+      case RealtimeMessageReceived():
+        await _onRealtimeMessageReceived(event, emit);
     }
   }
 
@@ -131,6 +149,16 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     emit(const MessagesLoadingState());
 
+    final realtimeResult = await _voiceRuntimeService.sendTextMessage(
+      channelId: trimmedChannelId,
+      content: trimmedMessageContent,
+    );
+
+    if (realtimeResult case Error<void>(:final error)) {
+      emit(MessagesExceptionState(error: error));
+      return;
+    }
+
     final createMessageResult = await _messageRepo.createOne(
       command: CreateMessageCommand(
         channelId: trimmedChannelId,
@@ -139,25 +167,15 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     );
 
     switch (createMessageResult) {
-      case Ok<Message>():
-        final listMessagesResult = await _messageRepo.getMany(
-          query: GetMessagesQuery(
-            channelId: trimmedChannelId,
-          ),
-        );
-        switch (listMessagesResult) {
-          case Ok<Iterable<Message>>(:final value):
-            final messages = value.toList();
-            final authorDisplayNamesBySubject =
-                await _loadAuthorDisplayNames(messages);
-            emit(MessagesLoadedState(
-              messages: messages,
-              channelId: trimmedChannelId,
-              authorDisplayNamesBySubject: authorDisplayNamesBySubject,
-            ));
-          case Error<Iterable<Message>>(:final error):
-            emit(MessagesExceptionState(error: error));
-        }
+      case Ok<Message>(:final value):
+        final messages = List<Message>.from(currentMessages)..add(value);
+        final authorDisplayNamesBySubject =
+            await _loadAuthorDisplayNames(messages);
+        emit(MessagesLoadedState(
+          messages: messages,
+          channelId: trimmedChannelId,
+          authorDisplayNamesBySubject: authorDisplayNamesBySubject,
+        ));
       case Error<Message>(:final error):
         emit(MessagesExceptionState(error: error));
     }
@@ -209,25 +227,19 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     );
 
     switch (updateMessageResult) {
-      case Ok<Message>():
-        final listMessagesResult = await _messageRepo.getMany(
-          query: GetMessagesQuery(
-            channelId: trimmedChannelId,
-          ),
-        );
-        switch (listMessagesResult) {
-          case Ok<Iterable<Message>>(:final value):
-            final messages = value.toList();
-            final authorDisplayNamesBySubject =
-                await _loadAuthorDisplayNames(messages);
-            emit(MessagesLoadedState(
-              messages: messages,
-              channelId: trimmedChannelId,
-              authorDisplayNamesBySubject: authorDisplayNamesBySubject,
-            ));
-          case Error<Iterable<Message>>(:final error):
-            emit(MessagesExceptionState(error: error));
-        }
+      case Ok<Message>(:final value):
+        final messages = loadedState.messages
+            .map(
+              (message) => message.id == value.id ? value : message,
+            )
+            .toList();
+        final authorDisplayNamesBySubject =
+            await _loadAuthorDisplayNames(messages);
+        emit(MessagesLoadedState(
+          messages: messages,
+          channelId: trimmedChannelId,
+          authorDisplayNamesBySubject: authorDisplayNamesBySubject,
+        ));
       case Error<Message>(:final error):
         emit(MessagesExceptionState(error: error));
     }
@@ -268,27 +280,51 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     switch (deleteMessageResult) {
       case Ok<void>():
-        final listMessagesResult = await _messageRepo.getMany(
-          query: GetMessagesQuery(
-            channelId: trimmedChannelId,
-          ),
-        );
-        switch (listMessagesResult) {
-          case Ok<Iterable<Message>>(:final value):
-            final messages = value.toList();
-            final authorDisplayNamesBySubject =
-                await _loadAuthorDisplayNames(messages);
-            emit(MessagesLoadedState(
-              messages: messages,
-              channelId: trimmedChannelId,
-              authorDisplayNamesBySubject: authorDisplayNamesBySubject,
-            ));
-          case Error<Iterable<Message>>(:final error):
-            emit(MessagesExceptionState(error: error));
-        }
+        final messages = loadedState.messages
+            .where((message) => message.id != event.messageId)
+            .toList();
+        final authorDisplayNamesBySubject =
+            await _loadAuthorDisplayNames(messages);
+        emit(MessagesLoadedState(
+          messages: messages,
+          channelId: trimmedChannelId,
+          authorDisplayNamesBySubject: authorDisplayNamesBySubject,
+        ));
       case Error<void>(:final error):
         emit(MessagesExceptionState(error: error));
     }
+  }
+
+  Future<void> _onRealtimeMessageReceived(
+    RealtimeMessageReceived event,
+    Emitter<MessagesState> emit,
+  ) async {
+    final loadedState = _loadedStateOrNull(state);
+    if (loadedState == null || loadedState.channelId != event.channelId) {
+      return;
+    }
+
+    final trimmedContent = event.content.trim();
+    if (trimmedContent.isEmpty) {
+      return;
+    }
+
+    final messages = List<Message>.from(loadedState.messages)
+      ..add(
+        Message(
+          id: "rt-${DateTime.now().microsecondsSinceEpoch}",
+          channelId: event.channelId,
+          authorSubject: event.authorSubject,
+          content: trimmedContent,
+        ),
+      );
+
+    final authorDisplayNamesBySubject = await _loadAuthorDisplayNames(messages);
+    emit(MessagesLoadedState(
+      messages: messages,
+      channelId: loadedState.channelId,
+      authorDisplayNamesBySubject: authorDisplayNamesBySubject,
+    ));
   }
 
   MessagesLoadedDataState? _loadedStateOrNull(MessagesState state) {
@@ -322,5 +358,11 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     }
 
     return authorDisplayNamesBySubject;
+  }
+
+  @override
+  Future<void> close() async {
+    await _runtimeTextSubscription?.cancel();
+    return super.close();
   }
 }
