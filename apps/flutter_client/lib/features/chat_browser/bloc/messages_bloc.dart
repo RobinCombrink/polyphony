@@ -76,19 +76,14 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     final trimmedChannelId = event.channelId.trim();
     final trimmedMessageContent = event.messageContent.trim();
     final loadedState = _loadedStateOrNull(state);
-
-    if (loadedState == null) {
-      emit(MessagesExceptionState(
-        error: Exception("Messages must be loaded before creating a message."),
-      ));
-      return;
-    }
+    final currentMessages = loadedState?.messages ?? const <Message>[];
+    final currentChannelId = loadedState?.channelId ?? "";
 
     if (trimmedChannelId.isEmpty) {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.channelSelectionRequired,
-        messages: loadedState.messages,
-        channelId: loadedState.channelId,
+        messages: currentMessages,
+        channelId: currentChannelId,
       ));
       return;
     }
@@ -96,7 +91,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     if (trimmedMessageContent.isEmpty) {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.messageContentRequired,
-        messages: loadedState.messages,
+        messages: currentMessages,
         channelId: trimmedChannelId,
       ));
       return;

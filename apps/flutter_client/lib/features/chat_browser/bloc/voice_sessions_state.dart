@@ -20,16 +20,19 @@ sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
   const VoiceSessionsLoadedDataState({
     required this.activeConnection,
     required this.channelId,
+    required this.participantSubjects,
   });
 
   final VoiceConnectSession? activeConnection;
   final String channelId;
+  final List<String> participantSubjects;
 }
 
 final class VoiceSessionsLoadedState extends VoiceSessionsLoadedDataState {
   const VoiceSessionsLoadedState({
     required super.activeConnection,
     required super.channelId,
+    required super.participantSubjects,
   });
 }
 
@@ -39,6 +42,7 @@ final class VoiceSessionsValidationFailedState
     required this.issue,
     required super.activeConnection,
     required super.channelId,
+    required super.participantSubjects,
   });
 
   final VoiceSessionsValidationIssue issue;

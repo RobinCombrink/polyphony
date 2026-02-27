@@ -219,6 +219,11 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
 
     return const Ok<void>(null);
   }
+
+  @override
+  Iterable<String> currentParticipantSubjects() {
+    return const <String>["auth0|local_user"];
+  }
 }
 
 class FakeProfileRepository implements ProfileRepo {

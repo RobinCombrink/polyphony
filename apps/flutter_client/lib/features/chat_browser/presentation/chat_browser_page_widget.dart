@@ -10,7 +10,6 @@ import "package:polyphony_flutter_client/features/chat_browser/bloc/profile_bloc
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/messages_section_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/profile_section_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/servers_section_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/text_channels_section_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/token_tab_widget.dart";
@@ -40,9 +39,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
         return;
       }
 
-      context.read<ProfileBloc>().add(
-            const LoadProfileRequested(),
-          );
+      _loadInitialData(context);
     });
   }
 
@@ -87,14 +84,14 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   }
 
   void _requestCreateChannel(BuildContext context) {
-    final selectedServerId = switch (context.read<ServersBloc>().state) {
-      ServersLoadedDataState(:final selectedServerId) => selectedServerId,
-      _ => null,
+    final activeServerId = switch (context.read<ChannelsBloc>().state) {
+      ChannelsLoadedDataState(:final serverId) => serverId,
+      _ => "",
     };
 
     context.read<ChannelsBloc>().add(
           CreateChannelRequested(
-            serverId: selectedServerId ?? "",
+            serverId: activeServerId,
             channelName: createChannelController.text,
           ),
         );
@@ -114,6 +111,24 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
           UpdateDisplayNameRequested(
             displayName: displayName,
           ),
+        );
+  }
+
+  void _loadInitialData(BuildContext context) {
+    context.read<ChannelsBloc>().add(
+          const ResetChannelsRequested(),
+        );
+    context.read<MessagesBloc>().add(
+          const ResetMessagesRequested(),
+        );
+    context.read<VoiceSessionsBloc>().add(
+          const ResetVoiceSessionsRequested(),
+        );
+    context.read<ProfileBloc>().add(
+          const LoadProfileRequested(),
+        );
+    context.read<ServersBloc>().add(
+          const LoadServersRequested(),
         );
   }
 
@@ -137,6 +152,11 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
               ),
               tooltip: "Edit display name",
               icon: const Icon(Icons.person),
+            ),
+            IconButton(
+              onPressed: () => _loadInitialData(context),
+              tooltip: "Refresh servers",
+              icon: const Icon(Icons.refresh),
             ),
             IconButton(
               onPressed: () => context
@@ -219,7 +239,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                             final channelSelectionMode =
                                 channelsData?.selectionMode ??
                                     ChannelSelectionMode.text;
-
                             Channel? selectedTextChannel;
                             for (final channel in channels) {
                               if (channel.id == selectedTextChannelId) {
@@ -241,345 +260,344 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                 messagesState is MessagesLoadingState ||
                                 voiceSessionsState is VoiceSessionsLoadingState;
 
-                            final sectionStatus =
-                                buildProfileSectionStatus(profileState) ??
-                                    buildServersSectionStatus(serversState) ??
-                                    (selectedServerId != null
-                                        ? buildTextChannelsSectionStatus(
-                                                channelsState) ??
-                                            buildMessagesSectionStatus(
-                                                messagesState) ??
-                                            buildVoiceChannelsSectionStatus(
-                                              voiceSessionsState,
-                                            )
-                                        : null);
                             final currentDisplayName = switch (profileState) {
                               ProfileLoadedDataState(:final displayName) =>
                                 displayName,
                               _ => null,
                             };
-
-                            final activeVoiceChannelId = channelSelectionMode ==
-                                    ChannelSelectionMode.voice
-                                ? selectedVoiceChannel?.id
-                                : selectedTextChannel?.id;
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                            return Stack(
                               children: <Widget>[
-                                FilledButton(
-                                  onPressed: isLoading
-                                      ? null
-                                      : () {
-                                          context.read<ChannelsBloc>().add(
-                                                const ResetChannelsRequested(),
-                                              );
-                                          context.read<MessagesBloc>().add(
-                                                const ResetMessagesRequested(),
-                                              );
-                                          context.read<VoiceSessionsBloc>().add(
-                                                const ResetVoiceSessionsRequested(),
-                                              );
-                                          context.read<ProfileBloc>().add(
-                                                const LoadProfileRequested(),
-                                              );
-                                          context.read<ServersBloc>().add(
-                                                const LoadServersRequested(),
-                                              );
-                                        },
-                                  child: const Text("Load Servers"),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  "Display name: ${currentDisplayName ?? "Not set"}",
-                                ),
-                                const SizedBox(height: 12),
-                                if (sectionStatus != null)
-                                  sectionStatus.isError
-                                      ? SelectableText(sectionStatus.message)
-                                      : Text(sectionStatus.message)
-                                else if (isLoading)
-                                  const Text("Working...")
-                                else
-                                  Text(
-                                    "Loaded ${servers.length} server(s), ${channels.length} channel(s), ${messages.length} message(s), ${activeVoiceConnection == null ? 0 : 1} voice participant(s).",
-                                  ),
-                                const SizedBox(height: 12),
-                                Expanded(
-                                  child: Row(
-                                    children: <Widget>[
-                                      SizedBox(
-                                        width: 120,
-                                        child: ServersSectionWidget(
-                                          servers: servers,
-                                          selectedServerId: selectedServerId,
-                                          isLoading: isLoading,
-                                          createController:
-                                              createServerController,
-                                          onTap: (server) {
-                                            context.read<ServersBloc>().add(
-                                                  SelectServerRequested(
-                                                    serverId: server.id,
-                                                  ),
-                                                );
-                                            context.read<MessagesBloc>().add(
-                                                  const ResetMessagesRequested(),
-                                                );
-                                            context
-                                                .read<VoiceSessionsBloc>()
-                                                .add(
-                                                  const ResetVoiceSessionsRequested(),
-                                                );
-                                            context.read<ChannelsBloc>().add(
-                                                  const ResetChannelsRequested(),
-                                                );
-                                            context.read<ChannelsBloc>().add(
-                                                  LoadChannelsRequested(
-                                                    serverId: server.id,
-                                                  ),
-                                                );
-                                          },
-                                          onCreate: () =>
-                                              _requestCreateServer(context),
-                                        ),
+                                Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: <Widget>[
+                                    Text(
+                                      "Display name: ${currentDisplayName ?? "Not set"}",
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (isLoading)
+                                      const Text("Working...")
+                                    else
+                                      Text(
+                                        "Loaded ${servers.length} server(s), ${channels.length} channel(s), ${messages.length} message(s), ${activeVoiceConnection == null ? 0 : 1} voice participant(s).",
                                       ),
-                                      if (selectedServerId == null) ...<Widget>[
-                                        const SizedBox(width: 12),
-                                        const Expanded(
-                                          child: Card(
-                                            child: Center(
-                                              child: Text(
-                                                "Select a server to view channels and messages.",
-                                                textAlign: TextAlign.center,
-                                              ),
+                                    const SizedBox(height: 12),
+                                    Expanded(
+                                      child: Row(
+                                        children: <Widget>[
+                                          SizedBox(
+                                            width: 120,
+                                            child: ServersSectionWidget(
+                                              servers: servers,
+                                              selectedServerId:
+                                                  selectedServerId,
+                                              isLoading: isLoading,
+                                              createController:
+                                                  createServerController,
+                                              onTap: (server) {
+                                                context.read<ServersBloc>().add(
+                                                      SelectServerRequested(
+                                                        serverId: server.id,
+                                                      ),
+                                                    );
+                                                context
+                                                    .read<MessagesBloc>()
+                                                    .add(
+                                                      const ResetMessagesRequested(),
+                                                    );
+                                                context
+                                                    .read<VoiceSessionsBloc>()
+                                                    .add(
+                                                      const ResetVoiceSessionsRequested(),
+                                                    );
+                                                context
+                                                    .read<ChannelsBloc>()
+                                                    .add(
+                                                      const ResetChannelsRequested(),
+                                                    );
+                                                context
+                                                    .read<ChannelsBloc>()
+                                                    .add(
+                                                      LoadChannelsRequested(
+                                                        serverId: server.id,
+                                                      ),
+                                                    );
+                                              },
+                                              onCreate: () =>
+                                                  _requestCreateServer(context),
                                             ),
                                           ),
-                                        ),
-                                      ] else ...<Widget>[
-                                        const SizedBox(width: 12),
-                                        SizedBox(
-                                          width: 360,
-                                          child: Column(
-                                            children: <Widget>[
-                                              Row(
+                                          if (selectedServerId ==
+                                              null) ...<Widget>[
+                                            const SizedBox(width: 12),
+                                            const Expanded(
+                                              child: Card(
+                                                child: Center(
+                                                  child: Text(
+                                                    "Select a server to view channels and messages.",
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ] else ...<Widget>[
+                                            const SizedBox(width: 12),
+                                            SizedBox(
+                                              width: 360,
+                                              child: Column(
                                                 children: <Widget>[
-                                                  Expanded(
-                                                    child: TextField(
-                                                      controller:
-                                                          addServerMemberController,
-                                                      enabled: !isLoading,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                        labelText:
-                                                            "User subject to add",
+                                                  Row(
+                                                    children: <Widget>[
+                                                      Expanded(
+                                                        child: TextField(
+                                                          controller:
+                                                              addServerMemberController,
+                                                          enabled: !isLoading,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            labelText:
+                                                                "User subject to add",
+                                                          ),
+                                                        ),
                                                       ),
+                                                      const SizedBox(width: 8),
+                                                      FilledButton.tonal(
+                                                        onPressed: isLoading
+                                                            ? null
+                                                            : () =>
+                                                                _requestAddServerMember(
+                                                                  context,
+                                                                  selectedServerId,
+                                                                ),
+                                                        child: const Text(
+                                                            "Add user"),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  Expanded(
+                                                    child:
+                                                        TextChannelsSectionWidget(
+                                                      channels: channels,
+                                                      selectedChannelId:
+                                                          selectedTextChannelId,
+                                                      voiceParticipantCount:
+                                                          activeVoiceConnection ==
+                                                                  null
+                                                              ? 0
+                                                              : 1,
+                                                      isLoading: isLoading,
+                                                      createController:
+                                                          createChannelController,
+                                                      onTap: (channel) {
+                                                        context
+                                                            .read<
+                                                                ChannelsBloc>()
+                                                            .add(
+                                                              SelectTextChannelRequested(
+                                                                channelId:
+                                                                    channel.id,
+                                                              ),
+                                                            );
+                                                        context
+                                                            .read<
+                                                                MessagesBloc>()
+                                                            .add(
+                                                              LoadMessagesRequested(
+                                                                channelId:
+                                                                    channel.id,
+                                                              ),
+                                                            );
+                                                      },
+                                                      onCreate: () =>
+                                                          _requestCreateChannel(
+                                                              context),
                                                     ),
                                                   ),
-                                                  const SizedBox(width: 8),
-                                                  FilledButton.tonal(
-                                                    onPressed: isLoading
-                                                        ? null
-                                                        : () =>
-                                                            _requestAddServerMember(
-                                                              context,
-                                                              selectedServerId,
-                                                            ),
+                                                  const SizedBox(height: 12),
+                                                  Expanded(
                                                     child:
-                                                        const Text("Add user"),
+                                                        TextChannelsSectionWidget(
+                                                      channels: channels,
+                                                      selectedChannelId:
+                                                          selectedVoiceChannelId,
+                                                      voiceParticipantCount:
+                                                          activeVoiceConnection ==
+                                                                  null
+                                                              ? 0
+                                                              : 1,
+                                                      isLoading: isLoading,
+                                                      createController:
+                                                          createChannelController,
+                                                      title: "Voice channels",
+                                                      createLabel: "",
+                                                      createActionLabel: "",
+                                                      showCreateControls: false,
+                                                      interactionType:
+                                                          ChannelInteractionType
+                                                              .voice,
+                                                      onTap: (channel) {
+                                                        context
+                                                            .read<
+                                                                ChannelsBloc>()
+                                                            .add(
+                                                              SelectVoiceChannelRequested(
+                                                                channelId:
+                                                                    channel.id,
+                                                              ),
+                                                            );
+                                                        context
+                                                            .read<
+                                                                VoiceSessionsBloc>()
+                                                            .add(
+                                                              LoadVoiceSessionsRequested(
+                                                                channelId:
+                                                                    channel.id,
+                                                              ),
+                                                            );
+                                                        context
+                                                            .read<
+                                                                VoiceSessionsBloc>()
+                                                            .add(
+                                                              ConnectVoiceSessionRequested(
+                                                                channelId:
+                                                                    channel.id,
+                                                              ),
+                                                            );
+                                                      },
+                                                      onCreate: () {},
+                                                    ),
                                                   ),
                                                 ],
                                               ),
-                                              const SizedBox(height: 12),
-                                              Expanded(
-                                                child:
-                                                    TextChannelsSectionWidget(
-                                                  channels: channels,
-                                                  selectedChannelId:
-                                                      channelSelectionMode ==
-                                                              ChannelSelectionMode
-                                                                  .text
-                                                          ? selectedTextChannelId
-                                                          : null,
-                                                  voiceParticipantCount:
-                                                      activeVoiceConnection ==
-                                                              null
-                                                          ? 0
-                                                          : 1,
-                                                  isLoading: isLoading,
-                                                  createController:
-                                                      createChannelController,
-                                                  onTap: (channel) {
-                                                    context
-                                                        .read<ChannelsBloc>()
-                                                        .add(
-                                                          SelectTextChannelRequested(
-                                                            channelId:
-                                                                channel.id,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: switch (
+                                                  channelSelectionMode) {
+                                                ChannelSelectionMode.voice =>
+                                                  selectedVoiceChannel == null
+                                                      ? const Card(
+                                                          child: Center(
+                                                            child: Text(
+                                                              "Select a voice channel to view participants.",
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                            ),
                                                           ),
-                                                        );
-                                                    context
-                                                        .read<MessagesBloc>()
-                                                        .add(
-                                                          LoadMessagesRequested(
-                                                            channelId:
-                                                                channel.id,
-                                                          ),
-                                                        );
-                                                    context
-                                                        .read<
-                                                            VoiceSessionsBloc>()
-                                                        .add(
-                                                          LoadVoiceSessionsRequested(
-                                                            channelId:
-                                                                channel.id,
-                                                          ),
-                                                        );
-                                                  },
-                                                  onCreate: () =>
-                                                      _requestCreateChannel(
-                                                          context),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 12),
-                                              Expanded(
-                                                child:
-                                                    TextChannelsSectionWidget(
-                                                  channels: channels,
-                                                  selectedChannelId:
-                                                      channelSelectionMode ==
-                                                              ChannelSelectionMode
-                                                                  .voice
-                                                          ? selectedVoiceChannelId
-                                                          : null,
-                                                  voiceParticipantCount:
-                                                      activeVoiceConnection ==
-                                                              null
-                                                          ? 0
-                                                          : 1,
-                                                  isLoading: isLoading,
-                                                  createController:
-                                                      createChannelController,
-                                                  title: "Voice channels",
-                                                  createLabel: "",
-                                                  createActionLabel: "",
-                                                  showCreateControls: false,
-                                                  interactionType:
-                                                      ChannelInteractionType
-                                                          .voice,
-                                                  onTap: (channel) {
-                                                    context
-                                                        .read<ChannelsBloc>()
-                                                        .add(
-                                                          SelectVoiceChannelRequested(
-                                                            channelId:
-                                                                channel.id,
-                                                          ),
-                                                        );
-                                                    context
-                                                        .read<
-                                                            VoiceSessionsBloc>()
-                                                        .add(
-                                                          LoadVoiceSessionsRequested(
-                                                            channelId:
-                                                                channel.id,
-                                                          ),
-                                                        );
-                                                  },
-                                                  onCreate: () {},
-                                                ),
-                                              ),
-                                              const SizedBox(height: 12),
-                                              SizedBox(
-                                                height: 180,
-                                                child:
-                                                    VoiceChannelsSectionWidget(
-                                                  activeConnection:
-                                                      activeVoiceConnection,
-                                                  isLoading: isLoading,
-                                                  onConnect: () => context
-                                                      .read<VoiceSessionsBloc>()
-                                                      .add(
-                                                        ConnectVoiceSessionRequested(
-                                                          channelId:
-                                                              activeVoiceChannelId ??
-                                                                  "",
-                                                        ),
-                                                      ),
-                                                  onDisconnect: () => context
-                                                      .read<VoiceSessionsBloc>()
-                                                      .add(
-                                                        DisconnectVoiceSessionRequested(
-                                                          channelId:
-                                                              activeVoiceChannelId ??
-                                                                  "",
-                                                        ),
-                                                      ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: selectedTextChannel != null &&
-                                                  channelSelectionMode ==
-                                                      ChannelSelectionMode.text
-                                              ? MessagesSectionWidget(
-                                                  messages: messages,
-                                                  currentUserSubject:
-                                                      currentUserSubject,
-                                                  channelName:
-                                                      selectedTextChannel.name,
-                                                  createController:
-                                                      createMessageController,
-                                                  isLoading: isLoading,
-                                                  onCreate: () => context
-                                                      .read<MessagesBloc>()
-                                                      .add(
-                                                        CreateMessageRequested(
-                                                          channelId:
+                                                        )
+                                                      : (() {
+                                                          final voiceChannel =
+                                                              selectedVoiceChannel;
+                                                          return VoiceChannelsSectionWidget(
+                                                            participantDisplayNames:
+                                                                voiceData
+                                                                        ?.participantSubjects ??
+                                                                    const <String>[],
+                                                            channelName:
+                                                                voiceChannel!
+                                                                    .name,
+                                                            isLoading:
+                                                                isLoading,
+                                                            onLeave: () => context
+                                                                .read<
+                                                                    VoiceSessionsBloc>()
+                                                                .add(
+                                                                  DisconnectVoiceSessionRequested(
+                                                                    channelId:
+                                                                        voiceChannel
+                                                                            .id,
+                                                                  ),
+                                                                ),
+                                                          );
+                                                        })(),
+                                                ChannelSelectionMode.text =>
+                                                  selectedTextChannel != null
+                                                      ? MessagesSectionWidget(
+                                                          messages: messages,
+                                                          currentUserSubject:
+                                                              currentUserSubject,
+                                                          currentUserDisplayName:
+                                                              currentDisplayName,
+                                                          channelName:
                                                               selectedTextChannel
-                                                                      ?.id ??
-                                                                  "",
-                                                          messageContent:
-                                                              createMessageController
-                                                                  .text,
+                                                                  .name,
+                                                          createController:
+                                                              createMessageController,
+                                                          isLoading: isLoading,
+                                                          onCreate: () => context
+                                                              .read<
+                                                                  MessagesBloc>()
+                                                              .add(
+                                                                CreateMessageRequested(
+                                                                  channelId:
+                                                                      selectedTextChannel
+                                                                              ?.id ??
+                                                                          "",
+                                                                  messageContent:
+                                                                      createMessageController
+                                                                          .text,
+                                                                ),
+                                                              ),
+                                                          onEdit: (message) =>
+                                                              _showEditMessageDialog(
+                                                            context,
+                                                            message,
+                                                          ),
+                                                          onDelete: (message) =>
+                                                              context
+                                                                  .read<
+                                                                      MessagesBloc>()
+                                                                  .add(
+                                                                    DeleteMessageRequested(
+                                                                      channelId:
+                                                                          selectedTextChannel?.id ??
+                                                                              "",
+                                                                      messageId:
+                                                                          message
+                                                                              .id,
+                                                                    ),
+                                                                  ),
+                                                        )
+                                                      : const Card(
+                                                          child: Center(
+                                                            child: Text(
+                                                              "Select a text channel to view and send messages.",
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                            ),
+                                                          ),
                                                         ),
-                                                      ),
-                                                  onEdit: (message) =>
-                                                      _showEditMessageDialog(
-                                                    context,
-                                                    message,
-                                                  ),
-                                                  onDelete: (message) => context
-                                                      .read<MessagesBloc>()
-                                                      .add(
-                                                        DeleteMessageRequested(
-                                                          channelId:
-                                                              selectedTextChannel
-                                                                      ?.id ??
-                                                                  "",
-                                                          messageId: message.id,
-                                                        ),
-                                                      ),
-                                                )
-                                              : Card(
-                                                  child: Center(
-                                                    child: Text(
-                                                      selectedVoiceChannel ==
-                                                              null
-                                                          ? "Select a text channel to view and send messages."
-                                                          : "Selected voice channel ${selectedVoiceChannel.name}. Choose a text channel to open chat.",
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                  ),
-                                                ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
+                                              },
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                if (activeVoiceConnection != null)
+                                  Positioned(
+                                    left: 0,
+                                    bottom: 0,
+                                    child: IconButton.filledTonal(
+                                      onPressed: isLoading
+                                          ? null
+                                          : () => context
+                                              .read<VoiceSessionsBloc>()
+                                              .add(
+                                                DisconnectVoiceSessionRequested(
+                                                  channelId:
+                                                      activeVoiceConnection
+                                                          .channelId,
+                                                ),
+                                              ),
+                                      tooltip: "Disconnect voice",
+                                      icon: const Icon(Icons.call_end),
+                                    ),
+                                  ),
                               ],
                             );
                           },

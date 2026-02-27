@@ -23,17 +23,17 @@ SectionStatus? buildVoiceChannelsSectionStatus(VoiceSessionsState state) {
 
 class VoiceChannelsSectionWidget extends StatelessWidget {
   const VoiceChannelsSectionWidget({
-    required this.activeConnection,
+    required this.participantDisplayNames,
+    required this.channelName,
     required this.isLoading,
-    required this.onConnect,
-    required this.onDisconnect,
+    required this.onLeave,
     super.key,
   });
 
-  final VoiceConnectSession? activeConnection;
+  final List<String> participantDisplayNames;
+  final String channelName;
   final bool isLoading;
-  final VoidCallback onConnect;
-  final VoidCallback onDisconnect;
+  final VoidCallback onLeave;
 
   @override
   Widget build(BuildContext context) {
@@ -41,44 +41,38 @@ class VoiceChannelsSectionWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.all(12),
+          Padding(
+            padding: const EdgeInsets.all(12),
             child: Text(
-              "Voice",
-              style: TextStyle(fontWeight: FontWeight.bold),
+              "Voice participants · $channelName",
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(8),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                FilledButton(
-                  onPressed: isLoading ? null : onConnect,
-                  child: const Text("Connect"),
-                ),
-                FilledButton.tonal(
-                  onPressed: isLoading ? null : onDisconnect,
-                  child: const Text("Disconnect"),
-                ),
-              ],
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.tonal(
+                onPressed: isLoading ? null : onLeave,
+                child: const Text("Leave voice"),
+              ),
             ),
           ),
           Expanded(
             child: ListView(
               children: <Widget>[
-                if (activeConnection == null)
+                if (participantDisplayNames.isEmpty)
                   const ListTile(
                     leading: Icon(Icons.mic_off),
-                    title: Text("No active voice connection"),
+                    title: Text("No participants"),
                   )
                 else
-                  ListTile(
-                    leading: const Icon(Icons.mic),
-                    title: Text(activeConnection!.participantSubject),
-                    subtitle: Text("Channel ${activeConnection!.channelId}"),
+                  ...participantDisplayNames.map(
+                    (participant) => ListTile(
+                      leading: const Icon(Icons.mic),
+                      title: Text(participant),
+                    ),
                   ),
               ],
             ),

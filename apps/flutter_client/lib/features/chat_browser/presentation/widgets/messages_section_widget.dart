@@ -35,6 +35,7 @@ class MessagesSectionWidget extends StatelessWidget {
   const MessagesSectionWidget({
     required this.messages,
     required this.currentUserSubject,
+    required this.currentUserDisplayName,
     required this.createController,
     required this.isLoading,
     required this.onCreate,
@@ -46,12 +47,23 @@ class MessagesSectionWidget extends StatelessWidget {
 
   final List<Message> messages;
   final String? currentUserSubject;
+  final String? currentUserDisplayName;
   final String? channelName;
   final TextEditingController createController;
   final bool isLoading;
   final VoidCallback onCreate;
   final Future<void> Function(Message message) onEdit;
   final void Function(Message message) onDelete;
+
+  String _authorLabel(String authorSubject, bool isOwnMessage) {
+    if (isOwnMessage) {
+      return currentUserDisplayName?.trim().isNotEmpty == true
+          ? currentUserDisplayName!
+          : "You";
+    }
+
+    return "Member";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +136,7 @@ class MessagesSectionWidget extends StatelessWidget {
                               : CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              message.authorSubject,
+                              _authorLabel(message.authorSubject, isOwnMessage),
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
                             const SizedBox(height: 4),

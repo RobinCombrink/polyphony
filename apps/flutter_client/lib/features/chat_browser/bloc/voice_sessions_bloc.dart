@@ -60,15 +60,26 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
         channelId: loadedState.channelId,
+        participantSubjects: loadedState.participantSubjects,
       ));
       return;
     }
+
+    final participantSubjects = loadedState?.channelId == trimmedChannelId
+        ? _participantSubjectsOrFallback(
+            runtimeSubjects:
+                _voiceRuntimeService.currentParticipantSubjects().toList(),
+            fallbackSubjects: loadedState?.participantSubjects,
+            activeConnection: loadedState?.activeConnection,
+          )
+        : const <String>[];
 
     emit(VoiceSessionsLoadedState(
       activeConnection: loadedState?.channelId == trimmedChannelId
           ? loadedState?.activeConnection
           : null,
       channelId: trimmedChannelId,
+      participantSubjects: participantSubjects,
     ));
   }
 
@@ -91,8 +102,45 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
         channelId: loadedState.channelId,
+        participantSubjects: loadedState.participantSubjects,
       ));
       return;
+    }
+
+    final activeConnection = loadedState.activeConnection;
+    if (activeConnection != null &&
+        activeConnection.channelId == trimmedChannelId) {
+      emit(VoiceSessionsLoadedState(
+        activeConnection: activeConnection,
+        channelId: trimmedChannelId,
+        participantSubjects: _participantSubjectsOrFallback(
+          runtimeSubjects:
+              _voiceRuntimeService.currentParticipantSubjects().toList(),
+          fallbackSubjects: loadedState.participantSubjects,
+          activeConnection: activeConnection,
+        ),
+      ));
+      return;
+    }
+
+    if (activeConnection != null &&
+        activeConnection.channelId != trimmedChannelId) {
+      final runtimeDisconnectResult = await _voiceRuntimeService.disconnect();
+      if (runtimeDisconnectResult case Error<void>(:final error)) {
+        emit(VoiceSessionsExceptionState(error: error));
+        return;
+      }
+
+      final backendDisconnectResult = await _voiceSessionRepo.deleteOne(
+        command: DisconnectVoiceSessionCommand(
+          channelId: activeConnection.channelId,
+        ),
+      );
+
+      if (backendDisconnectResult case Error<void>(:final error)) {
+        emit(VoiceSessionsExceptionState(error: error));
+        return;
+      }
     }
 
     emit(const VoiceSessionsLoadingState());
@@ -112,9 +160,16 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
         switch (runtimeConnectResult) {
           case Ok<void>():
+            final participantSubjects = _participantSubjectsOrFallback(
+              runtimeSubjects:
+                  _voiceRuntimeService.currentParticipantSubjects().toList(),
+              fallbackSubjects: const <String>[],
+              activeConnection: value,
+            );
             emit(VoiceSessionsLoadedState(
               activeConnection: value,
               channelId: trimmedChannelId,
+              participantSubjects: participantSubjects,
             ));
           case Error<void>(:final error):
             emit(VoiceSessionsExceptionState(error: error));
@@ -143,6 +198,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
         channelId: loadedState.channelId,
+        participantSubjects: loadedState.participantSubjects,
       ));
       return;
     }
@@ -167,6 +223,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         emit(VoiceSessionsLoadedState(
           activeConnection: null,
           channelId: trimmedChannelId,
+          participantSubjects: const <String>[],
         ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
@@ -178,5 +235,26 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       VoiceSessionsLoadedDataState() => state,
       _ => null,
     };
+  }
+
+  List<String> _participantSubjectsOrFallback({
+    required List<String> runtimeSubjects,
+    required List<String>? fallbackSubjects,
+    required VoiceConnectSession? activeConnection,
+  }) {
+    if (runtimeSubjects.isNotEmpty) {
+      return runtimeSubjects.toSet().toList();
+    }
+
+    if (fallbackSubjects != null && fallbackSubjects.isNotEmpty) {
+      return fallbackSubjects.toSet().toList();
+    }
+
+    final participantSubject = activeConnection?.participantSubject;
+    if (participantSubject != null && participantSubject.isNotEmpty) {
+      return <String>[participantSubject];
+    }
+
+    return const <String>[];
   }
 }

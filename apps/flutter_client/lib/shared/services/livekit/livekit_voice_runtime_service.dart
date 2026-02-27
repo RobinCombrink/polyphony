@@ -40,6 +40,23 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
     }
   }
 
+  @override
+  Iterable<String> currentParticipantSubjects() {
+    final activeRoom = _room;
+    if (activeRoom == null) {
+      return const <String>[];
+    }
+
+    final localIdentity = activeRoom.localParticipant?.identity;
+    final remoteIdentities = activeRoom.remoteParticipants.values
+        .map((participant) => participant.identity);
+
+    return <String>{
+      if (localIdentity != null && localIdentity.isNotEmpty) localIdentity,
+      ...remoteIdentities.where((identity) => identity.isNotEmpty),
+    };
+  }
+
   Future<void> _disconnectCurrentRoom() async {
     final activeRoom = _room;
     _room = null;

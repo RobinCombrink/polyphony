@@ -126,27 +126,21 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     switch (createChannelResult) {
       case Ok<Channel>(:final value):
         final createdChannel = value;
-        final listChannelsResult = await _channelRepo.getMany(
-          query: GetChannelsQuery(
-            serverId: trimmedServerId,
-          ),
-        );
-        switch (listChannelsResult) {
-          case Ok<Iterable<Channel>>(:final value):
-            final channels = value.toList();
-            emit(ChannelsLoadedState(
-              channels: channels,
-              serverId: trimmedServerId,
-              selectedTextChannelId:
-                  channels.any((channel) => channel.id == createdChannel.id)
-                      ? createdChannel.id
-                      : null,
-              selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
-              selectionMode: ChannelSelectionMode.text,
-            ));
-          case Error<Iterable<Channel>>(:final error):
-            emit(ChannelsExceptionState(error: error));
-        }
+        final channels = <Channel>[
+          ...loadedState.channels,
+          if (!loadedState.channels.any(
+            (channel) => channel.id == createdChannel.id,
+          ))
+            createdChannel,
+        ];
+
+        emit(ChannelsLoadedState(
+          channels: channels,
+          serverId: trimmedServerId,
+          selectedTextChannelId: createdChannel.id,
+          selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
+          selectionMode: ChannelSelectionMode.text,
+        ));
       case Error<Channel>(:final error):
         emit(ChannelsExceptionState(error: error));
     }
