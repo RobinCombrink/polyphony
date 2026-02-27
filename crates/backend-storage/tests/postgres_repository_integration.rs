@@ -1,4 +1,5 @@
 use backend_storage::{ChatRepository, MessageRepository, PostgresChatRepository};
+use sqlx::PgPool;
 use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
 
 #[tokio::test]
@@ -25,6 +26,11 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
         PostgresChatRepository::connect(&host, port, "polyphony", "postgres", "postgres", 5)
             .await
             .expect("postgres repository initialization to succeed");
+
+    let connection_string = format!("postgres://postgres:postgres@{host}:{port}/polyphony");
+    let pool = PgPool::connect(&connection_string)
+        .await
+        .expect("postgres pool to connect");
 
     let user = repository
         .get_or_create_user_by_external_reference("auth0|integration-user")
@@ -57,4 +63,59 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
 
     assert_eq!(voice_session.channel_id, channel.id);
     assert_eq!(voice_session.participant_user_id, user.id);
+
+    assert_date_created_columns(&pool).await;
+    assert_inserted_rows_have_date_created(&pool).await;
+}
+
+async fn assert_date_created_columns(pool: &PgPool) {
+    let table_names = [
+        "users",
+        "servers",
+        "server_members",
+        "channels",
+        "messages",
+        "voice_sessions",
+    ];
+
+    for table_name in table_names {
+        let found = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM information_schema.columns
+             WHERE table_schema = 'public'
+               AND table_name = $1
+               AND column_name = 'date_created'",
+        )
+        .bind(table_name)
+        .fetch_one(pool)
+        .await
+        .expect("date_created column query to succeed");
+
+        assert_eq!(found, 1, "date_created column missing for {table_name}");
+    }
+}
+
+async fn assert_inserted_rows_have_date_created(pool: &PgPool) {
+    let table_names = [
+        "users",
+        "servers",
+        "server_members",
+        "channels",
+        "messages",
+        "voice_sessions",
+    ];
+
+    for table_name in table_names {
+        let null_count = sqlx::query_scalar::<_, i64>(&format!(
+            "SELECT COUNT(1) FROM {table_name} WHERE date_created IS NULL"
+        ))
+        .fetch_one(pool)
+        .await
+        .expect("date_created null check query to succeed");
+
+        assert_eq!(
+            null_count, 0,
+            "found rows without date_created in {table_name}"
+        );
+    }
 }
