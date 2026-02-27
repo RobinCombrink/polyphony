@@ -7,6 +7,7 @@ import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/voice_runtime_service.dart";
 
 import "../../entity_seeder.dart";
@@ -200,8 +201,6 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
 
   final bool forceConnectError;
   final bool forceDisconnectError;
-  final StreamController<RuntimeTextMessage> _textMessagesController =
-      StreamController<RuntimeTextMessage>.broadcast();
 
   @override
   Future<Result<void>> connect({
@@ -227,6 +226,39 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
   @override
   Iterable<String> currentParticipantSubjects() {
     return const <String>["auth0|local_user"];
+  }
+}
+
+class FakeMessageRuntimeService implements MessageRuntimeService {
+  FakeMessageRuntimeService({
+    this.forceConnectError = false,
+    this.forceDisconnectError = false,
+  });
+
+  final bool forceConnectError;
+  final bool forceDisconnectError;
+  final _textMessagesController =
+      StreamController<RuntimeTextMessage>.broadcast();
+
+  @override
+  Future<Result<void>> connect({
+    required String livekitUrl,
+    required String accessToken,
+  }) async {
+    if (forceConnectError) {
+      return Error<void>(Exception("Failed to connect to livekit"));
+    }
+
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> disconnect() async {
+    if (forceDisconnectError) {
+      return Error<void>(Exception("Failed to disconnect from livekit"));
+    }
+
+    return const Ok<void>(null);
   }
 
   @override

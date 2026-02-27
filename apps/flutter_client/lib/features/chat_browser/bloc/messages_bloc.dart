@@ -6,8 +6,9 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
-import "package:polyphony_flutter_client/shared/services/voice_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 
 part "messages_event.dart";
 part "messages_state.dart";
@@ -16,10 +17,12 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
   MessagesBloc({
     required MessageRepo messageRepo,
     required ProfileRepo profileRepo,
-    required VoiceRuntimeService voiceRuntimeService,
+    required VoiceSessionRepo voiceSessionRepo,
+    required MessageRuntimeService messageRuntimeService,
   })  : _messageRepo = messageRepo,
         _profileRepo = profileRepo,
-        _voiceRuntimeService = voiceRuntimeService,
+        _voiceSessionRepo = voiceSessionRepo,
+        _messageRuntimeService = messageRuntimeService,
         super(const MessagesInitialState()) {
     on<MessagesEvent>(
       _onMessagesEvent,
@@ -27,7 +30,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     );
 
     _runtimeTextSubscription =
-        _voiceRuntimeService.textMessages().listen((runtimeMessage) {
+        _messageRuntimeService.textMessages().listen((runtimeMessage) {
       add(RealtimeMessageReceived(
         channelId: runtimeMessage.channelId,
         authorSubject: runtimeMessage.authorSubject,
@@ -38,7 +41,8 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
   final MessageRepo _messageRepo;
   final ProfileRepo _profileRepo;
-  final VoiceRuntimeService _voiceRuntimeService;
+  final VoiceSessionRepo _voiceSessionRepo;
+  final MessageRuntimeService _messageRuntimeService;
   StreamSubscription<RuntimeTextMessage>? _runtimeTextSubscription;
 
   Future<void> _onMessagesEvent(
@@ -65,6 +69,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     ResetMessagesRequested event,
     Emitter<MessagesState> emit,
   ) {
+    unawaited(_messageRuntimeService.disconnect());
     emit(const MessagesInitialState());
   }
 
@@ -92,7 +97,28 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
       return;
     }
 
+    final currentState = _loadedStateOrNull(state);
     emit(const MessagesLoadingState());
+
+    if (currentState?.channelId != trimmedChannelId) {
+      final connectSessionResult = await _voiceSessionRepo.createOne(
+        command: ConnectVoiceSessionCommand(channelId: trimmedChannelId),
+      );
+
+      final connectionResult = switch (connectSessionResult) {
+        Ok<VoiceConnectSession>(:final value) =>
+          await _messageRuntimeService.connect(
+            livekitUrl: value.livekitUrl,
+            accessToken: value.accessToken,
+          ),
+        Error<VoiceConnectSession>(:final error) => Error<void>(error),
+      };
+
+      if (connectionResult case Error<void>(:final error)) {
+        emit(MessagesExceptionState(error: error));
+        return;
+      }
+    }
 
     final listMessagesResult = await _messageRepo.getMany(
       query: GetMessagesQuery(
@@ -149,7 +175,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     emit(const MessagesLoadingState());
 
-    final realtimeResult = await _voiceRuntimeService.sendTextMessage(
+    final realtimeResult = await _messageRuntimeService.sendTextMessage(
       channelId: trimmedChannelId,
       content: trimmedMessageContent,
     );
@@ -363,6 +389,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
   @override
   Future<void> close() async {
     await _runtimeTextSubscription?.cancel();
+    await _messageRuntimeService.disconnect();
     return super.close();
   }
 }
