@@ -4,6 +4,7 @@ use axum::{
     response::IntoResponse,
 };
 use backend_storage::MutationResult;
+use uuid::Uuid;
 
 use crate::{ApiState, auth::AuthenticatedUser};
 
@@ -18,7 +19,7 @@ use crate::{ApiState, auth::AuthenticatedUser};
     ),
     security(("bearer_auth" = [])),
     params(
-        ("channel_id" = String, Path, description = "Channel id"),
+        ("channel_id" = Uuid, Path, description = "Channel id"),
         ("message_id" = String, Path, description = "Message id")
     ),
     tag = "backend-api"
@@ -26,11 +27,11 @@ use crate::{ApiState, auth::AuthenticatedUser};
 pub(crate) async fn delete_message(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
-    Path((channel_id, message_id)): Path<(String, String)>,
+    Path((channel_id, message_id)): Path<(Uuid, String)>,
 ) -> impl IntoResponse {
     let mutation_result = state
         .message_repository
-        .delete_message(&channel_id, &message_id, &authenticated_user.subject)
+        .delete_message(channel_id, &message_id, &authenticated_user.subject)
         .await;
 
     match mutation_result {

@@ -6,6 +6,7 @@ use axum::{
 };
 use backend_domain::{Channel, Membership, Server};
 use backend_storage::MutationResult;
+use uuid::Uuid;
 
 use crate::{
     ApiState,
@@ -70,19 +71,19 @@ pub(crate) async fn list_servers(
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("server_id" = String, Path, description = "Server id")),
+    params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
 pub(crate) async fn add_server_member(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
-    Path(server_id): Path<String>,
+    Path(server_id): Path<Uuid>,
     Json(request): Json<AddServerMemberRequest>,
 ) -> impl IntoResponse {
     let mutation_result = state
         .chat_repository
         .add_server_member(
-            &server_id,
+            server_id,
             &authenticated_user.subject,
             request.user_subject.clone(),
         )
@@ -113,17 +114,17 @@ pub(crate) async fn add_server_member(
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("server_id" = String, Path, description = "Server id")),
+    params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
 pub(crate) async fn delete_server(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
-    Path(server_id): Path<String>,
+    Path(server_id): Path<Uuid>,
 ) -> impl IntoResponse {
     let mutation_result = state
         .chat_repository
-        .delete_server(&server_id, &authenticated_user.subject)
+        .delete_server(server_id, &authenticated_user.subject)
         .await;
 
     match mutation_result {
@@ -144,20 +145,20 @@ pub(crate) async fn delete_server(
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("server_id" = String, Path, description = "Server id")),
+    params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
 pub(crate) async fn create_channel(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
-    Path(server_id): Path<String>,
+    Path(server_id): Path<Uuid>,
     Json(request): Json<CreateChannelRequest>,
 ) -> impl IntoResponse {
     let _ = authenticated_user;
 
     let created_channel = state
         .chat_repository
-        .create_channel(&server_id, request.name)
+        .create_channel(server_id, request.name)
         .await;
 
     match created_channel {
@@ -176,17 +177,17 @@ pub(crate) async fn create_channel(
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("channel_id" = String, Path, description = "Channel id")),
+    params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
 pub(crate) async fn delete_channel(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<String>,
+    Path(channel_id): Path<Uuid>,
 ) -> impl IntoResponse {
     let mutation_result = state
         .chat_repository
-        .delete_channel(&channel_id, &authenticated_user.subject)
+        .delete_channel(channel_id, &authenticated_user.subject)
         .await;
 
     match mutation_result {
@@ -206,17 +207,17 @@ pub(crate) async fn delete_channel(
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("server_id" = String, Path, description = "Server id")),
+    params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
 pub(crate) async fn list_channels(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
-    Path(server_id): Path<String>,
+    Path(server_id): Path<Uuid>,
 ) -> impl IntoResponse {
     let _ = authenticated_user;
 
-    let channels = state.chat_repository.list_channels_for_server(&server_id).await;
+    let channels = state.chat_repository.list_channels_for_server(server_id).await;
 
     match channels {
         Some(server_channels) => (StatusCode::OK, Json(server_channels)).into_response(),

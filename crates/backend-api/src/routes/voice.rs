@@ -6,6 +6,7 @@ use axum::{
     response::IntoResponse,
 };
 use livekit_api::access_token::{AccessToken, VideoGrants};
+use uuid::Uuid;
 
 use crate::{ApiState, auth::AuthenticatedUser};
 
@@ -19,19 +20,19 @@ use crate::{ApiState, auth::AuthenticatedUser};
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("channel_id" = String, Path, description = "Channel id")),
+    params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
 pub(crate) async fn connect_voice_session(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<String>,
+    Path(channel_id): Path<Uuid>,
 ) -> impl IntoResponse {
     let participant_subject = authenticated_user.subject;
 
     if state
         .chat_repository
-        .list_voice_sessions(&channel_id)
+        .list_voice_sessions(channel_id)
         .await
         .is_none()
     {
@@ -40,7 +41,7 @@ pub(crate) async fn connect_voice_session(
 
     let grants = VideoGrants {
         room_join: true,
-        room: channel_id.clone(),
+        room: channel_id.to_string(),
         can_publish: true,
         can_subscribe: true,
         ..Default::default()
@@ -66,7 +67,7 @@ pub(crate) async fn connect_voice_session(
         Json(VoiceConnectResponse {
             livekit_url: state.livekit_config.url.clone(),
             access_token,
-            channel_id,
+            channel_id: channel_id.to_string(),
             participant_subject,
         }),
     )

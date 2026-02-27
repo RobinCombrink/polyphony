@@ -447,7 +447,8 @@ async fn given_missing_channel_when_delete_channel_then_status_is_404() {
     let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
-    let delete_channel_response = delete_channel(&app, "chn-missing").await;
+    let delete_channel_response =
+        delete_channel(&app, "00000000-0000-0000-0000-000000000001").await;
 
     assert_eq!(delete_channel_response.status(), StatusCode::NOT_FOUND);
 }

@@ -5,6 +5,7 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::Message;
+use uuid::Uuid;
 
 use crate::{ApiState, auth::AuthenticatedUser};
 
@@ -16,17 +17,17 @@ use crate::{ApiState, auth::AuthenticatedUser};
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("channel_id" = String, Path, description = "Channel id")),
+    params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
 pub(crate) async fn list_messages(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<String>,
+    Path(channel_id): Path<Uuid>,
 ) -> impl IntoResponse {
     let _ = authenticated_user;
 
-    let messages = state.message_repository.list_messages(&channel_id).await;
+    let messages = state.message_repository.list_messages(channel_id).await;
 
     (StatusCode::OK, Json(messages))
 }

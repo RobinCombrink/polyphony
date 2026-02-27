@@ -6,6 +6,7 @@ use axum::{
 };
 use backend_domain::Message;
 use backend_storage::MutationResult;
+use uuid::Uuid;
 
 use crate::{ApiState, auth::AuthenticatedUser, dto::UpdateMessageRequest};
 
@@ -21,7 +22,7 @@ use crate::{ApiState, auth::AuthenticatedUser, dto::UpdateMessageRequest};
     ),
     security(("bearer_auth" = [])),
     params(
-        ("channel_id" = String, Path, description = "Channel id"),
+        ("channel_id" = Uuid, Path, description = "Channel id"),
         ("message_id" = String, Path, description = "Message id")
     ),
     tag = "backend-api"
@@ -29,13 +30,13 @@ use crate::{ApiState, auth::AuthenticatedUser, dto::UpdateMessageRequest};
 pub(crate) async fn update_message(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
-    Path((channel_id, message_id)): Path<(String, String)>,
+    Path((channel_id, message_id)): Path<(Uuid, String)>,
     Json(request): Json<UpdateMessageRequest>,
 ) -> impl IntoResponse {
     let mutation_result = state
         .message_repository
         .update_message(
-            &channel_id,
+            channel_id,
             &message_id,
             &authenticated_user.subject,
             request.content,
@@ -46,7 +47,7 @@ pub(crate) async fn update_message(
         MutationResult::Updated => {
             let updated_message = state
                 .message_repository
-                .list_messages(&channel_id)
+                .list_messages(channel_id)
                 .await
                 .into_iter()
                 .find(|message| message.id == message_id);

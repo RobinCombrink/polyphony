@@ -45,11 +45,7 @@ impl PostgresChatRepository {
         Ok(())
     }
 
-    async fn server_exists(&self, server_id: &str) -> Result<bool, sqlx::Error> {
-        let Ok(server_id) = Uuid::parse_str(server_id) else {
-            return Ok(false);
-        };
-
+    async fn server_exists(&self, server_id: Uuid) -> Result<bool, sqlx::Error> {
         let row = sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM servers WHERE id = $1")
             .bind(server_id)
             .fetch_one(&self.pool)
@@ -58,7 +54,7 @@ impl PostgresChatRepository {
         Ok(row > 0)
     }
 
-    async fn channel_exists(&self, channel_id: &str) -> Result<bool, sqlx::Error> {
+    async fn channel_exists(&self, channel_id: Uuid) -> Result<bool, sqlx::Error> {
         let row = sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM channels WHERE id = $1")
             .bind(channel_id)
             .fetch_one(&self.pool)
@@ -72,7 +68,7 @@ impl PostgresChatRepository {
 impl MessageRepository for PostgresChatRepository {
     async fn create_message(
         &self,
-        channel_id: &str,
+        channel_id: Uuid,
         author_subject: String,
         content: String,
     ) -> Option<Message> {
@@ -80,7 +76,7 @@ impl MessageRepository for PostgresChatRepository {
             return None;
         }
 
-        sqlx::query_as::<_, (String, String, String, String)>(
+        sqlx::query_as::<_, (String, Uuid, String, String)>(
             "WITH generated AS (
                 SELECT CONCAT('msg-', nextval('message_id_seq')::TEXT) AS id
             )
@@ -105,7 +101,7 @@ impl MessageRepository for PostgresChatRepository {
 
     async fn update_message(
         &self,
-        channel_id: &str,
+        channel_id: Uuid,
         message_id: &str,
         author_subject: &str,
         content: String,
@@ -148,7 +144,7 @@ impl MessageRepository for PostgresChatRepository {
 
     async fn delete_message(
         &self,
-        channel_id: &str,
+        channel_id: Uuid,
         message_id: &str,
         author_subject: &str,
     ) -> MutationResult {
@@ -186,8 +182,8 @@ impl MessageRepository for PostgresChatRepository {
         }
     }
 
-    async fn list_messages(&self, channel_id: &str) -> Vec<Message> {
-        sqlx::query_as::<_, (String, String, String, String)>(
+    async fn list_messages(&self, channel_id: Uuid) -> Vec<Message> {
+        sqlx::query_as::<_, (String, Uuid, String, String)>(
             "SELECT id, channel_id, author_subject, content
              FROM messages
              WHERE channel_id = $1
@@ -285,7 +281,7 @@ impl ChatRepository for PostgresChatRepository {
         .expect("create server in postgres to succeed");
 
         Server {
-            id: server_id.to_string(),
+            id: server_id,
             name,
             owner_subject: owner_subject_created,
         }
@@ -305,7 +301,7 @@ impl ChatRepository for PostgresChatRepository {
         .unwrap_or_default()
         .into_iter()
         .map(|(id, name, owner_subject)| Server {
-            id: id.to_string(),
+            id,
             name,
             owner_subject,
         })
@@ -314,14 +310,10 @@ impl ChatRepository for PostgresChatRepository {
 
     async fn add_server_member(
         &self,
-        server_id: &str,
+        server_id: Uuid,
         actor_subject: &str,
         user_subject: String,
     ) -> MutationResult {
-        let Ok(server_id) = Uuid::parse_str(server_id) else {
-            return MutationResult::NotFound;
-        };
-
         let owner_subject =
             sqlx::query_scalar::<_, String>("SELECT owner_subject FROM servers WHERE id = $1")
                 .bind(server_id)
@@ -357,11 +349,7 @@ impl ChatRepository for PostgresChatRepository {
         }
     }
 
-    async fn delete_server(&self, server_id: &str, actor_subject: &str) -> MutationResult {
-        let Ok(server_id) = Uuid::parse_str(server_id) else {
-            return MutationResult::NotFound;
-        };
-
+    async fn delete_server(&self, server_id: Uuid, actor_subject: &str) -> MutationResult {
         let owner_subject =
             sqlx::query_scalar::<_, String>("SELECT owner_subject FROM servers WHERE id = $1")
                 .bind(server_id)
@@ -393,10 +381,8 @@ impl ChatRepository for PostgresChatRepository {
         }
     }
 
-    async fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>> {
-        let server_id = Uuid::parse_str(server_id).ok()?;
-
-        if !self.server_exists(&server_id.to_string()).await.ok()? {
+    async fn list_server_members(&self, server_id: Uuid) -> Option<Vec<Membership>> {
+        if !self.server_exists(server_id).await.ok()? {
             return None;
         }
 
@@ -413,27 +399,21 @@ impl ChatRepository for PostgresChatRepository {
         .into_iter()
         .map(|(server_id, user_subject)| Membership {
             user_subject,
-            server_id: server_id.to_string(),
+            server_id,
         })
         .collect();
 
         Some(members)
     }
 
-    async fn create_channel(&self, server_id: &str, name: String) -> Option<Channel> {
-        let server_id = Uuid::parse_str(server_id).ok()?;
-
-        if !self.server_exists(&server_id.to_string()).await.ok()? {
+    async fn create_channel(&self, server_id: Uuid, name: String) -> Option<Channel> {
+        if !self.server_exists(server_id).await.ok()? {
             return None;
         }
 
-        sqlx::query_as::<_, (String, Uuid, String)>(
-            "WITH generated AS (
-                SELECT CONCAT('chn-', nextval('channel_id_seq')::TEXT) AS id
-            )
-            INSERT INTO channels (id, server_id, name)
-            SELECT generated.id, $1, $2
-            FROM generated
+        sqlx::query_as::<_, (Uuid, Uuid, String)>(
+            "INSERT INTO channels (id, server_id, name)
+            VALUES (gen_random_uuid(), $1, $2)
             RETURNING id, server_id, name",
         )
         .bind(server_id)
@@ -443,12 +423,12 @@ impl ChatRepository for PostgresChatRepository {
         .ok()
         .map(|(id, server_id, name)| Channel {
             id,
-            server_id: server_id.to_string(),
+            server_id,
             name,
         })
     }
 
-    async fn delete_channel(&self, channel_id: &str, actor_subject: &str) -> MutationResult {
+    async fn delete_channel(&self, channel_id: Uuid, actor_subject: &str) -> MutationResult {
         let owner_subject = sqlx::query_scalar::<_, String>(
             "SELECT s.owner_subject
              FROM channels c
@@ -484,14 +464,12 @@ impl ChatRepository for PostgresChatRepository {
         }
     }
 
-    async fn list_channels_for_server(&self, server_id: &str) -> Option<Vec<Channel>> {
-        let server_id = Uuid::parse_str(server_id).ok()?;
-
-        if !self.server_exists(&server_id.to_string()).await.ok()? {
+    async fn list_channels_for_server(&self, server_id: Uuid) -> Option<Vec<Channel>> {
+        if !self.server_exists(server_id).await.ok()? {
             return None;
         }
 
-        let channels = sqlx::query_as::<_, (String, Uuid, String)>(
+        let channels = sqlx::query_as::<_, (Uuid, Uuid, String)>(
             "SELECT id, server_id, name
              FROM channels
              WHERE server_id = $1
@@ -504,7 +482,7 @@ impl ChatRepository for PostgresChatRepository {
         .into_iter()
         .map(|(id, server_id, name)| Channel {
             id,
-            server_id: server_id.to_string(),
+            server_id,
             name,
         })
         .collect();
@@ -514,7 +492,7 @@ impl ChatRepository for PostgresChatRepository {
 
     async fn join_voice_session(
         &self,
-        channel_id: &str,
+        channel_id: Uuid,
         participant_subject: String,
     ) -> Option<VoiceSession> {
         if !self.channel_exists(channel_id).await.ok()? {
@@ -536,14 +514,14 @@ impl ChatRepository for PostgresChatRepository {
         }
 
         Some(VoiceSession {
-            channel_id: channel_id.to_owned(),
+            channel_id,
             participant_subject,
         })
     }
 
     async fn leave_voice_session(
         &self,
-        channel_id: &str,
+        channel_id: Uuid,
         participant_subject: &str,
     ) -> MutationResult {
         if !self.channel_exists(channel_id).await.unwrap_or(false) {
@@ -566,12 +544,12 @@ impl ChatRepository for PostgresChatRepository {
         }
     }
 
-    async fn list_voice_sessions(&self, channel_id: &str) -> Option<Vec<VoiceSession>> {
+    async fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>> {
         if !self.channel_exists(channel_id).await.ok()? {
             return None;
         }
 
-        let sessions = sqlx::query_as::<_, (String, String)>(
+        let sessions = sqlx::query_as::<_, (Uuid, String)>(
             "SELECT channel_id, participant_subject
              FROM voice_sessions
              WHERE channel_id = $1

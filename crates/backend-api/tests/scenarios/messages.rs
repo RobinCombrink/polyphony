@@ -344,7 +344,13 @@ async fn given_missing_channel_when_update_message_then_status_is_404() {
     let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
-    let response = update_message(&app, "chn-missing", "msg-1", "attempted update").await;
+    let response = update_message(
+        &app,
+        "00000000-0000-0000-0000-000000000001",
+        "msg-1",
+        "attempted update",
+    )
+    .await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
@@ -386,7 +392,7 @@ async fn given_missing_channel_when_delete_message_then_status_is_404() {
     let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
-    let response = delete_message(&app, "chn-missing", "msg-1").await;
+    let response = delete_message(&app, "00000000-0000-0000-0000-000000000001", "msg-1").await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use backend_domain::{Channel, Membership, Message, Server, User, VoiceSession};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 use crate::{ChatRepository, InMemoryStore, MessageRepository, MutationResult};
 
@@ -21,7 +22,7 @@ impl InMemoryChatRepository {
 impl MessageRepository for InMemoryChatRepository {
     async fn create_message(
         &self,
-        channel_id: &str,
+        channel_id: Uuid,
         author_subject: String,
         content: String,
     ) -> Option<Message> {
@@ -31,7 +32,7 @@ impl MessageRepository for InMemoryChatRepository {
 
     async fn update_message(
         &self,
-        channel_id: &str,
+        channel_id: Uuid,
         message_id: &str,
         author_subject: &str,
         content: String,
@@ -42,7 +43,7 @@ impl MessageRepository for InMemoryChatRepository {
 
     async fn delete_message(
         &self,
-        channel_id: &str,
+        channel_id: Uuid,
         message_id: &str,
         author_subject: &str,
     ) -> MutationResult {
@@ -50,7 +51,7 @@ impl MessageRepository for InMemoryChatRepository {
         store.delete_message(channel_id, message_id, author_subject)
     }
 
-    async fn list_messages(&self, channel_id: &str) -> Vec<Message> {
+    async fn list_messages(&self, channel_id: Uuid) -> Vec<Message> {
         let store = self.store.read().await;
         store.list_messages(channel_id)
     }
@@ -95,7 +96,7 @@ impl ChatRepository for InMemoryChatRepository {
 
     async fn add_server_member(
         &self,
-        server_id: &str,
+        server_id: Uuid,
         actor_subject: &str,
         user_subject: String,
     ) -> MutationResult {
@@ -103,30 +104,30 @@ impl ChatRepository for InMemoryChatRepository {
         store.add_server_member(server_id, actor_subject, user_subject)
     }
 
-    async fn delete_server(&self, server_id: &str, actor_subject: &str) -> MutationResult {
+    async fn delete_server(&self, server_id: Uuid, actor_subject: &str) -> MutationResult {
         let mut store = self.store.write().await;
         store.delete_server(server_id, actor_subject)
     }
 
-    async fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>> {
+    async fn list_server_members(&self, server_id: Uuid) -> Option<Vec<Membership>> {
         let store = self.store.read().await;
         store.list_server_members(server_id)
     }
 
-    async fn create_channel(&self, server_id: &str, name: String) -> Option<Channel> {
+    async fn create_channel(&self, server_id: Uuid, name: String) -> Option<Channel> {
         let mut store = self.store.write().await;
         store.create_channel(server_id, name)
     }
 
-    async fn delete_channel(&self, channel_id: &str, actor_subject: &str) -> MutationResult {
+    async fn delete_channel(&self, channel_id: Uuid, actor_subject: &str) -> MutationResult {
         let mut store = self.store.write().await;
         store.delete_channel(channel_id, actor_subject)
     }
 
-    async fn list_channels_for_server(&self, server_id: &str) -> Option<Vec<Channel>> {
+    async fn list_channels_for_server(&self, server_id: Uuid) -> Option<Vec<Channel>> {
         let store = self.store.read().await;
 
-        if !store.servers.contains_key(server_id) {
+        if !store.servers.contains_key(&server_id) {
             return None;
         }
 
@@ -142,7 +143,7 @@ impl ChatRepository for InMemoryChatRepository {
 
     async fn join_voice_session(
         &self,
-        channel_id: &str,
+        channel_id: Uuid,
         participant_subject: String,
     ) -> Option<VoiceSession> {
         let mut store = self.store.write().await;
@@ -151,14 +152,14 @@ impl ChatRepository for InMemoryChatRepository {
 
     async fn leave_voice_session(
         &self,
-        channel_id: &str,
+        channel_id: Uuid,
         participant_subject: &str,
     ) -> MutationResult {
         let mut store = self.store.write().await;
         store.leave_voice_session(channel_id, participant_subject)
     }
 
-    async fn list_voice_sessions(&self, channel_id: &str) -> Option<Vec<VoiceSession>> {
+    async fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>> {
         let store = self.store.read().await;
         store.list_voice_sessions(channel_id)
     }

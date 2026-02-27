@@ -67,7 +67,8 @@ async fn given_missing_channel_when_connect_voice_session_then_status_is_404() {
     let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
-    let connect_response = connect_voice_session(&app, "chn-missing").await;
+    let connect_response =
+        connect_voice_session(&app, "00000000-0000-0000-0000-000000000001").await;
 
     assert_eq!(connect_response.status(), StatusCode::NOT_FOUND);
 }

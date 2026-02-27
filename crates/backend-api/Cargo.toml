@@ -27,7 +27,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 utoipa = { version = "5.4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
 url = "2.5"
+uuid = { version = "1.18", features = ["serde", "v4"] }
 
 [dev-dependencies]
 cucumber = "0.21"
-uuid = { version = "1.18", features = ["v4"] }

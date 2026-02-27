@@ -7,14 +7,13 @@ use crate::MutationResult;
 
 #[derive(Debug, Default)]
 pub(crate) struct InMemoryStore {
-    pub(crate) next_channel_id: u64,
     pub(crate) next_message_id: u64,
     pub(crate) users_by_subject: HashMap<String, User>,
-    pub(crate) servers: HashMap<String, Server>,
-    pub(crate) server_members_by_id: HashMap<String, Vec<String>>,
-    pub(crate) channels: HashMap<String, Channel>,
-    pub(crate) messages_by_channel: HashMap<String, Vec<Message>>,
-    pub(crate) voice_participants_by_channel: HashMap<String, Vec<String>>,
+    pub(crate) servers: HashMap<Uuid, Server>,
+    pub(crate) server_members_by_id: HashMap<Uuid, Vec<String>>,
+    pub(crate) channels: HashMap<Uuid, Channel>,
+    pub(crate) messages_by_channel: HashMap<Uuid, Vec<Message>>,
+    pub(crate) voice_participants_by_channel: HashMap<Uuid, Vec<String>>,
 }
 
 impl InMemoryStore {
@@ -51,25 +50,26 @@ impl InMemoryStore {
     }
 
     pub(crate) fn create_server(&mut self, name: String, owner_subject: String) -> Server {
+        let server_id = Uuid::new_v4();
         let server = Server {
-            id: Uuid::new_v4().to_string(),
+            id: server_id,
             name,
             owner_subject: owner_subject.clone(),
         };
 
-        self.servers.insert(server.id.clone(), server.clone());
+        self.servers.insert(server.id, server.clone());
         self.server_members_by_id
-            .insert(server.id.clone(), vec![owner_subject]);
+            .insert(server.id, vec![owner_subject]);
         server
     }
 
     pub(crate) fn add_server_member(
         &mut self,
-        server_id: &str,
+        server_id: Uuid,
         actor_subject: &str,
         user_subject: String,
     ) -> MutationResult {
-        let server = match self.servers.get(server_id) {
+        let server = match self.servers.get(&server_id) {
             Some(existing_server) => existing_server,
             None => return MutationResult::NotFound,
         };
@@ -80,7 +80,7 @@ impl InMemoryStore {
 
         let members = self
             .server_members_by_id
-            .entry(server_id.to_owned())
+            .entry(server_id)
             .or_insert_with(|| vec![server.owner_subject.clone()]);
 
         if !members.contains(&user_subject) {
@@ -90,8 +90,8 @@ impl InMemoryStore {
         MutationResult::Updated
     }
 
-    pub(crate) fn delete_server(&mut self, server_id: &str, actor_subject: &str) -> MutationResult {
-        let server = match self.servers.get(server_id) {
+    pub(crate) fn delete_server(&mut self, server_id: Uuid, actor_subject: &str) -> MutationResult {
+        let server = match self.servers.get(&server_id) {
             Some(existing_server) => existing_server,
             None => return MutationResult::NotFound,
         };
@@ -100,14 +100,14 @@ impl InMemoryStore {
             return MutationResult::Forbidden;
         }
 
-        self.servers.remove(server_id);
-        self.server_members_by_id.remove(server_id);
+        self.servers.remove(&server_id);
+        self.server_members_by_id.remove(&server_id);
 
         let channel_ids = self
             .channels
             .values()
             .filter(|channel| channel.server_id == server_id)
-            .map(|channel| channel.id.clone())
+            .map(|channel| channel.id)
             .collect::<Vec<_>>();
 
         for channel_id in channel_ids {
@@ -119,20 +119,20 @@ impl InMemoryStore {
         MutationResult::Deleted
     }
 
-    pub(crate) fn list_server_members(&self, server_id: &str) -> Option<Vec<Membership>> {
-        if !self.servers.contains_key(server_id) {
+    pub(crate) fn list_server_members(&self, server_id: Uuid) -> Option<Vec<Membership>> {
+        if !self.servers.contains_key(&server_id) {
             return None;
         }
 
         let members = self
             .server_members_by_id
-            .get(server_id)
+            .get(&server_id)
             .map(|subjects| {
                 subjects
                     .iter()
                     .map(|user_subject| Membership {
                         user_subject: user_subject.clone(),
-                        server_id: server_id.to_owned(),
+                        server_id,
                     })
                     .collect::<Vec<_>>()
             })
@@ -141,28 +141,27 @@ impl InMemoryStore {
         Some(members)
     }
 
-    pub(crate) fn create_channel(&mut self, server_id: &str, name: String) -> Option<Channel> {
-        if !self.servers.contains_key(server_id) {
+    pub(crate) fn create_channel(&mut self, server_id: Uuid, name: String) -> Option<Channel> {
+        if !self.servers.contains_key(&server_id) {
             return None;
         }
 
-        self.next_channel_id += 1;
         let channel = Channel {
-            id: format!("chn-{}", self.next_channel_id),
-            server_id: server_id.to_owned(),
+            id: Uuid::new_v4(),
+            server_id,
             name,
         };
 
-        self.channels.insert(channel.id.clone(), channel.clone());
+        self.channels.insert(channel.id, channel.clone());
         Some(channel)
     }
 
     pub(crate) fn delete_channel(
         &mut self,
-        channel_id: &str,
+        channel_id: Uuid,
         actor_subject: &str,
     ) -> MutationResult {
-        let channel = match self.channels.get(channel_id) {
+        let channel = match self.channels.get(&channel_id) {
             Some(existing_channel) => existing_channel,
             None => return MutationResult::NotFound,
         };
@@ -176,54 +175,54 @@ impl InMemoryStore {
             return MutationResult::Forbidden;
         }
 
-        self.channels.remove(channel_id);
-        self.messages_by_channel.remove(channel_id);
-        self.voice_participants_by_channel.remove(channel_id);
+        self.channels.remove(&channel_id);
+        self.messages_by_channel.remove(&channel_id);
+        self.voice_participants_by_channel.remove(&channel_id);
 
         MutationResult::Deleted
     }
 
     pub(crate) fn create_message(
         &mut self,
-        channel_id: &str,
+        channel_id: Uuid,
         author_subject: String,
         content: String,
     ) -> Option<Message> {
-        if !self.channels.contains_key(channel_id) {
+        if !self.channels.contains_key(&channel_id) {
             return None;
         }
 
         self.next_message_id += 1;
         let message = Message {
             id: format!("msg-{}", self.next_message_id),
-            channel_id: channel_id.to_owned(),
+            channel_id,
             author_subject,
             content,
         };
 
         self.messages_by_channel
-            .entry(channel_id.to_owned())
+            .entry(channel_id)
             .or_default()
             .push(message.clone());
 
         Some(message)
     }
 
-    pub(crate) fn list_messages(&self, channel_id: &str) -> Vec<Message> {
+    pub(crate) fn list_messages(&self, channel_id: Uuid) -> Vec<Message> {
         self.messages_by_channel
-            .get(channel_id)
+            .get(&channel_id)
             .cloned()
             .unwrap_or_default()
     }
 
     pub(crate) fn update_message(
         &mut self,
-        channel_id: &str,
+        channel_id: Uuid,
         message_id: &str,
         author_subject: &str,
         content: String,
     ) -> MutationResult {
-        let messages = match self.messages_by_channel.get_mut(channel_id) {
+        let messages = match self.messages_by_channel.get_mut(&channel_id) {
             Some(existing_messages) => existing_messages,
             None => return MutationResult::NotFound,
         };
@@ -242,11 +241,11 @@ impl InMemoryStore {
 
     pub(crate) fn delete_message(
         &mut self,
-        channel_id: &str,
+        channel_id: Uuid,
         message_id: &str,
         author_subject: &str,
     ) -> MutationResult {
-        let messages = match self.messages_by_channel.get_mut(channel_id) {
+        let messages = match self.messages_by_channel.get_mut(&channel_id) {
             Some(existing_messages) => existing_messages,
             None => return MutationResult::NotFound,
         };
@@ -265,16 +264,16 @@ impl InMemoryStore {
 
     pub(crate) fn join_voice_session(
         &mut self,
-        channel_id: &str,
+        channel_id: Uuid,
         participant_subject: String,
     ) -> Option<VoiceSession> {
-        if !self.channels.contains_key(channel_id) {
+        if !self.channels.contains_key(&channel_id) {
             return None;
         }
 
         let participants = self
             .voice_participants_by_channel
-            .entry(channel_id.to_owned())
+            .entry(channel_id)
             .or_default();
 
         if !participants.contains(&participant_subject) {
@@ -282,21 +281,21 @@ impl InMemoryStore {
         }
 
         Some(VoiceSession {
-            channel_id: channel_id.to_owned(),
+            channel_id,
             participant_subject,
         })
     }
 
     pub(crate) fn leave_voice_session(
         &mut self,
-        channel_id: &str,
+        channel_id: Uuid,
         participant_subject: &str,
     ) -> MutationResult {
-        if !self.channels.contains_key(channel_id) {
+        if !self.channels.contains_key(&channel_id) {
             return MutationResult::NotFound;
         }
 
-        let participants = match self.voice_participants_by_channel.get_mut(channel_id) {
+        let participants = match self.voice_participants_by_channel.get_mut(&channel_id) {
             Some(existing_participants) => existing_participants,
             None => return MutationResult::NotFound,
         };
@@ -313,19 +312,19 @@ impl InMemoryStore {
         }
     }
 
-    pub(crate) fn list_voice_sessions(&self, channel_id: &str) -> Option<Vec<VoiceSession>> {
-        if !self.channels.contains_key(channel_id) {
+    pub(crate) fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>> {
+        if !self.channels.contains_key(&channel_id) {
             return None;
         }
 
         let sessions = self
             .voice_participants_by_channel
-            .get(channel_id)
+            .get(&channel_id)
             .map(|participants| {
                 participants
                     .iter()
                     .map(|participant_subject| VoiceSession {
-                        channel_id: channel_id.to_owned(),
+                        channel_id,
                         participant_subject: participant_subject.clone(),
                     })
                     .collect::<Vec<_>>()
