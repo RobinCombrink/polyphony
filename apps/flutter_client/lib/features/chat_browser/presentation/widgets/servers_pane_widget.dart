@@ -76,53 +76,78 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ServersBloc, ServersState>(
-      builder: (context, serversState) {
-        final isLoading = serversState is ServersInitialState ||
-            serversState is ServersLoadingState;
-        final loadedData =
-            serversState is ServersLoadedDataState ? serversState : null;
-        final errorMessage = serversState is ServersExceptionState
-            ? serversState.error.toString()
-            : null;
+    return BlocListener<ServersBloc, ServersState>(
+      listenWhen: (previous, current) {
+        final previousSelectedServerId = switch (previous) {
+          ServersLoadedDataState(:final selectedServerId) => selectedServerId,
+          _ => null,
+        };
+        final currentSelectedServerId = switch (current) {
+          ServersLoadedDataState(:final selectedServerId) => selectedServerId,
+          _ => null,
+        };
 
-        if (errorMessage != null) {
-          return SomethingWentWrongWidget(message: errorMessage);
+        return previousSelectedServerId != currentSelectedServerId;
+      },
+      listener: (context, state) {
+        final selectedServerId = switch (state) {
+          ServersLoadedDataState(:final selectedServerId) => selectedServerId,
+          _ => null,
+        };
+
+        if (selectedServerId == null) {
+          return;
         }
 
-        final servers = loadedData?.servers ?? const <Server>[];
-        final visibleServers =
-            isLoading && servers.isEmpty ? _skeletonServers() : servers;
-
-        return Skeletonizer(
-          enabled: isLoading,
-          child: ServersSectionWidget(
-            servers: visibleServers,
-            selectedServerId: loadedData?.selectedServerId,
-            isLoading: isLoading,
-            createController: widget.createController,
-            onTap: (server) {
-              context
-                  .read<ServersBloc>()
-                  .add(SelectServerRequested(serverId: server.id));
-              context.read<MessagesBloc>().add(const ResetMessagesRequested());
-              context
-                  .read<VoiceSessionsBloc>()
-                  .add(const ResetVoiceSessionsRequested());
-              context.read<ChannelsBloc>().add(const ResetChannelsRequested());
-              context
-                  .read<ChannelsBloc>()
-                  .add(LoadChannelsRequested(serverId: server.id));
-            },
-            onAddUser: (server) => _showAddUserToServerDialog(server.id),
-            onCreate: () => context.read<ServersBloc>().add(
-                  CreateServerRequested(
-                    serverName: widget.createController.text,
-                  ),
-                ),
-          ),
-        );
+        context.read<MessagesBloc>().add(const ResetMessagesRequested());
+        context
+            .read<VoiceSessionsBloc>()
+            .add(const ResetVoiceSessionsRequested());
+        context.read<ChannelsBloc>().add(const ResetChannelsRequested());
+        context
+            .read<ChannelsBloc>()
+            .add(LoadChannelsRequested(serverId: selectedServerId));
       },
+      child: BlocBuilder<ServersBloc, ServersState>(
+        builder: (context, serversState) {
+          final isLoading = serversState is ServersInitialState ||
+              serversState is ServersLoadingState;
+          final loadedData =
+              serversState is ServersLoadedDataState ? serversState : null;
+          final errorMessage = serversState is ServersExceptionState
+              ? serversState.error.toString()
+              : null;
+
+          if (errorMessage != null) {
+            return SomethingWentWrongWidget(message: errorMessage);
+          }
+
+          final servers = loadedData?.servers ?? const <Server>[];
+          final visibleServers =
+              isLoading && servers.isEmpty ? _skeletonServers() : servers;
+
+          return Skeletonizer(
+            enabled: isLoading,
+            child: ServersSectionWidget(
+              servers: visibleServers,
+              selectedServerId: loadedData?.selectedServerId,
+              isLoading: isLoading,
+              createController: widget.createController,
+              onTap: (server) {
+                context
+                    .read<ServersBloc>()
+                    .add(SelectServerRequested(serverId: server.id));
+              },
+              onAddUser: (server) => _showAddUserToServerDialog(server.id),
+              onCreate: () => context.read<ServersBloc>().add(
+                    CreateServerRequested(
+                      serverName: widget.createController.text,
+                    ),
+                  ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
