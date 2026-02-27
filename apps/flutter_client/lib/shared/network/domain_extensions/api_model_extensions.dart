@@ -93,3 +93,12 @@ extension ApiMeToDomainExtension on ApiMe {
     );
   }
 }
+
+extension ApiUserLookupToDomainExtension on ApiUserLookup {
+  UserProfile toDomainModel() {
+    return UserProfile(
+      userId: id,
+      displayName: displayName,
+    );
+  }
+}

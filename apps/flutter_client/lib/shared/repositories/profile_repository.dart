@@ -34,4 +34,17 @@ class ProfileRepository implements ProfileRepo {
       Error<ApiMe>(:final error) => Error<UserProfile>(error),
     };
   }
+
+  @override
+  Future<Result<UserProfile>> getUserById({
+    required GetUserProfileByIdQuery query,
+  }) async {
+    final serviceResult =
+        await _profileService.getUserById(userId: query.userId);
+
+    return switch (serviceResult) {
+      Ok<ApiUserLookup>(:final value) => Ok<UserProfile>(value.toDomainModel()),
+      Error<ApiUserLookup>(:final error) => Error<UserProfile>(error),
+    };
+  }
 }

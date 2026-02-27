@@ -12,6 +12,12 @@ void main() {
     "updates message and emits loaded state",
     build: () => MessagesBloc(
       messageRepo: FakeMessageRepository(fixture: fixture),
+      profileRepo: FakeProfileRepository(
+        userId: fixture.ownerSubject,
+        displayNamesByUserId: <String, String?>{
+          fixture.listedMessage.authorSubject: "Listed Author",
+        },
+      ),
     ),
     act: (bloc) {
       bloc.add(LoadMessagesRequested(
@@ -27,11 +33,18 @@ void main() {
       isA<MessagesLoadingState>(),
       isA<MessagesLoadedState>(),
       isA<MessagesLoadingState>(),
-      isA<MessagesLoadedState>().having(
-        (state) => state.messages.first.content,
-        "updated content",
-        "edited",
-      ),
+      isA<MessagesLoadedState>()
+          .having(
+            (state) => state.messages.first.content,
+            "updated content",
+            "edited",
+          )
+          .having(
+            (state) => state.authorDisplayNamesBySubject[
+                fixture.listedMessage.authorSubject],
+            "author display name",
+            "Listed Author",
+          ),
     ],
   );
 
@@ -41,6 +54,9 @@ void main() {
       messageRepo: FakeMessageRepository(
         fixture: fixture,
         forceDeleteNotFound: true,
+      ),
+      profileRepo: FakeProfileRepository(
+        userId: fixture.ownerSubject,
       ),
     ),
     act: (bloc) {

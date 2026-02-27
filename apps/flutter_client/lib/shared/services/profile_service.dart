@@ -7,4 +7,8 @@ abstract interface class ProfileService {
   Future<Result<ApiMe>> updateDisplayName({
     required String displayName,
   });
+
+  Future<Result<ApiUserLookup>> getUserById({
+    required String userId,
+  });
 }

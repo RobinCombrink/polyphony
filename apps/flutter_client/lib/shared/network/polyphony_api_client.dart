@@ -195,6 +195,19 @@ class PolyphonyApiClient implements ChatApi {
     );
   }
 
+  @override
+  Future<Result<ApiUserLookup>> getUserById({
+    required String baseUrl,
+    required String userId,
+  }) {
+    return _performGetRequest<ApiUserLookup>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/users/$userId",
+      operation: "get user by id",
+      decodeItem: ApiUserLookup.fromJson,
+    );
+  }
+
   Map<String, String> _headers() {
     final currentAuthState = _authenticationStateSource.currentAuthState;
 

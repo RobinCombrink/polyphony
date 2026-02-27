@@ -1,6 +1,7 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 import "../entity_seeder.dart";
 import "test_doubles/chat_repository_fakes.dart";
@@ -13,6 +14,12 @@ void main() {
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
       voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(
+        userId: fixture.ownerSubject,
+        displayNamesByUserId: const <String, String?>{
+          "auth0|local_user": "Local User",
+        },
+      ),
     ),
     act: (bloc) => bloc.add(
       LoadVoiceSessionsRequested(
@@ -20,10 +27,16 @@ void main() {
       ),
     ),
     expect: () => <Matcher>[
-      isA<VoiceSessionsLoadedState>().having(
+      isA<VoiceSessionsLoadedState>()
+          .having(
         (state) => state.channelId,
         "channel id",
         fixture.listedChannel.id,
+      )
+          .having(
+        (state) => state.participants,
+        "participants",
+        const <VoiceParticipant>[],
       ),
     ],
   );
@@ -33,6 +46,7 @@ void main() {
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
       voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerSubject),
     ),
     act: (bloc) {
       bloc.add(LoadVoiceSessionsRequested(
@@ -57,6 +71,7 @@ void main() {
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
       voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerSubject),
     ),
     act: (bloc) {
       bloc.add(LoadVoiceSessionsRequested(

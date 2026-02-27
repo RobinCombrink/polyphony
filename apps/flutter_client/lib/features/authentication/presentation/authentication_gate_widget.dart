@@ -115,8 +115,10 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
                     ChannelsBloc(channelRepo: context.read<ChannelRepo>()),
               ),
               BlocProvider<MessagesBloc>(
-                create: (context) =>
-                    MessagesBloc(messageRepo: context.read<MessageRepo>()),
+                create: (context) => MessagesBloc(
+                  messageRepo: context.read<MessageRepo>(),
+                  profileRepo: context.read<ProfileRepo>(),
+                ),
               ),
               BlocProvider<ProfileBloc>(
                 create: (context) =>
@@ -126,6 +128,7 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
                 create: (context) => VoiceSessionsBloc(
                   voiceSessionRepo: context.read<VoiceSessionRepo>(),
                   voiceRuntimeService: context.read<VoiceRuntimeService>(),
+                  profileRepo: context.read<ProfileRepo>(),
                 ),
               ),
             ],

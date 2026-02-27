@@ -106,3 +106,20 @@ class ApiMe {
     );
   }
 }
+
+class ApiUserLookup {
+  const ApiUserLookup({
+    required this.id,
+    required this.displayName,
+  });
+
+  final String id;
+  final String? displayName;
+
+  factory ApiUserLookup.fromJson(Map<String, dynamic> json) {
+    return ApiUserLookup(
+      id: json["id"] as String,
+      displayName: json["display_name"] as String?,
+    );
+  }
+}

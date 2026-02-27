@@ -1,24 +1,47 @@
+import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
 part "messages_event.dart";
 part "messages_state.dart";
 
 class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
-  MessagesBloc({required MessageRepo messageRepo})
-      : _messageRepo = messageRepo,
+  MessagesBloc({
+    required MessageRepo messageRepo,
+    required ProfileRepo profileRepo,
+  })  : _messageRepo = messageRepo,
+        _profileRepo = profileRepo,
         super(const MessagesInitialState()) {
-    on<ResetMessagesRequested>(_onResetMessagesRequested);
-    on<LoadMessagesRequested>(_onLoadMessagesRequested);
-    on<CreateMessageRequested>(_onCreateMessageRequested);
-    on<UpdateMessageRequested>(_onUpdateMessageRequested);
-    on<DeleteMessageRequested>(_onDeleteMessageRequested);
+    on<MessagesEvent>(
+      _onMessagesEvent,
+      transformer: sequential(),
+    );
   }
 
   final MessageRepo _messageRepo;
+  final ProfileRepo _profileRepo;
+
+  Future<void> _onMessagesEvent(
+    MessagesEvent event,
+    Emitter<MessagesState> emit,
+  ) async {
+    switch (event) {
+      case ResetMessagesRequested():
+        _onResetMessagesRequested(event, emit);
+      case LoadMessagesRequested():
+        await _onLoadMessagesRequested(event, emit);
+      case CreateMessageRequested():
+        await _onCreateMessageRequested(event, emit);
+      case UpdateMessageRequested():
+        await _onUpdateMessageRequested(event, emit);
+      case DeleteMessageRequested():
+        await _onDeleteMessageRequested(event, emit);
+    }
+  }
 
   void _onResetMessagesRequested(
     ResetMessagesRequested event,
@@ -46,6 +69,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: loadedState.messages,
         channelId: loadedState.channelId,
+        authorDisplayNamesBySubject: loadedState.authorDisplayNamesBySubject,
       ));
       return;
     }
@@ -60,9 +84,13 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     switch (listMessagesResult) {
       case Ok<Iterable<Message>>(:final value):
+        final messages = value.toList();
+        final authorDisplayNamesBySubject =
+            await _loadAuthorDisplayNames(messages);
         emit(MessagesLoadedState(
-          messages: value.toList(),
+          messages: messages,
           channelId: trimmedChannelId,
+          authorDisplayNamesBySubject: authorDisplayNamesBySubject,
         ));
       case Error<Iterable<Message>>(:final error):
         emit(MessagesExceptionState(error: error));
@@ -84,6 +112,8 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: currentMessages,
         channelId: currentChannelId,
+        authorDisplayNamesBySubject: loadedState?.authorDisplayNamesBySubject ??
+            const <String, String?>{},
       ));
       return;
     }
@@ -93,6 +123,8 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.messageContentRequired,
         messages: currentMessages,
         channelId: trimmedChannelId,
+        authorDisplayNamesBySubject: loadedState?.authorDisplayNamesBySubject ??
+            const <String, String?>{},
       ));
       return;
     }
@@ -115,9 +147,13 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         );
         switch (listMessagesResult) {
           case Ok<Iterable<Message>>(:final value):
+            final messages = value.toList();
+            final authorDisplayNamesBySubject =
+                await _loadAuthorDisplayNames(messages);
             emit(MessagesLoadedState(
-              messages: value.toList(),
+              messages: messages,
               channelId: trimmedChannelId,
+              authorDisplayNamesBySubject: authorDisplayNamesBySubject,
             ));
           case Error<Iterable<Message>>(:final error):
             emit(MessagesExceptionState(error: error));
@@ -147,6 +183,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: loadedState.messages,
         channelId: loadedState.channelId,
+        authorDisplayNamesBySubject: loadedState.authorDisplayNamesBySubject,
       ));
       return;
     }
@@ -156,6 +193,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.updatedContentRequired,
         messages: loadedState.messages,
         channelId: trimmedChannelId,
+        authorDisplayNamesBySubject: loadedState.authorDisplayNamesBySubject,
       ));
       return;
     }
@@ -179,9 +217,13 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         );
         switch (listMessagesResult) {
           case Ok<Iterable<Message>>(:final value):
+            final messages = value.toList();
+            final authorDisplayNamesBySubject =
+                await _loadAuthorDisplayNames(messages);
             emit(MessagesLoadedState(
-              messages: value.toList(),
+              messages: messages,
               channelId: trimmedChannelId,
+              authorDisplayNamesBySubject: authorDisplayNamesBySubject,
             ));
           case Error<Iterable<Message>>(:final error):
             emit(MessagesExceptionState(error: error));
@@ -210,6 +252,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: loadedState.messages,
         channelId: loadedState.channelId,
+        authorDisplayNamesBySubject: loadedState.authorDisplayNamesBySubject,
       ));
       return;
     }
@@ -232,9 +275,13 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         );
         switch (listMessagesResult) {
           case Ok<Iterable<Message>>(:final value):
+            final messages = value.toList();
+            final authorDisplayNamesBySubject =
+                await _loadAuthorDisplayNames(messages);
             emit(MessagesLoadedState(
-              messages: value.toList(),
+              messages: messages,
               channelId: trimmedChannelId,
+              authorDisplayNamesBySubject: authorDisplayNamesBySubject,
             ));
           case Error<Iterable<Message>>(:final error):
             emit(MessagesExceptionState(error: error));
@@ -249,5 +296,31 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
       MessagesLoadedDataState() => state,
       _ => null,
     };
+  }
+
+  Future<Map<String, String?>> _loadAuthorDisplayNames(
+    List<Message> messages,
+  ) async {
+    final subjects = messages
+        .map((message) => message.authorSubject)
+        .toSet()
+        .toList(growable: false);
+
+    final authorDisplayNamesBySubject = <String, String?>{};
+    for (final subject in subjects) {
+      final profileResult = await _profileRepo.getUserById(
+        query: GetUserProfileByIdQuery(userId: subject),
+      );
+
+      final displayName = switch (profileResult) {
+        Ok<UserProfile>(:final value) => value.displayName?.trim(),
+        Error<UserProfile>() => null,
+      };
+
+      authorDisplayNamesBySubject[subject] =
+          displayName != null && displayName.isNotEmpty ? displayName : null;
+    }
+
+    return authorDisplayNamesBySubject;
   }
 }

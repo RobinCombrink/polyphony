@@ -70,4 +70,9 @@ abstract interface class ChatApi {
     required String baseUrl,
     required String displayName,
   });
+
+  Future<Result<ApiUserLookup>> getUserById({
+    required String baseUrl,
+    required String userId,
+  });
 }

@@ -23,14 +23,14 @@ SectionStatus? buildVoiceChannelsSectionStatus(VoiceSessionsState state) {
 
 class VoiceChannelsSectionWidget extends StatelessWidget {
   const VoiceChannelsSectionWidget({
-    required this.participantDisplayNames,
+    required this.participants,
     required this.channelName,
     required this.isLoading,
     required this.onLeave,
     super.key,
   });
 
-  final List<String> participantDisplayNames;
+  final List<VoiceParticipant> participants;
   final String channelName;
   final bool isLoading;
   final VoidCallback onLeave;
@@ -62,16 +62,16 @@ class VoiceChannelsSectionWidget extends StatelessWidget {
           Expanded(
             child: ListView(
               children: <Widget>[
-                if (participantDisplayNames.isEmpty)
+                if (participants.isEmpty)
                   const ListTile(
                     leading: Icon(Icons.mic_off),
                     title: Text("No participants"),
                   )
                 else
-                  ...participantDisplayNames.map(
+                  ...participants.map(
                     (participant) => ListTile(
                       leading: const Icon(Icons.mic),
-                      title: Text(participant),
+                      title: Text(participant.displayName),
                     ),
                   ),
               ],

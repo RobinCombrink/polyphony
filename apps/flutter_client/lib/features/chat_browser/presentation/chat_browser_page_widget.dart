@@ -491,10 +491,9 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                           final voiceChannel =
                                                               selectedVoiceChannel;
                                                           return VoiceChannelsSectionWidget(
-                                                            participantDisplayNames:
-                                                                voiceData
-                                                                        ?.participantSubjects ??
-                                                                    const <String>[],
+                                                            participants: voiceData
+                                                                    ?.participants ??
+                                                                const <VoiceParticipant>[],
                                                             channelName:
                                                                 voiceChannel!
                                                                     .name,
@@ -520,6 +519,11 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                               currentUserSubject,
                                                           currentUserDisplayName:
                                                               currentDisplayName,
+                                                          authorDisplayNamesBySubject:
+                                                              messagesData
+                                                                      ?.authorDisplayNamesBySubject ??
+                                                                  const <String,
+                                                                      String?>{},
                                                           channelName:
                                                               selectedTextChannel
                                                                   .name,

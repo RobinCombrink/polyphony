@@ -232,12 +232,14 @@ class FakeProfileRepository implements ProfileRepo {
     this.initialDisplayName,
     this.forceGetError = false,
     this.forceUpdateError = false,
+    this.displayNamesByUserId = const <String, String?>{},
   }) : _displayName = initialDisplayName;
 
   final String userId;
   final String? initialDisplayName;
   final bool forceGetError;
   final bool forceUpdateError;
+  final Map<String, String?> displayNamesByUserId;
   String? _displayName;
 
   @override
@@ -267,6 +269,26 @@ class FakeProfileRepository implements ProfileRepo {
       UserProfile(
         userId: userId,
         displayName: _displayName,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<UserProfile>> getUserById({
+    required GetUserProfileByIdQuery query,
+  }) async {
+    if (forceGetError) {
+      return Error<UserProfile>(Exception("Failed to get profile"));
+    }
+
+    final displayName = displayNamesByUserId.containsKey(query.userId)
+        ? displayNamesByUserId[query.userId]
+        : (query.userId == userId ? _displayName : null);
+
+    return Ok<UserProfile>(
+      UserProfile(
+        userId: query.userId,
+        displayName: displayName,
       ),
     );
   }

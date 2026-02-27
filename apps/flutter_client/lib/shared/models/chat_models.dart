@@ -85,6 +85,16 @@ class VoiceConnectSession {
   final String participantSubject;
 }
 
+class VoiceParticipant {
+  const VoiceParticipant({
+    required this.subject,
+    required this.displayName,
+  });
+
+  final String subject;
+  final String displayName;
+}
+
 class UserProfile {
   const UserProfile({
     required this.userId,

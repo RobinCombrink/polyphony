@@ -36,6 +36,7 @@ class MessagesSectionWidget extends StatelessWidget {
     required this.messages,
     required this.currentUserSubject,
     required this.currentUserDisplayName,
+    required this.authorDisplayNamesBySubject,
     required this.createController,
     required this.isLoading,
     required this.onCreate,
@@ -48,6 +49,7 @@ class MessagesSectionWidget extends StatelessWidget {
   final List<Message> messages;
   final String? currentUserSubject;
   final String? currentUserDisplayName;
+  final Map<String, String?> authorDisplayNamesBySubject;
   final String? channelName;
   final TextEditingController createController;
   final bool isLoading;
@@ -56,13 +58,20 @@ class MessagesSectionWidget extends StatelessWidget {
   final void Function(Message message) onDelete;
 
   String _authorLabel(String authorSubject, bool isOwnMessage) {
+    final resolvedDisplayName =
+        authorDisplayNamesBySubject[authorSubject]?.trim();
+
     if (isOwnMessage) {
       return currentUserDisplayName?.trim().isNotEmpty == true
           ? currentUserDisplayName!
-          : "You";
+          : (resolvedDisplayName?.isNotEmpty == true
+              ? resolvedDisplayName!
+              : "You");
     }
 
-    return "Member";
+    return resolvedDisplayName?.isNotEmpty == true
+        ? resolvedDisplayName!
+        : "Member";
   }
 
   @override

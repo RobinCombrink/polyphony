@@ -44,4 +44,19 @@ class RestProfileService implements ProfileService {
       displayName: displayName,
     );
   }
+
+  @override
+  Future<Result<ApiUserLookup>> getUserById({
+    required String userId,
+  }) async {
+    if (_authenticationStateSource.currentAuthState
+        is! AuthenticationAuthenticatedState) {
+      return _missingTokenError();
+    }
+
+    return _chatApi.getUserById(
+      baseUrl: _baseUrl,
+      userId: userId,
+    );
+  }
 }
