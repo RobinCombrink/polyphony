@@ -27,7 +27,7 @@ class ChatApiFixture {
 class EntitySeeder {
   static final _random = Random();
 
-  String authSubject({String? value}) {
+  String authUserId({String? value}) {
     if (value != null && value.trim().isNotEmpty) {
       return value;
     }
@@ -79,7 +79,7 @@ class EntitySeeder {
     return Server(
       id: id ?? "srv-seeded-$randomSegment",
       name: name ?? "Server-$randomSegment",
-      ownerUserId: authSubject(value: ownerUserId),
+      ownerUserId: authUserId(value: ownerUserId),
     );
   }
 

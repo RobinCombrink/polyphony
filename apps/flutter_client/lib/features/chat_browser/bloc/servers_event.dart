@@ -25,9 +25,9 @@ final class SelectServerRequested extends ServersEvent {
 final class AddServerMemberRequested extends ServersEvent {
   const AddServerMemberRequested({
     required this.serverId,
-    required this.userSubject,
+    required this.userId,
   });
 
   final String serverId;
-  final String userSubject;
+  final String userId;
 }

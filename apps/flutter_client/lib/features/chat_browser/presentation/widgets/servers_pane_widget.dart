@@ -35,7 +35,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
             autofocus: true,
             textInputAction: TextInputAction.done,
             onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
-            decoration: const InputDecoration(labelText: "User subject"),
+            decoration: const InputDecoration(labelText: "User id"),
           ),
           actions: <Widget>[
             TextButton(
@@ -58,7 +58,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
     context.read<ServersBloc>().add(
           AddServerMemberRequested(
             serverId: serverId,
-            userSubject: result,
+            userId: result,
           ),
         );
   }

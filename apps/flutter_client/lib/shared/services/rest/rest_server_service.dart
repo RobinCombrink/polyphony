@@ -45,7 +45,7 @@ class RestServerService implements ServerService {
   @override
   Future<Result<void>> addServerMember({
     required String serverId,
-    required String userSubject,
+    required String userId,
   }) async {
     if (_authenticationStateSource.currentAuthState
         is! AuthenticationAuthenticatedState) {
@@ -55,7 +55,7 @@ class RestServerService implements ServerService {
     return _chatApi.addServerMember(
       baseUrl: _baseUrl,
       serverId: serverId,
-      userSubject: userSubject,
+      userId: userId,
     );
   }
 }

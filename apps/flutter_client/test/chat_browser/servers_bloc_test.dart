@@ -86,7 +86,7 @@ void main() {
       bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
       bloc.add(AddServerMemberRequested(
         serverId: fixture.listedServer.id,
-        userSubject: "auth0|new_member",
+        userId: "auth0|new_member",
       ));
     },
     expect: () => <Matcher>[
@@ -103,7 +103,7 @@ void main() {
   );
 
   blocTest<ServersBloc, ServersState>(
-    "emits validation failed when add-member subject is empty",
+    "emits validation failed when add-member user id is empty",
     build: () => ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
@@ -112,7 +112,7 @@ void main() {
       bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
       bloc.add(AddServerMemberRequested(
         serverId: fixture.listedServer.id,
-        userSubject: "   ",
+        userId: "   ",
       ));
     },
     expect: () => <Matcher>[
@@ -122,7 +122,7 @@ void main() {
       isA<ServersValidationFailedState>().having(
         (state) => state.issue,
         "issue",
-        ServersValidationIssue.userSubjectRequired,
+        ServersValidationIssue.userIdRequired,
       ),
     ],
   );

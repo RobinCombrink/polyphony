@@ -16,11 +16,11 @@ class CreateServerCommand {
 class AddServerMemberCommand {
   const AddServerMemberCommand({
     required this.serverId,
-    required this.userSubject,
+    required this.userId,
   });
 
   final String serverId;
-  final String userSubject;
+  final String userId;
 }
 
 abstract interface class ServerRepo

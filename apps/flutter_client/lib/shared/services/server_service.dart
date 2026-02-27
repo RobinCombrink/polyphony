@@ -10,6 +10,6 @@ abstract interface class ServerService {
 
   Future<Result<void>> addServerMember({
     required String serverId,
-    required String userSubject,
+    required String userId,
   });
 }

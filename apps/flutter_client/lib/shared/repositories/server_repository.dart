@@ -42,7 +42,7 @@ class ServerRepository implements ServerRepo {
   Future<Result<void>> updateOne({required AddServerMemberCommand command}) {
     return _serverService.addServerMember(
       serverId: command.serverId,
-      userSubject: command.userSubject,
+      userId: command.userId,
     );
   }
 }

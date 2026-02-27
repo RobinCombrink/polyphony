@@ -141,7 +141,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     }
 
     final trimmedServerId = event.serverId.trim();
-    final trimmedUserSubject = event.userSubject.trim();
+    final trimmedUserId = event.userId.trim();
 
     if (trimmedServerId.isEmpty ||
         !loadedState.servers.any((server) => server.id == trimmedServerId)) {
@@ -153,9 +153,9 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
       return;
     }
 
-    if (trimmedUserSubject.isEmpty) {
+    if (trimmedUserId.isEmpty) {
       emit(ServersValidationFailedState(
-        issue: ServersValidationIssue.userSubjectRequired,
+        issue: ServersValidationIssue.userIdRequired,
         servers: loadedState.servers,
         selectedServerId: loadedState.selectedServerId,
       ));
@@ -167,7 +167,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     final addMemberResult = await _serverRepo.updateOne(
       command: AddServerMemberCommand(
         serverId: trimmedServerId,
-        userSubject: trimmedUserSubject,
+        userId: trimmedUserId,
       ),
     );
 

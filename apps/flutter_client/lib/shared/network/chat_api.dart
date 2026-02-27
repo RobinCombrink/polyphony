@@ -14,7 +14,7 @@ abstract interface class ChatApi {
   Future<Result<void>> addServerMember({
     required String baseUrl,
     required String serverId,
-    required String userSubject,
+    required String userId,
   });
 
   Future<Result<List<ApiChannel>>> listChannels({

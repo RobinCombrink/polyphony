@@ -72,13 +72,13 @@ class PolyphonyApiClient implements ChatApi {
   Future<Result<void>> addServerMember({
     required String baseUrl,
     required String serverId,
-    required String userSubject,
+    required String userId,
   }) {
     return _performPostRequestWithoutResponseBody(
       baseUrl: baseUrl,
       endpoint: "/api/v1/servers/$serverId/members",
       operation: "add server member",
-      body: <String, dynamic>{"user_id": userSubject},
+      body: <String, dynamic>{"user_id": userId},
       expectedStatusCode: 201,
     );
   }
