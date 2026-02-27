@@ -7,6 +7,7 @@ pub struct BackendApiConfig {
     pub bind_address: SocketAddr,
     pub auth0: Auth0Config,
     pub livekit: LiveKitConfig,
+    pub postgres: PostgresConfig,
 }
 
 impl Default for BackendApiConfig {
@@ -15,6 +16,7 @@ impl Default for BackendApiConfig {
             bind_address: SocketAddr::from(([127, 0, 0, 1], 5067)),
             auth0: Auth0Config::default(),
             livekit: LiveKitConfig::default(),
+            postgres: PostgresConfig::default(),
         }
     }
 }
@@ -30,11 +32,64 @@ impl BackendApiConfig {
 
         let auth0 = Auth0Config::from_environment();
         let livekit = LiveKitConfig::from_environment();
+        let postgres = PostgresConfig::from_environment();
 
         Self {
             bind_address,
             auth0,
             livekit,
+            postgres,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct PostgresConfig {
+    pub host: String,
+    pub port: u16,
+    pub database: String,
+    pub username: String,
+    pub password: String,
+    pub max_connections: u32,
+}
+
+impl Default for PostgresConfig {
+    fn default() -> Self {
+        Self {
+            host: "127.0.0.1".to_owned(),
+            port: 5432,
+            database: "polyphony".to_owned(),
+            username: "polyphony".to_owned(),
+            password: "polyphony".to_owned(),
+            max_connections: 100,
+        }
+    }
+}
+
+impl PostgresConfig {
+    pub fn from_environment() -> Self {
+        let default_config = Self::default();
+
+        let host = std::env::var("POSTGRES_HOST").unwrap_or(default_config.host);
+        let port = std::env::var("POSTGRES_PORT")
+            .ok()
+            .and_then(|value| value.parse::<u16>().ok())
+            .unwrap_or(default_config.port);
+        let database = std::env::var("POSTGRES_DATABASE").unwrap_or(default_config.database);
+        let username = std::env::var("POSTGRES_USERNAME").unwrap_or(default_config.username);
+        let password = std::env::var("POSTGRES_PASSWORD").unwrap_or(default_config.password);
+        let max_connections = std::env::var("POSTGRES_MAX_CONNECTIONS")
+            .ok()
+            .and_then(|value| value.parse::<u32>().ok())
+            .unwrap_or(default_config.max_connections);
+
+        Self {
+            host,
+            port,
+            database,
+            username,
+            password,
+            max_connections,
         }
     }
 }

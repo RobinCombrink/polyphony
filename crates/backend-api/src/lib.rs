@@ -13,7 +13,7 @@ use std::{net::SocketAddr, sync::Arc};
 use auth::{AuthState, JwksTokenVerifier, TokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
-use backend_storage::{ChatRepository, InMemoryChatRepository, MessageRepository};
+use backend_storage::{ChatRepository, MessageRepository, PostgresChatRepository};
 use http::{HeaderValue, Method};
 use openapi::ApiDocumentation;
 use routes::{
@@ -50,7 +50,18 @@ pub async fn default_api_state() -> ApiState {
             .expect("jwt authorizer initialization to succeed"),
     );
 
-    let repository = Arc::new(InMemoryChatRepository::new());
+    let repository = Arc::new(
+        PostgresChatRepository::connect(
+            &backend_config.postgres.host,
+            backend_config.postgres.port,
+            &backend_config.postgres.database,
+            &backend_config.postgres.username,
+            &backend_config.postgres.password,
+            backend_config.postgres.max_connections,
+        )
+        .await
+        .expect("postgres repository initialization to succeed"),
+    );
     let chat_store: Arc<dyn ChatRepository> = repository.clone();
     let message_store: Arc<dyn MessageRepository> = repository;
 
