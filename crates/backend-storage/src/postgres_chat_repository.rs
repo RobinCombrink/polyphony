@@ -76,13 +76,9 @@ impl MessageRepository for PostgresChatRepository {
             return None;
         }
 
-        sqlx::query_as::<_, (String, Uuid, String, String)>(
-            "WITH generated AS (
-                SELECT CONCAT('msg-', nextval('message_id_seq')::TEXT) AS id
-            )
-            INSERT INTO messages (id, channel_id, author_subject, content)
-            SELECT generated.id, $1, $2, $3
-            FROM generated
+        sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
+            "INSERT INTO messages (id, channel_id, author_subject, content)
+            VALUES (gen_random_uuid(), $1, $2, $3)
             RETURNING id, channel_id, author_subject, content",
         )
         .bind(channel_id)
@@ -102,7 +98,7 @@ impl MessageRepository for PostgresChatRepository {
     async fn update_message(
         &self,
         channel_id: Uuid,
-        message_id: &str,
+        message_id: Uuid,
         author_subject: &str,
         content: String,
     ) -> MutationResult {
@@ -145,7 +141,7 @@ impl MessageRepository for PostgresChatRepository {
     async fn delete_message(
         &self,
         channel_id: Uuid,
-        message_id: &str,
+        message_id: Uuid,
         author_subject: &str,
     ) -> MutationResult {
         let existing_author = sqlx::query_scalar::<_, String>(
@@ -183,7 +179,7 @@ impl MessageRepository for PostgresChatRepository {
     }
 
     async fn list_messages(&self, channel_id: Uuid) -> Vec<Message> {
-        sqlx::query_as::<_, (String, Uuid, String, String)>(
+        sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
             "SELECT id, channel_id, author_subject, content
              FROM messages
              WHERE channel_id = $1

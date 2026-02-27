@@ -330,8 +330,13 @@ async fn given_missing_message_when_update_message_then_status_is_404() {
         .expect("created channel id to be present")
         .to_owned();
 
-    let response =
-        update_message(&app, &created_channel_id, "msg-missing", "attempted update").await;
+    let response = update_message(
+        &app,
+        &created_channel_id,
+        "00000000-0000-0000-0000-000000000001",
+        "attempted update",
+    )
+    .await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
@@ -347,7 +352,7 @@ async fn given_missing_channel_when_update_message_then_status_is_404() {
     let response = update_message(
         &app,
         "00000000-0000-0000-0000-000000000001",
-        "msg-1",
+        "00000000-0000-0000-0000-000000000001",
         "attempted update",
     )
     .await;
@@ -379,7 +384,8 @@ async fn given_missing_message_when_delete_message_then_status_is_404() {
         .expect("created channel id to be present")
         .to_owned();
 
-    let response = delete_message(&app, &created_channel_id, "msg-missing").await;
+    let response =
+        delete_message(&app, &created_channel_id, "00000000-0000-0000-0000-000000000001").await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
@@ -392,7 +398,12 @@ async fn given_missing_channel_when_delete_message_then_status_is_404() {
     let state = seeded_state(&fixture.user.auth0_subject, "valid-token");
     let app = build_app(state);
 
-    let response = delete_message(&app, "00000000-0000-0000-0000-000000000001", "msg-1").await;
+    let response = delete_message(
+        &app,
+        "00000000-0000-0000-0000-000000000001",
+        "00000000-0000-0000-0000-000000000001",
+    )
+    .await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

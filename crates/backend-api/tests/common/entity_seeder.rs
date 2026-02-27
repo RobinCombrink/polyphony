@@ -83,7 +83,7 @@ impl EntitySeeder {
             .to_lowercase();
 
         Message {
-            id: format!("msg-seeded-{random_segment}"),
+            id: Uuid::new_v4(),
             channel_id,
             author_subject: author_subject.to_owned(),
             content: format!("Message-{random_segment}"),

@@ -23,21 +23,21 @@ use crate::{ApiState, auth::AuthenticatedUser, dto::UpdateMessageRequest};
     security(("bearer_auth" = [])),
     params(
         ("channel_id" = Uuid, Path, description = "Channel id"),
-        ("message_id" = String, Path, description = "Message id")
+        ("message_id" = Uuid, Path, description = "Message id")
     ),
     tag = "backend-api"
 )]
 pub(crate) async fn update_message(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
-    Path((channel_id, message_id)): Path<(Uuid, String)>,
+    Path((channel_id, message_id)): Path<(Uuid, Uuid)>,
     Json(request): Json<UpdateMessageRequest>,
 ) -> impl IntoResponse {
     let mutation_result = state
         .message_repository
         .update_message(
             channel_id,
-            &message_id,
+            message_id,
             &authenticated_user.subject,
             request.content,
         )

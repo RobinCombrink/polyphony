@@ -15,14 +15,14 @@ pub trait MessageRepository: Send + Sync {
     async fn update_message(
         &self,
         channel_id: Uuid,
-        message_id: &str,
+        message_id: Uuid,
         author_subject: &str,
         content: String,
     ) -> MutationResult;
     async fn delete_message(
         &self,
         channel_id: Uuid,
-        message_id: &str,
+        message_id: Uuid,
         author_subject: &str,
     ) -> MutationResult;
     async fn list_messages(&self, channel_id: Uuid) -> Vec<Message>;

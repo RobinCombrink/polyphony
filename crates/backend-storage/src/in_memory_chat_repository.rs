@@ -33,7 +33,7 @@ impl MessageRepository for InMemoryChatRepository {
     async fn update_message(
         &self,
         channel_id: Uuid,
-        message_id: &str,
+        message_id: Uuid,
         author_subject: &str,
         content: String,
     ) -> MutationResult {
@@ -44,7 +44,7 @@ impl MessageRepository for InMemoryChatRepository {
     async fn delete_message(
         &self,
         channel_id: Uuid,
-        message_id: &str,
+        message_id: Uuid,
         author_subject: &str,
     ) -> MutationResult {
         let mut store = self.store.write().await;

@@ -7,7 +7,6 @@ use crate::MutationResult;
 
 #[derive(Debug, Default)]
 pub(crate) struct InMemoryStore {
-    pub(crate) next_message_id: u64,
     pub(crate) users_by_subject: HashMap<String, User>,
     pub(crate) servers: HashMap<Uuid, Server>,
     pub(crate) server_members_by_id: HashMap<Uuid, Vec<String>>,
@@ -192,9 +191,8 @@ impl InMemoryStore {
             return None;
         }
 
-        self.next_message_id += 1;
         let message = Message {
-            id: format!("msg-{}", self.next_message_id),
+            id: Uuid::new_v4(),
             channel_id,
             author_subject,
             content,
@@ -218,7 +216,7 @@ impl InMemoryStore {
     pub(crate) fn update_message(
         &mut self,
         channel_id: Uuid,
-        message_id: &str,
+        message_id: Uuid,
         author_subject: &str,
         content: String,
     ) -> MutationResult {
@@ -242,7 +240,7 @@ impl InMemoryStore {
     pub(crate) fn delete_message(
         &mut self,
         channel_id: Uuid,
-        message_id: &str,
+        message_id: Uuid,
         author_subject: &str,
     ) -> MutationResult {
         let messages = match self.messages_by_channel.get_mut(&channel_id) {
