@@ -10,7 +10,10 @@ use tower::ServiceExt;
 mod common;
 
 use common::{
-    bdd_support::{get_me_with_token, patch_me_display_name_with_token, seeded_state},
+    bdd_support::{
+        get_me_with_token, get_user_by_id_with_token, patch_me_display_name_with_token,
+        seeded_state,
+    },
     entity_seeder::EntitySeeder,
 };
 
@@ -55,7 +58,8 @@ async fn given_seeded_user_when_authenticated_me_requested_then_subject_matches_
 }
 
 #[tokio::test]
-async fn given_authenticated_user_when_updating_display_name_then_me_returns_updated_display_name() {
+async fn given_authenticated_user_when_updating_display_name_then_me_returns_updated_display_name()
+{
     let entity_seeder = EntitySeeder;
     let seeded_user = entity_seeder.user();
     let expected_subject = seeded_user.auth0_subject.clone();
@@ -79,6 +83,57 @@ async fn given_authenticated_user_when_updating_display_name_then_me_returns_upd
     assert_eq!(me_response.status(), StatusCode::OK);
 
     let me_payload = common::bdd_support::response_payload_json(me_response).await;
-    assert_eq!(me_payload["user_id"].as_str(), Some(expected_subject.as_str()));
-    assert_eq!(me_payload["display_name"].as_str(), Some(updated_display_name));
+    assert_eq!(
+        me_payload["user_id"].as_str(),
+        Some(expected_subject.as_str())
+    );
+    assert_eq!(
+        me_payload["display_name"].as_str(),
+        Some(updated_display_name)
+    );
+}
+
+#[tokio::test]
+async fn given_existing_user_when_lookup_by_id_then_returns_minimal_profile() {
+    let entity_seeder = EntitySeeder;
+    let seeded_user = entity_seeder.user();
+    let expected_subject = seeded_user.auth0_subject.clone();
+
+    let state = seeded_state(&expected_subject, "valid-token");
+    let app = build_app(state);
+
+    let _ = get_me_with_token(&app, "valid-token").await;
+
+    let update_response =
+        patch_me_display_name_with_token(&app, "Lookup Name", "valid-token").await;
+    assert_eq!(update_response.status(), StatusCode::OK);
+
+    let response = get_user_by_id_with_token(&app, &expected_subject, "valid-token").await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let payload = common::bdd_support::response_payload_json(response).await;
+    assert_eq!(payload["id"].as_str(), Some(expected_subject.as_str()));
+    assert_eq!(payload["display_name"].as_str(), Some("Lookup Name"));
+    assert!(payload.get("issuer").is_none());
+    assert!(payload.get("token_duration_hours").is_none());
+}
+
+#[tokio::test]
+async fn given_missing_user_when_lookup_by_id_then_returns_not_found() {
+    let state = seeded_state("auth0|lookup-user", "valid-token");
+    let app = build_app(state);
+
+    let response = get_user_by_id_with_token(&app, "auth0|missing-user", "valid-token").await;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn given_invalid_token_when_lookup_by_id_then_returns_unauthorized() {
+    let state = seeded_state("auth0|lookup-user", "valid-token");
+    let app = build_app(state);
+
+    let response = get_user_by_id_with_token(&app, "auth0|lookup-user", "wrong-token").await;
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }

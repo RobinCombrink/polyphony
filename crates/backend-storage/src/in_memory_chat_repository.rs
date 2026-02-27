@@ -19,6 +19,11 @@ impl InMemoryChatRepository {
 
 #[async_trait]
 impl ChatRepository for InMemoryChatRepository {
+    async fn find_user_by_subject(&self, auth0_subject: &str) -> Option<User> {
+        let store = self.store.read().await;
+        store.find_user_by_subject(auth0_subject)
+    }
+
     async fn get_or_create_user(&self, auth0_subject: &str) -> User {
         let mut store = self.store.write().await;
         store.get_or_create_user(auth0_subject)

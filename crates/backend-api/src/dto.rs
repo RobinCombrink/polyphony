@@ -6,6 +6,7 @@ mod health_response;
 mod me_response;
 mod update_me_request;
 mod update_message_request;
+mod user_lookup_response;
 mod voice_connect_response;
 
 pub use add_server_member_request::AddServerMemberRequest;
@@ -16,4 +17,5 @@ pub use health_response::HealthResponse;
 pub use me_response::MeResponse;
 pub use update_me_request::UpdateMeRequest;
 pub use update_message_request::UpdateMessageRequest;
+pub use user_lookup_response::UserLookupResponse;
 pub use voice_connect_response::VoiceConnectResponse;

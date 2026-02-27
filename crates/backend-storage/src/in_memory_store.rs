@@ -18,6 +18,10 @@ pub(crate) struct InMemoryStore {
 }
 
 impl InMemoryStore {
+    pub(crate) fn find_user_by_subject(&self, auth0_subject: &str) -> Option<User> {
+        self.users_by_subject.get(auth0_subject).cloned()
+    }
+
     pub(crate) fn get_or_create_user(&mut self, auth0_subject: &str) -> User {
         if let Some(existing_user) = self.users_by_subject.get(auth0_subject) {
             return existing_user.clone();

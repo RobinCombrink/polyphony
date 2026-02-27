@@ -309,6 +309,23 @@ pub(crate) async fn get_me_with_token(
         .expect("get me response from app")
 }
 
+pub(crate) async fn get_user_by_id_with_token(
+    app: &axum::Router,
+    user_id: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/users/{user_id}"))
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("get user by id request to be valid"),
+        )
+        .await
+        .expect("get user by id response from app")
+}
+
 pub(crate) async fn patch_me_display_name_with_token(
     app: &axum::Router,
     display_name: &str,

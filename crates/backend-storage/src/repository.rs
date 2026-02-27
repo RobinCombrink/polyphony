@@ -5,6 +5,7 @@ use crate::MutationResult;
 
 #[async_trait]
 pub trait ChatRepository: Send + Sync {
+    async fn find_user_by_subject(&self, auth0_subject: &str) -> Option<User>;
     async fn get_or_create_user(&self, auth0_subject: &str) -> User;
     async fn set_user_display_name(&self, auth0_subject: &str, display_name: String) -> User;
     async fn create_server(&self, name: String, owner_subject: String) -> Server;
