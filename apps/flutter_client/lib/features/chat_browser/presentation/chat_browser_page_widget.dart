@@ -25,7 +25,6 @@ class ChatBrowserPageWidget extends StatefulWidget {
 
 class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   final createServerController = TextEditingController();
-  final addServerMemberController = TextEditingController();
   final createChannelController = TextEditingController();
   final createMessageController = TextEditingController();
   var _isDisplayNamePromptOpen = false;
@@ -46,7 +45,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   @override
   void dispose() {
     createServerController.dispose();
-    addServerMemberController.dispose();
     createChannelController.dispose();
     createMessageController.dispose();
     super.dispose();
@@ -97,13 +95,56 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
         );
   }
 
-  void _requestAddServerMember(BuildContext context, String serverId) {
+  void _requestAddServerMember(
+    BuildContext context,
+    String serverId,
+    String userSubject,
+  ) {
     context.read<ServersBloc>().add(
           AddServerMemberRequested(
             serverId: serverId,
-            userSubject: addServerMemberController.text,
+            userSubject: userSubject,
           ),
         );
+  }
+
+  Future<void> _showAddUserToServerDialog(
+    BuildContext context,
+    String serverId,
+  ) async {
+    final controller = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text("Add user to server"),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+            decoration: const InputDecoration(labelText: "User subject"),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text("Cancel"),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+              child: const Text("Add user"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!context.mounted || result == null) {
+      return;
+    }
+
+    _requestAddServerMember(context, serverId, result);
   }
 
   void _requestUpdateDisplayName(BuildContext context, String displayName) {
@@ -323,6 +364,11 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                                       ),
                                                     );
                                               },
+                                              onAddUser: (server) =>
+                                                  _showAddUserToServerDialog(
+                                                context,
+                                                server.id,
+                                              ),
                                               onCreate: () =>
                                                   _requestCreateServer(context),
                                             ),
@@ -346,35 +392,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                                               width: 360,
                                               child: Column(
                                                 children: <Widget>[
-                                                  Row(
-                                                    children: <Widget>[
-                                                      Expanded(
-                                                        child: TextField(
-                                                          controller:
-                                                              addServerMemberController,
-                                                          enabled: !isLoading,
-                                                          decoration:
-                                                              const InputDecoration(
-                                                            labelText:
-                                                                "User subject to add",
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      FilledButton.tonal(
-                                                        onPressed: isLoading
-                                                            ? null
-                                                            : () =>
-                                                                _requestAddServerMember(
-                                                                  context,
-                                                                  selectedServerId,
-                                                                ),
-                                                        child: const Text(
-                                                            "Add user"),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 12),
                                                   Expanded(
                                                     child:
                                                         TextChannelsSectionWidget(

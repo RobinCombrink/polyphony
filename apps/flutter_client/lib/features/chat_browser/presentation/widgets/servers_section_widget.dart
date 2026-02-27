@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/section_status.dart";
@@ -41,6 +43,7 @@ class ServersSectionWidget extends StatefulWidget {
     required this.isLoading,
     required this.createController,
     required this.onTap,
+    required this.onAddUser,
     required this.onCreate,
     super.key,
   });
@@ -50,6 +53,7 @@ class ServersSectionWidget extends StatefulWidget {
   final bool isLoading;
   final TextEditingController createController;
   final void Function(Server server) onTap;
+  final void Function(Server server) onAddUser;
   final VoidCallback onCreate;
 
   @override
@@ -79,6 +83,34 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
     setState(() {
       _isCreatingServer = false;
     });
+  }
+
+  Future<void> _showServerContextMenu({
+    required BuildContext context,
+    required Server server,
+    required Offset globalPosition,
+  }) async {
+    final selectedAction = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        globalPosition.dx,
+        globalPosition.dy,
+      ),
+      items: const <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(
+          value: "add_user",
+          child: Text("Add user to server"),
+        ),
+      ],
+    );
+
+    if (!mounted || selectedAction != "add_user") {
+      return;
+    }
+
+    widget.onAddUser(server);
   }
 
   @override
@@ -133,6 +165,32 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
                       borderRadius: BorderRadius.circular(999),
                       onTap:
                           widget.isLoading ? null : () => widget.onTap(server),
+                      onSecondaryTapDown: widget.isLoading
+                          ? null
+                          : (details) => _showServerContextMenu(
+                                context: context,
+                                server: server,
+                                globalPosition: details.globalPosition,
+                              ),
+                      onLongPress: widget.isLoading
+                          ? null
+                          : () {
+                              final renderBox =
+                                  context.findRenderObject() as RenderBox?;
+                              final globalPosition = renderBox == null
+                                  ? Offset.zero
+                                  : renderBox.localToGlobal(
+                                      renderBox.size.center(Offset.zero),
+                                    );
+
+                              unawaited(
+                                _showServerContextMenu(
+                                  context: context,
+                                  server: server,
+                                  globalPosition: globalPosition,
+                                ),
+                              );
+                            },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
                         padding: const EdgeInsets.all(2),
