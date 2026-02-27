@@ -1,6 +1,7 @@
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -235,5 +236,52 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
     }
 
     return const Ok<void>(null);
+  }
+}
+
+class FakeProfileRepository implements ProfileRepo {
+  FakeProfileRepository({
+    required this.userId,
+    this.initialDisplayName,
+    this.forceGetError = false,
+    this.forceUpdateError = false,
+  }) : _displayName = initialDisplayName;
+
+  final String userId;
+  final String? initialDisplayName;
+  final bool forceGetError;
+  final bool forceUpdateError;
+  String? _displayName;
+
+  @override
+  Future<Result<UserProfile>> getMe({required String baseUrl}) async {
+    if (forceGetError) {
+      return Error<UserProfile>(Exception("Failed to get profile"));
+    }
+
+    return Ok<UserProfile>(
+      UserProfile(
+        userId: userId,
+        displayName: _displayName,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<UserProfile>> updateDisplayName({
+    required String baseUrl,
+    required String displayName,
+  }) async {
+    if (forceUpdateError) {
+      return Error<UserProfile>(Exception("Failed to update display name"));
+    }
+
+    _displayName = displayName;
+    return Ok<UserProfile>(
+      UserProfile(
+        userId: userId,
+        displayName: _displayName,
+      ),
+    );
   }
 }

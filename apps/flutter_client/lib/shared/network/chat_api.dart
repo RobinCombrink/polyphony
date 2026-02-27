@@ -61,4 +61,13 @@ abstract interface class ChatApi {
     required String baseUrl,
     required String channelId,
   });
+
+  Future<Result<ApiMe>> getMe({
+    required String baseUrl,
+  });
+
+  Future<Result<ApiMe>> updateDisplayName({
+    required String baseUrl,
+    required String displayName,
+  });
 }

@@ -6,12 +6,14 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/chat_browser/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/chat_browser_page_widget.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -115,6 +117,10 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
               BlocProvider<MessagesBloc>(
                 create: (context) =>
                     MessagesBloc(messageRepo: context.read<MessageRepo>()),
+              ),
+              BlocProvider<ProfileBloc>(
+                create: (context) =>
+                    ProfileBloc(profileRepo: context.read<ProfileRepo>()),
               ),
               BlocProvider<VoiceSessionsBloc>(
                 create: (context) => VoiceSessionsBloc(

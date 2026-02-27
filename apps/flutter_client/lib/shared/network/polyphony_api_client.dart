@@ -170,6 +170,31 @@ class PolyphonyApiClient implements ChatApi {
     return Future<Result<void>>.value(const Ok<void>(null));
   }
 
+  @override
+  Future<Result<ApiMe>> getMe({required String baseUrl}) {
+    return _performGetRequest<ApiMe>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/me",
+      operation: "get me",
+      decodeItem: ApiMe.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<ApiMe>> updateDisplayName({
+    required String baseUrl,
+    required String displayName,
+  }) {
+    return _performPatchRequest<ApiMe>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/me",
+      operation: "update display name",
+      body: <String, dynamic>{"display_name": displayName},
+      expectedStatusCode: 200,
+      decodeItem: ApiMe.fromJson,
+    );
+  }
+
   Map<String, String> _headers() {
     final currentAuthState = _authenticationStateSource.currentAuthState;
 
@@ -213,6 +238,33 @@ class PolyphonyApiClient implements ChatApi {
       return Ok<List<T>>(items);
     } on Exception catch (error) {
       return Error<List<T>>(error);
+    }
+  }
+
+  Future<Result<T>> _performGetRequest<T>({
+    required String baseUrl,
+    required String endpoint,
+    required String operation,
+    required T Function(Map<String, dynamic>) decodeItem,
+  }) async {
+    try {
+      final response = await _httpClient.get(
+        Uri.parse("$baseUrl$endpoint"),
+        headers: _headers(),
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return Error<T>(
+          Exception(
+            "Failed to $operation: ${response.statusCode} ${response.body}",
+          ),
+        );
+      }
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return Ok<T>(decodeItem(decoded));
+    } on Exception catch (error) {
+      return Error<T>(error);
     }
   }
 

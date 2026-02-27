@@ -84,3 +84,12 @@ extension DomainVoiceConnectSessionToApiExtension on VoiceConnectSession {
     );
   }
 }
+
+extension ApiMeToDomainExtension on ApiMe {
+  UserProfile toDomainModel() {
+    return UserProfile(
+      userId: userId,
+      displayName: displayName,
+    );
+  }
+}

@@ -84,3 +84,13 @@ class VoiceConnectSession {
   final String channelId;
   final String participantSubject;
 }
+
+class UserProfile {
+  const UserProfile({
+    required this.userId,
+    required this.displayName,
+  });
+
+  final String userId;
+  final String? displayName;
+}

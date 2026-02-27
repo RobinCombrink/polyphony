@@ -12,6 +12,8 @@ import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repository.dart";
+import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/profile_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
@@ -19,8 +21,10 @@ import "package:polyphony_flutter_client/shared/repositories/voice_session_repos
 import "package:polyphony_flutter_client/shared/services/channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_voice_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_service.dart";
+import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_message_service.dart";
+import "package:polyphony_flutter_client/shared/services/rest/rest_profile_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_server_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_voice_session_service.dart";
 import "package:polyphony_flutter_client/shared/services/server_service.dart";
@@ -75,6 +79,12 @@ class PolyphonyApp extends StatelessWidget {
             authenticationStateSource: context.read<AuthenticationBloc>(),
           ),
         ),
+        Provider<ProfileService>(
+          create: (context) => RestProfileService(
+            chatApi: context.read<ChatApi>(),
+            authenticationStateSource: context.read<AuthenticationBloc>(),
+          ),
+        ),
         Provider<VoiceSessionService>(
           create: (context) => RestVoiceSessionService(
             chatApi: context.read<ChatApi>(),
@@ -95,6 +105,10 @@ class PolyphonyApp extends StatelessWidget {
         Provider<MessageRepo>(
           create: (context) =>
               MessageRepository(messageService: context.read<MessageService>()),
+        ),
+        Provider<ProfileRepo>(
+          create: (context) =>
+              ProfileRepository(profileService: context.read<ProfileService>()),
         ),
         Provider<VoiceSessionRepo>(
           create: (context) => VoiceSessionRepository(
