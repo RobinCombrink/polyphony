@@ -32,7 +32,7 @@ pub(crate) async fn connect_voice_session(
     let participant_user_id = authenticated_user.user_id;
 
     if state
-        .chat_repository
+        .voice_repository
         .join_voice_session(channel_id, participant_user_id)
         .await
         .is_none()
@@ -95,7 +95,7 @@ pub(crate) async fn update_self_mute_state(
     Json(request): Json<SetVoiceSessionMuteRequest>,
 ) -> impl IntoResponse {
     let mutation_result = state
-        .chat_repository
+        .voice_repository
         .set_voice_session_muted(channel_id, authenticated_user.user_id, request.is_muted)
         .await;
 
@@ -124,7 +124,7 @@ pub(crate) async fn list_voice_sessions(
     _authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match state.chat_repository.list_voice_sessions(channel_id).await {
+    match state.voice_repository.list_voice_sessions(channel_id).await {
         Some(voice_sessions) => (StatusCode::OK, Json(voice_sessions)).into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
     }

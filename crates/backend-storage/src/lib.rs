@@ -9,5 +9,5 @@ pub(crate) use in_memory_store::InMemoryStore;
 pub use mutation_result::MutationResult;
 pub use postgres_chat_repository::PostgresChatRepository;
 pub use repository::{
-    ChannelRepository, ChatRepository, MessageRepository, ServerRepository, UserRepository,
+    ChannelRepository, MessageRepository, ServerRepository, UserRepository, VoiceRepository,
 };

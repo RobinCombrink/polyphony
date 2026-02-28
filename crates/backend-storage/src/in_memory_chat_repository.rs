@@ -4,8 +4,8 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
-    ChannelRepository, ChatRepository, InMemoryStore, MessageRepository, MutationResult,
-    ServerRepository, UserRepository,
+    ChannelRepository, InMemoryStore, MessageRepository, MutationResult, ServerRepository,
+    UserRepository, VoiceRepository,
 };
 
 #[derive(Debug, Default)]
@@ -157,7 +157,7 @@ impl ChannelRepository for InMemoryChatRepository {
 }
 
 #[async_trait]
-impl ChatRepository for InMemoryChatRepository {
+impl VoiceRepository for InMemoryChatRepository {
     async fn join_voice_session(
         &self,
         channel_id: Uuid,

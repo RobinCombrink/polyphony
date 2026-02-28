@@ -14,8 +14,9 @@ use auth::{AuthState, JwksTokenVerifier, TokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
 use backend_storage::{
-    ChannelRepository, ChatRepository, MessageRepository, PostgresChatRepository,
+    ChannelRepository, MessageRepository, PostgresChatRepository,
     ServerRepository, UserRepository,
+    VoiceRepository,
 };
 use http::{HeaderValue, Method};
 use openapi::ApiDocumentation;
@@ -41,7 +42,7 @@ pub struct ApiState {
     pub user_repository: Arc<dyn UserRepository>,
     pub server_repository: Arc<dyn ServerRepository>,
     pub channel_repository: Arc<dyn ChannelRepository>,
-    pub chat_repository: Arc<dyn ChatRepository>,
+    pub voice_repository: Arc<dyn VoiceRepository>,
     pub message_repository: Arc<dyn MessageRepository>,
     pub livekit_config: Arc<config::LiveKitConfig>,
 }
@@ -74,7 +75,7 @@ pub async fn default_api_state() -> ApiState {
     let user_store: Arc<dyn UserRepository> = repository.clone();
     let server_store: Arc<dyn ServerRepository> = repository.clone();
     let channel_store: Arc<dyn ChannelRepository> = repository.clone();
-    let chat_store: Arc<dyn ChatRepository> = repository.clone();
+    let voice_store: Arc<dyn VoiceRepository> = repository.clone();
     let message_store: Arc<dyn MessageRepository> = repository;
 
     ApiState {
@@ -82,7 +83,7 @@ pub async fn default_api_state() -> ApiState {
         user_repository: user_store,
         server_repository: server_store,
         channel_repository: channel_store,
-        chat_repository: chat_store,
+        voice_repository: voice_store,
         message_repository: message_store,
         livekit_config: Arc::new(backend_config.livekit),
     }

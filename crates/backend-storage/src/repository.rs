@@ -58,7 +58,7 @@ pub trait ChannelRepository: Send + Sync {
 }
 
 #[async_trait]
-pub trait ChatRepository: Send + Sync {
+pub trait VoiceRepository: Send + Sync {
     async fn join_voice_session(
         &self,
         channel_id: Uuid,

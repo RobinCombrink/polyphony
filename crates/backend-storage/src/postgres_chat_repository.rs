@@ -5,8 +5,8 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 use uuid::Uuid;
 
 use crate::{
-    ChannelRepository, ChatRepository, MessageRepository, MutationResult, ServerRepository,
-    UserRepository,
+    ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
+    VoiceRepository,
 };
 
 #[cfg(target_family = "windows")]
@@ -508,7 +508,7 @@ impl ChannelRepository for PostgresChatRepository {
 }
 
 #[async_trait]
-impl ChatRepository for PostgresChatRepository {
+impl VoiceRepository for PostgresChatRepository {
     async fn join_voice_session(
         &self,
         channel_id: Uuid,
