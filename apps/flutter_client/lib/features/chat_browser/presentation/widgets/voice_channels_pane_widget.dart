@@ -7,13 +7,21 @@ import "package:polyphony_flutter_client/features/chat_browser/presentation/widg
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
-class VoiceChannelsPaneWidget extends StatelessWidget {
+class VoiceChannelsPaneWidget extends StatefulWidget {
   const VoiceChannelsPaneWidget({
     required this.createController,
     super.key,
   });
 
   final TextEditingController createController;
+
+  @override
+  State<VoiceChannelsPaneWidget> createState() =>
+      _VoiceChannelsPaneWidgetState();
+}
+
+class _VoiceChannelsPaneWidgetState extends State<VoiceChannelsPaneWidget> {
+  String _lastVisibleChannelIdsKey = "";
 
   List<Channel> _skeletonChannels() {
     return List<Channel>.generate(
@@ -35,6 +43,11 @@ class VoiceChannelsPaneWidget extends StatelessWidget {
             activeConnection?.channelId,
           _ => null,
         };
+        final voiceParticipantsByChannelId = switch (voiceSessionsState) {
+          VoiceSessionsLoadedDataState(:final participantsByChannelId) =>
+            participantsByChannelId,
+          _ => const <String, List<VoiceParticipant>>{},
+        };
 
         return BlocBuilder<ChannelsBloc, ChannelsState>(
           builder: (context, channelsState) {
@@ -53,6 +66,28 @@ class VoiceChannelsPaneWidget extends StatelessWidget {
             final channels = loadedData?.channels ?? const <Channel>[];
             final visibleChannels =
                 isLoading && channels.isEmpty ? _skeletonChannels() : channels;
+            final visibleChannelIds = visibleChannels
+                .map((channel) => channel.id)
+                .where((channelId) => channelId.isNotEmpty)
+                .toList();
+            final visibleChannelIdsKey = visibleChannelIds.join("|");
+
+            if (!isLoading &&
+                _lastVisibleChannelIdsKey != visibleChannelIdsKey) {
+              _lastVisibleChannelIdsKey = visibleChannelIdsKey;
+
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) {
+                  return;
+                }
+
+                context.read<VoiceSessionsBloc>().add(
+                      RefreshVoiceParticipantsRequested(
+                        channelIds: visibleChannelIds,
+                      ),
+                    );
+              });
+            }
 
             return Skeletonizer(
               enabled: isLoading,
@@ -60,9 +95,10 @@ class VoiceChannelsPaneWidget extends StatelessWidget {
                 channels: visibleChannels,
                 selectedChannelId: loadedData?.selectedVoiceChannelId,
                 voiceParticipantCount: 0,
+                voiceParticipantsByChannelId: voiceParticipantsByChannelId,
                 connectedVoiceChannelId: activeVoiceChannelId,
                 isLoading: isLoading,
-                createController: createController,
+                createController: widget.createController,
                 title: "Voice channels",
                 createLabel: "",
                 createActionLabel: "",

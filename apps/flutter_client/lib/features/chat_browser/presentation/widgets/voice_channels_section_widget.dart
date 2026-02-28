@@ -85,8 +85,11 @@ class VoiceChannelsSectionWidget extends StatelessWidget {
                 else
                   ...participants.map(
                     (participant) => ListTile(
-                      leading: const Icon(Icons.mic),
+                      leading: const Icon(Icons.account_circle),
                       title: Text(participant.displayName),
+                      trailing: participant.isMuted
+                          ? const Icon(Icons.mic_off)
+                          : null,
                     ),
                   ),
               ],

@@ -188,6 +188,34 @@ class PolyphonyApiClient implements ChatApi {
   }
 
   @override
+  Future<Result<List<ApiVoiceSession>>> listVoiceSessions({
+    required String baseUrl,
+    required String channelId,
+  }) {
+    return _performListRequest<ApiVoiceSession>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/voice/sessions",
+      operation: "list voice sessions",
+      decodeItem: ApiVoiceSession.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<void>> setSelfVoiceSessionMuted({
+    required String baseUrl,
+    required String channelId,
+    required bool isMuted,
+  }) {
+    return _performPatchRequestWithoutResponseBody(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/voice/self",
+      operation: "set self voice session muted",
+      body: <String, dynamic>{"is_muted": isMuted},
+      expectedStatusCode: 204,
+    );
+  }
+
+  @override
   Future<Result<void>> disconnectVoiceSession({
     required String baseUrl,
     required String channelId,
@@ -255,10 +283,7 @@ class PolyphonyApiClient implements ChatApi {
       return const <Map<String, dynamic>>[];
     }
 
-    return decoded
-        .whereType<Map>()
-        .map(Map<String, dynamic>.from)
-        .toList();
+    return decoded.whereType<Map>().map(Map<String, dynamic>.from).toList();
   }
 
   Future<Result<List<T>>> _performListRequest<T>({
@@ -427,6 +452,34 @@ class PolyphonyApiClient implements ChatApi {
   }) async {
     try {
       final response = await _httpClient.post(
+        Uri.parse("$baseUrl$endpoint"),
+        headers: _headers(),
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode != expectedStatusCode) {
+        return Error<void>(
+          Exception(
+            "Failed to $operation: ${response.statusCode} ${response.body}",
+          ),
+        );
+      }
+
+      return const Ok<void>(null);
+    } on Exception catch (error) {
+      return Error<void>(error);
+    }
+  }
+
+  Future<Result<void>> _performPatchRequestWithoutResponseBody({
+    required String baseUrl,
+    required String endpoint,
+    required String operation,
+    required Map<String, dynamic> body,
+    required int expectedStatusCode,
+  }) async {
+    try {
+      final response = await _httpClient.patch(
         Uri.parse("$baseUrl$endpoint"),
         headers: _headers(),
         body: jsonEncode(body),

@@ -43,6 +43,8 @@ class TextChannelsSectionWidget extends StatefulWidget {
     required this.channels,
     required this.selectedChannelId,
     required this.voiceParticipantCount,
+    this.voiceParticipantsByChannelId =
+        const <String, List<VoiceParticipant>>{},
     this.connectedVoiceChannelId,
     required this.isLoading,
     required this.createController,
@@ -60,6 +62,7 @@ class TextChannelsSectionWidget extends StatefulWidget {
   final List<Channel> channels;
   final String? selectedChannelId;
   final int voiceParticipantCount;
+  final Map<String, List<VoiceParticipant>> voiceParticipantsByChannelId;
   final String? connectedVoiceChannelId;
   final bool isLoading;
   final TextEditingController createController;
@@ -199,6 +202,9 @@ class _TextChannelsSectionWidgetState extends State<TextChannelsSectionWidget> {
                         widget.connectedVoiceChannelId == channel.id;
                 final showParticipantCount =
                     isSelected && widget.voiceParticipantCount > 0;
+                final voiceParticipants =
+                    widget.voiceParticipantsByChannelId[channel.id] ??
+                        const <VoiceParticipant>[];
 
                 return GestureDetector(
                   onSecondaryTapDown:
@@ -221,6 +227,46 @@ class _TextChannelsSectionWidgetState extends State<TextChannelsSectionWidget> {
                       size: 18,
                     ),
                     title: Text(channel.name),
+                    subtitle: widget.interactionType ==
+                                ChannelInteractionType.voice &&
+                            voiceParticipants.isNotEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: voiceParticipants
+                                  .map(
+                                    (participant) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 2),
+                                      child: Row(
+                                        children: <Widget>[
+                                          const Icon(
+                                            Icons.account_circle,
+                                            size: 14,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              participant.displayName,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (participant.isMuted)
+                                            const Icon(
+                                              Icons.mic_off,
+                                              size: 14,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          )
+                        : null,
                     trailing: isConnectedVoiceChannel || showParticipantCount
                         ? Row(
                             mainAxisSize: MainAxisSize.min,

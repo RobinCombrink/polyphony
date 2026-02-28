@@ -21,6 +21,38 @@ class RestVoiceSessionService implements VoiceSessionService {
   }
 
   @override
+  Future<Result<List<ApiVoiceSession>>> listVoiceSessions({
+    required String channelId,
+  }) async {
+    if (_authenticationStateSource.currentAuthState
+        is! AuthenticationAuthenticatedState) {
+      return _missingTokenError();
+    }
+
+    return _chatApi.listVoiceSessions(
+      baseUrl: _baseUrl,
+      channelId: channelId,
+    );
+  }
+
+  @override
+  Future<Result<void>> setSelfMuted({
+    required String channelId,
+    required bool isMuted,
+  }) async {
+    if (_authenticationStateSource.currentAuthState
+        is! AuthenticationAuthenticatedState) {
+      return _missingTokenError();
+    }
+
+    return _chatApi.setSelfVoiceSessionMuted(
+      baseUrl: _baseUrl,
+      channelId: channelId,
+      isMuted: isMuted,
+    );
+  }
+
+  @override
   Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
     required String channelId,
   }) async {

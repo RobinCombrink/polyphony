@@ -16,6 +16,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
       (index) => VoiceParticipant(
         userId: "participant-skeleton-$index",
         displayName: "Participant ${index + 1}",
+        isMuted: false,
       ),
     );
   }

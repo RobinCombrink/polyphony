@@ -194,10 +194,51 @@ class FakeVoiceSessionRepository implements VoiceSessionRepo {
   FakeVoiceSessionRepository({
     required ChatApiFixture fixture,
     this.forceDisconnectError = false,
-  }) : _connectedVoiceSession = fixture.connectedVoiceSession;
+    this.forceSetSelfMutedError = false,
+  })  : _connectedVoiceSession = fixture.connectedVoiceSession,
+        _isMuted = false;
 
   final bool forceDisconnectError;
+  final bool forceSetSelfMutedError;
   final VoiceConnectSession _connectedVoiceSession;
+  bool _isMuted;
+
+  @override
+  Future<Result<Iterable<VoiceSession>>> getMany({
+    required GetVoiceSessionsQuery query,
+  }) async {
+    if (query.channelId != _connectedVoiceSession.channelId) {
+      return const Ok<Iterable<VoiceSession>>(<VoiceSession>[]);
+    }
+
+    return Ok<Iterable<VoiceSession>>(
+      <VoiceSession>[
+        VoiceSession(
+          channelId: _connectedVoiceSession.channelId,
+          participantUserId: _connectedVoiceSession.participantUserId,
+          isMuted: _isMuted,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<Result<void>> updateOne({
+    required SetSelfVoiceSessionMuteCommand command,
+  }) async {
+    if (forceSetSelfMutedError) {
+      return Error<void>(
+          Exception("Failed to update voice session mute state"));
+    }
+
+    if (command.channelId != _connectedVoiceSession.channelId) {
+      return Error<void>(
+          Exception("Failed to update voice session mute state"));
+    }
+
+    _isMuted = command.isMuted;
+    return const Ok<void>(null);
+  }
 
   @override
   Future<Result<VoiceConnectSession>> createOne({

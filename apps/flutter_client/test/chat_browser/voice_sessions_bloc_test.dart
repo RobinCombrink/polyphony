@@ -1,7 +1,6 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
-import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 import "../entity_seeder.dart";
 import "test_doubles/chat_repository_fakes.dart";
@@ -29,15 +28,16 @@ void main() {
     expect: () => <Matcher>[
       isA<VoiceSessionsLoadedState>()
           .having(
-        (state) => state.channelId,
-        "channel id",
-        fixture.listedChannel.id,
-      )
+            (state) => state.channelId,
+            "channel id",
+            fixture.listedChannel.id,
+          )
           .having(
-        (state) => state.participants,
-        "participants",
-        const <VoiceParticipant>[],
-      ),
+            (state) =>
+                state.participants.map((participant) => participant.userId),
+            "participant user ids",
+            contains(fixture.connectedVoiceSession.participantUserId),
+          ),
     ],
   );
 
@@ -126,16 +126,40 @@ void main() {
         "is self muted",
         false,
       ),
-      isA<VoiceSessionsLoadedState>().having(
-        (state) => state.isSelfMuted,
-        "is self muted",
-        true,
-      ),
-      isA<VoiceSessionsLoadedState>().having(
-        (state) => state.isSelfMuted,
-        "is self muted",
-        false,
-      ),
+      isA<VoiceSessionsLoadedState>()
+          .having(
+            (state) => state.isSelfMuted,
+            "is self muted",
+            true,
+          )
+          .having(
+            (state) => state.participants
+                .firstWhere(
+                  (participant) =>
+                      participant.userId ==
+                      fixture.connectedVoiceSession.participantUserId,
+                )
+                .isMuted,
+            "self participant muted",
+            true,
+          ),
+      isA<VoiceSessionsLoadedState>()
+          .having(
+            (state) => state.isSelfMuted,
+            "is self muted",
+            false,
+          )
+          .having(
+            (state) => state.participants
+                .firstWhere(
+                  (participant) =>
+                      participant.userId ==
+                      fixture.connectedVoiceSession.participantUserId,
+                )
+                .isMuted,
+            "self participant unmuted",
+            false,
+          ),
     ],
   );
 }

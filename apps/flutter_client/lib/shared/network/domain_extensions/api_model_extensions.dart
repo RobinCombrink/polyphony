@@ -85,6 +85,26 @@ extension DomainVoiceConnectSessionToApiExtension on VoiceConnectSession {
   }
 }
 
+extension ApiVoiceSessionToDomainExtension on ApiVoiceSession {
+  VoiceSession toDomainModel() {
+    return VoiceSession(
+      channelId: channelId,
+      participantUserId: participantUserId,
+      isMuted: isMuted,
+    );
+  }
+}
+
+extension DomainVoiceSessionToApiExtension on VoiceSession {
+  ApiVoiceSession toApiModel() {
+    return ApiVoiceSession(
+      channelId: channelId,
+      participantUserId: participantUserId,
+      isMuted: isMuted,
+    );
+  }
+}
+
 extension ApiMeToDomainExtension on ApiMe {
   UserProfile toDomainModel() {
     return UserProfile(

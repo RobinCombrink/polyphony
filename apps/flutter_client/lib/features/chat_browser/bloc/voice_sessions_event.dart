@@ -16,6 +16,14 @@ final class LoadVoiceSessionsRequested extends VoiceSessionsEvent {
   final String channelId;
 }
 
+final class RefreshVoiceParticipantsRequested extends VoiceSessionsEvent {
+  const RefreshVoiceParticipantsRequested({
+    required this.channelIds,
+  });
+
+  final List<String> channelIds;
+}
+
 final class ConnectVoiceSessionRequested extends VoiceSessionsEvent {
   const ConnectVoiceSessionRequested({
     required this.channelId,
