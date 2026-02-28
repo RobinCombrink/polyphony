@@ -14,7 +14,7 @@ use auth::{AuthState, JwksTokenVerifier, TokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
 use backend_storage::{
-    ChannelRepository, MessageRepository, PostgresChatRepository,
+    ChannelRepository, MessageRepository, PostgresRepository,
     ServerRepository, UserRepository,
     VoiceRepository,
 };
@@ -61,7 +61,7 @@ pub async fn default_api_state() -> ApiState {
     );
 
     let repository = Arc::new(
-        PostgresChatRepository::connect(
+        PostgresRepository::connect(
             &backend_config.postgres.host,
             backend_config.postgres.port,
             &backend_config.postgres.database,

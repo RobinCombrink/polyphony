@@ -9,11 +9,11 @@ use crate::{
 };
 
 #[derive(Debug, Default)]
-pub struct InMemoryChatRepository {
+pub struct InMemoryRepository {
     store: RwLock<InMemoryStore>,
 }
 
-impl InMemoryChatRepository {
+impl InMemoryRepository {
     pub fn new() -> Self {
         Self {
             store: RwLock::new(InMemoryStore::default()),
@@ -22,7 +22,7 @@ impl InMemoryChatRepository {
 }
 
 #[async_trait]
-impl MessageRepository for InMemoryChatRepository {
+impl MessageRepository for InMemoryRepository {
     async fn create_message(
         &self,
         channel_id: Uuid,
@@ -61,7 +61,7 @@ impl MessageRepository for InMemoryChatRepository {
 }
 
 #[async_trait]
-impl UserRepository for InMemoryChatRepository {
+impl UserRepository for InMemoryRepository {
     async fn find_user_by_id(&self, user_id: Uuid) -> Option<User> {
         let store = self.store.read().await;
         store.find_user_by_id(user_id)
@@ -84,7 +84,7 @@ impl UserRepository for InMemoryChatRepository {
 }
 
 #[async_trait]
-impl ServerRepository for InMemoryChatRepository {
+impl ServerRepository for InMemoryRepository {
     async fn create_server(&self, name: String, owner_user_id: Uuid) -> Server {
         let mut store = self.store.write().await;
         store.create_server(name, owner_user_id)
@@ -127,7 +127,7 @@ impl ServerRepository for InMemoryChatRepository {
 }
 
 #[async_trait]
-impl ChannelRepository for InMemoryChatRepository {
+impl ChannelRepository for InMemoryRepository {
     async fn create_channel(&self, server_id: Uuid, name: String) -> Option<Channel> {
         let mut store = self.store.write().await;
         store.create_channel(server_id, name)
@@ -157,7 +157,7 @@ impl ChannelRepository for InMemoryChatRepository {
 }
 
 #[async_trait]
-impl VoiceRepository for InMemoryChatRepository {
+impl VoiceRepository for InMemoryRepository {
     async fn join_voice_session(
         &self,
         channel_id: Uuid,

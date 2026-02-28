@@ -12,7 +12,7 @@ use backend_api::{
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
     storage::{
-        ChannelRepository, InMemoryChatRepository, MessageRepository,
+        ChannelRepository, InMemoryRepository, MessageRepository,
         ServerRepository, UserRepository,
         VoiceRepository,
     },
@@ -429,14 +429,14 @@ pub(crate) fn seeded_state(external_reference: &str, token: &str) -> ApiState {
     seeded_state_with_store(
         external_reference,
         token,
-        Arc::new(InMemoryChatRepository::new()),
+        Arc::new(InMemoryRepository::new()),
     )
 }
 
 pub(crate) fn seeded_state_with_store(
     external_reference: &str,
     token: &str,
-    repository: Arc<InMemoryChatRepository>,
+    repository: Arc<InMemoryRepository>,
 ) -> ApiState {
     let auth_config = Auth0Config {
         issuer: Url::parse("https://example-dev.us.auth0.com/").expect("valid issuer url"),

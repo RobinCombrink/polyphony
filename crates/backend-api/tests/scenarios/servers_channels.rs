@@ -5,7 +5,7 @@ use std::sync::Arc;
 #[path = "../common.rs"]
 mod common;
 
-use backend_api::storage::InMemoryChatRepository;
+use backend_api::storage::InMemoryRepository;
 use common::{
     bdd_support::{
         add_server_member, add_server_member_with_token, create_channel, create_channel_with_token,
@@ -159,7 +159,7 @@ async fn given_server_with_added_member_when_member_lists_servers_then_server_is
     let fixture = entity_seeder.chat_fixture();
     let additional_user = entity_seeder.user();
 
-    let shared_store = Arc::new(InMemoryChatRepository::new());
+    let shared_store = Arc::new(InMemoryRepository::new());
 
     let owner_state = seeded_state_with_store(
         &fixture.user.external_reference,
@@ -223,7 +223,7 @@ async fn given_non_owner_when_add_server_member_then_status_is_403() {
     let existing_member = entity_seeder.user();
     let target_user = entity_seeder.user();
 
-    let shared_store = Arc::new(InMemoryChatRepository::new());
+    let shared_store = Arc::new(InMemoryRepository::new());
 
     let owner_state = seeded_state_with_store(
         &fixture.user.external_reference,
@@ -306,7 +306,7 @@ async fn given_non_owner_when_delete_server_then_status_is_403() {
     let fixture = entity_seeder.chat_fixture();
     let member_user = entity_seeder.user();
 
-    let shared_store = Arc::new(InMemoryChatRepository::new());
+    let shared_store = Arc::new(InMemoryRepository::new());
 
     let owner_state = seeded_state_with_store(
         &fixture.user.external_reference,
@@ -404,7 +404,7 @@ async fn given_non_owner_when_delete_channel_then_status_is_403() {
     let fixture = entity_seeder.chat_fixture();
     let member_user = entity_seeder.user();
 
-    let shared_store = Arc::new(InMemoryChatRepository::new());
+    let shared_store = Arc::new(InMemoryRepository::new());
 
     let owner_state = seeded_state_with_store(
         &fixture.user.external_reference,

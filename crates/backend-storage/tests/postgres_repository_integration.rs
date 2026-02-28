@@ -1,5 +1,5 @@
 use backend_storage::{
-    ChannelRepository, MessageRepository, PostgresChatRepository, ServerRepository,
+    ChannelRepository, MessageRepository, PostgresRepository, ServerRepository,
     UserRepository, VoiceRepository,
 };
 use sqlx::PgPool;
@@ -25,10 +25,9 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
         .await
         .expect("postgres mapped port");
 
-    let repository =
-        PostgresChatRepository::connect(&host, port, "polyphony", "postgres", "postgres", 5)
-            .await
-            .expect("postgres repository initialization to succeed");
+    let repository = PostgresRepository::connect(&host, port, "polyphony", "postgres", "postgres", 5)
+        .await
+        .expect("postgres repository initialization to succeed");
 
     let connection_string = format!("postgres://postgres:postgres@{host}:{port}/polyphony");
     let pool = PgPool::connect(&connection_string)

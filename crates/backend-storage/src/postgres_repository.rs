@@ -16,11 +16,11 @@ static MIGRATOR: Migrator = sqlx::migrate!(".\\migrations");
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
 #[derive(Debug, Clone)]
-pub struct PostgresChatRepository {
+pub struct PostgresRepository {
     pool: PgPool,
 }
 
-impl PostgresChatRepository {
+impl PostgresRepository {
     pub async fn connect(
         host: &str,
         port: u16,
@@ -68,7 +68,7 @@ impl PostgresChatRepository {
 }
 
 #[async_trait]
-impl MessageRepository for PostgresChatRepository {
+impl MessageRepository for PostgresRepository {
     async fn create_message(
         &self,
         channel_id: Uuid,
@@ -204,7 +204,7 @@ impl MessageRepository for PostgresChatRepository {
 }
 
 #[async_trait]
-impl UserRepository for PostgresChatRepository {
+impl UserRepository for PostgresRepository {
     async fn find_user_by_id(&self, user_id: Uuid) -> Option<User> {
         sqlx::query_as::<_, (Uuid, String, Option<String>)>(
             "SELECT id, external_reference, display_name
@@ -276,7 +276,7 @@ impl UserRepository for PostgresChatRepository {
 }
 
 #[async_trait]
-impl ServerRepository for PostgresChatRepository {
+impl ServerRepository for PostgresRepository {
     async fn create_server(&self, name: String, owner_user_id: Uuid) -> Server {
         let (server_id, owner_user_id_created) = sqlx::query_as::<_, (Uuid, Uuid)>(
             "WITH inserted AS (
@@ -421,7 +421,7 @@ impl ServerRepository for PostgresChatRepository {
 }
 
 #[async_trait]
-impl ChannelRepository for PostgresChatRepository {
+impl ChannelRepository for PostgresRepository {
     async fn create_channel(&self, server_id: Uuid, name: String) -> Option<Channel> {
         if !self.server_exists(server_id).await.ok()? {
             return None;
@@ -508,7 +508,7 @@ impl ChannelRepository for PostgresChatRepository {
 }
 
 #[async_trait]
-impl VoiceRepository for PostgresChatRepository {
+impl VoiceRepository for PostgresRepository {
     async fn join_voice_session(
         &self,
         channel_id: Uuid,
