@@ -13,7 +13,6 @@ void main() {
     build: () => ProfileBloc(
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
-        initialDisplayName: null,
       ),
     ),
     act: (bloc) => bloc.add(const LoadProfileRequested()),
@@ -30,7 +29,6 @@ void main() {
     build: () => ProfileBloc(
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
-        initialDisplayName: null,
       ),
     ),
     act: (bloc) {
@@ -56,7 +54,6 @@ void main() {
     build: () => ProfileBloc(
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
-        initialDisplayName: null,
       ),
     ),
     act: (bloc) {
