@@ -13,6 +13,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
         super(const ServersInitialState()) {
     on<LoadServersRequested>(_onLoadServersRequested);
     on<CreateServerRequested>(_onCreateServerRequested);
+    on<DeleteServerRequested>(_onDeleteServerRequested);
     on<SelectServerRequested>(_onSelectServerRequested);
     on<AddServerMemberRequested>(_onAddServerMemberRequested);
   }
@@ -101,6 +102,64 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
             emit(ServersExceptionState(error: error));
         }
       case Error<Server>(:final error):
+        emit(ServersExceptionState(error: error));
+    }
+  }
+
+  Future<void> _onDeleteServerRequested(
+    DeleteServerRequested event,
+    Emitter<ServersState> emit,
+  ) async {
+    final loadedState = _loadedStateOrNull(state);
+
+    if (loadedState == null) {
+      emit(ServersExceptionState(
+        error: Exception("Servers must be loaded before deleting a server."),
+      ));
+      return;
+    }
+
+    final trimmedServerId = event.serverId.trim();
+    if (trimmedServerId.isEmpty ||
+        !loadedState.servers.any((server) => server.id == trimmedServerId)) {
+      emit(ServersValidationFailedState(
+        issue: ServersValidationIssue.serverSelectionRequired,
+        servers: loadedState.servers,
+        selectedServerId: loadedState.selectedServerId,
+      ));
+      return;
+    }
+
+    emit(const ServersLoadingState());
+
+    final deleteServerResult = await _serverRepo.deleteOne(
+      command: DeleteServerCommand(serverId: trimmedServerId),
+    );
+
+    switch (deleteServerResult) {
+      case Ok<void>():
+        final listServersResult = await _serverRepo.getMany(
+          query: const GetServersQuery(),
+        );
+
+        switch (listServersResult) {
+          case Ok<Iterable<Server>>(:final value):
+            final servers = value.toList();
+            final previousSelectedServerId = loadedState.selectedServerId;
+            final selectedServerId = previousSelectedServerId != null &&
+                    servers
+                        .any((server) => server.id == previousSelectedServerId)
+                ? previousSelectedServerId
+                : null;
+
+            emit(ServersLoadedState(
+              servers: servers,
+              selectedServerId: selectedServerId,
+            ));
+          case Error<Iterable<Server>>(:final error):
+            emit(ServersExceptionState(error: error));
+        }
+      case Error<void>(:final error):
         emit(ServersExceptionState(error: error));
     }
   }

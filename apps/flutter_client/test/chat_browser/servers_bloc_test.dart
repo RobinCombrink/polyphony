@@ -103,6 +103,31 @@ void main() {
   );
 
   blocTest<ServersBloc, ServersState>(
+    "deletes selected server from context action",
+    build: () => ServersBloc(
+      serverRepo: FakeServerRepository(fixture: fixture),
+    ),
+    act: (bloc) {
+      bloc.add(const LoadServersRequested());
+      bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
+      bloc.add(DeleteServerRequested(serverId: fixture.listedServer.id));
+    },
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>()
+          .having((state) => state.servers, "servers", isEmpty)
+          .having(
+            (state) => state.selectedServerId,
+            "selected server id",
+            isNull,
+          ),
+    ],
+  );
+
+  blocTest<ServersBloc, ServersState>(
     "emits validation failed when add-member user id is empty",
     build: () => ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),

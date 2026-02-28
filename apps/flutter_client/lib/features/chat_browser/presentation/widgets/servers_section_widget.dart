@@ -44,6 +44,7 @@ class ServersSectionWidget extends StatefulWidget {
     required this.createController,
     required this.onTap,
     required this.onAddUser,
+    required this.onDeleteServer,
     required this.onCreate,
     super.key,
   });
@@ -54,6 +55,7 @@ class ServersSectionWidget extends StatefulWidget {
   final TextEditingController createController;
   final void Function(Server server) onTap;
   final void Function(Server server) onAddUser;
+  final void Function(Server server) onDeleteServer;
   final VoidCallback onCreate;
 
   @override
@@ -90,7 +92,8 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
     required Server server,
     required Offset globalPosition,
   }) async {
-    final selectedAction = await showMenu<String>(
+    final errorColor = Theme.of(context).colorScheme.error;
+    await showMenu<void>(
       context: context,
       position: RelativeRect.fromLTRB(
         globalPosition.dx,
@@ -98,19 +101,20 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
         globalPosition.dx,
         globalPosition.dy,
       ),
-      items: const <PopupMenuEntry<String>>[
-        PopupMenuItem<String>(
-          value: "add_user",
-          child: Text("Add user to server"),
+      items: <PopupMenuEntry<void>>[
+        PopupMenuItem<void>(
+          onTap: () => widget.onAddUser(server),
+          child: const Text("Add user to server"),
+        ),
+        PopupMenuItem<void>(
+          onTap: () => widget.onDeleteServer(server),
+          child: Text(
+            "Delete server",
+            style: TextStyle(color: errorColor),
+          ),
         ),
       ],
     );
-
-    if (!mounted || selectedAction != "add_user") {
-      return;
-    }
-
-    widget.onAddUser(server);
   }
 
   @override

@@ -8,6 +8,10 @@ abstract interface class ServerService {
     required String name,
   });
 
+  Future<Result<void>> deleteServer({
+    required String serverId,
+  });
+
   Future<Result<void>> addServerMember({
     required String serverId,
     required String userId,

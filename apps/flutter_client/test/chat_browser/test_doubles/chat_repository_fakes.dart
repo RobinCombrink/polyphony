@@ -16,10 +16,12 @@ class FakeServerRepository implements ServerRepo {
   FakeServerRepository({
     required ChatApiFixture fixture,
     this.forceAddMemberError = false,
+    this.forceDeleteError = false,
   })  : _servers = <Server>[fixture.listedServer],
         _createdServer = fixture.createdServer;
 
   final bool forceAddMemberError;
+  final bool forceDeleteError;
   final List<Server> _servers;
   final Server _createdServer;
 
@@ -36,6 +38,18 @@ class FakeServerRepository implements ServerRepo {
     required GetServersQuery query,
   }) async {
     return Ok<Iterable<Server>>(List<Server>.unmodifiable(_servers));
+  }
+
+  @override
+  Future<Result<void>> deleteOne({
+    required DeleteServerCommand command,
+  }) async {
+    if (forceDeleteError) {
+      return Error<void>(Exception("Failed to delete server"));
+    }
+
+    _servers.removeWhere((server) => server.id == command.serverId);
+    return const Ok<void>(null);
   }
 
   @override

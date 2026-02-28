@@ -11,6 +11,11 @@ abstract interface class ChatApi {
     required String name,
   });
 
+  Future<Result<void>> deleteServer({
+    required String baseUrl,
+    required String serverId,
+  });
+
   Future<Result<void>> addServerMember({
     required String baseUrl,
     required String serverId,

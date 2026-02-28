@@ -13,6 +13,14 @@ class CreateServerCommand {
   final String name;
 }
 
+class DeleteServerCommand {
+  const DeleteServerCommand({
+    required this.serverId,
+  });
+
+  final String serverId;
+}
+
 class AddServerMemberCommand {
   const AddServerMemberCommand({
     required this.serverId,
@@ -27,4 +35,5 @@ abstract interface class ServerRepo
     with
         RepositoryGetMany<Server, GetServersQuery>,
         RepositoryCreateOne<Server, CreateServerCommand>,
+        RepositoryDeleteOne<DeleteServerCommand>,
         RepositoryUpdateOne<void, AddServerMemberCommand> {}

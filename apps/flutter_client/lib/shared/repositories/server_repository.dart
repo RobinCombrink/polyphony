@@ -39,6 +39,13 @@ class ServerRepository implements ServerRepo {
   }
 
   @override
+  Future<Result<void>> deleteOne({required DeleteServerCommand command}) {
+    return _serverService.deleteServer(
+      serverId: command.serverId,
+    );
+  }
+
+  @override
   Future<Result<void>> updateOne({required AddServerMemberCommand command}) {
     return _serverService.addServerMember(
       serverId: command.serverId,

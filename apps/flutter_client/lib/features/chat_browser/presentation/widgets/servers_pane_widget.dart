@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
@@ -60,6 +62,72 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
             serverId: serverId,
             userId: result,
           ),
+        );
+  }
+
+  Future<void> _showDeleteServerConfirmationDialog(Server server) async {
+    final controller = TextEditingController();
+    var matchesName = false;
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: const Text("Delete server"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    "Type ${server.name} to confirm deletion.",
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    textInputAction: TextInputAction.done,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        matchesName = value.trim() == server.name;
+                      });
+                    },
+                    onSubmitted: (_) {
+                      if (matchesName) {
+                        Navigator.of(dialogContext).pop(true);
+                      }
+                    },
+                    decoration: const InputDecoration(
+                      labelText: "Server name",
+                    ),
+                  ),
+                ],
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text("Cancel"),
+                ),
+                FilledButton(
+                  onPressed: matchesName
+                      ? () => Navigator.of(dialogContext).pop(true)
+                      : null,
+                  child: const Text("Delete"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (!mounted || shouldDelete != true) {
+      return;
+    }
+
+    context.read<ServersBloc>().add(
+          DeleteServerRequested(serverId: server.id),
         );
   }
 
@@ -139,6 +207,8 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
                     .add(SelectServerRequested(serverId: server.id));
               },
               onAddUser: (server) => _showAddUserToServerDialog(server.id),
+              onDeleteServer: (server) =>
+                  unawaited(_showDeleteServerConfirmationDialog(server)),
               onCreate: () => context.read<ServersBloc>().add(
                     CreateServerRequested(
                       serverName: widget.createController.text,

@@ -69,6 +69,19 @@ class PolyphonyApiClient implements ChatApi {
   }
 
   @override
+  Future<Result<void>> deleteServer({
+    required String baseUrl,
+    required String serverId,
+  }) {
+    return _performDeleteRequest(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/servers/$serverId",
+      operation: "delete server",
+      expectedStatusCode: 204,
+    );
+  }
+
+  @override
   Future<Result<void>> addServerMember({
     required String baseUrl,
     required String serverId,

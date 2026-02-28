@@ -43,6 +43,21 @@ class RestServerService implements ServerService {
   }
 
   @override
+  Future<Result<void>> deleteServer({
+    required String serverId,
+  }) async {
+    if (_authenticationStateSource.currentAuthState
+        is! AuthenticationAuthenticatedState) {
+      return _missingTokenError();
+    }
+
+    return _chatApi.deleteServer(
+      baseUrl: _baseUrl,
+      serverId: serverId,
+    );
+  }
+
+  @override
   Future<Result<void>> addServerMember({
     required String serverId,
     required String userId,

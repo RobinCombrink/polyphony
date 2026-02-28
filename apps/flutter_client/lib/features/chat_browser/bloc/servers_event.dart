@@ -16,6 +16,12 @@ final class CreateServerRequested extends ServersEvent {
   final String serverName;
 }
 
+final class DeleteServerRequested extends ServersEvent {
+  const DeleteServerRequested({required this.serverId});
+
+  final String serverId;
+}
+
 final class SelectServerRequested extends ServersEvent {
   const SelectServerRequested({required this.serverId});
 
