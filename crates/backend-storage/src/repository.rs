@@ -61,5 +61,11 @@ pub trait ChatRepository: Send + Sync {
         channel_id: Uuid,
         participant_user_id: Uuid,
     ) -> MutationResult;
+    async fn set_voice_session_muted(
+        &self,
+        channel_id: Uuid,
+        participant_user_id: Uuid,
+        is_muted: bool,
+    ) -> MutationResult;
     async fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>>;
 }

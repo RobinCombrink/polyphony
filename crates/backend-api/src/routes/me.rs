@@ -1,6 +1,10 @@
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 
-use crate::{ApiState, auth::AuthenticatedUser, dto::{MeResponse, UpdateMeRequest}};
+use crate::{
+    ApiState,
+    auth::AuthenticatedUser,
+    dto::{MeResponse, UpdateMeRequest},
+};
 
 #[utoipa::path(
     get,

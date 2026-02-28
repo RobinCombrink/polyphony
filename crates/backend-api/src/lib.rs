@@ -13,7 +13,7 @@ use std::{net::SocketAddr, sync::Arc};
 use auth::{AuthState, JwksTokenVerifier, TokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
-use backend_storage::{ChatRepository, MessageRepository, PostgresChatRepository};
+use backend_storage::{ChatRepository, MessageRepository, PostgresChatRepository, UserRepository};
 use http::{HeaderValue, Method};
 use openapi::ApiDocumentation;
 use routes::{
@@ -25,7 +25,7 @@ use routes::{
         list_channels, list_servers,
     },
     users::get_user_by_id,
-    voice::connect_voice_session,
+    voice::{connect_voice_session, list_voice_sessions, update_self_mute_state},
 };
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -112,6 +112,14 @@ pub fn build_app(state: ApiState) -> Router {
         .route(
             "/api/v1/channels/{channel_id}/voice/connect",
             post(connect_voice_session),
+        )
+        .route(
+            "/api/v1/channels/{channel_id}/voice/self",
+            patch(update_self_mute_state),
+        )
+        .route(
+            "/api/v1/channels/{channel_id}/voice/sessions",
+            get(list_voice_sessions),
         )
         .merge(
             SwaggerUi::new("/openapi")

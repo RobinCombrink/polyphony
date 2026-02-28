@@ -167,6 +167,16 @@ impl ChatRepository for InMemoryChatRepository {
         store.leave_voice_session(channel_id, participant_user_id)
     }
 
+    async fn set_voice_session_muted(
+        &self,
+        channel_id: Uuid,
+        participant_user_id: Uuid,
+        is_muted: bool,
+    ) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.set_voice_session_muted(channel_id, participant_user_id, is_muted)
+    }
+
     async fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>> {
         let store = self.store.read().await;
         store.list_voice_sessions(channel_id)

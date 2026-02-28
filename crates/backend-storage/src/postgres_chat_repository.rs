@@ -526,6 +526,18 @@ impl ChatRepository for PostgresChatRepository {
         Some(VoiceSession {
             channel_id,
             participant_user_id,
+            is_muted: sqlx::query_scalar::<_, bool>(
+                "SELECT is_muted
+                 FROM voice_sessions
+                 WHERE channel_id = $1 AND participant_user_id = $2",
+            )
+            .bind(channel_id)
+            .bind(participant_user_id)
+            .fetch_optional(&self.pool)
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or(false),
         })
     }
 
@@ -554,13 +566,41 @@ impl ChatRepository for PostgresChatRepository {
         }
     }
 
+    async fn set_voice_session_muted(
+        &self,
+        channel_id: Uuid,
+        participant_user_id: Uuid,
+        is_muted: bool,
+    ) -> MutationResult {
+        if !self.channel_exists(channel_id).await.unwrap_or(false) {
+            return MutationResult::NotFound;
+        }
+
+        let updated = sqlx::query(
+            "UPDATE voice_sessions
+             SET is_muted = $3
+             WHERE channel_id = $1 AND participant_user_id = $2",
+        )
+        .bind(channel_id)
+        .bind(participant_user_id)
+        .bind(is_muted)
+        .execute(&self.pool)
+        .await;
+
+        match updated {
+            Ok(result) if result.rows_affected() > 0 => MutationResult::Updated,
+            Ok(_) => MutationResult::NotFound,
+            Err(_) => MutationResult::NotFound,
+        }
+    }
+
     async fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>> {
         if !self.channel_exists(channel_id).await.ok()? {
             return None;
         }
 
-        let sessions = sqlx::query_as::<_, (Uuid, Uuid)>(
-            "SELECT channel_id, participant_user_id
+        let sessions = sqlx::query_as::<_, (Uuid, Uuid, bool)>(
+            "SELECT channel_id, participant_user_id, is_muted
              FROM voice_sessions
              WHERE channel_id = $1
              ORDER BY participant_user_id ASC",
@@ -570,9 +610,10 @@ impl ChatRepository for PostgresChatRepository {
         .await
         .ok()?
         .into_iter()
-        .map(|(channel_id, participant_user_id)| VoiceSession {
+        .map(|(channel_id, participant_user_id, is_muted)| VoiceSession {
             channel_id,
             participant_user_id,
+            is_muted,
         })
         .collect();
 

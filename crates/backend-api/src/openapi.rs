@@ -1,4 +1,4 @@
-use backend_domain::{Channel, Membership, Message, Server};
+use backend_domain::{Channel, Membership, Message, Server, VoiceSession};
 use utoipa::openapi::{
     Components,
     security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
@@ -7,8 +7,8 @@ use utoipa::{Modify, OpenApi};
 
 use crate::dto::{
     AddServerMemberRequest, CreateChannelRequest, CreateMessageRequest, CreateServerRequest,
-    HealthResponse, MeResponse, UpdateMeRequest, UpdateMessageRequest, UserLookupResponse,
-    VoiceConnectResponse,
+    HealthResponse, MeResponse, SetVoiceSessionMuteRequest, UpdateMeRequest, UpdateMessageRequest,
+    UserLookupResponse, VoiceConnectResponse,
 };
 
 #[derive(OpenApi)]
@@ -29,7 +29,9 @@ use crate::dto::{
         crate::routes::messages::update::update_message,
         crate::routes::messages::delete::delete_message,
         crate::routes::messages::list::list_messages,
-        crate::routes::voice::connect_voice_session
+        crate::routes::voice::connect_voice_session,
+        crate::routes::voice::update_self_mute_state,
+        crate::routes::voice::list_voice_sessions
     ),
     components(schemas(
         HealthResponse,
@@ -40,7 +42,9 @@ use crate::dto::{
         Membership,
         Channel,
         Message,
+        VoiceSession,
         VoiceConnectResponse,
+        SetVoiceSessionMuteRequest,
         AddServerMemberRequest,
         CreateServerRequest,
         CreateChannelRequest,

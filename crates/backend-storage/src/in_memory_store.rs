@@ -13,7 +13,7 @@ pub(crate) struct InMemoryStore {
     pub(crate) server_members_by_id: HashMap<Uuid, Vec<Uuid>>,
     pub(crate) channels: HashMap<Uuid, Channel>,
     pub(crate) messages_by_channel: HashMap<Uuid, Vec<Message>>,
-    pub(crate) voice_participants_by_channel: HashMap<Uuid, Vec<Uuid>>,
+    pub(crate) voice_participants_by_channel: HashMap<Uuid, Vec<VoiceSession>>,
 }
 
 impl InMemoryStore {
@@ -284,13 +284,23 @@ impl InMemoryStore {
             .entry(channel_id)
             .or_default();
 
-        if !participants.contains(&participant_user_id) {
-            participants.push(participant_user_id);
+        if let Some(session) = participants
+            .iter()
+            .find(|session| session.participant_user_id == participant_user_id)
+        {
+            return Some(session.clone());
+        } else {
+            participants.push(VoiceSession {
+                channel_id,
+                participant_user_id,
+                is_muted: false,
+            });
         }
 
         Some(VoiceSession {
             channel_id,
             participant_user_id,
+            is_muted: false,
         })
     }
 
@@ -310,11 +320,38 @@ impl InMemoryStore {
 
         match participants
             .iter()
-            .position(|user_id| *user_id == participant_user_id)
+            .position(|session| session.participant_user_id == participant_user_id)
         {
             Some(index) => {
                 participants.remove(index);
                 MutationResult::Deleted
+            }
+            None => MutationResult::NotFound,
+        }
+    }
+
+    pub(crate) fn set_voice_session_muted(
+        &mut self,
+        channel_id: Uuid,
+        participant_user_id: Uuid,
+        is_muted: bool,
+    ) -> MutationResult {
+        if !self.channels.contains_key(&channel_id) {
+            return MutationResult::NotFound;
+        }
+
+        let participants = match self.voice_participants_by_channel.get_mut(&channel_id) {
+            Some(existing_participants) => existing_participants,
+            None => return MutationResult::NotFound,
+        };
+
+        match participants
+            .iter_mut()
+            .find(|session| session.participant_user_id == participant_user_id)
+        {
+            Some(session) => {
+                session.is_muted = is_muted;
+                MutationResult::Updated
             }
             None => MutationResult::NotFound,
         }
@@ -328,15 +365,7 @@ impl InMemoryStore {
         let sessions = self
             .voice_participants_by_channel
             .get(&channel_id)
-            .map(|participant_user_ids| {
-                participant_user_ids
-                    .iter()
-                    .map(|participant_user_id| VoiceSession {
-                        channel_id,
-                        participant_user_id: *participant_user_id,
-                    })
-                    .collect::<Vec<_>>()
-            })
+            .map(|sessions| sessions.to_vec())
             .unwrap_or_default();
 
         Some(sessions)

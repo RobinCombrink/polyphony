@@ -6,4 +6,5 @@ use uuid::Uuid;
 pub struct VoiceSession {
     pub channel_id: Uuid,
     pub participant_user_id: Uuid,
+    pub is_muted: bool,
 }
