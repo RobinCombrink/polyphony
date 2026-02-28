@@ -31,7 +31,7 @@ pub(crate) async fn create_server(
     Json(request): Json<CreateServerRequest>,
 ) -> impl IntoResponse {
     let created_server = state
-        .chat_repository
+        .server_repository
         .create_server(request.name, authenticated_user.user_id)
         .await;
 
@@ -53,7 +53,7 @@ pub(crate) async fn list_servers(
     authenticated_user: AuthenticatedUser,
 ) -> impl IntoResponse {
     let servers = state
-        .chat_repository
+        .server_repository
         .list_servers_for_user(authenticated_user.user_id)
         .await;
 
@@ -81,7 +81,7 @@ pub(crate) async fn add_server_member(
     Json(request): Json<AddServerMemberRequest>,
 ) -> impl IntoResponse {
     let mutation_result = state
-        .chat_repository
+        .server_repository
         .add_server_member(
             server_id,
             authenticated_user.user_id,
@@ -123,7 +123,7 @@ pub(crate) async fn delete_server(
     Path(server_id): Path<Uuid>,
 ) -> impl IntoResponse {
     let mutation_result = state
-        .chat_repository
+        .server_repository
         .delete_server(server_id, authenticated_user.user_id)
         .await;
 

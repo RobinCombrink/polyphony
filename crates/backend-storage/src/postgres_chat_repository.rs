@@ -4,7 +4,7 @@ use sqlx::migrate::Migrator;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use uuid::Uuid;
 
-use crate::{ChatRepository, MessageRepository, MutationResult, UserRepository};
+use crate::{ChatRepository, MessageRepository, MutationResult, ServerRepository, UserRepository};
 
 #[cfg(target_family = "windows")]
 static MIGRATOR: Migrator = sqlx::migrate!(".\\migrations");
@@ -273,7 +273,7 @@ impl UserRepository for PostgresChatRepository {
 }
 
 #[async_trait]
-impl ChatRepository for PostgresChatRepository {
+impl ServerRepository for PostgresChatRepository {
     async fn create_server(&self, name: String, owner_user_id: Uuid) -> Server {
         let (server_id, owner_user_id_created) = sqlx::query_as::<_, (Uuid, Uuid)>(
             "WITH inserted AS (
@@ -415,7 +415,10 @@ impl ChatRepository for PostgresChatRepository {
 
         Some(members)
     }
+}
 
+#[async_trait]
+impl ChatRepository for PostgresChatRepository {
     async fn create_channel(&self, server_id: Uuid, name: String) -> Option<Channel> {
         if !self.server_exists(server_id).await.ok()? {
             return None;

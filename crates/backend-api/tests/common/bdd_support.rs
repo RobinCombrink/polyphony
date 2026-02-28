@@ -11,7 +11,10 @@ use backend_api::{
     ApiState,
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
-    storage::{ChatRepository, InMemoryChatRepository, MessageRepository, UserRepository},
+    storage::{
+        ChatRepository, InMemoryChatRepository, MessageRepository, ServerRepository,
+        UserRepository,
+    },
 };
 use serde_json::Value;
 use tower::ServiceExt;
@@ -446,12 +449,14 @@ pub(crate) fn seeded_state_with_store(
     });
 
     let user_store: Arc<dyn UserRepository> = repository.clone();
+    let server_store: Arc<dyn ServerRepository> = repository.clone();
     let chat_store: Arc<dyn ChatRepository> = repository.clone();
     let message_store: Arc<dyn MessageRepository> = repository;
 
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
         user_repository: user_store,
+        server_repository: server_store,
         chat_repository: chat_store,
         message_repository: message_store,
         livekit_config: Arc::new(LiveKitConfig::default()),
