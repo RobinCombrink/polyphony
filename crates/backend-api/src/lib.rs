@@ -14,8 +14,7 @@ use auth::{AuthState, JwksTokenVerifier, TokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
 use backend_storage::{
-    ChannelRepository, MessageRepository, PostgresRepository,
-    ServerRepository, UserRepository,
+    ChannelRepository, MessageRepository, PostgresRepository, ServerRepository, UserRepository,
     VoiceRepository,
 };
 use http::{HeaderValue, Method};
@@ -26,7 +25,7 @@ use routes::{
     messages::{create_message, delete_message, list_messages, update_message},
     servers::{
         add_server_member, create_channel, create_server, delete_channel, delete_server,
-        list_channels, list_servers,
+        list_channels, list_server_members, list_servers,
     },
     users::get_user_by_id,
     voice::{connect_voice_session, list_voice_sessions, update_self_mute_state},
@@ -105,7 +104,7 @@ pub fn build_app(state: ApiState) -> Router {
         )
         .route(
             "/api/v1/servers/{server_id}/members",
-            post(add_server_member),
+            post(add_server_member).get(list_server_members),
         )
         .route(
             "/api/v1/channels/{channel_id}/messages",

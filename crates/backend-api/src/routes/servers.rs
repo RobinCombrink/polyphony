@@ -61,6 +61,33 @@ pub(crate) async fn list_servers(
 }
 
 #[utoipa::path(
+    get,
+    path = "/api/v1/servers/{server_id}/members",
+    responses(
+        (status = 200, description = "Server members listed", body = [Membership]),
+        (status = 404, description = "Server not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("server_id" = Uuid, Path, description = "Server id")),
+    tag = "backend-api"
+)]
+pub(crate) async fn list_server_members(
+    State(state): State<ApiState>,
+    authenticated_user: AuthenticatedUser,
+    Path(server_id): Path<Uuid>,
+) -> impl IntoResponse {
+    let _ = authenticated_user;
+
+    let members = state.server_repository.list_server_members(server_id).await;
+
+    match members {
+        Some(server_members) => (StatusCode::OK, Json(server_members)).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+#[utoipa::path(
     post,
     path = "/api/v1/servers/{server_id}/members",
     request_body = AddServerMemberRequest,
@@ -82,11 +109,7 @@ pub(crate) async fn add_server_member(
 ) -> impl IntoResponse {
     let mutation_result = state
         .server_repository
-        .add_server_member(
-            server_id,
-            authenticated_user.user_id,
-            request.user_id,
-        )
+        .add_server_member(server_id, authenticated_user.user_id, request.user_id)
         .await;
 
     match mutation_result {

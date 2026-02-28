@@ -20,6 +20,7 @@ use crate::dto::{
         crate::routes::users::get_user_by_id,
         crate::routes::servers::create_server,
         crate::routes::servers::list_servers,
+        crate::routes::servers::list_server_members,
         crate::routes::servers::add_server_member,
         crate::routes::servers::delete_server,
         crate::routes::servers::create_channel,
