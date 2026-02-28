@@ -7,6 +7,7 @@ import "package:polyphony_flutter_client/shared/services/voice_runtime_service.d
 class LivekitVoiceRuntimeService implements VoiceRuntimeService {
   Room? _room;
   EventsListener<RoomEvent>? _roomListener;
+  var _isSelfMuted = false;
 
   @override
   Future<Result<void>> connect({
@@ -25,6 +26,7 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
       await room.prepareConnection(livekitUrl, accessToken);
       await room.connect(livekitUrl, accessToken);
       await room.localParticipant?.setMicrophoneEnabled(true);
+      _isSelfMuted = false;
       _roomListener = room.createListener();
       _room = room;
       return const Ok<void>(null);
@@ -37,10 +39,32 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
   Future<Result<void>> disconnect() async {
     try {
       await _disconnectCurrentRoom();
+      _isSelfMuted = false;
       return const Ok<void>(null);
     } on Exception catch (error) {
       return Error<void>(error);
     }
+  }
+
+  @override
+  Future<Result<void>> setSelfMuted({required bool muted}) async {
+    try {
+      final activeRoom = _room;
+      if (activeRoom == null) {
+        return Error<void>(Exception("Not connected to a voice session."));
+      }
+
+      await activeRoom.localParticipant?.setMicrophoneEnabled(!muted);
+      _isSelfMuted = muted;
+      return const Ok<void>(null);
+    } on Exception catch (error) {
+      return Error<void>(error);
+    }
+  }
+
+  @override
+  bool isSelfMuted() {
+    return _isSelfMuted;
   }
 
   @override

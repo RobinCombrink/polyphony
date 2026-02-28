@@ -229,10 +229,13 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
   FakeVoiceRuntimeService({
     this.forceConnectError = false,
     this.forceDisconnectError = false,
+    this.forceSetSelfMutedError = false,
   });
 
   final bool forceConnectError;
   final bool forceDisconnectError;
+  final bool forceSetSelfMutedError;
+  var _isSelfMuted = false;
 
   @override
   Future<Result<void>> connect({
@@ -243,6 +246,7 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
       return Error<void>(Exception("Failed to connect to livekit"));
     }
 
+    _isSelfMuted = false;
     return const Ok<void>(null);
   }
 
@@ -252,7 +256,23 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
       return Error<void>(Exception("Failed to disconnect from livekit"));
     }
 
+    _isSelfMuted = false;
     return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> setSelfMuted({required bool muted}) async {
+    if (forceSetSelfMutedError) {
+      return Error<void>(Exception("Failed to update microphone state"));
+    }
+
+    _isSelfMuted = muted;
+    return const Ok<void>(null);
+  }
+
+  @override
+  bool isSelfMuted() {
+    return _isSelfMuted;
   }
 
   @override

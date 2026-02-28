@@ -31,3 +31,11 @@ final class DisconnectVoiceSessionRequested extends VoiceSessionsEvent {
 
   final String channelId;
 }
+
+final class SetSelfMutedRequested extends VoiceSessionsEvent {
+  const SetSelfMutedRequested({
+    required this.muted,
+  });
+
+  final bool muted;
+}

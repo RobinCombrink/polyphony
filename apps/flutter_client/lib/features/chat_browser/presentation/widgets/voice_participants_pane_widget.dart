@@ -57,6 +57,8 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
 
             final participants =
                 loadedData?.participants ?? const <VoiceParticipant>[];
+            final isSelfMuted = loadedData?.isSelfMuted ?? false;
+            final isConnected = loadedData?.activeConnection != null;
             final visibleParticipants = isLoading && participants.isEmpty
                 ? _skeletonParticipants()
                 : participants;
@@ -67,6 +69,11 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
                 channelName: selectedVoiceChannel.name,
                 participants: visibleParticipants,
                 isLoading: isLoading,
+                isConnected: isConnected,
+                isSelfMuted: isSelfMuted,
+                onToggleSelfMute: () => context.read<VoiceSessionsBloc>().add(
+                      SetSelfMutedRequested(muted: !isSelfMuted),
+                    ),
                 onLeave: () => context.read<VoiceSessionsBloc>().add(
                       DisconnectVoiceSessionRequested(
                         channelId: selectedVoiceChannel.id,

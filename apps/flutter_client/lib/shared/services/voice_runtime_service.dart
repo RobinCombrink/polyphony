@@ -8,5 +8,9 @@ abstract interface class VoiceRuntimeService {
 
   Future<Result<void>> disconnect();
 
+  Future<Result<void>> setSelfMuted({required bool muted});
+
+  bool isSelfMuted();
+
   Iterable<String> currentParticipantUserIds();
 }

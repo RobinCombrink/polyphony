@@ -42,6 +42,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         await _onConnectVoiceSessionRequested(event, emit);
       case DisconnectVoiceSessionRequested():
         await _onDisconnectVoiceSessionRequested(event, emit);
+      case SetSelfMutedRequested():
+        await _onSetSelfMutedRequested(event, emit);
     }
   }
 
@@ -65,6 +67,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         activeConnection: loadedState.activeConnection,
         channelId: loadedState.channelId,
         participants: loadedState.participants,
+        isSelfMuted: loadedState.isSelfMuted,
       ));
       return;
     }
@@ -84,6 +87,9 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           : null,
       channelId: trimmedChannelId,
       participants: participants,
+      isSelfMuted: loadedState?.channelId == trimmedChannelId
+          ? loadedState?.isSelfMuted ?? _voiceRuntimeService.isSelfMuted()
+          : false,
     ));
   }
 
@@ -107,6 +113,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         activeConnection: loadedState.activeConnection,
         channelId: loadedState.channelId,
         participants: loadedState.participants,
+        isSelfMuted: loadedState.isSelfMuted,
       ));
       return;
     }
@@ -124,6 +131,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         activeConnection: activeConnection,
         channelId: trimmedChannelId,
         participants: participants,
+        isSelfMuted: loadedState.isSelfMuted,
       ));
       return;
     }
@@ -175,6 +183,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
               activeConnection: value,
               channelId: trimmedChannelId,
               participants: participants,
+              isSelfMuted: _voiceRuntimeService.isSelfMuted(),
             ));
           case Error<void>(:final error):
             emit(VoiceSessionsExceptionState(error: error));
@@ -204,6 +213,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         activeConnection: loadedState.activeConnection,
         channelId: loadedState.channelId,
         participants: loadedState.participants,
+        isSelfMuted: loadedState.isSelfMuted,
       ));
       return;
     }
@@ -229,6 +239,48 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           activeConnection: null,
           channelId: trimmedChannelId,
           participants: const <VoiceParticipant>[],
+          isSelfMuted: false,
+        ));
+      case Error<void>(:final error):
+        emit(VoiceSessionsExceptionState(error: error));
+    }
+  }
+
+  Future<void> _onSetSelfMutedRequested(
+    SetSelfMutedRequested event,
+    Emitter<VoiceSessionsState> emit,
+  ) async {
+    final loadedState = _loadedStateOrNull(state);
+
+    if (loadedState == null) {
+      emit(VoiceSessionsExceptionState(
+        error: Exception("Voice sessions must be loaded before muting."),
+      ));
+      return;
+    }
+
+    if (loadedState.activeConnection == null) {
+      emit(VoiceSessionsValidationFailedState(
+        issue: VoiceSessionsValidationIssue.channelSelectionRequired,
+        activeConnection: loadedState.activeConnection,
+        channelId: loadedState.channelId,
+        participants: loadedState.participants,
+        isSelfMuted: loadedState.isSelfMuted,
+      ));
+      return;
+    }
+
+    final setMutedResult = await _voiceRuntimeService.setSelfMuted(
+      muted: event.muted,
+    );
+
+    switch (setMutedResult) {
+      case Ok<void>():
+        emit(VoiceSessionsLoadedState(
+          activeConnection: loadedState.activeConnection,
+          channelId: loadedState.channelId,
+          participants: loadedState.participants,
+          isSelfMuted: event.muted,
         ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));

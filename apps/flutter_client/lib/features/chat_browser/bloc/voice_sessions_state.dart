@@ -21,11 +21,13 @@ sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
     required this.activeConnection,
     required this.channelId,
     required this.participants,
+    required this.isSelfMuted,
   });
 
   final VoiceConnectSession? activeConnection;
   final String channelId;
   final List<VoiceParticipant> participants;
+  final bool isSelfMuted;
 }
 
 final class VoiceSessionsLoadedState extends VoiceSessionsLoadedDataState {
@@ -33,6 +35,7 @@ final class VoiceSessionsLoadedState extends VoiceSessionsLoadedDataState {
     required super.activeConnection,
     required super.channelId,
     required super.participants,
+    required super.isSelfMuted,
   });
 }
 
@@ -43,6 +46,7 @@ final class VoiceSessionsValidationFailedState
     required super.activeConnection,
     required super.channelId,
     required super.participants,
+    required super.isSelfMuted,
   });
 
   final VoiceSessionsValidationIssue issue;

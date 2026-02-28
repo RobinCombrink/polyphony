@@ -257,7 +257,7 @@ class PolyphonyApiClient implements ChatApi {
 
     return decoded
         .whereType<Map>()
-        .map((item) => Map<String, dynamic>.from(item))
+        .map(Map<String, dynamic>.from)
         .toList();
   }
 

@@ -100,4 +100,42 @@ void main() {
       ),
     ],
   );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "set self muted updates mute state",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+    ),
+    act: (bloc) {
+      bloc.add(LoadVoiceSessionsRequested(
+        channelId: fixture.listedChannel.id,
+      ));
+      bloc.add(ConnectVoiceSessionRequested(
+        channelId: fixture.listedChannel.id,
+      ));
+      bloc.add(const SetSelfMutedRequested(muted: true));
+      bloc.add(const SetSelfMutedRequested(muted: false));
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.isSelfMuted,
+        "is self muted",
+        false,
+      ),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.isSelfMuted,
+        "is self muted",
+        true,
+      ),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.isSelfMuted,
+        "is self muted",
+        false,
+      ),
+    ],
+  );
 }

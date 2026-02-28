@@ -26,14 +26,20 @@ class VoiceChannelsSectionWidget extends StatelessWidget {
     required this.participants,
     required this.channelName,
     required this.isLoading,
+    required this.isConnected,
+    required this.isSelfMuted,
     required this.onLeave,
+    required this.onToggleSelfMute,
     super.key,
   });
 
   final List<VoiceParticipant> participants;
   final String channelName;
   final bool isLoading;
+  final bool isConnected;
+  final bool isSelfMuted;
   final VoidCallback onLeave;
+  final VoidCallback onToggleSelfMute;
 
   @override
   Widget build(BuildContext context) {
@@ -51,12 +57,21 @@ class VoiceChannelsSectionWidget extends StatelessWidget {
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: FilledButton.tonal(
-                onPressed: isLoading ? null : onLeave,
-                child: const Text("Leave voice"),
-              ),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: <Widget>[
+                FilledButton.tonalIcon(
+                  onPressed:
+                      isLoading || !isConnected ? null : onToggleSelfMute,
+                  icon: Icon(isSelfMuted ? Icons.mic_off : Icons.mic),
+                  label: Text(isSelfMuted ? "Unmute" : "Mute"),
+                ),
+                FilledButton.tonal(
+                  onPressed: isLoading || !isConnected ? null : onLeave,
+                  child: const Text("Leave voice"),
+                ),
+              ],
             ),
           ),
           Expanded(
