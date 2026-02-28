@@ -12,8 +12,8 @@ use backend_api::{
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
     storage::{
-        ChatRepository, InMemoryChatRepository, MessageRepository, ServerRepository,
-        UserRepository,
+        ChannelRepository, ChatRepository, InMemoryChatRepository, MessageRepository,
+        ServerRepository, UserRepository,
     },
 };
 use serde_json::Value;
@@ -450,6 +450,7 @@ pub(crate) fn seeded_state_with_store(
 
     let user_store: Arc<dyn UserRepository> = repository.clone();
     let server_store: Arc<dyn ServerRepository> = repository.clone();
+    let channel_store: Arc<dyn ChannelRepository> = repository.clone();
     let chat_store: Arc<dyn ChatRepository> = repository.clone();
     let message_store: Arc<dyn MessageRepository> = repository;
 
@@ -457,6 +458,7 @@ pub(crate) fn seeded_state_with_store(
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
         user_repository: user_store,
         server_repository: server_store,
+        channel_repository: channel_store,
         chat_repository: chat_store,
         message_repository: message_store,
         livekit_config: Arc::new(LiveKitConfig::default()),

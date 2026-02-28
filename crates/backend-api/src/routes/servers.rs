@@ -157,7 +157,7 @@ pub(crate) async fn create_channel(
     let _ = authenticated_user;
 
     let created_channel = state
-        .chat_repository
+        .channel_repository
         .create_channel(server_id, request.name)
         .await;
 
@@ -186,7 +186,7 @@ pub(crate) async fn delete_channel(
     Path(channel_id): Path<Uuid>,
 ) -> impl IntoResponse {
     let mutation_result = state
-        .chat_repository
+        .channel_repository
         .delete_channel(channel_id, authenticated_user.user_id)
         .await;
 
@@ -217,7 +217,10 @@ pub(crate) async fn list_channels(
 ) -> impl IntoResponse {
     let _ = authenticated_user;
 
-    let channels = state.chat_repository.list_channels_for_server(server_id).await;
+    let channels = state
+        .channel_repository
+        .list_channels_for_server(server_id)
+        .await;
 
     match channels {
         Some(server_channels) => (StatusCode::OK, Json(server_channels)).into_response(),

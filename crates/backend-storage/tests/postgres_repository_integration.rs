@@ -1,5 +1,6 @@
 use backend_storage::{
-    ChatRepository, MessageRepository, PostgresChatRepository, ServerRepository, UserRepository,
+    ChannelRepository, ChatRepository, MessageRepository, PostgresChatRepository, ServerRepository,
+    UserRepository,
 };
 use sqlx::PgPool;
 use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};

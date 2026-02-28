@@ -4,7 +4,10 @@ use sqlx::migrate::Migrator;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use uuid::Uuid;
 
-use crate::{ChatRepository, MessageRepository, MutationResult, ServerRepository, UserRepository};
+use crate::{
+    ChannelRepository, ChatRepository, MessageRepository, MutationResult, ServerRepository,
+    UserRepository,
+};
 
 #[cfg(target_family = "windows")]
 static MIGRATOR: Migrator = sqlx::migrate!(".\\migrations");
@@ -418,7 +421,7 @@ impl ServerRepository for PostgresChatRepository {
 }
 
 #[async_trait]
-impl ChatRepository for PostgresChatRepository {
+impl ChannelRepository for PostgresChatRepository {
     async fn create_channel(&self, server_id: Uuid, name: String) -> Option<Channel> {
         if !self.server_exists(server_id).await.ok()? {
             return None;
@@ -502,7 +505,10 @@ impl ChatRepository for PostgresChatRepository {
 
         Some(channels)
     }
+}
 
+#[async_trait]
+impl ChatRepository for PostgresChatRepository {
     async fn join_voice_session(
         &self,
         channel_id: Uuid,
