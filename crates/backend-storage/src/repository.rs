@@ -29,11 +29,15 @@ pub trait MessageRepository: Send + Sync {
 }
 
 #[async_trait]
-pub trait ChatRepository: Send + Sync {
+pub trait UserRepository: Send + Sync {
     async fn find_user_by_id(&self, user_id: Uuid) -> Option<User>;
     async fn find_user_by_external_reference(&self, external_reference: &str) -> Option<User>;
     async fn get_or_create_user_by_external_reference(&self, external_reference: &str) -> User;
     async fn set_user_display_name(&self, user_id: Uuid, display_name: String) -> Option<User>;
+}
+
+#[async_trait]
+pub trait ChatRepository: Send + Sync {
     async fn create_server(&self, name: String, owner_user_id: Uuid) -> Server;
     async fn list_servers_for_user(&self, user_id: Uuid) -> Vec<Server>;
     async fn add_server_member(

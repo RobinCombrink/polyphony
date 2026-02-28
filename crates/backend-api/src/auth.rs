@@ -156,7 +156,7 @@ impl FromRequestParts<crate::ApiState> for AuthenticatedUser {
         state: &crate::ApiState,
     ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
         let auth_state = state.auth_state.clone();
-        let chat_repository = state.chat_repository.clone();
+        let user_repository = state.user_repository.clone();
 
         let authorization_header = parts
             .headers
@@ -172,7 +172,7 @@ impl FromRequestParts<crate::ApiState> for AuthenticatedUser {
         async move {
             let bearer_token = authorization_header?;
             let verified_user = auth_state.token_verifier.verify(&bearer_token).await?;
-            let user = chat_repository
+            let user = user_repository
                 .get_or_create_user_by_external_reference(&verified_user.external_reference)
                 .await;
 

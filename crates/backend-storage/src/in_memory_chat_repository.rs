@@ -3,7 +3,7 @@ use backend_domain::{Channel, Membership, Message, Server, User, VoiceSession};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::{ChatRepository, InMemoryStore, MessageRepository, MutationResult};
+use crate::{ChatRepository, InMemoryStore, MessageRepository, MutationResult, UserRepository};
 
 #[derive(Debug, Default)]
 pub struct InMemoryChatRepository {
@@ -58,7 +58,7 @@ impl MessageRepository for InMemoryChatRepository {
 }
 
 #[async_trait]
-impl ChatRepository for InMemoryChatRepository {
+impl UserRepository for InMemoryChatRepository {
     async fn find_user_by_id(&self, user_id: Uuid) -> Option<User> {
         let store = self.store.read().await;
         store.find_user_by_id(user_id)
@@ -78,7 +78,10 @@ impl ChatRepository for InMemoryChatRepository {
         let mut store = self.store.write().await;
         store.set_user_display_name(user_id, display_name)
     }
+}
 
+#[async_trait]
+impl ChatRepository for InMemoryChatRepository {
     async fn create_server(&self, name: String, owner_user_id: Uuid) -> Server {
         let mut store = self.store.write().await;
         store.create_server(name, owner_user_id)

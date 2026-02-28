@@ -35,6 +35,7 @@ use utoipa_swagger_ui::{Config, SwaggerUi};
 #[derive(Clone)]
 pub struct ApiState {
     pub auth_state: Arc<AuthState>,
+    pub user_repository: Arc<dyn UserRepository>,
     pub chat_repository: Arc<dyn ChatRepository>,
     pub message_repository: Arc<dyn MessageRepository>,
     pub livekit_config: Arc<config::LiveKitConfig>,
@@ -65,11 +66,13 @@ pub async fn default_api_state() -> ApiState {
         .await
         .expect("postgres repository initialization to succeed"),
     );
+    let user_store: Arc<dyn UserRepository> = repository.clone();
     let chat_store: Arc<dyn ChatRepository> = repository.clone();
     let message_store: Arc<dyn MessageRepository> = repository;
 
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
+        user_repository: user_store,
         chat_repository: chat_store,
         message_repository: message_store,
         livekit_config: Arc::new(backend_config.livekit),

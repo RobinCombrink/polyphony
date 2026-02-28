@@ -11,7 +11,7 @@ use backend_api::{
     ApiState,
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
-    storage::{ChatRepository, InMemoryChatRepository, MessageRepository},
+    storage::{ChatRepository, InMemoryChatRepository, MessageRepository, UserRepository},
 };
 use serde_json::Value;
 use tower::ServiceExt;
@@ -406,7 +406,11 @@ pub(crate) async fn response_payload_json(response: axum::response::Response) ->
 }
 
 pub(crate) fn seeded_state(external_reference: &str, token: &str) -> ApiState {
-    seeded_state_with_store(external_reference, token, Arc::new(InMemoryChatRepository::new()))
+    seeded_state_with_store(
+        external_reference,
+        token,
+        Arc::new(InMemoryChatRepository::new()),
+    )
 }
 
 pub(crate) fn seeded_state_with_store(
@@ -425,11 +429,13 @@ pub(crate) fn seeded_state_with_store(
         external_reference: external_reference.to_owned(),
     });
 
+    let user_store: Arc<dyn UserRepository> = repository.clone();
     let chat_store: Arc<dyn ChatRepository> = repository.clone();
     let message_store: Arc<dyn MessageRepository> = repository;
 
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
+        user_repository: user_store,
         chat_repository: chat_store,
         message_repository: message_store,
         livekit_config: Arc::new(LiveKitConfig::default()),

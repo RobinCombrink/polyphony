@@ -16,7 +16,10 @@ pub(crate) async fn me(
     State(state): State<ApiState>,
     authenticated_user: AuthenticatedUser,
 ) -> impl IntoResponse {
-    let user = state.chat_repository.find_user_by_id(authenticated_user.user_id).await;
+    let user = state
+        .user_repository
+        .find_user_by_id(authenticated_user.user_id)
+        .await;
 
     let response = MeResponse {
         user_id: authenticated_user.user_id,
@@ -53,7 +56,7 @@ pub(crate) async fn update_me(
     }
 
     let updated_user = state
-        .chat_repository
+        .user_repository
         .set_user_display_name(authenticated_user.user_id, trimmed_display_name.to_owned())
         .await;
 

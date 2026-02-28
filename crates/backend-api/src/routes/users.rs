@@ -6,11 +6,7 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::{
-    ApiState,
-    auth::AuthenticatedUser,
-    dto::UserLookupResponse,
-};
+use crate::{ApiState, auth::AuthenticatedUser, dto::UserLookupResponse};
 
 #[utoipa::path(
     get,
@@ -31,7 +27,7 @@ pub(crate) async fn get_user_by_id(
     _authenticated_user: AuthenticatedUser,
     Path(user_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    let Some(user) = state.chat_repository.find_user_by_id(user_id).await else {
+    let Some(user) = state.user_repository.find_user_by_id(user_id).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
 
