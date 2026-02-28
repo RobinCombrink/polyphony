@@ -147,7 +147,7 @@ class MessagesSectionWidget extends StatelessWidget {
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
                             const SizedBox(height: 4),
-                            Text(message.content),
+                            SelectableText(message.content),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: <Widget>[
