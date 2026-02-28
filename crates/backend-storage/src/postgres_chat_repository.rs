@@ -509,35 +509,24 @@ impl ChatRepository for PostgresChatRepository {
             return None;
         }
 
-        let inserted = sqlx::query(
-            "INSERT INTO voice_sessions (channel_id, participant_user_id)
-             VALUES ($1, $2)
-               ON CONFLICT (channel_id, participant_user_id) DO NOTHING",
+        let upserted = sqlx::query_as::<_, (bool,)>(
+            "INSERT INTO voice_sessions (channel_id, participant_user_id, is_muted)
+             VALUES ($1, $2, FALSE)
+               ON CONFLICT (participant_user_id)
+               DO UPDATE SET channel_id = EXCLUDED.channel_id
+             RETURNING is_muted",
         )
         .bind(channel_id)
         .bind(participant_user_id)
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await;
 
-        if inserted.is_err() {
-            return None;
-        }
+        let is_muted = upserted.ok()?.0;
 
         Some(VoiceSession {
             channel_id,
             participant_user_id,
-            is_muted: sqlx::query_scalar::<_, bool>(
-                "SELECT is_muted
-                 FROM voice_sessions
-                 WHERE channel_id = $1 AND participant_user_id = $2",
-            )
-            .bind(channel_id)
-            .bind(participant_user_id)
-            .fetch_optional(&self.pool)
-            .await
-            .ok()
-            .flatten()
-            .unwrap_or(false),
+            is_muted,
         })
     }
 

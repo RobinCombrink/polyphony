@@ -279,29 +279,38 @@ impl InMemoryStore {
             return None;
         }
 
+        let mut existing_is_muted = false;
+        let mut had_existing_session = false;
+
+        for sessions in self.voice_participants_by_channel.values_mut() {
+            if let Some(index) = sessions
+                .iter()
+                .position(|session| session.participant_user_id == participant_user_id)
+            {
+                let existing_session = sessions.remove(index);
+                existing_is_muted = existing_session.is_muted;
+                had_existing_session = true;
+            }
+        }
+
         let participants = self
             .voice_participants_by_channel
             .entry(channel_id)
             .or_default();
 
-        if let Some(session) = participants
-            .iter()
-            .find(|session| session.participant_user_id == participant_user_id)
-        {
-            return Some(session.clone());
-        } else {
-            participants.push(VoiceSession {
-                channel_id,
-                participant_user_id,
-                is_muted: false,
-            });
-        }
-
-        Some(VoiceSession {
+        let session = VoiceSession {
             channel_id,
             participant_user_id,
-            is_muted: false,
-        })
+            is_muted: if had_existing_session {
+                existing_is_muted
+            } else {
+                false
+            },
+        };
+
+        participants.push(session.clone());
+
+        Some(session)
     }
 
     pub(crate) fn leave_voice_session(

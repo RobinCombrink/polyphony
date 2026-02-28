@@ -16,3 +16,11 @@ Feature: Voice connect
   Scenario: Connecting voice in missing channel returns not found
     When the user connects voice in a missing channel
     Then the response status is 404
+
+  Scenario: Connecting to another voice channel moves the user
+    Given the user created a server and channel
+    And the user created another channel in the same server
+    When the user connects to the first channel voice
+    And the user connects to the second channel voice
+    Then the first channel voice sessions do not include the authenticated user
+    And the second channel voice sessions include the authenticated user

@@ -342,6 +342,22 @@ pub(crate) async fn connect_voice_session_with_token(
         .expect("connect voice session response from app")
 }
 
+pub(crate) async fn list_voice_sessions(
+    app: &axum::Router,
+    channel_id: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/channels/{channel_id}/voice/sessions"))
+                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .body(Body::empty())
+                .expect("list voice sessions request to be valid"),
+        )
+        .await
+        .expect("list voice sessions response from app")
+}
+
 pub(crate) async fn get_me_with_token(
     app: &axum::Router,
     bearer_token: &str,
