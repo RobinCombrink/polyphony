@@ -16,4 +16,8 @@ abstract interface class ServerService {
     required String serverId,
     required String userId,
   });
+
+  Future<Result<List<ApiServerMember>>> listServerMembers({
+    required String serverId,
+  });
 }

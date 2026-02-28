@@ -6,9 +6,11 @@ import "package:polyphony_flutter_client/features/authentication/bloc/authentica
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/profile_bloc.dart";
+import "package:polyphony_flutter_client/features/chat_browser/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/messages_pane_widget.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/server_users_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/servers_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/text_channels_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/token_tab_widget.dart";
@@ -67,6 +69,9 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
         );
     context.read<VoiceSessionsBloc>().add(
           const ResetVoiceSessionsRequested(),
+        );
+    context.read<ServerMembersBloc>().add(
+          const ResetServerMembersRequested(),
         );
     context.read<ProfileBloc>().add(
           const LoadProfileRequested(),
@@ -158,6 +163,27 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
               context,
               state.error.toString(),
             );
+          },
+        ),
+        BlocListener<ServersBloc, ServersState>(
+          listenWhen: (_, current) => current is ServersLoadedDataState,
+          listener: (context, state) {
+            if (state is! ServersLoadedDataState) {
+              return;
+            }
+
+            final selectedServerId = state.selectedServerId;
+
+            if (selectedServerId == null || selectedServerId.isEmpty) {
+              context.read<ServerMembersBloc>().add(
+                    const ResetServerMembersRequested(),
+                  );
+              return;
+            }
+
+            context.read<ServerMembersBloc>().add(
+                  LoadServerMembersRequested(serverId: selectedServerId),
+                );
           },
         ),
         BlocListener<ChannelsBloc, ChannelsState>(
@@ -409,6 +435,11 @@ class _ServerWorkspaceWidget extends StatelessWidget {
                   };
                 },
               ),
+            ),
+            const SizedBox(width: 12),
+            const SizedBox(
+              width: 280,
+              child: ServerUsersPaneWidget(),
             ),
           ],
         );

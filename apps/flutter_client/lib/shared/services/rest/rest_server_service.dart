@@ -73,4 +73,19 @@ class RestServerService implements ServerService {
       userId: userId,
     );
   }
+
+  @override
+  Future<Result<List<ApiServerMember>>> listServerMembers({
+    required String serverId,
+  }) async {
+    if (_authenticationStateSource.currentAuthState
+        is! AuthenticationAuthenticatedState) {
+      return _missingTokenError();
+    }
+
+    return _chatApi.listServerMembers(
+      baseUrl: _baseUrl,
+      serverId: serverId,
+    );
+  }
 }

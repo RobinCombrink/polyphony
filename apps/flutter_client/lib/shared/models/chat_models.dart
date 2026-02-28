@@ -15,6 +15,23 @@ class Server {
   }
 }
 
+class ServerMember {
+  const ServerMember({
+    required this.serverId,
+    required this.userId,
+  });
+
+  final String serverId;
+  final String userId;
+
+  factory ServerMember.fromJson(Map<String, dynamic> json) {
+    return ServerMember(
+      serverId: json["server_id"] as String,
+      userId: json["user_id"] as String,
+    );
+  }
+}
+
 class Channel {
   const Channel({required this.id, required this.serverId, required this.name});
 

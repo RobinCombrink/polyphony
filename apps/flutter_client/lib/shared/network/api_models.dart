@@ -18,6 +18,23 @@ class ApiServer {
   }
 }
 
+class ApiServerMember {
+  const ApiServerMember({
+    required this.serverId,
+    required this.userId,
+  });
+
+  final String serverId;
+  final String userId;
+
+  factory ApiServerMember.fromJson(Map<String, dynamic> json) {
+    return ApiServerMember(
+      serverId: json["server_id"] as String,
+      userId: json["user_id"] as String,
+    );
+  }
+}
+
 class ApiChannel {
   const ApiChannel({
     required this.id,

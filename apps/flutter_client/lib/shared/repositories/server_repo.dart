@@ -1,8 +1,17 @@
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
 
 class GetServersQuery {
   const GetServersQuery();
+}
+
+class GetServerMembersQuery {
+  const GetServerMembersQuery({
+    required this.serverId,
+  });
+
+  final String serverId;
 }
 
 class CreateServerCommand {
@@ -36,4 +45,8 @@ abstract interface class ServerRepo
         RepositoryGetMany<Server, GetServersQuery>,
         RepositoryCreateOne<Server, CreateServerCommand>,
         RepositoryDeleteOne<DeleteServerCommand>,
-        RepositoryUpdateOne<void, AddServerMemberCommand> {}
+        RepositoryUpdateOne<void, AddServerMemberCommand> {
+  Future<Result<Iterable<ServerMember>>> getServerMembers({
+    required GetServerMembersQuery query,
+  });
+}

@@ -52,4 +52,21 @@ class ServerRepository implements ServerRepo {
       userId: command.userId,
     );
   }
+
+  @override
+  Future<Result<Iterable<ServerMember>>> getServerMembers({
+    required GetServerMembersQuery query,
+  }) async {
+    final serviceResult = await _serverService.listServerMembers(
+      serverId: query.serverId,
+    );
+
+    return switch (serviceResult) {
+      Ok<List<ApiServerMember>>(:final value) => Ok<Iterable<ServerMember>>(
+          value.map((member) => member.toDomainModel()).toList(),
+        ),
+      Error<List<ApiServerMember>>(:final error) =>
+        Error<Iterable<ServerMember>>(error),
+    };
+  }
 }

@@ -18,11 +18,16 @@ class FakeServerRepository implements ServerRepo {
     this.forceAddMemberError = false,
     this.forceDeleteError = false,
   })  : _servers = <Server>[fixture.listedServer],
+        _membersByServerId = <String, Set<String>>{
+          fixture.listedServer.id: <String>{fixture.ownerUserId},
+          fixture.createdServer.id: <String>{fixture.ownerUserId},
+        },
         _createdServer = fixture.createdServer;
 
   final bool forceAddMemberError;
   final bool forceDeleteError;
   final List<Server> _servers;
+  final Map<String, Set<String>> _membersByServerId;
   final Server _createdServer;
 
   @override
@@ -49,6 +54,7 @@ class FakeServerRepository implements ServerRepo {
     }
 
     _servers.removeWhere((server) => server.id == command.serverId);
+    _membersByServerId.remove(command.serverId);
     return const Ok<void>(null);
   }
 
@@ -60,7 +66,33 @@ class FakeServerRepository implements ServerRepo {
       return Error<void>(Exception("Failed to add server member"));
     }
 
+    final members = _membersByServerId.putIfAbsent(
+      command.serverId,
+      () => <String>{},
+    );
+    members.add(command.userId);
+
     return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<Iterable<ServerMember>>> getServerMembers({
+    required GetServerMembersQuery query,
+  }) async {
+    final members = _membersByServerId[query.serverId];
+    if (members == null) {
+      return Error<Iterable<ServerMember>>(
+        Exception("Failed to list server members"),
+      );
+    }
+
+    return Ok<Iterable<ServerMember>>(
+      members
+          .map(
+            (userId) => ServerMember(serverId: query.serverId, userId: userId),
+          )
+          .toList(),
+    );
   }
 }
 

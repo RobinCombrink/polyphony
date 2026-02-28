@@ -21,6 +21,24 @@ extension DomainServerToApiExtension on Server {
   }
 }
 
+extension ApiServerMemberToDomainExtension on ApiServerMember {
+  ServerMember toDomainModel() {
+    return ServerMember(
+      serverId: serverId,
+      userId: userId,
+    );
+  }
+}
+
+extension DomainServerMemberToApiExtension on ServerMember {
+  ApiServerMember toApiModel() {
+    return ApiServerMember(
+      serverId: serverId,
+      userId: userId,
+    );
+  }
+}
+
 extension ApiChannelToDomainExtension on ApiChannel {
   Channel toDomainModel() {
     return Channel(

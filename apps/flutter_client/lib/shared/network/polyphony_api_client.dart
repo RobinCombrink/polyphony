@@ -97,6 +97,19 @@ class PolyphonyApiClient implements ChatApi {
   }
 
   @override
+  Future<Result<List<ApiServerMember>>> listServerMembers({
+    required String baseUrl,
+    required String serverId,
+  }) {
+    return _performListRequest<ApiServerMember>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/servers/$serverId/members",
+      operation: "list server members",
+      decodeItem: ApiServerMember.fromJson,
+    );
+  }
+
+  @override
   Future<Result<ApiChannel>> createChannel({
     required String baseUrl,
     required String serverId,

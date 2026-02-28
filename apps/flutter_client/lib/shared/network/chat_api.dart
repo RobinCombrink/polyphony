@@ -22,6 +22,11 @@ abstract interface class ChatApi {
     required String userId,
   });
 
+  Future<Result<List<ApiServerMember>>> listServerMembers({
+    required String baseUrl,
+    required String serverId,
+  });
+
   Future<Result<List<ApiChannel>>> listChannels({
     required String baseUrl,
     required String serverId,
