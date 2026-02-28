@@ -59,7 +59,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
             final participants =
                 loadedData?.participants ?? const <VoiceParticipant>[];
             final isSelfMuted = loadedData?.isSelfMuted ?? false;
-            final isConnected = loadedData?.activeConnection != null;
+            final isConnected = loadedData?.connectedChannelId != null;
             final visibleParticipants = isLoading && participants.isEmpty
                 ? _skeletonParticipants()
                 : participants;

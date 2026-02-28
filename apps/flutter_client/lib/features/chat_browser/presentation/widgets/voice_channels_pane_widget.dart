@@ -39,8 +39,8 @@ class _VoiceChannelsPaneWidgetState extends State<VoiceChannelsPaneWidget> {
     return BlocBuilder<VoiceSessionsBloc, VoiceSessionsState>(
       builder: (context, voiceSessionsState) {
         final activeVoiceChannelId = switch (voiceSessionsState) {
-          VoiceSessionsLoadedDataState(:final activeConnection) =>
-            activeConnection?.channelId,
+          VoiceSessionsLoadedDataState(:final connectedChannelId) =>
+            connectedChannelId,
           _ => null,
         };
         final voiceParticipantsByChannelId = switch (voiceSessionsState) {

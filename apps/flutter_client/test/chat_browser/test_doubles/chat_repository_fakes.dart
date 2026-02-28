@@ -196,25 +196,29 @@ class FakeVoiceSessionRepository implements VoiceSessionRepo {
     this.forceDisconnectError = false,
     this.forceSetSelfMutedError = false,
   })  : _connectedVoiceSession = fixture.connectedVoiceSession,
+        _currentConnectedChannelId = fixture.connectedVoiceSession.channelId,
         _isMuted = false;
 
   final bool forceDisconnectError;
   final bool forceSetSelfMutedError;
   final VoiceConnectSession _connectedVoiceSession;
+  String? _currentConnectedChannelId;
   bool _isMuted;
 
   @override
   Future<Result<Iterable<VoiceSession>>> getMany({
     required GetVoiceSessionsQuery query,
   }) async {
-    if (query.channelId != _connectedVoiceSession.channelId) {
+    final currentConnectedChannelId = _currentConnectedChannelId;
+    if (currentConnectedChannelId == null ||
+        query.channelId != currentConnectedChannelId) {
       return const Ok<Iterable<VoiceSession>>(<VoiceSession>[]);
     }
 
     return Ok<Iterable<VoiceSession>>(
       <VoiceSession>[
         VoiceSession(
-          channelId: _connectedVoiceSession.channelId,
+          channelId: currentConnectedChannelId,
           participantUserId: _connectedVoiceSession.participantUserId,
           isMuted: _isMuted,
         ),
@@ -231,7 +235,7 @@ class FakeVoiceSessionRepository implements VoiceSessionRepo {
           Exception("Failed to update voice session mute state"));
     }
 
-    if (command.channelId != _connectedVoiceSession.channelId) {
+    if (command.channelId != _currentConnectedChannelId) {
       return Error<void>(
           Exception("Failed to update voice session mute state"));
     }
@@ -244,6 +248,7 @@ class FakeVoiceSessionRepository implements VoiceSessionRepo {
   Future<Result<VoiceConnectSession>> createOne({
     required ConnectVoiceSessionCommand command,
   }) async {
+    _currentConnectedChannelId = command.channelId;
     return Ok<VoiceConnectSession>(
       VoiceConnectSession(
         livekitUrl: _connectedVoiceSession.livekitUrl,
@@ -260,6 +265,11 @@ class FakeVoiceSessionRepository implements VoiceSessionRepo {
   }) async {
     if (forceDisconnectError) {
       return Error<void>(Exception("Failed to disconnect voice session"));
+    }
+
+    if (_currentConnectedChannelId == command.channelId) {
+      _currentConnectedChannelId = null;
+      _isMuted = false;
     }
 
     return const Ok<void>(null);

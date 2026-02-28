@@ -19,23 +19,25 @@ final class VoiceSessionsLoadingState extends VoiceSessionsState {
 sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
   const VoiceSessionsLoadedDataState({
     required this.activeConnection,
-    required this.channelId,
+    required this.selectedChannelId,
     required this.participants,
     required this.participantsByChannelId,
     required this.isSelfMuted,
   });
 
   final VoiceConnectSession? activeConnection;
-  final String channelId;
+  final String selectedChannelId;
   final List<VoiceParticipant> participants;
   final Map<String, List<VoiceParticipant>> participantsByChannelId;
   final bool isSelfMuted;
+
+  String? get connectedChannelId => activeConnection?.channelId;
 }
 
 final class VoiceSessionsLoadedState extends VoiceSessionsLoadedDataState {
   const VoiceSessionsLoadedState({
     required super.activeConnection,
-    required super.channelId,
+    required super.selectedChannelId,
     required super.participants,
     required super.participantsByChannelId,
     required super.isSelfMuted,
@@ -47,7 +49,7 @@ final class VoiceSessionsValidationFailedState
   const VoiceSessionsValidationFailedState({
     required this.issue,
     required super.activeConnection,
-    required super.channelId,
+    required super.selectedChannelId,
     required super.participants,
     required super.participantsByChannelId,
     required super.isSelfMuted,

@@ -28,7 +28,7 @@ void main() {
     expect: () => <Matcher>[
       isA<VoiceSessionsLoadedState>()
           .having(
-            (state) => state.channelId,
+            (state) => state.selectedChannelId,
             "channel id",
             fixture.listedChannel.id,
           )
@@ -159,6 +159,54 @@ void main() {
                 .isMuted,
             "self participant unmuted",
             false,
+          ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "switching voice channels clears stale participants from previous channel",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(
+        userId: fixture.ownerUserId,
+        displayNamesByUserId: const <String, String?>{
+          "auth0|local_user": "Local User",
+        },
+      ),
+    ),
+    act: (bloc) {
+      bloc.add(LoadVoiceSessionsRequested(channelId: fixture.listedChannel.id));
+      bloc.add(
+          ConnectVoiceSessionRequested(channelId: fixture.listedChannel.id));
+      bloc.add(
+          LoadVoiceSessionsRequested(channelId: fixture.createdChannel.id));
+      bloc.add(
+          ConnectVoiceSessionRequested(channelId: fixture.createdChannel.id));
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>()
+          .having(
+            (state) => state.connectedChannelId,
+            "connected channel id",
+            fixture.createdChannel.id,
+          )
+          .having(
+            (state) => state.participantsByChannelId[fixture.listedChannel.id],
+            "previous channel participants",
+            isEmpty,
+          )
+          .having(
+            (state) => state.participantsByChannelId[fixture.createdChannel.id]
+                ?.map((participant) => participant.userId)
+                .toList(),
+            "new channel participants",
+            contains(fixture.connectedVoiceSession.participantUserId),
           ),
     ],
   );

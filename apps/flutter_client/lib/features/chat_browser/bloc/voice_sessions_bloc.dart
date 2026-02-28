@@ -67,7 +67,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
-        channelId: loadedState.channelId,
+        selectedChannelId: loadedState.selectedChannelId,
         participants: loadedState.participants,
         participantsByChannelId: loadedState.participantsByChannelId,
         isSelfMuted: loadedState.isSelfMuted,
@@ -93,7 +93,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     emit(VoiceSessionsLoadedState(
       activeConnection: loadedState?.activeConnection,
-      channelId: trimmedChannelId,
+      selectedChannelId: trimmedChannelId,
       participants: participants,
       participantsByChannelId: participantsByChannelId,
       isSelfMuted: _isSelfMutedFromParticipants(
@@ -136,7 +136,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           (participantsResult as Ok<List<VoiceParticipant>>).value;
     }
 
-    final selectedChannelId = loadedState?.channelId ?? "";
+    final selectedChannelId = loadedState?.selectedChannelId ?? "";
     final selectedParticipants = selectedChannelId.isEmpty
         ? loadedState?.participants ?? const <VoiceParticipant>[]
         : participantsByChannelId[selectedChannelId] ??
@@ -144,7 +144,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     emit(VoiceSessionsLoadedState(
       activeConnection: loadedState?.activeConnection,
-      channelId: selectedChannelId,
+      selectedChannelId: selectedChannelId,
       participants: selectedParticipants,
       participantsByChannelId: participantsByChannelId,
       isSelfMuted: _isSelfMutedFromParticipants(
@@ -160,6 +160,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
   ) async {
     final trimmedChannelId = event.channelId.trim();
     final loadedState = _loadedStateOrNull(state);
+    final previousConnectedChannelId = loadedState?.connectedChannelId;
 
     if (loadedState == null) {
       emit(VoiceSessionsExceptionState(
@@ -172,7 +173,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
-        channelId: loadedState.channelId,
+        selectedChannelId: loadedState.selectedChannelId,
         participants: loadedState.participants,
         participantsByChannelId: loadedState.participantsByChannelId,
         isSelfMuted: loadedState.isSelfMuted,
@@ -198,7 +199,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       )..[trimmedChannelId] = participants;
       emit(VoiceSessionsLoadedState(
         activeConnection: activeConnection,
-        channelId: trimmedChannelId,
+        selectedChannelId: trimmedChannelId,
         participants: participants,
         participantsByChannelId: participantsByChannelId,
         isSelfMuted: _isSelfMutedFromParticipants(
@@ -262,9 +263,32 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
             final participantsByChannelId = _participantsByChannelIdFromState(
               loadedState,
             )..[trimmedChannelId] = participants;
+
+            final switchedFromChannelId = previousConnectedChannelId;
+            if (switchedFromChannelId != null &&
+                switchedFromChannelId.isNotEmpty &&
+                switchedFromChannelId != trimmedChannelId) {
+              final previousChannelParticipantsResult =
+                  await _loadParticipantsForChannel(
+                channelId: switchedFromChannelId,
+                loadedState: loadedState,
+              );
+
+              if (previousChannelParticipantsResult
+                  case Error<List<VoiceParticipant>>(:final error)) {
+                emit(VoiceSessionsExceptionState(error: error));
+                return;
+              }
+
+              participantsByChannelId[switchedFromChannelId] =
+                  (previousChannelParticipantsResult
+                          as Ok<List<VoiceParticipant>>)
+                      .value;
+            }
+
             emit(VoiceSessionsLoadedState(
               activeConnection: value,
-              channelId: trimmedChannelId,
+              selectedChannelId: trimmedChannelId,
               participants: participants,
               participantsByChannelId: participantsByChannelId,
               isSelfMuted: _isSelfMutedFromParticipants(
@@ -298,7 +322,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
-        channelId: loadedState.channelId,
+        selectedChannelId: loadedState.selectedChannelId,
         participants: loadedState.participants,
         participantsByChannelId: loadedState.participantsByChannelId,
         isSelfMuted: loadedState.isSelfMuted,
@@ -325,7 +349,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       case Ok<void>():
         emit(VoiceSessionsLoadedState(
           activeConnection: null,
-          channelId: trimmedChannelId,
+          selectedChannelId: trimmedChannelId,
           participants: const <VoiceParticipant>[],
           participantsByChannelId: _participantsByChannelIdFromState(
             loadedState,
@@ -354,7 +378,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
-        channelId: loadedState.channelId,
+        selectedChannelId: loadedState.selectedChannelId,
         participants: loadedState.participants,
         participantsByChannelId: loadedState.participantsByChannelId,
         isSelfMuted: loadedState.isSelfMuted,
@@ -406,7 +430,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         )..[activeConnection.channelId] = activeChannelParticipants;
 
         final selectedParticipants =
-            loadedState.channelId == activeConnection.channelId
+            loadedState.selectedChannelId == activeConnection.channelId
                 ? activeChannelParticipants
                 : loadedState.participants;
 
@@ -418,7 +442,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
         emit(VoiceSessionsLoadedState(
           activeConnection: activeConnection,
-          channelId: loadedState.channelId,
+          selectedChannelId: loadedState.selectedChannelId,
           participants: selectedParticipants,
           participantsByChannelId: participantsByChannelId,
           isSelfMuted: isSelfMuted,
