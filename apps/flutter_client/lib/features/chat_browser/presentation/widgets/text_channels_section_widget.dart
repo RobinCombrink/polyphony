@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/section_status.dart";
@@ -17,6 +19,10 @@ SectionStatus? buildTextChannelsSectionStatus(ChannelsState state) {
         ),
       ChannelsValidationIssue.channelNameRequired => const SectionStatus(
           message: "Channel name is required.",
+          isError: true,
+        ),
+      ChannelsValidationIssue.channelSelectionRequired => const SectionStatus(
+          message: "Select a channel first.",
           isError: true,
         ),
     };
@@ -40,6 +46,7 @@ class TextChannelsSectionWidget extends StatefulWidget {
     required this.isLoading,
     required this.createController,
     required this.onTap,
+    this.onDeleteChannel,
     required this.onCreate,
     this.title = "Text channels",
     this.createLabel = "Create channel",
@@ -55,6 +62,7 @@ class TextChannelsSectionWidget extends StatefulWidget {
   final bool isLoading;
   final TextEditingController createController;
   final void Function(Channel channel) onTap;
+  final void Function(Channel channel)? onDeleteChannel;
   final VoidCallback onCreate;
   final String title;
   final String createLabel;
@@ -69,6 +77,40 @@ class TextChannelsSectionWidget extends StatefulWidget {
 
 class _TextChannelsSectionWidgetState extends State<TextChannelsSectionWidget> {
   var _isCreatingChannel = false;
+
+  Future<void> _showChannelContextMenu({
+    required BuildContext context,
+    required Channel channel,
+    required Offset globalPosition,
+  }) async {
+    final onDeleteChannel = widget.onDeleteChannel;
+    if (onDeleteChannel == null) {
+      return;
+    }
+
+    final errorColor = Theme.of(context).colorScheme.error;
+    await showMenu<void>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        globalPosition.dx,
+        globalPosition.dy,
+      ),
+      items: <PopupMenuEntry<void>>[
+        PopupMenuItem<void>(
+          onTap: () => Future<void>.delayed(
+            Duration.zero,
+            () => onDeleteChannel(channel),
+          ),
+          child: Text(
+            "Delete channel",
+            style: TextStyle(color: errorColor),
+          ),
+        ),
+      ],
+    );
+  }
 
   void _openCreateChannelInput() {
     setState(() {
@@ -151,33 +193,66 @@ class _TextChannelsSectionWidgetState extends State<TextChannelsSectionWidget> {
                 final channel = widget.channels[index];
                 final isSelected = widget.selectedChannelId == channel.id;
 
-                return ListTile(
-                  dense: true,
-                  selected: isSelected,
-                  leading: Icon(
-                    widget.interactionType == ChannelInteractionType.voice
-                        ? Icons.volume_up
-                        : Icons.tag,
-                    size: 18,
+                return GestureDetector(
+                  onSecondaryTapDown:
+                      widget.isLoading || widget.onDeleteChannel == null
+                          ? null
+                          : (details) => unawaited(
+                                _showChannelContextMenu(
+                                  context: context,
+                                  channel: channel,
+                                  globalPosition: details.globalPosition,
+                                ),
+                              ),
+                  child: ListTile(
+                    dense: true,
+                    selected: isSelected,
+                    leading: Icon(
+                      widget.interactionType == ChannelInteractionType.voice
+                          ? Icons.volume_up
+                          : Icons.tag,
+                      size: 18,
+                    ),
+                    title: Text(channel.name),
+                    trailing: isSelected && widget.voiceParticipantCount > 0
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Icon(
+                                widget.interactionType ==
+                                        ChannelInteractionType.voice
+                                    ? Icons.headset
+                                    : Icons.mic,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(widget.voiceParticipantCount.toString()),
+                            ],
+                          )
+                        : null,
+                    onTap:
+                        widget.isLoading ? null : () => widget.onTap(channel),
+                    onLongPress:
+                        widget.isLoading || widget.onDeleteChannel == null
+                            ? null
+                            : () {
+                                final renderBox =
+                                    context.findRenderObject() as RenderBox?;
+                                final globalPosition = renderBox == null
+                                    ? Offset.zero
+                                    : renderBox.localToGlobal(
+                                        renderBox.size.center(Offset.zero),
+                                      );
+
+                                unawaited(
+                                  _showChannelContextMenu(
+                                    context: context,
+                                    channel: channel,
+                                    globalPosition: globalPosition,
+                                  ),
+                                );
+                              },
                   ),
-                  title: Text(channel.name),
-                  trailing: isSelected && widget.voiceParticipantCount > 0
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Icon(
-                              widget.interactionType ==
-                                      ChannelInteractionType.voice
-                                  ? Icons.headset
-                                  : Icons.mic,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(widget.voiceParticipantCount.toString()),
-                          ],
-                        )
-                      : null,
-                  onTap: widget.isLoading ? null : () => widget.onTap(channel),
                 );
               },
             ),

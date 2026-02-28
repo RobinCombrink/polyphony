@@ -26,6 +26,14 @@ final class CreateChannelRequested extends ChannelsEvent {
   final String channelName;
 }
 
+final class DeleteChannelRequested extends ChannelsEvent {
+  const DeleteChannelRequested({
+    required this.channelId,
+  });
+
+  final String channelId;
+}
+
 final class SelectTextChannelRequested extends ChannelsEvent {
   const SelectTextChannelRequested({required this.channelId});
 

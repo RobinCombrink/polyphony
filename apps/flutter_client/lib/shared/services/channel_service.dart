@@ -10,4 +10,8 @@ abstract interface class ChannelService {
     required String serverId,
     required String name,
   });
+
+  Future<Result<void>> deleteChannel({
+    required String channelId,
+  });
 }

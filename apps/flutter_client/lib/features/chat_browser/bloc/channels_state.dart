@@ -3,6 +3,7 @@ part of "channels_bloc.dart";
 enum ChannelsValidationIssue {
   serverSelectionRequired,
   channelNameRequired,
+  channelSelectionRequired,
 }
 
 enum ChannelSelectionMode {

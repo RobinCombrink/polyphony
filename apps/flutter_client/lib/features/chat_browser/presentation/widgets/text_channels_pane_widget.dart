@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
@@ -26,6 +28,41 @@ class TextChannelsPaneWidget extends StatelessWidget {
     );
   }
 
+  Future<void> _showDeleteChannelConfirmationDialog(
+    BuildContext context,
+    Channel channel,
+  ) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text("Delete channel"),
+          content: Text(
+            "Are you sure you want to delete ${channel.name}?",
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text("Cancel"),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text("Delete"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!context.mounted || shouldDelete != true) {
+      return;
+    }
+
+    context.read<ChannelsBloc>().add(
+          DeleteChannelRequested(channelId: channel.id),
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<ChannelsBloc, ChannelsState>(
@@ -51,6 +88,7 @@ class TextChannelsPaneWidget extends StatelessWidget {
         };
 
         if (selectedTextChannelId == null) {
+          context.read<MessagesBloc>().add(const ResetMessagesRequested());
           return;
         }
 
@@ -97,6 +135,9 @@ class TextChannelsPaneWidget extends StatelessWidget {
                       channelName: createController.text,
                     ),
                   ),
+              onDeleteChannel: (channel) => unawaited(
+                _showDeleteChannelConfirmationDialog(context, channel),
+              ),
             ),
           );
         },

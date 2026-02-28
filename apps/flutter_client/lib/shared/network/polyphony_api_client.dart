@@ -113,6 +113,19 @@ class PolyphonyApiClient implements ChatApi {
   }
 
   @override
+  Future<Result<void>> deleteChannel({
+    required String baseUrl,
+    required String channelId,
+  }) {
+    return _performDeleteRequest(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId",
+      operation: "delete channel",
+      expectedStatusCode: 204,
+    );
+  }
+
+  @override
   Future<Result<ApiMessage>> createMessage({
     required String baseUrl,
     required String channelId,

@@ -121,4 +121,32 @@ void main() {
         .add(SelectTextChannelRequested(channelId: fixture.listedChannel.id)),
     expect: () => <Matcher>[],
   );
+
+  blocTest<ChannelsBloc, ChannelsState>(
+    "deletes selected text channel",
+    build: () => ChannelsBloc(
+      channelRepo: FakeChannelRepository(fixture: fixture),
+    ),
+    act: (bloc) {
+      bloc
+        ..add(LoadChannelsRequested(
+          serverId: fixture.listedServer.id,
+        ))
+        ..add(SelectTextChannelRequested(channelId: fixture.listedChannel.id))
+        ..add(DeleteChannelRequested(channelId: fixture.listedChannel.id));
+    },
+    expect: () => <Matcher>[
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>(),
+      isA<ChannelsLoadedState>(),
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>()
+          .having((state) => state.channels, "channels", isEmpty)
+          .having(
+            (state) => state.selectedTextChannelId,
+            "selected text channel",
+            isNull,
+          ),
+    ],
+  );
 }

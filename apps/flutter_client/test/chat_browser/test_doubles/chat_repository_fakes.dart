@@ -65,12 +65,15 @@ class FakeServerRepository implements ServerRepo {
 }
 
 class FakeChannelRepository implements ChannelRepo {
-  FakeChannelRepository({required ChatApiFixture fixture})
-      : _channelsByServer = <String, List<Channel>>{
+  FakeChannelRepository({
+    required ChatApiFixture fixture,
+    this.forceDeleteError = false,
+  })  : _channelsByServer = <String, List<Channel>>{
           fixture.listedServer.id: <Channel>[fixture.listedChannel],
         },
         _createdChannel = fixture.createdChannel;
 
+  final bool forceDeleteError;
   final Map<String, List<Channel>> _channelsByServer;
   final Channel _createdChannel;
 
@@ -92,6 +95,21 @@ class FakeChannelRepository implements ChannelRepo {
   }) async {
     final channels = _channelsByServer[query.serverId] ?? <Channel>[];
     return Ok<Iterable<Channel>>(List<Channel>.unmodifiable(channels));
+  }
+
+  @override
+  Future<Result<void>> deleteOne({
+    required DeleteChannelCommand command,
+  }) async {
+    if (forceDeleteError) {
+      return Error<void>(Exception("Failed to delete channel"));
+    }
+
+    for (final channels in _channelsByServer.values) {
+      channels.removeWhere((channel) => channel.id == command.channelId);
+    }
+
+    return const Ok<void>(null);
   }
 }
 

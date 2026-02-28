@@ -19,7 +19,16 @@ class CreateChannelCommand {
   final String name;
 }
 
+class DeleteChannelCommand {
+  const DeleteChannelCommand({
+    required this.channelId,
+  });
+
+  final String channelId;
+}
+
 abstract interface class ChannelRepo
     with
         RepositoryGetMany<Channel, GetChannelsQuery>,
-        RepositoryCreateOne<Channel, CreateChannelCommand> {}
+        RepositoryCreateOne<Channel, CreateChannelCommand>,
+        RepositoryDeleteOne<DeleteChannelCommand> {}

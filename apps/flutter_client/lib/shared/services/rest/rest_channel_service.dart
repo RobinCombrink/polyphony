@@ -48,4 +48,19 @@ class RestChannelService implements ChannelService {
       name: name,
     );
   }
+
+  @override
+  Future<Result<void>> deleteChannel({
+    required String channelId,
+  }) async {
+    if (_authenticationStateSource.currentAuthState
+        is! AuthenticationAuthenticatedState) {
+      return _missingTokenError();
+    }
+
+    return _chatApi.deleteChannel(
+      baseUrl: _baseUrl,
+      channelId: channelId,
+    );
+  }
 }

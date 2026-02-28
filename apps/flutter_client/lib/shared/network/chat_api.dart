@@ -33,6 +33,11 @@ abstract interface class ChatApi {
     required String name,
   });
 
+  Future<Result<void>> deleteChannel({
+    required String baseUrl,
+    required String channelId,
+  });
+
   Future<Result<List<ApiMessage>>> listMessages({
     required String baseUrl,
     required String channelId,

@@ -40,4 +40,11 @@ class ChannelRepository implements ChannelRepo {
       Error<ApiChannel>(:final error) => Error<Channel>(error),
     };
   }
+
+  @override
+  Future<Result<void>> deleteOne({required DeleteChannelCommand command}) {
+    return _channelService.deleteChannel(
+      channelId: command.channelId,
+    );
+  }
 }
