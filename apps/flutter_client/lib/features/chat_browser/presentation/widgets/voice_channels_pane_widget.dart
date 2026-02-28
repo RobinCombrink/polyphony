@@ -28,52 +28,64 @@ class VoiceChannelsPaneWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ChannelsBloc, ChannelsState>(
-      builder: (context, channelsState) {
-        final isLoading = channelsState is ChannelsInitialState ||
-            channelsState is ChannelsLoadingState;
-        final loadedData =
-            channelsState is ChannelsLoadedDataState ? channelsState : null;
-        final errorMessage = channelsState is ChannelsExceptionState
-            ? channelsState.error.toString()
-            : null;
+    return BlocBuilder<VoiceSessionsBloc, VoiceSessionsState>(
+      builder: (context, voiceSessionsState) {
+        final activeVoiceChannelId = switch (voiceSessionsState) {
+          VoiceSessionsLoadedDataState(:final activeConnection) =>
+            activeConnection?.channelId,
+          _ => null,
+        };
 
-        if (errorMessage != null) {
-          return SomethingWentWrongWidget(message: errorMessage);
-        }
+        return BlocBuilder<ChannelsBloc, ChannelsState>(
+          builder: (context, channelsState) {
+            final isLoading = channelsState is ChannelsInitialState ||
+                channelsState is ChannelsLoadingState;
+            final loadedData =
+                channelsState is ChannelsLoadedDataState ? channelsState : null;
+            final errorMessage = channelsState is ChannelsExceptionState
+                ? channelsState.error.toString()
+                : null;
 
-        final channels = loadedData?.channels ?? const <Channel>[];
-        final visibleChannels =
-            isLoading && channels.isEmpty ? _skeletonChannels() : channels;
+            if (errorMessage != null) {
+              return SomethingWentWrongWidget(message: errorMessage);
+            }
 
-        return Skeletonizer(
-          enabled: isLoading,
-          child: TextChannelsSectionWidget(
-            channels: visibleChannels,
-            selectedChannelId: loadedData?.selectedVoiceChannelId,
-            voiceParticipantCount: 0,
-            isLoading: isLoading,
-            createController: createController,
-            title: "Voice channels",
-            createLabel: "",
-            createActionLabel: "",
-            showCreateControls: false,
-            interactionType: ChannelInteractionType.voice,
-            onTap: (voiceChannel) {
-              context.read<ChannelsBloc>().add(
-                    SelectVoiceChannelRequested(
-                      channelId: voiceChannel.id,
-                    ),
-                  );
-              context.read<VoiceSessionsBloc>().add(
-                    LoadVoiceSessionsRequested(channelId: voiceChannel.id),
-                  );
-              context.read<VoiceSessionsBloc>().add(
-                    ConnectVoiceSessionRequested(channelId: voiceChannel.id),
-                  );
-            },
-            onCreate: () {},
-          ),
+            final channels = loadedData?.channels ?? const <Channel>[];
+            final visibleChannels =
+                isLoading && channels.isEmpty ? _skeletonChannels() : channels;
+
+            return Skeletonizer(
+              enabled: isLoading,
+              child: TextChannelsSectionWidget(
+                channels: visibleChannels,
+                selectedChannelId: loadedData?.selectedVoiceChannelId,
+                voiceParticipantCount: 0,
+                connectedVoiceChannelId: activeVoiceChannelId,
+                isLoading: isLoading,
+                createController: createController,
+                title: "Voice channels",
+                createLabel: "",
+                createActionLabel: "",
+                showCreateControls: false,
+                interactionType: ChannelInteractionType.voice,
+                onTap: (voiceChannel) {
+                  context.read<ChannelsBloc>().add(
+                        SelectVoiceChannelRequested(
+                          channelId: voiceChannel.id,
+                        ),
+                      );
+                  context.read<VoiceSessionsBloc>().add(
+                        LoadVoiceSessionsRequested(channelId: voiceChannel.id),
+                      );
+                  context.read<VoiceSessionsBloc>().add(
+                        ConnectVoiceSessionRequested(
+                            channelId: voiceChannel.id),
+                      );
+                },
+                onCreate: () {},
+              ),
+            );
+          },
         );
       },
     );

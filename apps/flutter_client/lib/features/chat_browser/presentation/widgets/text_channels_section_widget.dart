@@ -43,6 +43,7 @@ class TextChannelsSectionWidget extends StatefulWidget {
     required this.channels,
     required this.selectedChannelId,
     required this.voiceParticipantCount,
+    this.connectedVoiceChannelId,
     required this.isLoading,
     required this.createController,
     required this.onTap,
@@ -59,6 +60,7 @@ class TextChannelsSectionWidget extends StatefulWidget {
   final List<Channel> channels;
   final String? selectedChannelId;
   final int voiceParticipantCount;
+  final String? connectedVoiceChannelId;
   final bool isLoading;
   final TextEditingController createController;
   final void Function(Channel channel) onTap;
@@ -192,6 +194,11 @@ class _TextChannelsSectionWidgetState extends State<TextChannelsSectionWidget> {
               itemBuilder: (context, index) {
                 final channel = widget.channels[index];
                 final isSelected = widget.selectedChannelId == channel.id;
+                final isConnectedVoiceChannel =
+                    widget.interactionType == ChannelInteractionType.voice &&
+                        widget.connectedVoiceChannelId == channel.id;
+                final showParticipantCount =
+                    isSelected && widget.voiceParticipantCount > 0;
 
                 return GestureDetector(
                   onSecondaryTapDown:
@@ -214,19 +221,31 @@ class _TextChannelsSectionWidgetState extends State<TextChannelsSectionWidget> {
                       size: 18,
                     ),
                     title: Text(channel.name),
-                    trailing: isSelected && widget.voiceParticipantCount > 0
+                    trailing: isConnectedVoiceChannel || showParticipantCount
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              Icon(
-                                widget.interactionType ==
-                                        ChannelInteractionType.voice
-                                    ? Icons.headset
-                                    : Icons.mic,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(widget.voiceParticipantCount.toString()),
+                              if (isConnectedVoiceChannel)
+                                const Icon(Icons.headset, size: 16),
+                              if (isConnectedVoiceChannel &&
+                                  showParticipantCount)
+                                const SizedBox(width: 4),
+                              if (showParticipantCount)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Icon(
+                                      widget.interactionType ==
+                                              ChannelInteractionType.voice
+                                          ? Icons.headset
+                                          : Icons.mic,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(widget.voiceParticipantCount
+                                        .toString()),
+                                  ],
+                                ),
                             ],
                           )
                         : null,
