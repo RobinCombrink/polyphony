@@ -67,9 +67,6 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
     context.read<MessagesBloc>().add(
           const ResetMessagesRequested(),
         );
-    context.read<VoiceSessionsBloc>().add(
-          const ResetVoiceSessionsRequested(),
-        );
     context.read<ServerMembersBloc>().add(
           const ResetServerMembersRequested(),
         );
@@ -445,15 +442,11 @@ class _VoiceQuickActionsOverlay extends StatelessWidget {
         final isSelfMuted = loadedData?.isSelfMuted ?? false;
         final isSelfDeafened = loadedData?.isSelfDeafened ?? false;
 
-        if (activeVoiceConnection == null) {
-          return const SizedBox.shrink();
-        }
-
         return Positioned(
           left: 0,
           bottom: 0,
           child: _VoiceQuickActionsCard(
-            channelId: activeVoiceConnection.channelId,
+            channelId: activeVoiceConnection?.channelId,
             isSelfMuted: isSelfMuted,
             isSelfDeafened: isSelfDeafened,
           ),
@@ -470,12 +463,14 @@ class _VoiceQuickActionsCard extends StatelessWidget {
     required this.isSelfDeafened,
   });
 
-  final String channelId;
+  final String? channelId;
   final bool isSelfMuted;
   final bool isSelfDeafened;
 
   @override
   Widget build(BuildContext context) {
+    final controlsEnabled = channelId != null && channelId!.isNotEmpty;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -486,23 +481,29 @@ class _VoiceQuickActionsCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             IconButton(
-              onPressed: () => context.read<VoiceSessionsBloc>().add(
-                    DisconnectVoiceSessionRequested(channelId: channelId),
-                  ),
+              onPressed: !controlsEnabled
+                  ? null
+                  : () => context.read<VoiceSessionsBloc>().add(
+                        DisconnectVoiceSessionRequested(channelId: channelId!),
+                      ),
               tooltip: "Disconnect voice",
               icon: const Icon(Icons.call_end),
             ),
             IconButton(
-              onPressed: () => context.read<VoiceSessionsBloc>().add(
-                    SetSelfMutedRequested(muted: !isSelfMuted),
-                  ),
+              onPressed: !controlsEnabled
+                  ? null
+                  : () => context.read<VoiceSessionsBloc>().add(
+                        SetSelfMutedRequested(muted: !isSelfMuted),
+                      ),
               tooltip: isSelfMuted ? "Unmute" : "Mute",
               icon: Icon(isSelfMuted ? Icons.mic_off : Icons.mic),
             ),
             IconButton(
-              onPressed: () => context.read<VoiceSessionsBloc>().add(
-                    SetSelfDeafenedRequested(deafened: !isSelfDeafened),
-                  ),
+              onPressed: !controlsEnabled
+                  ? null
+                  : () => context.read<VoiceSessionsBloc>().add(
+                        SetSelfDeafenedRequested(deafened: !isSelfDeafened),
+                      ),
               tooltip: isSelfDeafened ? "Undeafen" : "Deafen",
               icon: Icon(isSelfDeafened ? Icons.headset_off : Icons.headset),
             ),

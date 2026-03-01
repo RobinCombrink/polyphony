@@ -168,9 +168,6 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
         }
 
         context.read<MessagesBloc>().add(const ResetMessagesRequested());
-        context
-            .read<VoiceSessionsBloc>()
-            .add(const ResetVoiceSessionsRequested());
         context.read<ChannelsBloc>().add(const ResetChannelsRequested());
         context
             .read<ChannelsBloc>()
