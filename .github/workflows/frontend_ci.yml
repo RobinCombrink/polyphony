@@ -1,0 +1,120 @@
+name: Frontend CI
+
+on:
+  push:
+    paths:
+      - .github/workflows/frontend_ci.yml
+      - apps/flutter_client/**
+    branches: [ main ]
+  pull_request:
+    paths:
+      - .github/workflows/frontend_ci.yml
+      - apps/flutter_client/**
+  workflow_dispatch:
+
+concurrency:
+  group: ci-flutter-frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-frontend:
+    name: Flutter frontend CI
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/flutter_client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Tests
+        run: flutter test
+
+      - name: Build Windows executable
+        run: flutter build windows --release
+
+      - name: Package Windows build
+        run: Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "build/polyphony-windows-${{ github.run_id }}-${{ github.run_attempt }}.zip"
+
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-windows-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/flutter_client/build/polyphony-windows-${{ github.run_id }}-${{ github.run_attempt }}.zip
+
+  release:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+    needs:
+      - flutter-frontend
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: flutter-windows-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-assets
+
+      - name: Generate release metadata
+        id: release_meta
+        run: |
+          echo "tag=frontend-0.0.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+          RELEASE_NAME: Frontend ${{ steps.release_meta.outputs.tag }}
+          ASSET_PATH: release-assets/polyphony-windows-${{ github.run_id }}-${{ github.run_attempt }}.zip
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const tag = process.env.RELEASE_TAG;
+            const name = process.env.RELEASE_NAME;
+            const assetPath = process.env.ASSET_PATH;
+
+            if (!fs.existsSync(assetPath)) {
+              core.setFailed(`Release asset not found: ${assetPath}`);
+              return;
+            }
+
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name,
+              generate_release_notes: true
+            });
+
+            const assetData = fs.readFileSync(assetPath);
+
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              name: path.basename(assetPath),
+              data: assetData,
+              headers: {
+                'content-type': 'application/zip',
+                'content-length': assetData.length
+              }
+            });

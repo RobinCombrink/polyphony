@@ -1,0 +1,121 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - .github/workflows/backend_ci.yml
+      - Cargo.toml
+      - Cargo.lock
+      - crates/**
+    branches: [ main ]
+  pull_request:
+    paths:
+      - .github/workflows/backend_ci.yml
+      - Cargo.toml
+      - Cargo.lock
+      - crates/**
+  workflow_dispatch:
+
+concurrency:
+  group: ci-rust-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-backend:
+    name: Rust backend CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Check workspace
+        run: cargo build --release --workspace --all-targets
+
+      - name: Unit and acceptance tests
+        run: cargo test --workspace --all-targets
+
+      - name: Package backend build
+        run: |
+          mkdir -p dist
+          cp target/release/backend-api dist/
+          tar -czf "dist/polyphony-backend-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz" -C dist backend-api
+
+      - name: Upload backend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-backend-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/polyphony-backend-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
+
+  release:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+    needs:
+      - rust-backend
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Download backend build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-backend-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-assets
+
+      - name: Generate release metadata
+        id: release_meta
+        run: |
+          echo "tag=backend-0.0.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+          RELEASE_NAME: Backend ${{ steps.release_meta.outputs.tag }}
+          ASSET_PATH: release-assets/polyphony-backend-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const tag = process.env.RELEASE_TAG;
+            const name = process.env.RELEASE_NAME;
+            const assetPath = process.env.ASSET_PATH;
+
+            if (!fs.existsSync(assetPath)) {
+              core.setFailed(`Release asset not found: ${assetPath}`);
+              return;
+            }
+
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name,
+              generate_release_notes: true
+            });
+
+            const assetData = fs.readFileSync(assetPath);
+
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              name: path.basename(assetPath),
+              data: assetData,
+              headers: {
+                'content-type': 'application/gzip',
+                'content-length': assetData.length
+              }
+            });
