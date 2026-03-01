@@ -112,22 +112,24 @@ extension DomainVoiceConnectSessionToApiExtension on VoiceConnectSession {
   }
 }
 
-extension ApiVoiceSessionToDomainExtension on ApiVoiceSession {
-  VoiceSession toDomainModel() {
-    return VoiceSession(
+extension ApiTextConnectSessionToDomainExtension on ApiTextConnectSession {
+  TextConnectSession toDomainModel() {
+    return TextConnectSession(
+      livekitUrl: livekitUrl,
+      accessToken: accessToken,
       channelId: channelId,
       participantUserId: participantUserId,
-      isMuted: isMuted,
     );
   }
 }
 
-extension DomainVoiceSessionToApiExtension on VoiceSession {
-  ApiVoiceSession toApiModel() {
-    return ApiVoiceSession(
+extension DomainTextConnectSessionToApiExtension on TextConnectSession {
+  ApiTextConnectSession toApiModel() {
+    return ApiTextConnectSession(
+      livekitUrl: livekitUrl,
+      accessToken: accessToken,
       channelId: channelId,
       participantUserId: participantUserId,
-      isMuted: isMuted,
     );
   }
 }

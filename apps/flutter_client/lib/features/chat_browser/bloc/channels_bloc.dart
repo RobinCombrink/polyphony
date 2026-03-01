@@ -68,8 +68,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     switch (listChannelsResult) {
       case Ok<Iterable<Channel>>(:final value):
         final channels = value.toList();
-        final textChannels = channels.whereType<TextChannel>().toList();
-        final voiceChannels = channels.whereType<VoiceChannel>().toList();
+        final (textChannels, voiceChannels) = _partitionChannels(channels);
         final previousSelection = _selectionByServerId[trimmedServerId];
 
         final selectedTextChannelId = _resolveSelectedChannelId(
@@ -381,6 +380,24 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       ChannelsLoadedDataState() => state,
       _ => null,
     };
+  }
+
+  (List<TextChannel>, List<VoiceChannel>) _partitionChannels(
+    List<Channel> channels,
+  ) {
+    final textChannels = <TextChannel>[];
+    final voiceChannels = <VoiceChannel>[];
+
+    for (final channel in channels) {
+      switch (channel) {
+        case TextChannel():
+          textChannels.add(channel);
+        case VoiceChannel():
+          voiceChannels.add(channel);
+      }
+    }
+
+    return (textChannels, voiceChannels);
   }
 }
 

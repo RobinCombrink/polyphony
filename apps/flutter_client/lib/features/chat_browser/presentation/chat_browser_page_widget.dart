@@ -9,13 +9,12 @@ import "package:polyphony_flutter_client/features/chat_browser/bloc/profile_bloc
 import "package:polyphony_flutter_client/features/chat_browser/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/channels_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/messages_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/server_users_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/servers_pane_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/text_channels_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/token_tab_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/top_right_error_toast.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_channels_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_participants_pane_widget.dart";
 
 class ChatBrowserPageWidget extends StatefulWidget {
@@ -343,10 +342,13 @@ class _ServerWorkspaceWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ServersBloc, ServersState>(
       builder: (context, serversState) {
-        final selectedServerId = switch (serversState) {
-          ServersLoadedDataState(:final selectedServerId) => selectedServerId,
-          _ => null,
-        };
+        final loadedData =
+            serversState is ServersLoadedDataState ? serversState : null;
+        final selectedServerId = loadedData?.selectedServerId;
+        final selectedServerName = loadedData?.servers
+            .where((server) => server.id == selectedServerId)
+            .map((server) => server.name)
+            .firstOrNull;
 
         if (selectedServerId == null) {
           return const Card(
@@ -363,20 +365,9 @@ class _ServerWorkspaceWidget extends StatelessWidget {
           children: <Widget>[
             SizedBox(
               width: 360,
-              child: Column(
-                children: <Widget>[
-                  Expanded(
-                    child: TextChannelsPaneWidget(
-                      createController: createChannelController,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: VoiceChannelsPaneWidget(
-                      createController: createChannelController,
-                    ),
-                  ),
-                ],
+              child: ChannelsPaneWidget(
+                createController: createChannelController,
+                serverName: selectedServerName,
               ),
             ),
             const SizedBox(width: 12),

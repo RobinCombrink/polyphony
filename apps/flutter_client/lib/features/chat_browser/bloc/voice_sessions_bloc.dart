@@ -241,17 +241,6 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         emit(VoiceSessionsExceptionState(error: error));
         return;
       }
-
-      final backendDisconnectResult = await _voiceSessionRepo.deleteOne(
-        command: DisconnectVoiceSessionCommand(
-          channelId: activeConnection.channelId,
-        ),
-      );
-
-      if (backendDisconnectResult case Error<void>(:final error)) {
-        emit(VoiceSessionsExceptionState(error: error));
-        return;
-      }
     }
 
     emit(const VoiceSessionsLoadingState());
@@ -274,6 +263,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
             final participantsResult = await _loadParticipantsForChannel(
               channelId: trimmedChannelId,
               loadedState: loadedState,
+              activeConnection: value,
             );
 
             if (participantsResult
@@ -292,22 +282,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
             if (switchedFromChannelId != null &&
                 switchedFromChannelId.isNotEmpty &&
                 switchedFromChannelId != trimmedChannelId) {
-              final previousChannelParticipantsResult =
-                  await _loadParticipantsForChannel(
-                channelId: switchedFromChannelId,
-                loadedState: loadedState,
-              );
-
-              if (previousChannelParticipantsResult
-                  case Error<List<VoiceParticipant>>(:final error)) {
-                emit(VoiceSessionsExceptionState(error: error));
-                return;
-              }
-
               participantsByChannelId[switchedFromChannelId] =
-                  (previousChannelParticipantsResult
-                          as Ok<List<VoiceParticipant>>)
-                      .value;
+                  const <VoiceParticipant>[];
             }
 
             emit(VoiceSessionsLoadedState(
@@ -365,27 +341,16 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return;
     }
 
-    final backendDisconnectResult = await _voiceSessionRepo.deleteOne(
-      command: DisconnectVoiceSessionCommand(
-        channelId: trimmedChannelId,
-      ),
-    );
-
-    switch (backendDisconnectResult) {
-      case Ok<void>():
-        emit(VoiceSessionsLoadedState(
-          activeConnection: null,
-          selectedChannelId: trimmedChannelId,
-          participants: const <VoiceParticipant>[],
-          participantsByChannelId: _participantsByChannelIdFromState(
-            loadedState,
-          )..[trimmedChannelId] = const <VoiceParticipant>[],
-          isSelfMuted: false,
-          isSelfDeafened: false,
-        ));
-      case Error<void>(:final error):
-        emit(VoiceSessionsExceptionState(error: error));
-    }
+    emit(VoiceSessionsLoadedState(
+      activeConnection: null,
+      selectedChannelId: trimmedChannelId,
+      participants: const <VoiceParticipant>[],
+      participantsByChannelId: _participantsByChannelIdFromState(
+        loadedState,
+      )..[trimmedChannelId] = const <VoiceParticipant>[],
+      isSelfMuted: false,
+      isSelfDeafened: false,
+    ));
   }
 
   Future<void> _onSetSelfMutedRequested(
@@ -445,21 +410,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     switch (setMutedResult) {
       case Ok<void>():
-        final backendSetMutedResult = await _voiceSessionRepo.updateOne(
-          command: SetSelfVoiceSessionMuteCommand(
-            channelId: activeConnection.channelId,
-            isMuted: effectiveMuted,
-          ),
-        );
-
-        if (backendSetMutedResult case Error<void>(:final error)) {
-          emit(VoiceSessionsExceptionState(error: error));
-          return;
-        }
-
         final participantsResult = await _loadParticipantsForChannel(
           channelId: activeConnection.channelId,
           loadedState: loadedState,
+          activeConnection: activeConnection,
         );
 
         if (participantsResult
@@ -479,18 +433,12 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                 ? activeChannelParticipants
                 : loadedState.participants;
 
-        final isSelfMuted = activeChannelParticipants.any(
-          (participant) =>
-              participant.userId == activeConnection.participantUserId &&
-              participant.isMuted,
-        );
-
         emit(VoiceSessionsLoadedState(
           activeConnection: activeConnection,
           selectedChannelId: loadedState.selectedChannelId,
           participants: selectedParticipants,
           participantsByChannelId: participantsByChannelId,
-          isSelfMuted: isSelfMuted,
+          isSelfMuted: _voiceRuntimeService.isSelfMuted(),
           isSelfDeafened: isSelfDeafened,
         ));
       case Error<void>(:final error):
@@ -538,21 +486,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     switch (setDeafenedResult) {
       case Ok<void>():
-        final backendSetMutedResult = await _voiceSessionRepo.updateOne(
-          command: SetSelfVoiceSessionMuteCommand(
-            channelId: activeConnection.channelId,
-            isMuted: _voiceRuntimeService.isSelfMuted(),
-          ),
-        );
-
-        if (backendSetMutedResult case Error<void>(:final error)) {
-          emit(VoiceSessionsExceptionState(error: error));
-          return;
-        }
-
         final participantsResult = await _loadParticipantsForChannel(
           channelId: activeConnection.channelId,
           loadedState: loadedState,
+          activeConnection: activeConnection,
         );
 
         if (participantsResult
@@ -616,25 +553,25 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
   Future<Result<List<VoiceParticipant>>> _loadParticipantsForChannel({
     required String channelId,
     required VoiceSessionsLoadedDataState? loadedState,
+    VoiceConnectSession? activeConnection,
   }) async {
-    final voiceSessionsResult = await _voiceSessionRepo.getMany(
-      query: GetVoiceSessionsQuery(channelId: channelId),
-    );
-
-    if (voiceSessionsResult case Error<Iterable<VoiceSession>>(:final error)) {
-      return Error<List<VoiceParticipant>>(error);
+    final resolvedActiveConnection =
+        activeConnection ?? loadedState?.activeConnection;
+    if (resolvedActiveConnection == null ||
+        resolvedActiveConnection.channelId != channelId) {
+      return const Ok<List<VoiceParticipant>>(<VoiceParticipant>[]);
     }
 
-    final voiceSessions =
-        (voiceSessionsResult as Ok<Iterable<VoiceSession>>).value;
-    final backendParticipantUserIds =
-        voiceSessions.map((session) => session.participantUserId).toList();
+    final runtimeParticipantUserIds =
+        _voiceRuntimeService.currentParticipantUserIds().toList();
     final mutedByUserId = <String, bool>{
-      for (final session in voiceSessions)
-        session.participantUserId: session.isMuted,
+      for (final participantUserId in runtimeParticipantUserIds)
+        participantUserId: false,
+      resolvedActiveConnection.participantUserId:
+          _voiceRuntimeService.isSelfMuted(),
     };
     final participants = await _resolveParticipants(
-      participantUserIds: backendParticipantUserIds,
+      participantUserIds: runtimeParticipantUserIds,
       mutedByUserId: mutedByUserId,
     );
 
@@ -694,19 +631,13 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     required VoiceConnectSession? activeConnection,
     required Map<String, List<VoiceParticipant>> participantsByChannelId,
   }) {
+    final _ = participantsByChannelId;
+
     if (activeConnection == null) {
       return false;
     }
 
-    final activeParticipants =
-        participantsByChannelId[activeConnection.channelId] ??
-            const <VoiceParticipant>[];
-
-    return activeParticipants.any(
-      (participant) =>
-          participant.userId == activeConnection.participantUserId &&
-          participant.isMuted,
-    );
+    return _voiceRuntimeService.isSelfMuted();
   }
 
   void _onSpeakingParticipantUserIdsUpdated(

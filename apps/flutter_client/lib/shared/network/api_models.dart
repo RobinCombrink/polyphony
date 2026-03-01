@@ -106,22 +106,25 @@ class ApiVoiceConnectSession {
   }
 }
 
-class ApiVoiceSession {
-  const ApiVoiceSession({
+class ApiTextConnectSession {
+  const ApiTextConnectSession({
+    required this.livekitUrl,
+    required this.accessToken,
     required this.channelId,
     required this.participantUserId,
-    required this.isMuted,
   });
 
+  final String livekitUrl;
+  final String accessToken;
   final String channelId;
   final String participantUserId;
-  final bool isMuted;
 
-  factory ApiVoiceSession.fromJson(Map<String, dynamic> json) {
-    return ApiVoiceSession(
+  factory ApiTextConnectSession.fromJson(Map<String, dynamic> json) {
+    return ApiTextConnectSession(
+      livekitUrl: json["livekit_url"] as String,
+      accessToken: json["access_token"] as String,
       channelId: json["channel_id"] as String,
       participantUserId: json["participant_user_id"] as String,
-      isMuted: json["is_muted"] as bool? ?? false,
     );
   }
 }

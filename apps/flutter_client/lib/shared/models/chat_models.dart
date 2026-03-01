@@ -115,28 +115,22 @@ class Message {
   }
 }
 
-class VoiceSession {
-  const VoiceSession({
-    required this.channelId,
-    required this.participantUserId,
-    required this.isMuted,
-  });
-
-  final String channelId;
-  final String participantUserId;
-  final bool isMuted;
-
-  factory VoiceSession.fromJson(Map<String, dynamic> json) {
-    return VoiceSession(
-      channelId: json["channel_id"] as String,
-      participantUserId: json["participant_user_id"] as String,
-      isMuted: json["is_muted"] as bool? ?? false,
-    );
-  }
-}
-
 class VoiceConnectSession {
   const VoiceConnectSession({
+    required this.livekitUrl,
+    required this.accessToken,
+    required this.channelId,
+    required this.participantUserId,
+  });
+
+  final String livekitUrl;
+  final String accessToken;
+  final String channelId;
+  final String participantUserId;
+}
+
+class TextConnectSession {
+  const TextConnectSession({
     required this.livekitUrl,
     required this.accessToken,
     required this.channelId,

@@ -37,7 +37,7 @@ void main() {
             (state) =>
                 state.participants.map((participant) => participant.userId),
             "participant user ids",
-            contains(fixture.connectedVoiceSession.participantUserId),
+            isEmpty,
           ),
     ],
   );

@@ -16,6 +16,7 @@ import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
@@ -120,7 +121,7 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
                 create: (context) => MessagesBloc(
                   messageRepo: context.read<MessageRepo>(),
                   profileRepo: context.read<ProfileRepo>(),
-                  voiceSessionRepo: context.read<VoiceSessionRepo>(),
+                  textSessionRepo: context.read<TextSessionRepo>(),
                   messageRuntimeService: context.read<MessageRuntimeService>(),
                 ),
               ),

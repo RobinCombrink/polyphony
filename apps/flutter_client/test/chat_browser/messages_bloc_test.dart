@@ -18,7 +18,7 @@ void main() {
           fixture.listedMessage.authorUserId: "Listed Author",
         },
       ),
-      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      textSessionRepo: FakeTextSessionRepository(fixture: fixture),
       messageRuntimeService: FakeMessageRuntimeService(),
     ),
     act: (bloc) {
@@ -60,7 +60,7 @@ void main() {
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
       ),
-      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      textSessionRepo: FakeTextSessionRepository(fixture: fixture),
       messageRuntimeService: FakeMessageRuntimeService(),
     ),
     act: (bloc) {

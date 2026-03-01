@@ -191,55 +191,33 @@ class PolyphonyApiClient implements ChatApi {
   }
 
   @override
+  Future<Result<ApiTextConnectSession>> connectTextSession({
+    required String baseUrl,
+    required String channelId,
+  }) {
+    return _performPostRequest<ApiTextConnectSession>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/session",
+      operation: "connect text session",
+      body: const <String, dynamic>{"session_type": "text"},
+      expectedStatusCode: 200,
+      decodeItem: ApiTextConnectSession.fromJson,
+    );
+  }
+
+  @override
   Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
     required String baseUrl,
     required String channelId,
   }) {
     return _performPostRequest<ApiVoiceConnectSession>(
       baseUrl: baseUrl,
-      endpoint: "/api/v1/channels/$channelId/voice/connect",
+      endpoint: "/api/v1/channels/$channelId/session",
       operation: "connect voice session",
-      body: const <String, dynamic>{},
+      body: const <String, dynamic>{"session_type": "voice"},
       expectedStatusCode: 200,
       decodeItem: ApiVoiceConnectSession.fromJson,
     );
-  }
-
-  @override
-  Future<Result<List<ApiVoiceSession>>> listVoiceSessions({
-    required String baseUrl,
-    required String channelId,
-  }) {
-    return _performListRequest<ApiVoiceSession>(
-      baseUrl: baseUrl,
-      endpoint: "/api/v1/channels/$channelId/voice/sessions",
-      operation: "list voice sessions",
-      decodeItem: ApiVoiceSession.fromJson,
-    );
-  }
-
-  @override
-  Future<Result<void>> setSelfVoiceSessionMuted({
-    required String baseUrl,
-    required String channelId,
-    required bool isMuted,
-  }) {
-    return _performPatchRequestWithoutResponseBody(
-      baseUrl: baseUrl,
-      endpoint: "/api/v1/channels/$channelId/voice/self",
-      operation: "set self voice session muted",
-      body: <String, dynamic>{"is_muted": isMuted},
-      expectedStatusCode: 204,
-    );
-  }
-
-  @override
-  Future<Result<void>> disconnectVoiceSession({
-    required String baseUrl,
-    required String channelId,
-  }) {
-    final _ = channelId;
-    return Future<Result<void>>.value(const Ok<void>(null));
   }
 
   @override

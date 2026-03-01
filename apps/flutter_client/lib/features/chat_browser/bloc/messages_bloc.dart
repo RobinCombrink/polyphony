@@ -5,7 +5,7 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
-import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 
@@ -16,11 +16,11 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
   MessagesBloc({
     required MessageRepo messageRepo,
     required ProfileRepo profileRepo,
-    required VoiceSessionRepo voiceSessionRepo,
+    required TextSessionRepo textSessionRepo,
     required MessageRuntimeService messageRuntimeService,
   })  : _messageRepo = messageRepo,
         _profileRepo = profileRepo,
-        _voiceSessionRepo = voiceSessionRepo,
+        _textSessionRepo = textSessionRepo,
         _messageRuntimeService = messageRuntimeService,
         super(const MessagesInitialState()) {
     on<MessagesEvent>(
@@ -40,7 +40,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
   final MessageRepo _messageRepo;
   final ProfileRepo _profileRepo;
-  final VoiceSessionRepo _voiceSessionRepo;
+  final TextSessionRepo _textSessionRepo;
   final MessageRuntimeService _messageRuntimeService;
   StreamSubscription<RuntimeTextMessage>? _runtimeTextSubscription;
 
@@ -100,17 +100,17 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     emit(const MessagesLoadingState());
 
     if (currentState?.channelId != trimmedChannelId) {
-      final connectSessionResult = await _voiceSessionRepo.createOne(
-        command: ConnectVoiceSessionCommand(channelId: trimmedChannelId),
+      final connectSessionResult = await _textSessionRepo.createOne(
+        command: ConnectTextSessionCommand(channelId: trimmedChannelId),
       );
 
       final connectionResult = switch (connectSessionResult) {
-        Ok<VoiceConnectSession>(:final value) =>
+        Ok<TextConnectSession>(:final value) =>
           await _messageRuntimeService.connect(
             livekitUrl: value.livekitUrl,
             accessToken: value.accessToken,
           ),
-        Error<VoiceConnectSession>(:final error) => Error<void>(error),
+        Error<TextConnectSession>(:final error) => Error<void>(error),
       };
 
       if (connectionResult case Error<void>(:final error)) {

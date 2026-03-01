@@ -5,6 +5,7 @@ import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
@@ -231,62 +232,14 @@ class FakeMessageRepository implements MessageRepo {
 class FakeVoiceSessionRepository implements VoiceSessionRepo {
   FakeVoiceSessionRepository({
     required ChatApiFixture fixture,
-    this.forceDisconnectError = false,
-    this.forceSetSelfMutedError = false,
-  })  : _connectedVoiceSession = fixture.connectedVoiceSession,
-        _currentConnectedChannelId = fixture.connectedVoiceSession.channelId,
-        _isMuted = false;
+  }) : _connectedVoiceSession = fixture.connectedVoiceSession;
 
-  final bool forceDisconnectError;
-  final bool forceSetSelfMutedError;
   final VoiceConnectSession _connectedVoiceSession;
-  String? _currentConnectedChannelId;
-  bool _isMuted;
-
-  @override
-  Future<Result<Iterable<VoiceSession>>> getMany({
-    required GetVoiceSessionsQuery query,
-  }) async {
-    final currentConnectedChannelId = _currentConnectedChannelId;
-    if (currentConnectedChannelId == null ||
-        query.channelId != currentConnectedChannelId) {
-      return const Ok<Iterable<VoiceSession>>(<VoiceSession>[]);
-    }
-
-    return Ok<Iterable<VoiceSession>>(
-      <VoiceSession>[
-        VoiceSession(
-          channelId: currentConnectedChannelId,
-          participantUserId: _connectedVoiceSession.participantUserId,
-          isMuted: _isMuted,
-        ),
-      ],
-    );
-  }
-
-  @override
-  Future<Result<void>> updateOne({
-    required SetSelfVoiceSessionMuteCommand command,
-  }) async {
-    if (forceSetSelfMutedError) {
-      return Error<void>(
-          Exception("Failed to update voice session mute state"));
-    }
-
-    if (command.channelId != _currentConnectedChannelId) {
-      return Error<void>(
-          Exception("Failed to update voice session mute state"));
-    }
-
-    _isMuted = command.isMuted;
-    return const Ok<void>(null);
-  }
 
   @override
   Future<Result<VoiceConnectSession>> createOne({
     required ConnectVoiceSessionCommand command,
   }) async {
-    _currentConnectedChannelId = command.channelId;
     return Ok<VoiceConnectSession>(
       VoiceConnectSession(
         livekitUrl: _connectedVoiceSession.livekitUrl,
@@ -296,21 +249,32 @@ class FakeVoiceSessionRepository implements VoiceSessionRepo {
       ),
     );
   }
+}
+
+class FakeTextSessionRepository implements TextSessionRepo {
+  FakeTextSessionRepository({
+    required ChatApiFixture fixture,
+  }) : _connectedTextSession = TextConnectSession(
+          livekitUrl: fixture.connectedVoiceSession.livekitUrl,
+          accessToken: fixture.connectedVoiceSession.accessToken,
+          channelId: fixture.connectedVoiceSession.channelId,
+          participantUserId: fixture.connectedVoiceSession.participantUserId,
+        );
+
+  final TextConnectSession _connectedTextSession;
 
   @override
-  Future<Result<void>> deleteOne({
-    required DisconnectVoiceSessionCommand command,
+  Future<Result<TextConnectSession>> createOne({
+    required ConnectTextSessionCommand command,
   }) async {
-    if (forceDisconnectError) {
-      return Error<void>(Exception("Failed to disconnect voice session"));
-    }
-
-    if (_currentConnectedChannelId == command.channelId) {
-      _currentConnectedChannelId = null;
-      _isMuted = false;
-    }
-
-    return const Ok<void>(null);
+    return Ok<TextConnectSession>(
+      TextConnectSession(
+        livekitUrl: _connectedTextSession.livekitUrl,
+        accessToken: _connectedTextSession.accessToken,
+        channelId: command.channelId,
+        participantUserId: _connectedTextSession.participantUserId,
+      ),
+    );
   }
 }
 
@@ -320,12 +284,14 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
     this.forceDisconnectError = false,
     this.forceSetSelfMutedError = false,
     this.forceSetSelfDeafenedError = false,
+    this.participantUserIds = const <String>{"auth0|u1"},
   });
 
   final bool forceConnectError;
   final bool forceDisconnectError;
   final bool forceSetSelfMutedError;
   final bool forceSetSelfDeafenedError;
+  final Set<String> participantUserIds;
   final _speakingParticipantUserIdsController =
       StreamController<Set<String>>.broadcast();
   var _isSelfMuted = false;
@@ -394,7 +360,7 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
 
   @override
   Iterable<String> currentParticipantUserIds() {
-    return const <String>["auth0|local_user"];
+    return participantUserIds;
   }
 
   @override

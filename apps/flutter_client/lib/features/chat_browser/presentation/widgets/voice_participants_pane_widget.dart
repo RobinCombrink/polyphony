@@ -4,7 +4,6 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/something_went_wrong_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_channels_section_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
@@ -68,11 +67,79 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
 
             return Skeletonizer(
               enabled: isLoading,
-              child: VoiceChannelsSectionWidget(
-                channelName: selectedVoiceChannel.name,
-                participants: visibleParticipants,
-                selfParticipantUserId: selfParticipantUserId,
-                isSelfDeafened: isSelfDeafened,
+              child: Card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        "Voice participants · ${selectedVoiceChannel.name}",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: SizedBox.shrink(),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: <Widget>[
+                          if (visibleParticipants.isEmpty)
+                            const ListTile(
+                              leading: Icon(Icons.mic_off),
+                              title: Text("No participants"),
+                            )
+                          else
+                            ...visibleParticipants.map(
+                              (participant) {
+                                final isSelfParticipant =
+                                    participant.userId == selfParticipantUserId;
+                                final showDeafenedIcon =
+                                    isSelfParticipant && isSelfDeafened;
+
+                                return ListTile(
+                                  leading: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: participant.isSpeaking
+                                          ? Border.all(
+                                              color: Colors.green,
+                                              width: 2,
+                                            )
+                                          : null,
+                                    ),
+                                    child: const Icon(Icons.account_circle),
+                                  ),
+                                  title: Text(participant.displayName),
+                                  trailing:
+                                      participant.isMuted || showDeafenedIcon
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: <Widget>[
+                                                if (participant.isMuted)
+                                                  const Icon(Icons.mic_off),
+                                                if (showDeafenedIcon)
+                                                  const Padding(
+                                                    padding: EdgeInsets.only(
+                                                      left: 6,
+                                                    ),
+                                                    child: Icon(
+                                                      Icons.headset_off,
+                                                    ),
+                                                  ),
+                                              ],
+                                            )
+                                          : null,
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },

@@ -13,23 +13,6 @@ class VoiceSessionRepository implements VoiceSessionRepo {
   final VoiceSessionService _voiceSessionService;
 
   @override
-  Future<Result<Iterable<VoiceSession>>> getMany({
-    required GetVoiceSessionsQuery query,
-  }) async {
-    final serviceResult = await _voiceSessionService.listVoiceSessions(
-      channelId: query.channelId,
-    );
-
-    return switch (serviceResult) {
-      Ok<List<ApiVoiceSession>>(:final value) => Ok<Iterable<VoiceSession>>(
-          value.map((voiceSession) => voiceSession.toDomainModel()),
-        ),
-      Error<List<ApiVoiceSession>>(:final error) =>
-        Error<Iterable<VoiceSession>>(error),
-    };
-  }
-
-  @override
   Future<Result<VoiceConnectSession>> createOne({
     required ConnectVoiceSessionCommand command,
   }) async {
@@ -43,24 +26,5 @@ class VoiceSessionRepository implements VoiceSessionRepo {
       Error<ApiVoiceConnectSession>(:final error) =>
         Error<VoiceConnectSession>(error),
     };
-  }
-
-  @override
-  Future<Result<void>> updateOne({
-    required SetSelfVoiceSessionMuteCommand command,
-  }) {
-    return _voiceSessionService.setSelfMuted(
-      channelId: command.channelId,
-      isMuted: command.isMuted,
-    );
-  }
-
-  @override
-  Future<Result<void>> deleteOne({
-    required DisconnectVoiceSessionCommand command,
-  }) {
-    return _voiceSessionService.disconnectVoiceSession(
-      channelId: command.channelId,
-    );
   }
 }

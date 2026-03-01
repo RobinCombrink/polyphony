@@ -1,3 +1,4 @@
+import "package:collection/collection.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
@@ -86,16 +87,11 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
       builder: (context, channelsState) {
         final channelsData =
             channelsState is ChannelsLoadedDataState ? channelsState : null;
-        final selectedTextChannel = channelsData?.textChannels.firstWhere(
+        final selectedTextChannel = channelsData?.textChannels.firstWhereOrNull(
           (channel) => channel.id == channelsData.selectedTextChannelId,
-          orElse: () => const TextChannel(
-            id: "",
-            serverId: "",
-            name: "",
-          ),
         );
 
-        if (selectedTextChannel == null || selectedTextChannel.id.isEmpty) {
+        if (selectedTextChannel == null) {
           return const Card(
             child: Center(
               child: Text(
