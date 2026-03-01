@@ -149,4 +149,62 @@ void main() {
           ),
     ],
   );
+
+  blocTest<ChannelsBloc, ChannelsState>(
+    "restores previous server selection when returning to server",
+    build: () => ChannelsBloc(
+      channelRepo: FakeChannelRepository(fixture: fixture),
+    ),
+    act: (bloc) {
+      bloc
+        ..add(LoadChannelsRequested(
+          serverId: fixture.listedServer.id,
+        ))
+        ..add(SelectTextChannelRequested(channelId: fixture.listedChannel.id))
+        ..add(LoadChannelsRequested(
+          serverId: fixture.createdServer.id,
+        ))
+        ..add(LoadChannelsRequested(
+          serverId: fixture.listedServer.id,
+        ));
+    },
+    expect: () => <Matcher>[
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>(),
+      isA<ChannelsLoadedState>()
+          .having(
+            (state) => state.selectedTextChannelId,
+            "selected text channel",
+            fixture.listedChannel.id,
+          )
+          .having(
+            (state) => state.selectionMode,
+            "selection mode",
+            ChannelSelectionMode.text,
+          ),
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>()
+          .having(
+              (state) => state.serverId, "server id", fixture.createdServer.id)
+          .having((state) => state.selectedTextChannelId,
+              "selected text channel", isNull),
+      isA<ChannelsLoadingState>(),
+      isA<ChannelsLoadedState>()
+          .having(
+            (state) => state.serverId,
+            "server id",
+            fixture.listedServer.id,
+          )
+          .having(
+            (state) => state.selectedTextChannelId,
+            "selected text channel",
+            fixture.listedChannel.id,
+          )
+          .having(
+            (state) => state.selectionMode,
+            "selection mode",
+            ChannelSelectionMode.text,
+          ),
+    ],
+  );
 }

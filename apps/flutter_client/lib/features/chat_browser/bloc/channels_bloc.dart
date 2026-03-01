@@ -20,6 +20,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
   }
 
   final ChannelRepo _channelRepo;
+  final _selectionByServerId = <String, _ServerChannelSelection>{};
 
   void _onResetChannelsRequested(
     ResetChannelsRequested event,
@@ -64,12 +65,38 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
 
     switch (listChannelsResult) {
       case Ok<Iterable<Channel>>(:final value):
+        final channels = value.toList();
+        final previousSelection = _selectionByServerId[trimmedServerId];
+
+        final selectedTextChannelId = _resolveSelectedChannelId(
+          channels: channels,
+          channelId: previousSelection?.selectedTextChannelId,
+        );
+        final selectedVoiceChannelId = _resolveSelectedChannelId(
+          channels: channels,
+          channelId: previousSelection?.selectedVoiceChannelId,
+        );
+
+        final requestedSelectionMode =
+            previousSelection?.selectionMode ?? ChannelSelectionMode.text;
+        final selectionMode =
+            requestedSelectionMode == ChannelSelectionMode.voice &&
+                    selectedVoiceChannelId == null
+                ? ChannelSelectionMode.text
+                : requestedSelectionMode;
+
+        _selectionByServerId[trimmedServerId] = _ServerChannelSelection(
+          selectedTextChannelId: selectedTextChannelId,
+          selectedVoiceChannelId: selectedVoiceChannelId,
+          selectionMode: selectionMode,
+        );
+
         emit(ChannelsLoadedState(
-          channels: value.toList(),
+          channels: channels,
           serverId: trimmedServerId,
-          selectedTextChannelId: null,
-          selectedVoiceChannelId: null,
-          selectionMode: ChannelSelectionMode.text,
+          selectedTextChannelId: selectedTextChannelId,
+          selectedVoiceChannelId: selectedVoiceChannelId,
+          selectionMode: selectionMode,
         ));
       case Error<Iterable<Channel>>(:final error):
         emit(ChannelsExceptionState(error: error));
@@ -142,6 +169,12 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
           selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
           selectionMode: ChannelSelectionMode.text,
         ));
+
+        _selectionByServerId[trimmedServerId] = _ServerChannelSelection(
+          selectedTextChannelId: createdChannel.id,
+          selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
+          selectionMode: ChannelSelectionMode.text,
+        );
       case Error<Channel>(:final error):
         emit(ChannelsExceptionState(error: error));
     }
@@ -208,6 +241,12 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
           selectedVoiceChannelId: selectedVoiceChannelId,
           selectionMode: selectionMode,
         ));
+
+        _selectionByServerId[loadedState.serverId] = _ServerChannelSelection(
+          selectedTextChannelId: selectedTextChannelId,
+          selectedVoiceChannelId: selectedVoiceChannelId,
+          selectionMode: selectionMode,
+        );
       case Error<void>(:final error):
         emit(ChannelsExceptionState(error: error));
     }
@@ -236,6 +275,12 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
       selectionMode: ChannelSelectionMode.text,
     ));
+
+    _selectionByServerId[loadedState.serverId] = _ServerChannelSelection(
+      selectedTextChannelId: selectedTextChannelId,
+      selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
+      selectionMode: ChannelSelectionMode.text,
+    );
   }
 
   void _onSelectVoiceChannelRequested(
@@ -261,6 +306,25 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       selectedVoiceChannelId: selectedVoiceChannelId,
       selectionMode: ChannelSelectionMode.voice,
     ));
+
+    _selectionByServerId[loadedState.serverId] = _ServerChannelSelection(
+      selectedTextChannelId: loadedState.selectedTextChannelId,
+      selectedVoiceChannelId: selectedVoiceChannelId,
+      selectionMode: ChannelSelectionMode.voice,
+    );
+  }
+
+  String? _resolveSelectedChannelId({
+    required List<Channel> channels,
+    required String? channelId,
+  }) {
+    if (channelId == null || channelId.isEmpty) {
+      return null;
+    }
+
+    final trimmedChannelId = channelId.trim();
+    final exists = channels.any((channel) => channel.id == trimmedChannelId);
+    return exists ? trimmedChannelId : null;
   }
 
   ChannelsLoadedDataState? _loadedStateOrNull(ChannelsState state) {
@@ -269,4 +333,16 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       _ => null,
     };
   }
+}
+
+final class _ServerChannelSelection {
+  const _ServerChannelSelection({
+    required this.selectedTextChannelId,
+    required this.selectedVoiceChannelId,
+    required this.selectionMode,
+  });
+
+  final String? selectedTextChannelId;
+  final String? selectedVoiceChannelId;
+  final ChannelSelectionMode selectionMode;
 }
