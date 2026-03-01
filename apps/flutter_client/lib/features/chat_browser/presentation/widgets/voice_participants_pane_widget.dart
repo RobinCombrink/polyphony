@@ -81,67 +81,15 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
                       ),
                     ),
                     const Divider(height: 1),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: _VoiceVideoGridWidget(
-                        participants: visibleParticipants,
-                        selfParticipantUserId: selfParticipantUserId,
-                        participantVideoTracks: participantVideoTracks,
-                      ),
-                    ),
                     Expanded(
-                      child: ListView(
-                        children: <Widget>[
-                          if (visibleParticipants.isEmpty)
-                            const ListTile(
-                              leading: Icon(Icons.mic_off),
-                              title: Text("No participants"),
-                            )
-                          else
-                            ...visibleParticipants.map(
-                              (participant) {
-                                final isSelfParticipant =
-                                    participant.userId == selfParticipantUserId;
-                                final showDeafenedIcon =
-                                    isSelfParticipant && isSelfDeafened;
-
-                                return ListTile(
-                                  leading: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: participant.isSpeaking
-                                          ? Border.all(
-                                              color: Colors.green,
-                                              width: 2,
-                                            )
-                                          : null,
-                                    ),
-                                    child: const Icon(Icons.account_circle),
-                                  ),
-                                  title: Text(participant.displayName),
-                                  trailing:
-                                      participant.isMuted || showDeafenedIcon
-                                          ? Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: <Widget>[
-                                                if (participant.isMuted)
-                                                  const Icon(Icons.mic_off),
-                                                if (showDeafenedIcon)
-                                                  const Padding(
-                                                    padding: EdgeInsets.only(
-                                                      left: 6,
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.headset_off,
-                                                    ),
-                                                  ),
-                                              ],
-                                            )
-                                          : null,
-                                );
-                              },
-                            ),
-                        ],
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: _VoiceFocusedStreamWidget(
+                          participants: visibleParticipants,
+                          selfParticipantUserId: selfParticipantUserId,
+                          isSelfDeafened: isSelfDeafened,
+                          participantVideoTracks: participantVideoTracks,
+                        ),
                       ),
                     ),
                   ],
@@ -155,46 +103,154 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
   }
 }
 
-class _VoiceVideoGridWidget extends StatelessWidget {
-  const _VoiceVideoGridWidget({
+class _VoiceFocusedStreamWidget extends StatefulWidget {
+  const _VoiceFocusedStreamWidget({
     required this.participants,
     required this.selfParticipantUserId,
+    required this.isSelfDeafened,
     required this.participantVideoTracks,
   });
 
   final List<VoiceParticipant> participants;
   final String? selfParticipantUserId;
+  final bool isSelfDeafened;
   final Map<String, Object> participantVideoTracks;
 
   @override
-  Widget build(BuildContext context) {
-    final displayNameByUserId = <String, String>{
-      for (final participant in participants)
-        participant.userId: participant.displayName,
-    };
-    final selfUserId = selfParticipantUserId;
+  State<_VoiceFocusedStreamWidget> createState() =>
+      _VoiceFocusedStreamWidgetState();
+}
 
-    final videoTiles = participantVideoTracks.entries
+class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
+  String? _focusedParticipantUserId;
+
+  @override
+  void didUpdateWidget(covariant _VoiceFocusedStreamWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final streamItems = _streamItems();
+    final focusedExists = streamItems.any(
+      (item) => item.participantUserId == _focusedParticipantUserId,
+    );
+
+    if (!focusedExists) {
+      _focusedParticipantUserId = streamItems.firstOrNull?.participantUserId;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final streamItems = _streamItems();
+
+    if (_focusedParticipantUserId == null && streamItems.isNotEmpty) {
+      _focusedParticipantUserId = streamItems.first.participantUserId;
+    }
+
+    final focusedStream = streamItems.firstWhereOrNull(
+      (item) => item.participantUserId == _focusedParticipantUserId,
+    );
+
+    if (focusedStream == null) {
+      return const Center(
+        child: Text("No shared streams"),
+      );
+    }
+
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: _VoiceVideoTileWidget(
+            displayName: focusedStream.displayName,
+            videoTrack: focusedStream.videoTrack,
+            isFocused: true,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 88,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: streamItems.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final item = streamItems[index];
+              final isFocused =
+                  item.participantUserId == focusedStream.participantUserId;
+
+              return SizedBox(
+                width: 220,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _focusedParticipantUserId = item.participantUserId;
+                    });
+                  },
+                  icon: Icon(
+                    isFocused ? Icons.fullscreen_exit : Icons.fullscreen,
+                  ),
+                  label: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        item.displayName,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.statusText,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<_VoiceStreamItemData> _streamItems() {
+    final participantByUserId = <String, VoiceParticipant>{
+      for (final participant in widget.participants)
+        participant.userId: participant,
+    };
+    final selfUserId = widget.selfParticipantUserId;
+
+    return widget.participantVideoTracks.entries
         .map((entry) {
           final participantUserId = entry.key;
 
           if (entry.value case final VideoTrack videoTrack) {
+            final participant = participantByUserId[participantUserId];
             final isSelfParticipant =
                 selfUserId != null && participantUserId == selfUserId;
-
-            final displayName = displayNameByUserId[participantUserId] ??
+            final displayName = participant?.displayName ??
                 (isSelfParticipant ? "You" : "Member");
+            final isMuted = participant?.isMuted ?? false;
+            final isSpeaking = participant?.isSpeaking ?? false;
+            final statusText = _statusText(
+              isMuted: isMuted,
+              isSpeaking: isSpeaking,
+              isSelfParticipant: isSelfParticipant,
+              isSelfDeafened: widget.isSelfDeafened,
+            );
 
-            return _VoiceVideoTileData(
+            return _VoiceStreamItemData(
+              participantUserId: participantUserId,
               displayName: displayName,
               isSelfParticipant: isSelfParticipant,
+              statusText: statusText,
               videoTrack: videoTrack,
             );
           }
 
           return null;
         })
-        .whereType<_VoiceVideoTileData>()
+        .whereType<_VoiceStreamItemData>()
         .toList()
         .sorted((left, right) {
           if (left.isSelfParticipant != right.isSelfParticipant) {
@@ -203,45 +259,43 @@ class _VoiceVideoGridWidget extends StatelessWidget {
 
           return left.displayName.compareTo(right.displayName);
         });
+  }
 
-    if (videoTiles.isEmpty) {
-      return const SizedBox.shrink();
+  String _statusText({
+    required bool isMuted,
+    required bool isSpeaking,
+    required bool isSelfParticipant,
+    required bool isSelfDeafened,
+  }) {
+    if (isSelfParticipant && isSelfDeafened) {
+      return "Deafened";
     }
 
-    return SizedBox(
-      height: 180,
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 16 / 9,
-        ),
-        itemCount: videoTiles.length,
-        itemBuilder: (context, index) {
-          final tileData = videoTiles[index];
+    if (isMuted) {
+      return "Muted";
+    }
 
-          return _VoiceVideoTileWidget(
-            displayName: tileData.displayName,
-            videoTrack: tileData.videoTrack,
-          );
-        },
-      ),
-    );
+    if (isSpeaking) {
+      return "Speaking";
+    }
+
+    return "Listening";
   }
 }
 
-class _VoiceVideoTileData {
-  const _VoiceVideoTileData({
+class _VoiceStreamItemData {
+  const _VoiceStreamItemData({
+    required this.participantUserId,
     required this.displayName,
     required this.isSelfParticipant,
+    required this.statusText,
     required this.videoTrack,
   });
 
+  final String participantUserId;
   final String displayName;
   final bool isSelfParticipant;
+  final String statusText;
   final VideoTrack videoTrack;
 }
 
@@ -249,15 +303,17 @@ class _VoiceVideoTileWidget extends StatelessWidget {
   const _VoiceVideoTileWidget({
     required this.displayName,
     required this.videoTrack,
+    this.isFocused = false,
   });
 
   final String displayName;
   final VideoTrack videoTrack;
+  final bool isFocused;
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(isFocused ? 12 : 8),
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
