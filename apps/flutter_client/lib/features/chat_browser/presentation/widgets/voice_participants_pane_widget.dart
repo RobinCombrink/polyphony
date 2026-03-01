@@ -1,6 +1,11 @@
+import "dart:async";
+import "dart:convert";
+
 import "package:collection/collection.dart";
+import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
+import "package:desktop_multi_window/desktop_multi_window.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/something_went_wrong_widget.dart";
@@ -88,6 +93,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
                           participants: visibleParticipants,
                           selfParticipantUserId: selfParticipantUserId,
                           isSelfDeafened: isSelfDeafened,
+                          activeConnection: loadedData?.activeConnection,
                           participantVideoTracks: participantVideoTracks,
                         ),
                       ),
@@ -108,12 +114,14 @@ class _VoiceFocusedStreamWidget extends StatefulWidget {
     required this.participants,
     required this.selfParticipantUserId,
     required this.isSelfDeafened,
+    required this.activeConnection,
     required this.participantVideoTracks,
   });
 
   final List<VoiceParticipant> participants;
   final String? selfParticipantUserId;
   final bool isSelfDeafened;
+  final VoiceConnectSession? activeConnection;
   final Map<String, Object> participantVideoTracks;
 
   @override
@@ -123,6 +131,26 @@ class _VoiceFocusedStreamWidget extends StatefulWidget {
 
 class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
   String? _focusedParticipantUserId;
+  StreamSubscription<void>? _windowsChangedSubscription;
+  final Map<String, String> _popoutWindowIdByParticipantUserId =
+      <String, String>{};
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (_isDesktopRuntime()) {
+      _windowsChangedSubscription = onWindowsChanged.listen((_) {
+        unawaited(_handleWindowsChanged());
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_windowsChangedSubscription?.cancel());
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(covariant _VoiceFocusedStreamWidget oldWidget) {
@@ -182,17 +210,109 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
                 child: _VoiceStreamPreviewSelectorItem(
                   streamItem: item,
                   isFocused: isFocused,
-                  onTap: () {
+                  onFocus: () {
                     setState(() {
                       _focusedParticipantUserId = item.participantUserId;
                     });
                   },
+                  onPopout: _isDesktopRuntime()
+                      ? (item.isSelfParticipant
+                          ? null
+                          : () => unawaited(_openPopoutWindow(item)))
+                      : null,
                 ),
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  bool _isDesktopRuntime() {
+    if (kIsWeb) {
+      return false;
+    }
+
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.windows ||
+      TargetPlatform.macOS ||
+      TargetPlatform.linux =>
+        true,
+      _ => false,
+    };
+  }
+
+  Future<void> _openPopoutWindow(_VoiceStreamItemData streamItem) async {
+    if (streamItem.isSelfParticipant) {
+      return;
+    }
+
+    final activeConnection = widget.activeConnection;
+    if (activeConnection == null) {
+      return;
+    }
+
+    final payload = jsonEncode(<String, String>{
+      "type": "voice_stream_popout",
+      "livekitUrl": activeConnection.livekitUrl,
+      "accessToken": activeConnection.accessToken,
+      "participantUserId": streamItem.participantUserId,
+      "displayName": streamItem.displayName,
+    });
+
+    final windowController = await WindowController.create(
+      WindowConfiguration(
+        hiddenAtLaunch: true,
+        arguments: payload,
+      ),
+    );
+    _popoutWindowIdByParticipantUserId[streamItem.participantUserId] =
+        windowController.windowId;
+    await windowController.show();
+  }
+
+  Future<void> _handleWindowsChanged() async {
+    if (_popoutWindowIdByParticipantUserId.isEmpty) {
+      return;
+    }
+
+    final activeWindows = await WindowController.getAll();
+    final activeWindowIds =
+        activeWindows.map((controller) => controller.windowId).toSet();
+
+    final closedParticipantUserIds = _popoutWindowIdByParticipantUserId.entries
+        .where((entry) => !activeWindowIds.contains(entry.value))
+        .map((entry) => entry.key)
+        .toList(growable: false);
+
+    if (closedParticipantUserIds.isEmpty) {
+      return;
+    }
+
+    for (final participantUserId in closedParticipantUserIds) {
+      _popoutWindowIdByParticipantUserId.remove(participantUserId);
+    }
+
+    final selfParticipantUserId = widget.selfParticipantUserId;
+    if (selfParticipantUserId == null ||
+        !closedParticipantUserIds.contains(selfParticipantUserId) ||
+        !mounted) {
+      return;
+    }
+
+    final activeConnection = widget.activeConnection;
+    final channelId = activeConnection?.channelId;
+    if (channelId == null || channelId.isEmpty) {
+      return;
+    }
+
+    final voiceSessionsBloc = context.read<VoiceSessionsBloc>();
+    voiceSessionsBloc.add(
+      DisconnectVoiceSessionRequested(channelId: channelId),
+    );
+    voiceSessionsBloc.add(
+      ConnectVoiceSessionRequested(channelId: channelId),
     );
   }
 
@@ -331,62 +451,84 @@ class _VoiceStreamPreviewSelectorItem extends StatelessWidget {
   const _VoiceStreamPreviewSelectorItem({
     required this.streamItem,
     required this.isFocused,
-    required this.onTap,
+    required this.onFocus,
+    required this.onPopout,
   });
 
   final _VoiceStreamItemData streamItem;
   final bool isFocused;
-  final VoidCallback onTap;
+  final VoidCallback onFocus;
+  final VoidCallback? onPopout;
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.all(6),
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
         side: BorderSide(
           color: isFocused
               ? Theme.of(context).colorScheme.primary
               : Theme.of(context).colorScheme.outline,
           width: isFocused ? 2 : 1,
         ),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        children: <Widget>[
-          SizedBox(
-            width: 92,
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: _VoiceVideoTileWidget(
-                displayName: streamItem.displayName,
-                videoTrack: streamItem.videoTrack,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onFocus,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Row(
+            children: <Widget>[
+              SizedBox(
+                width: 92,
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _VoiceVideoTileWidget(
+                    displayName: streamItem.displayName,
+                    videoTrack: streamItem.videoTrack,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  streamItem.displayName,
-                  overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      streamItem.displayName,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      streamItem.statusText,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  streamItem.statusText,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall,
+              ),
+              IconButton(
+                tooltip: isFocused ? "Focused" : "Fullscreen",
+                onPressed: onFocus,
+                icon: Icon(
+                  isFocused ? Icons.fullscreen_exit : Icons.fullscreen,
+                  size: 18,
                 ),
-              ],
-            ),
+              ),
+              if (onPopout != null)
+                IconButton(
+                  tooltip: "Pop out",
+                  onPressed: onPopout,
+                  icon: const Icon(
+                    Icons.open_in_new,
+                    size: 18,
+                  ),
+                ),
+            ],
           ),
-          Icon(
-            isFocused ? Icons.fullscreen_exit : Icons.fullscreen,
-            size: 18,
-          ),
-        ],
+        ),
       ),
     );
   }
