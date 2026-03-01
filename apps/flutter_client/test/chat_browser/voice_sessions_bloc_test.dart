@@ -360,7 +360,7 @@ void main() {
   );
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
-    "set self video enabled updates camera state",
+    "set self screen share enabled updates screen share state",
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
       voiceRuntimeService: FakeVoiceRuntimeService(),
@@ -374,21 +374,21 @@ void main() {
         ..add(ConnectVoiceSessionRequested(
           channelId: fixture.listedVoiceChannel.id,
         ))
-        ..add(const SetSelfVideoEnabledRequested(enabled: true))
-        ..add(const SetSelfVideoEnabledRequested(enabled: false));
+        ..add(const SetSelfScreenShareEnabledRequested(enabled: true))
+        ..add(const SetSelfScreenShareEnabledRequested(enabled: false));
     },
     expect: () => <Matcher>[
       isA<VoiceSessionsLoadedState>(),
       isA<VoiceSessionsLoadingState>(),
       isA<VoiceSessionsLoadedState>(),
       isA<VoiceSessionsLoadedState>().having(
-        (state) => state.isSelfVideoEnabled,
-        "is self video enabled",
+        (state) => state.isSelfScreenShareEnabled,
+        "is self screen share enabled",
         true,
       ),
       isA<VoiceSessionsLoadedState>().having(
-        (state) => state.isSelfVideoEnabled,
-        "is self video enabled",
+        (state) => state.isSelfScreenShareEnabled,
+        "is self screen share enabled",
         false,
       ),
     ],

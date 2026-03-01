@@ -19,7 +19,10 @@ abstract interface class MediaRuntimeService {
 
   Future<Result<void>> setSelfDeafened({required bool deafened});
 
-  Future<Result<void>> setSelfVideoEnabled({required bool enabled});
+  Future<Result<void>> setSelfScreenShareEnabled({
+    required bool enabled,
+    String? sourceId,
+  });
 
   Future<Result<void>> setAudioChannelEnabled({
     required RuntimeAudioChannel channel,
@@ -35,7 +38,7 @@ abstract interface class MediaRuntimeService {
 
   bool isSelfDeafened();
 
-  bool isSelfVideoEnabled();
+  bool isSelfScreenShareEnabled();
 
   bool isAudioChannelEnabled(RuntimeAudioChannel channel);
 

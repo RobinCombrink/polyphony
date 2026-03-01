@@ -284,7 +284,7 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
     this.forceDisconnectError = false,
     this.forceSetSelfMutedError = false,
     this.forceSetSelfDeafenedError = false,
-    this.forceSetSelfVideoEnabledError = false,
+    this.forceSetSelfScreenShareEnabledError = false,
     this.initialParticipantUserIds = const <String>{"auth0|u1"},
   });
 
@@ -292,9 +292,10 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   final bool forceDisconnectError;
   final bool forceSetSelfMutedError;
   final bool forceSetSelfDeafenedError;
-  final bool forceSetSelfVideoEnabledError;
+  final bool forceSetSelfScreenShareEnabledError;
   final Set<String> initialParticipantUserIds;
-  final _participantUserIdsController = StreamController<Set<String>>.broadcast();
+  final _participantUserIdsController =
+      StreamController<Set<String>>.broadcast();
   final _speakingParticipantUserIdsController =
       StreamController<Set<String>>.broadcast();
   final _participantVideoTracksController =
@@ -311,7 +312,7 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   };
   var _isSelfMuted = false;
   var _isSelfDeafened = false;
-  var _isSelfVideoEnabled = false;
+  var _isSelfScreenShareEnabled = false;
 
   @override
   Future<Result<void>> connect({
@@ -324,7 +325,7 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
 
     _isSelfMuted = false;
     _isSelfDeafened = false;
-    _isSelfVideoEnabled = false;
+    _isSelfScreenShareEnabled = false;
     _currentParticipantVideoTracks.clear();
     _audioChannelByParticipantUserId.clear();
     _audioChannelEnabled
@@ -344,7 +345,7 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
 
     _isSelfMuted = false;
     _isSelfDeafened = false;
-    _isSelfVideoEnabled = false;
+    _isSelfScreenShareEnabled = false;
     _currentParticipantVideoTracks.clear();
     _audioChannelByParticipantUserId.clear();
     _audioChannelEnabled
@@ -393,18 +394,19 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   }
 
   @override
-  Future<Result<void>> setSelfVideoEnabled({required bool enabled}) async {
-    if (forceSetSelfVideoEnabledError) {
+  Future<Result<void>> setSelfScreenShareEnabled(
+      {required bool enabled, String? sourceId}) async {
+    if (forceSetSelfScreenShareEnabledError) {
       return Error<void>(Exception("Failed to update camera state"));
     }
 
-    _isSelfVideoEnabled = enabled;
+    _isSelfScreenShareEnabled = enabled;
     return const Ok<void>(null);
   }
 
   @override
-  bool isSelfVideoEnabled() {
-    return _isSelfVideoEnabled;
+  bool isSelfScreenShareEnabled() {
+    return _isSelfScreenShareEnabled;
   }
 
   @override
@@ -474,7 +476,8 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
     _currentParticipantVideoTracks
       ..clear()
       ..addAll(videoTracks);
-    _participantVideoTracksController.add(Map<String, Object>.from(videoTracks));
+    _participantVideoTracksController
+        .add(Map<String, Object>.from(videoTracks));
   }
 }
 

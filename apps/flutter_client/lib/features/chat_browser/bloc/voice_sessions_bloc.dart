@@ -60,9 +60,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
   final ProfileRepo _profileRepo;
   StreamSubscription<Set<String>>? _participantUserIdsSubscription;
   StreamSubscription<Set<String>>? _speakingParticipantUserIdsSubscription;
-  StreamSubscription<Map<String, Object>>?
-      _participantVideoTracksSubscription;
-  Set<String> _speakingParticipantUserIds = const <String>{};
+  StreamSubscription<Map<String, Object>>? _participantVideoTracksSubscription;
+  var _speakingParticipantUserIds = const <String>{};
 
   Future<void> _onVoiceSessionsEvent(
     VoiceSessionsEvent event,
@@ -85,8 +84,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         await _onSetSelfMutedRequested(event, emit);
       case SetSelfDeafenedRequested():
         await _onSetSelfDeafenedRequested(event, emit);
-      case SetSelfVideoEnabledRequested():
-        await _onSetSelfVideoEnabledRequested(event, emit);
+      case SetSelfScreenShareEnabledRequested():
+        await _onSetSelfScreenShareEnabledRequested(event, emit);
       case SpeakingParticipantUserIdsUpdated():
         _onSpeakingParticipantUserIdsUpdated(event, emit);
       case ParticipantUserIdsUpdated():
@@ -120,7 +119,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participantVideoTracks: loadedState.participantVideoTracks,
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
-        isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+        isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
       ));
       return;
     }
@@ -152,7 +151,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participantsByChannelId: participantsByChannelId,
       ),
       isSelfDeafened: loadedState?.isSelfDeafened ?? false,
-      isSelfVideoEnabled: loadedState?.isSelfVideoEnabled ?? false,
+      isSelfScreenShareEnabled: loadedState?.isSelfScreenShareEnabled ?? false,
     ));
   }
 
@@ -206,7 +205,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participantsByChannelId: participantsByChannelId,
       ),
       isSelfDeafened: loadedState?.isSelfDeafened ?? false,
-      isSelfVideoEnabled: loadedState?.isSelfVideoEnabled ?? false,
+      isSelfScreenShareEnabled: loadedState?.isSelfScreenShareEnabled ?? false,
     ));
   }
 
@@ -235,7 +234,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participantVideoTracks: loadedState.participantVideoTracks,
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
-        isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+        isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
       ));
       return;
     }
@@ -267,7 +266,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           participantsByChannelId: participantsByChannelId,
         ),
         isSelfDeafened: loadedState.isSelfDeafened,
-        isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+        isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
       ));
       return;
     }
@@ -336,7 +335,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                 participantsByChannelId: participantsByChannelId,
               ),
               isSelfDeafened: _voiceRuntimeService.isSelfDeafened(),
-              isSelfVideoEnabled: _voiceRuntimeService.isSelfVideoEnabled(),
+              isSelfScreenShareEnabled:
+                  _voiceRuntimeService.isSelfScreenShareEnabled(),
             ));
           case Error<void>(:final error):
             emit(VoiceSessionsExceptionState(error: error));
@@ -370,7 +370,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participantVideoTracks: loadedState.participantVideoTracks,
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
-        isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+        isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
       ));
       return;
     }
@@ -394,7 +394,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       participantVideoTracks: const <String, Object>{},
       isSelfMuted: false,
       isSelfDeafened: false,
-      isSelfVideoEnabled: false,
+      isSelfScreenShareEnabled: false,
     ));
   }
 
@@ -421,7 +421,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participantVideoTracks: loadedState.participantVideoTracks,
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
-        isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+        isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
       ));
       return;
     }
@@ -488,7 +488,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           participantVideoTracks: loadedState.participantVideoTracks,
           isSelfMuted: _voiceRuntimeService.isSelfMuted(),
           isSelfDeafened: isSelfDeafened,
-          isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+          isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
         ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
@@ -518,7 +518,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participantVideoTracks: loadedState.participantVideoTracks,
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
-        isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+        isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
       ));
       return;
     }
@@ -574,22 +574,24 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           participantVideoTracks: loadedState.participantVideoTracks,
           isSelfMuted: isSelfMuted,
           isSelfDeafened: _voiceRuntimeService.isSelfDeafened(),
-          isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+          isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
         ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
     }
   }
 
-  Future<void> _onSetSelfVideoEnabledRequested(
-    SetSelfVideoEnabledRequested event,
+  Future<void> _onSetSelfScreenShareEnabledRequested(
+    SetSelfScreenShareEnabledRequested event,
     Emitter<VoiceSessionsState> emit,
   ) async {
     final loadedState = _loadedStateOrNull(state);
 
     if (loadedState == null) {
       emit(VoiceSessionsExceptionState(
-        error: Exception("Voice sessions must be loaded before video toggle."),
+        error: Exception(
+          "Voice sessions must be loaded before screen sharing toggle.",
+        ),
       ));
       return;
     }
@@ -604,16 +606,18 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participantVideoTracks: loadedState.participantVideoTracks,
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
-        isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+        isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
       ));
       return;
     }
 
-    final setVideoEnabledResult = await _voiceRuntimeService.setSelfVideoEnabled(
+    final setScreenShareEnabledResult =
+        await _voiceRuntimeService.setSelfScreenShareEnabled(
       enabled: event.enabled,
+      sourceId: event.sourceId,
     );
 
-    switch (setVideoEnabledResult) {
+    switch (setScreenShareEnabledResult) {
       case Ok<void>():
         emit(VoiceSessionsLoadedState(
           activeConnection: loadedState.activeConnection,
@@ -624,7 +628,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
               _voiceRuntimeService.currentParticipantVideoTracks(),
           isSelfMuted: loadedState.isSelfMuted,
           isSelfDeafened: loadedState.isSelfDeafened,
-          isSelfVideoEnabled: _voiceRuntimeService.isSelfVideoEnabled(),
+          isSelfScreenShareEnabled:
+              _voiceRuntimeService.isSelfScreenShareEnabled(),
         ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
@@ -675,8 +680,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return const Ok<List<VoiceParticipant>>(<VoiceParticipant>[]);
     }
 
-    final runtimeParticipantUserIds =
-        _voiceRuntimeService.currentParticipantUserIds().toList();
+    final runtimeParticipantUserIds = _voiceRuntimeService
+        .currentParticipantUserIds()
+        .toSet()
+      ..add(resolvedActiveConnection.participantUserId);
     final mutedByUserId = <String, bool>{
       for (final participantUserId in runtimeParticipantUserIds)
         participantUserId: false,
@@ -684,7 +691,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           _voiceRuntimeService.isSelfMuted(),
     };
     final participants = await _resolveParticipants(
-      participantUserIds: runtimeParticipantUserIds,
+      participantUserIds: runtimeParticipantUserIds.toList(),
       mutedByUserId: mutedByUserId,
     );
 
@@ -806,7 +813,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       participantVideoTracks: loadedState.participantVideoTracks,
       isSelfMuted: loadedState.isSelfMuted,
       isSelfDeafened: loadedState.isSelfDeafened,
-      isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+      isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
     ));
   }
 
@@ -853,7 +860,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       participantVideoTracks: loadedState.participantVideoTracks,
       isSelfMuted: _voiceRuntimeService.isSelfMuted(),
       isSelfDeafened: loadedState.isSelfDeafened,
-      isSelfVideoEnabled: loadedState.isSelfVideoEnabled,
+      isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
     ));
   }
 
@@ -876,7 +883,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       ),
       isSelfMuted: loadedState.isSelfMuted,
       isSelfDeafened: loadedState.isSelfDeafened,
-      isSelfVideoEnabled: _voiceRuntimeService.isSelfVideoEnabled(),
+      isSelfScreenShareEnabled: _voiceRuntimeService.isSelfScreenShareEnabled(),
     ));
   }
 

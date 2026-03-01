@@ -56,12 +56,14 @@ final class SetSelfDeafenedRequested extends VoiceSessionsEvent {
   final bool deafened;
 }
 
-final class SetSelfVideoEnabledRequested extends VoiceSessionsEvent {
-  const SetSelfVideoEnabledRequested({
+final class SetSelfScreenShareEnabledRequested extends VoiceSessionsEvent {
+  const SetSelfScreenShareEnabledRequested({
     required this.enabled,
+    this.sourceId,
   });
 
   final bool enabled;
+  final String? sourceId;
 }
 
 final class SpeakingParticipantUserIdsUpdated extends VoiceSessionsEvent {

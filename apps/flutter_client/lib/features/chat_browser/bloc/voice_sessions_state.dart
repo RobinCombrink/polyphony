@@ -25,7 +25,7 @@ sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
     required this.participantVideoTracks,
     required this.isSelfMuted,
     required this.isSelfDeafened,
-    required this.isSelfVideoEnabled,
+    required this.isSelfScreenShareEnabled,
   });
 
   final VoiceConnectSession? activeConnection;
@@ -35,7 +35,7 @@ sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
   final Map<String, Object> participantVideoTracks;
   final bool isSelfMuted;
   final bool isSelfDeafened;
-  final bool isSelfVideoEnabled;
+  final bool isSelfScreenShareEnabled;
 
   String? get connectedChannelId => activeConnection?.channelId;
 }
@@ -49,7 +49,7 @@ final class VoiceSessionsLoadedState extends VoiceSessionsLoadedDataState {
     required super.participantVideoTracks,
     required super.isSelfMuted,
     required super.isSelfDeafened,
-    required super.isSelfVideoEnabled,
+    required super.isSelfScreenShareEnabled,
   });
 }
 
@@ -64,7 +64,7 @@ final class VoiceSessionsValidationFailedState
     required super.participantVideoTracks,
     required super.isSelfMuted,
     required super.isSelfDeafened,
-    required super.isSelfVideoEnabled,
+    required super.isSelfScreenShareEnabled,
   });
 
   final VoiceSessionsValidationIssue issue;

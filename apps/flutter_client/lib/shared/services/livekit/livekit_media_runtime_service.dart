@@ -15,7 +15,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       StreamController<Map<String, Object>>.broadcast();
   var _isSelfMuted = false;
   var _isSelfDeafened = false;
-  var _isSelfVideoEnabled = false;
+  var _isSelfScreenShareEnabled = false;
   final _participantAudioChannelByUserId = <String, RuntimeAudioChannel>{};
   final _audioChannelEnabled = <RuntimeAudioChannel, bool>{
     RuntimeAudioChannel.voice: true,
@@ -39,10 +39,10 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       await room.prepareConnection(livekitUrl, accessToken);
       await room.connect(livekitUrl, accessToken);
       await room.localParticipant?.setMicrophoneEnabled(true);
-      await room.localParticipant?.setCameraEnabled(false);
+      await room.localParticipant?.setScreenShareEnabled(false);
       _isSelfMuted = false;
       _isSelfDeafened = false;
-      _isSelfVideoEnabled = false;
+      _isSelfScreenShareEnabled = false;
       _participantAudioChannelByUserId.clear();
       _audioChannelEnabled
         ..clear()
@@ -81,7 +81,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       await _disconnectCurrentRoom();
       _isSelfMuted = false;
       _isSelfDeafened = false;
-      _isSelfVideoEnabled = false;
+      _isSelfScreenShareEnabled = false;
       _participantAudioChannelByUserId.clear();
       _audioChannelEnabled
         ..clear()
@@ -150,15 +150,71 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   }
 
   @override
-  Future<Result<void>> setSelfVideoEnabled({required bool enabled}) async {
+  Future<Result<void>> setSelfScreenShareEnabled(
+      {required bool enabled, String? sourceId}) async {
     try {
       final activeRoom = _room;
       if (activeRoom == null) {
         return Error<void>(Exception("Not connected to a voice session."));
       }
 
-      await activeRoom.localParticipant?.setCameraEnabled(enabled);
-      _isSelfVideoEnabled = enabled;
+      final localParticipant = activeRoom.localParticipant;
+      if (localParticipant == null) {
+        return Error<void>(
+          Exception("Local participant is unavailable for screen sharing."),
+        );
+      }
+
+      if (enabled && !localParticipant.permissions.canPublish) {
+        return Error<void>(
+          Exception("Not allowed to publish screen share."),
+        );
+      }
+
+      if (enabled) {
+        final trimmedSourceId = sourceId?.trim();
+
+        if (trimmedSourceId != null && trimmedSourceId.isNotEmpty) {
+          final existingScreenSharePublication =
+              localParticipant.getTrackPublicationBySource(
+            TrackSource.screenShareVideo,
+          );
+
+          if (existingScreenSharePublication != null) {
+            await localParticipant
+                .removePublishedTrack(existingScreenSharePublication.sid);
+          }
+
+          final track = await LocalVideoTrack.createScreenShareTrack(
+            ScreenShareCaptureOptions(
+              sourceId: trimmedSourceId,
+              maxFrameRate: 15.0,
+              params: activeRoom
+                  .roomOptions.defaultScreenShareCaptureOptions.params,
+            ),
+          );
+
+          await localParticipant.publishVideoTrack(track);
+        } else {
+          await localParticipant.setScreenShareEnabled(true);
+        }
+      } else {
+        await localParticipant.setScreenShareEnabled(false);
+      }
+
+      final isScreenShareEnabled = localParticipant.isScreenShareEnabled();
+
+      if (enabled && !isScreenShareEnabled) {
+        return Error<void>(
+          Exception("Screen sharing did not start."),
+        );
+      }
+
+      if (!enabled && isScreenShareEnabled) {
+        return Error<void>(Exception("Screen sharing did not stop."));
+      }
+
+      _isSelfScreenShareEnabled = isScreenShareEnabled;
       _emitParticipantVideoTracks(activeRoom);
       return const Ok<void>(null);
     } on Exception catch (error) {
@@ -167,8 +223,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   }
 
   @override
-  bool isSelfVideoEnabled() {
-    return _isSelfVideoEnabled;
+  bool isSelfScreenShareEnabled() {
+    return _isSelfScreenShareEnabled;
   }
 
   @override
@@ -342,12 +398,9 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
 
     final localParticipant = room.localParticipant;
     final localIdentity = localParticipant?.identity;
-    final localTrack = localParticipant?.videoTrackPublications
-        .map((publication) => publication.track)
-        .firstWhere(
-          (track) => track != null,
-          orElse: () => null,
-        );
+    final localTrack = _firstVideoTrackFromPublications(
+      localParticipant?.trackPublications.values,
+    );
 
     if (localIdentity != null &&
         localIdentity.isNotEmpty &&
@@ -361,12 +414,9 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         continue;
       }
 
-      final remoteTrack = remoteParticipant.videoTrackPublications
-          .map((publication) => publication.track)
-          .firstWhere(
-            (track) => track != null,
-            orElse: () => null,
-          );
+      final remoteTrack = _firstVideoTrackFromPublications(
+        remoteParticipant.trackPublications.values,
+      );
 
       if (remoteTrack != null) {
         tracksByUserId[remoteIdentity] = remoteTrack;
@@ -379,5 +429,26 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   void _emitParticipantVideoTracks(Room room) {
     _participantVideoTracksController
         .add(_participantVideoTracksFromRoom(room));
+  }
+
+  VideoTrack? _firstVideoTrackFromPublications(
+    Iterable<TrackPublication>? publications,
+  ) {
+    if (publications == null) {
+      return null;
+    }
+
+    for (final publication in publications) {
+      if (publication.kind != TrackType.VIDEO) {
+        continue;
+      }
+
+      final track = publication.track;
+      if (track case final VideoTrack videoTrack) {
+        return videoTrack;
+      }
+    }
+
+    return null;
   }
 }

@@ -32,8 +32,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
 
         return BlocBuilder<VoiceSessionsBloc, VoiceSessionsState>(
           builder: (context, voiceState) {
-            final isLoading = voiceState is VoiceSessionsInitialState ||
-                voiceState is VoiceSessionsLoadingState;
+            final isInitialLoading = voiceState is VoiceSessionsInitialState;
             final loadedData =
                 voiceState is VoiceSessionsLoadedDataState ? voiceState : null;
             final errorMessage = voiceState is VoiceSessionsExceptionState
@@ -63,13 +62,13 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
                 loadedData?.activeConnection?.participantUserId;
             final isSelfDeafened = loadedData?.isSelfDeafened ?? false;
             final participantVideoTracks =
-              loadedData?.participantVideoTracks ?? const <String, Object>{};
-            final visibleParticipants = isLoading && participants.isEmpty
+                loadedData?.participantVideoTracks ?? const <String, Object>{};
+            final visibleParticipants = isInitialLoading && participants.isEmpty
                 ? _skeletonParticipants()
                 : participants;
 
             return Skeletonizer(
-              enabled: isLoading,
+              enabled: isInitialLoading,
               child: Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -86,6 +85,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
                       padding: const EdgeInsets.all(8),
                       child: _VoiceVideoGridWidget(
                         participants: visibleParticipants,
+                        selfParticipantUserId: selfParticipantUserId,
                         participantVideoTracks: participantVideoTracks,
                       ),
                     ),
@@ -158,19 +158,53 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
 class _VoiceVideoGridWidget extends StatelessWidget {
   const _VoiceVideoGridWidget({
     required this.participants,
+    required this.selfParticipantUserId,
     required this.participantVideoTracks,
   });
 
   final List<VoiceParticipant> participants;
+  final String? selfParticipantUserId;
   final Map<String, Object> participantVideoTracks;
 
   @override
   Widget build(BuildContext context) {
-    final participantsWithVideo = participants
-        .where((participant) => participantVideoTracks[participant.userId] != null)
-        .toList();
+    final displayNameByUserId = <String, String>{
+      for (final participant in participants)
+        participant.userId: participant.displayName,
+    };
+    final selfUserId = selfParticipantUserId;
 
-    if (participantsWithVideo.isEmpty) {
+    final videoTiles = participantVideoTracks.entries
+        .map((entry) {
+          final participantUserId = entry.key;
+
+          if (entry.value case final VideoTrack videoTrack) {
+            final isSelfParticipant =
+                selfUserId != null && participantUserId == selfUserId;
+
+            final displayName = displayNameByUserId[participantUserId] ??
+                (isSelfParticipant ? "You" : "Member");
+
+            return _VoiceVideoTileData(
+              displayName: displayName,
+              isSelfParticipant: isSelfParticipant,
+              videoTrack: videoTrack,
+            );
+          }
+
+          return null;
+        })
+        .whereType<_VoiceVideoTileData>()
+        .toList()
+        .sorted((left, right) {
+          if (left.isSelfParticipant != right.isSelfParticipant) {
+            return left.isSelfParticipant ? -1 : 1;
+          }
+
+          return left.displayName.compareTo(right.displayName);
+        });
+
+    if (videoTiles.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -185,23 +219,30 @@ class _VoiceVideoGridWidget extends StatelessWidget {
           mainAxisSpacing: 8,
           childAspectRatio: 16 / 9,
         ),
-        itemCount: participantsWithVideo.length,
+        itemCount: videoTiles.length,
         itemBuilder: (context, index) {
-          final participant = participantsWithVideo[index];
-          final trackObject = participantVideoTracks[participant.userId];
+          final tileData = videoTiles[index];
 
-          if (trackObject case VideoTrack videoTrack) {
-            return _VoiceVideoTileWidget(
-              displayName: participant.displayName,
-              videoTrack: videoTrack,
-            );
-          }
-
-          return const SizedBox.shrink();
+          return _VoiceVideoTileWidget(
+            displayName: tileData.displayName,
+            videoTrack: tileData.videoTrack,
+          );
         },
       ),
     );
   }
+}
+
+class _VoiceVideoTileData {
+  const _VoiceVideoTileData({
+    required this.displayName,
+    required this.isSelfParticipant,
+    required this.videoTrack,
+  });
+
+  final String displayName;
+  final bool isSelfParticipant;
+  final VideoTrack videoTrack;
 }
 
 class _VoiceVideoTileWidget extends StatelessWidget {
@@ -227,11 +268,15 @@ class _VoiceVideoTileWidget extends StatelessWidget {
               padding: const EdgeInsets.all(6),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surface
+                      .withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   child: Text(displayName),
                 ),
               ),
