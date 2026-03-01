@@ -6,7 +6,7 @@ mod server;
 mod user;
 mod voice_session;
 
-pub use channel::Channel;
+pub use channel::{Channel, ChannelType};
 pub use display_name::DisplayName;
 pub use membership::Membership;
 pub use message::Message;

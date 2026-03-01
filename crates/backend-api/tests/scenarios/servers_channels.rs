@@ -75,7 +75,7 @@ async fn given_existing_server_when_create_channel_then_created_status_and_chann
         .to_owned();
 
     let create_channel_response =
-        create_channel(&app, &created_server_id, &fixture.channel.name).await;
+        create_channel(&app, &created_server_id, fixture.channel.name()).await;
 
     assert_eq!(create_channel_response.status(), StatusCode::CREATED);
 
@@ -103,7 +103,7 @@ async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_res
         .to_owned();
 
     let create_channel_response =
-        create_channel(&app, &created_server_id, &fixture.channel.name).await;
+        create_channel(&app, &created_server_id, fixture.channel.name()).await;
     assert_eq!(create_channel_response.status(), StatusCode::CREATED);
 
     let list_channels_response = list_channels(&app, &created_server_id).await;
@@ -117,7 +117,7 @@ async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_res
     assert_eq!(listed_channels.len(), 1);
     assert_eq!(
         listed_channels[0]["name"].as_str(),
-        Some(fixture.channel.name.as_str())
+        Some(fixture.channel.name())
     );
 }
 
@@ -377,7 +377,7 @@ async fn given_server_owner_when_delete_channel_then_status_is_204_and_channel_r
         .to_owned();
 
     let create_channel_payload = response_payload_json(
-        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+        create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
     let created_channel_id = create_channel_payload["id"]
@@ -414,7 +414,7 @@ async fn given_server_owner_when_update_channel_name_then_status_is_204_and_chan
         .to_owned();
 
     let create_channel_payload =
-        response_payload_json(create_channel(&app, &created_server_id, &fixture.channel.name).await)
+        response_payload_json(create_channel(&app, &created_server_id, fixture.channel.name()).await)
             .await;
     let created_channel_id = create_channel_payload["id"]
         .as_str()
@@ -483,7 +483,8 @@ async fn given_non_owner_when_update_channel_name_then_status_is_403() {
         create_channel_with_token(
             &owner_app,
             &created_server_id,
-            &fixture.channel.name,
+            fixture.channel.name(),
+            "text",
             "owner-token",
         )
         .await,
@@ -559,7 +560,8 @@ async fn given_non_owner_when_delete_channel_then_status_is_403() {
         create_channel_with_token(
             &owner_app,
             &created_server_id,
-            &fixture.channel.name,
+            fixture.channel.name(),
+            "text",
             "owner-token",
         )
         .await,

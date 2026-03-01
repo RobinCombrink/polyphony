@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, Membership, Message, Server, User, VoiceSession};
+use backend_domain::{Channel, ChannelType, Membership, Message, Server, User, VoiceSession};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -128,9 +128,14 @@ impl ServerRepository for InMemoryRepository {
 
 #[async_trait]
 impl ChannelRepository for InMemoryRepository {
-    async fn create_channel(&self, server_id: Uuid, name: String) -> Option<Channel> {
+    async fn create_channel(
+        &self,
+        server_id: Uuid,
+        name: String,
+        channel_type: ChannelType,
+    ) -> Option<Channel> {
         let mut store = self.store.write().await;
-        store.create_channel(server_id, name)
+        store.create_channel(server_id, name, channel_type)
     }
 
     async fn update_channel_name(
@@ -158,7 +163,7 @@ impl ChannelRepository for InMemoryRepository {
         let channels = store
             .channels
             .values()
-            .filter(|channel| channel.server_id == server_id)
+            .filter(|channel| channel.server_id() == server_id)
             .cloned()
             .collect::<Vec<_>>();
 

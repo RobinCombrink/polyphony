@@ -3,9 +3,9 @@ Feature: Backend API voice sessions
   I want to connect to voice sessions in channels
   So that voice participation stays consistent across channels
 
-  Scenario: Authenticated user can connect to voice in existing channel
+  Scenario: Authenticated user can connect to voice in existing voice channel
     Given an authenticated user exists
-    And a channel exists in the user's server
+    And a voice channel exists in the user's server
     When I connect to voice for that channel
     Then the connection succeeds
     And voice connection details are returned
@@ -18,7 +18,7 @@ Feature: Backend API voice sessions
   Scenario: Connecting to a second channel moves the user from the first channel
     Given an authenticated user exists
     And a server exists for that user
-    And two channels exist in that server
+    And two voice channels exist in that server
     When I connect to voice for the first channel
     And I connect to voice for the second channel
     Then listing voice sessions for the first channel returns no participants

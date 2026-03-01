@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use backend_domain::{Channel, DisplayName, Membership, Message, Server, User, VoiceSession};
+use backend_domain::{
+    Channel, ChannelType, DisplayName, Membership, Message, Server, User, VoiceSession,
+};
 use uuid::Uuid;
 
 use crate::MutationResult;
@@ -17,6 +19,10 @@ pub(crate) struct InMemoryStore {
 }
 
 impl InMemoryStore {
+    fn channel_type(&self, channel_id: Uuid) -> Option<ChannelType> {
+        self.channels.get(&channel_id).map(Channel::kind)
+    }
+
     pub(crate) fn find_user_by_id(&self, user_id: Uuid) -> Option<User> {
         self.users_by_id.get(&user_id).cloned()
     }
@@ -115,8 +121,8 @@ impl InMemoryStore {
         let channel_ids = self
             .channels
             .values()
-            .filter(|channel| channel.server_id == server_id)
-            .map(|channel| channel.id)
+            .filter(|channel| channel.server_id() == server_id)
+            .map(Channel::id)
             .collect::<Vec<_>>();
 
         for channel_id in channel_ids {
@@ -150,18 +156,23 @@ impl InMemoryStore {
         Some(members)
     }
 
-    pub(crate) fn create_channel(&mut self, server_id: Uuid, name: String) -> Option<Channel> {
+    pub(crate) fn create_channel(
+        &mut self,
+        server_id: Uuid,
+        name: String,
+        channel_type: ChannelType,
+    ) -> Option<Channel> {
         if !self.servers.contains_key(&server_id) {
             return None;
         }
 
-        let channel = Channel {
-            id: Uuid::new_v4(),
-            server_id,
-            name,
+        let channel_id = Uuid::new_v4();
+        let channel = match channel_type {
+            ChannelType::Text => Channel::new_text(channel_id, server_id, name),
+            ChannelType::Voice => Channel::new_voice(channel_id, server_id, name),
         };
 
-        self.channels.insert(channel.id, channel.clone());
+        self.channels.insert(channel.id(), channel.clone());
         Some(channel)
     }
 
@@ -171,9 +182,10 @@ impl InMemoryStore {
         actor_user_id: Uuid,
         name: String,
     ) -> MutationResult {
-        let server_id = match self.channels.get(&channel_id) {
-            Some(existing_channel) => existing_channel.server_id,
-            None => return MutationResult::NotFound,
+        let server_id = if let Some(existing_channel) = self.channels.get(&channel_id) {
+            existing_channel.server_id()
+        } else {
+            return MutationResult::NotFound;
         };
 
         let server = match self.servers.get(&server_id) {
@@ -186,8 +198,13 @@ impl InMemoryStore {
         }
 
         match self.channels.get_mut(&channel_id) {
-            Some(existing_channel) => {
-                existing_channel.name = name;
+            Some(Channel::Text {
+                name: channel_name, ..
+            })
+            | Some(Channel::Voice {
+                name: channel_name, ..
+            }) => {
+                *channel_name = name;
                 MutationResult::Updated
             }
             None => MutationResult::NotFound,
@@ -199,12 +216,13 @@ impl InMemoryStore {
         channel_id: Uuid,
         actor_user_id: Uuid,
     ) -> MutationResult {
-        let channel = match self.channels.get(&channel_id) {
-            Some(existing_channel) => existing_channel,
-            None => return MutationResult::NotFound,
+        let server_id = if let Some(existing_channel) = self.channels.get(&channel_id) {
+            existing_channel.server_id()
+        } else {
+            return MutationResult::NotFound;
         };
 
-        let server = match self.servers.get(&channel.server_id) {
+        let server = match self.servers.get(&server_id) {
             Some(existing_server) => existing_server,
             None => return MutationResult::NotFound,
         };
@@ -226,7 +244,7 @@ impl InMemoryStore {
         author_user_id: Uuid,
         content: String,
     ) -> Option<Message> {
-        if !self.channels.contains_key(&channel_id) {
+        if self.channel_type(channel_id) != Some(ChannelType::Text) {
             return None;
         }
 
@@ -304,7 +322,7 @@ impl InMemoryStore {
         channel_id: Uuid,
         participant_user_id: Uuid,
     ) -> Option<VoiceSession> {
-        if !self.channels.contains_key(&channel_id) {
+        if self.channel_type(channel_id) != Some(ChannelType::Voice) {
             return None;
         }
 
@@ -347,7 +365,7 @@ impl InMemoryStore {
         channel_id: Uuid,
         participant_user_id: Uuid,
     ) -> MutationResult {
-        if !self.channels.contains_key(&channel_id) {
+        if self.channel_type(channel_id) != Some(ChannelType::Voice) {
             return MutationResult::NotFound;
         }
 
@@ -374,7 +392,7 @@ impl InMemoryStore {
         participant_user_id: Uuid,
         is_muted: bool,
     ) -> MutationResult {
-        if !self.channels.contains_key(&channel_id) {
+        if self.channel_type(channel_id) != Some(ChannelType::Voice) {
             return MutationResult::NotFound;
         }
 
@@ -396,7 +414,7 @@ impl InMemoryStore {
     }
 
     pub(crate) fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>> {
-        if !self.channels.contains_key(&channel_id) {
+        if self.channel_type(channel_id) != Some(ChannelType::Voice) {
             return None;
         }
 

@@ -76,13 +76,22 @@ pub(crate) async fn create_channel(
     server_id: &str,
     channel_name: &str,
 ) -> axum::response::Response {
-    create_channel_with_token(app, server_id, channel_name, "valid-token").await
+    create_channel_with_token(app, server_id, channel_name, "text", "valid-token").await
+}
+
+pub(crate) async fn create_voice_channel(
+    app: &axum::Router,
+    server_id: &str,
+    channel_name: &str,
+) -> axum::response::Response {
+    create_channel_with_token(app, server_id, channel_name, "voice", "valid-token").await
 }
 
 pub(crate) async fn create_channel_with_token(
     app: &axum::Router,
     server_id: &str,
     channel_name: &str,
+    channel_type: &str,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
@@ -93,7 +102,8 @@ pub(crate) async fn create_channel_with_token(
                 .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(
-                    serde_json::json!({ "name": channel_name }).to_string(),
+                    serde_json::json!({ "name": channel_name, "channel_type": channel_type })
+                        .to_string(),
                 ))
                 .expect("create channel request to be valid"),
         )

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, Membership, Message, Server, User, VoiceSession};
+use backend_domain::{Channel, ChannelType, Membership, Message, Server, User, VoiceSession};
 use uuid::Uuid;
 
 use crate::MutationResult;
@@ -52,7 +52,12 @@ pub trait ServerRepository: Send + Sync {
 
 #[async_trait]
 pub trait ChannelRepository: Send + Sync {
-    async fn create_channel(&self, server_id: Uuid, name: String) -> Option<Channel>;
+    async fn create_channel(
+        &self,
+        server_id: Uuid,
+        name: String,
+        channel_type: ChannelType,
+    ) -> Option<Channel>;
     async fn update_channel_name(
         &self,
         channel_id: Uuid,

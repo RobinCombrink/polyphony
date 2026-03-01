@@ -19,8 +19,8 @@ impl EntitySeeder {
     pub fn chat_fixture(&self) -> ChatFixture {
         let user = self.user();
         let server = self.server(user.id);
-        let channel = self.channel(server.id);
-        let message = self.message(channel.id, user.id);
+        let channel = self.text_channel(server.id);
+        let message = self.message(channel.id(), user.id);
 
         ChatFixture {
             user,
@@ -60,7 +60,7 @@ impl EntitySeeder {
         }
     }
 
-    pub fn channel(&self, server_id: Uuid) -> Channel {
+    pub fn text_channel(&self, server_id: Uuid) -> Channel {
         let random_segment = rand::rng()
             .sample_iter(Alphanumeric)
             .take(8)
@@ -68,11 +68,22 @@ impl EntitySeeder {
             .collect::<String>()
             .to_lowercase();
 
-        Channel {
-            id: Uuid::new_v4(),
+        Channel::new_text(Uuid::new_v4(), server_id, format!("Channel-{random_segment}"))
+    }
+
+    pub fn voice_channel(&self, server_id: Uuid) -> Channel {
+        let random_segment = rand::rng()
+            .sample_iter(Alphanumeric)
+            .take(8)
+            .map(char::from)
+            .collect::<String>()
+            .to_lowercase();
+
+        Channel::new_voice(
+            Uuid::new_v4(),
             server_id,
-            name: format!("Channel-{random_segment}"),
-        }
+            format!("Voice-Channel-{random_segment}"),
+        )
     }
 
     pub fn message(&self, channel_id: Uuid, author_user_id: Uuid) -> Message {

@@ -1,5 +1,7 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, DisplayName, Membership, Message, Server, User, VoiceSession};
+use backend_domain::{
+    Channel, ChannelType, DisplayName, Membership, Message, Server, User, VoiceSession,
+};
 use sqlx::migrate::Migrator;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use uuid::Uuid;
@@ -57,11 +59,23 @@ impl PostgresRepository {
         Ok(row > 0)
     }
 
-    async fn channel_exists(&self, channel_id: Uuid) -> Result<bool, sqlx::Error> {
-        let row = sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM channels WHERE id = $1")
-            .bind(channel_id)
-            .fetch_one(&self.pool)
-            .await?;
+    async fn channel_exists_by_kind(
+        &self,
+        channel_id: Uuid,
+        channel_type: ChannelType,
+    ) -> Result<bool, sqlx::Error> {
+        let channel_type_value = match channel_type {
+            ChannelType::Text => "text",
+            ChannelType::Voice => "voice",
+        };
+
+        let row = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1) FROM channels WHERE id = $1 AND channel_type = $2",
+        )
+        .bind(channel_id)
+        .bind(channel_type_value)
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(row > 0)
     }
@@ -75,7 +89,11 @@ impl MessageRepository for PostgresRepository {
         author_user_id: Uuid,
         content: String,
     ) -> Option<Message> {
-        if !self.channel_exists(channel_id).await.ok()? {
+        if !self
+            .channel_exists_by_kind(channel_id, ChannelType::Text)
+            .await
+            .ok()?
+        {
             return None;
         }
 
@@ -422,26 +440,39 @@ impl ServerRepository for PostgresRepository {
 
 #[async_trait]
 impl ChannelRepository for PostgresRepository {
-    async fn create_channel(&self, server_id: Uuid, name: String) -> Option<Channel> {
+    async fn create_channel(
+        &self,
+        server_id: Uuid,
+        name: String,
+        channel_type: ChannelType,
+    ) -> Option<Channel> {
         if !self.server_exists(server_id).await.ok()? {
             return None;
         }
 
-        sqlx::query_as::<_, (Uuid, Uuid, String)>(
-            "INSERT INTO channels (id, server_id, name)
-            VALUES (gen_random_uuid(), $1, $2)
-            RETURNING id, server_id, name",
+        let channel_type_value = match channel_type {
+            ChannelType::Text => "text",
+            ChannelType::Voice => "voice",
+        };
+
+        sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
+            "INSERT INTO channels (id, server_id, name, channel_type)
+            VALUES (gen_random_uuid(), $1, $2, $3)
+            RETURNING id, server_id, name, channel_type",
         )
         .bind(server_id)
         .bind(name)
+        .bind(channel_type_value)
         .fetch_one(&self.pool)
         .await
         .ok()
-        .map(|(id, server_id, name)| Channel {
-            id,
-            server_id,
-            name,
-        })
+        .and_then(
+            |(id, server_id, name, channel_type)| match channel_type.as_str() {
+                "text" => Some(Channel::new_text(id, server_id, name)),
+                "voice" => Some(Channel::new_voice(id, server_id, name)),
+                _ => None,
+            },
+        )
     }
 
     async fn update_channel_name(
@@ -527,8 +558,8 @@ impl ChannelRepository for PostgresRepository {
             return None;
         }
 
-        let channels = sqlx::query_as::<_, (Uuid, Uuid, String)>(
-            "SELECT id, server_id, name
+        let channels = sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
+            "SELECT id, server_id, name, channel_type
              FROM channels
              WHERE server_id = $1
              ORDER BY id ASC",
@@ -538,11 +569,13 @@ impl ChannelRepository for PostgresRepository {
         .await
         .ok()?
         .into_iter()
-        .map(|(id, server_id, name)| Channel {
-            id,
-            server_id,
-            name,
-        })
+        .filter_map(
+            |(id, server_id, name, channel_type)| match channel_type.as_str() {
+                "text" => Some(Channel::new_text(id, server_id, name)),
+                "voice" => Some(Channel::new_voice(id, server_id, name)),
+                _ => None,
+            },
+        )
         .collect();
 
         Some(channels)
@@ -556,7 +589,11 @@ impl VoiceRepository for PostgresRepository {
         channel_id: Uuid,
         participant_user_id: Uuid,
     ) -> Option<VoiceSession> {
-        if !self.channel_exists(channel_id).await.ok()? {
+        if !self
+            .channel_exists_by_kind(channel_id, ChannelType::Voice)
+            .await
+            .ok()?
+        {
             return None;
         }
 
@@ -586,7 +623,11 @@ impl VoiceRepository for PostgresRepository {
         channel_id: Uuid,
         participant_user_id: Uuid,
     ) -> MutationResult {
-        if !self.channel_exists(channel_id).await.unwrap_or(false) {
+        if !self
+            .channel_exists_by_kind(channel_id, ChannelType::Voice)
+            .await
+            .unwrap_or(false)
+        {
             return MutationResult::NotFound;
         }
 
@@ -612,7 +653,11 @@ impl VoiceRepository for PostgresRepository {
         participant_user_id: Uuid,
         is_muted: bool,
     ) -> MutationResult {
-        if !self.channel_exists(channel_id).await.unwrap_or(false) {
+        if !self
+            .channel_exists_by_kind(channel_id, ChannelType::Voice)
+            .await
+            .unwrap_or(false)
+        {
             return MutationResult::NotFound;
         }
 
@@ -635,7 +680,11 @@ impl VoiceRepository for PostgresRepository {
     }
 
     async fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>> {
-        if !self.channel_exists(channel_id).await.ok()? {
+        if !self
+            .channel_exists_by_kind(channel_id, ChannelType::Voice)
+            .await
+            .ok()?
+        {
             return None;
         }
 

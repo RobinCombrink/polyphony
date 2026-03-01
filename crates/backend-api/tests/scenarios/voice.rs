@@ -7,7 +7,7 @@ mod common;
 
 use common::{
     bdd_support::{
-        connect_voice_session, create_channel, create_server, list_voice_sessions,
+        connect_voice_session, create_server, create_voice_channel, list_voice_sessions,
         response_payload_json, seeded_state,
     },
     entity_seeder::EntitySeeder,
@@ -29,7 +29,7 @@ async fn given_existing_channel_when_connect_voice_session_then_returns_livekit_
         .to_owned();
 
     let create_channel_payload = response_payload_json(
-        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+        create_voice_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
     let created_channel_id = create_channel_payload["id"]
@@ -92,7 +92,7 @@ async fn given_connected_voice_channel_when_connecting_to_another_then_only_seco
         .to_owned();
 
     let first_channel_payload = response_payload_json(
-        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+        create_voice_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
     let first_channel_id = first_channel_payload["id"]
@@ -101,7 +101,8 @@ async fn given_connected_voice_channel_when_connecting_to_another_then_only_seco
         .to_owned();
 
     let second_channel_payload =
-        response_payload_json(create_channel(&app, &created_server_id, "voice-two").await).await;
+        response_payload_json(create_voice_channel(&app, &created_server_id, "voice-two").await)
+            .await;
     let second_channel_id = second_channel_payload["id"]
         .as_str()
         .expect("second channel id to be present")

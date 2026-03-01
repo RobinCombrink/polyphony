@@ -183,7 +183,7 @@ pub(crate) async fn create_channel(
 
     let created_channel = state
         .channel_repository
-        .create_channel(server_id, request.name)
+        .create_channel(server_id, request.name, request.channel_type)
         .await;
 
     match created_channel {
@@ -281,7 +281,11 @@ pub(crate) async fn list_channels(
         .await;
 
     match channels {
-        Some(server_channels) => (StatusCode::OK, Json(server_channels)).into_response(),
+        Some(mut server_channels) => {
+            server_channels.sort_by_key(Channel::id);
+
+            (StatusCode::OK, Json(server_channels)).into_response()
+        }
         None => StatusCode::NOT_FOUND.into_response(),
     }
 }

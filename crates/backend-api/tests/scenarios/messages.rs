@@ -32,7 +32,7 @@ async fn given_existing_channel_when_create_message_then_message_is_listed_for_c
         .to_owned();
 
     let create_channel_payload = response_payload_json(
-        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+        create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
 
@@ -76,7 +76,7 @@ async fn given_existing_message_when_update_message_then_updated_content_is_list
         .to_owned();
 
     let create_channel_payload = response_payload_json(
-        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+        create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
     let created_channel_id = create_channel_payload["id"]
@@ -133,7 +133,7 @@ async fn given_existing_message_when_delete_message_then_message_is_removed_from
         .to_owned();
 
     let create_channel_payload = response_payload_json(
-        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+        create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
     let created_channel_id = create_channel_payload["id"]
@@ -191,7 +191,8 @@ async fn given_message_owned_by_another_user_when_update_message_then_status_is_
         create_channel_with_token(
             &owner_app,
             &created_server_id,
-            &fixture.channel.name,
+            fixture.channel.name(),
+            "text",
             "owner-token",
         )
         .await,
@@ -263,7 +264,8 @@ async fn given_message_owned_by_another_user_when_delete_message_then_status_is_
         create_channel_with_token(
             &owner_app,
             &created_server_id,
-            &fixture.channel.name,
+            fixture.channel.name(),
+            "text",
             "owner-token",
         )
         .await,
@@ -322,7 +324,7 @@ async fn given_missing_message_when_update_message_then_status_is_404() {
         .to_owned();
 
     let create_channel_payload = response_payload_json(
-        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+        create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
     let created_channel_id = create_channel_payload["id"]
@@ -376,7 +378,7 @@ async fn given_missing_message_when_delete_message_then_status_is_404() {
         .to_owned();
 
     let create_channel_payload = response_payload_json(
-        create_channel(&app, &created_server_id, &fixture.channel.name).await,
+        create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
     let created_channel_id = create_channel_payload["id"]
