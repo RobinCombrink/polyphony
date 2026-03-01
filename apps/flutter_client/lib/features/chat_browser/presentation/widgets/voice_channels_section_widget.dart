@@ -26,26 +26,14 @@ class VoiceChannelsSectionWidget extends StatelessWidget {
     required this.participants,
     required this.channelName,
     required this.selfParticipantUserId,
-    required this.isLoading,
-    required this.isConnected,
-    required this.isSelfMuted,
     required this.isSelfDeafened,
-    required this.onLeave,
-    required this.onToggleSelfMute,
-    required this.onToggleSelfDeafen,
     super.key,
   });
 
   final List<VoiceParticipant> participants;
   final String channelName;
   final String? selfParticipantUserId;
-  final bool isLoading;
-  final bool isConnected;
-  final bool isSelfMuted;
   final bool isSelfDeafened;
-  final VoidCallback onLeave;
-  final VoidCallback onToggleSelfMute;
-  final VoidCallback onToggleSelfDeafen;
 
   @override
   Widget build(BuildContext context) {
@@ -63,30 +51,7 @@ class VoiceChannelsSectionWidget extends StatelessWidget {
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(8),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                FilledButton.tonalIcon(
-                  onPressed:
-                      isLoading || !isConnected ? null : onToggleSelfMute,
-                  icon: Icon(isSelfMuted ? Icons.mic_off : Icons.mic),
-                  label: Text(isSelfMuted ? "Unmute" : "Mute"),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed:
-                      isLoading || !isConnected ? null : onToggleSelfDeafen,
-                  icon: Icon(
-                    isSelfDeafened ? Icons.headset_off : Icons.headset,
-                  ),
-                  label: Text(isSelfDeafened ? "Undeafen" : "Deafen"),
-                ),
-                FilledButton.tonal(
-                  onPressed: isLoading || !isConnected ? null : onLeave,
-                  child: const Text("Leave voice"),
-                ),
-              ],
-            ),
+            child: const SizedBox.shrink(),
           ),
           Expanded(
             child: ListView(

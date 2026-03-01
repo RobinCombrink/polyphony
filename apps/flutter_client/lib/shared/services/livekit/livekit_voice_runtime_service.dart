@@ -90,6 +90,8 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
         _isSelfMuted = true;
         await _setRemoteAudioSubscriptionsEnabled(enabled: false);
       } else {
+        await activeRoom.localParticipant?.setMicrophoneEnabled(true);
+        _isSelfMuted = false;
         await _setRemoteAudioSubscriptionsEnabled(enabled: true);
       }
 

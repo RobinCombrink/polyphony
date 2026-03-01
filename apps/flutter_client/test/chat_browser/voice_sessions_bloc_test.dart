@@ -205,7 +205,7 @@ void main() {
           .having(
             (state) => state.isSelfMuted,
             "is self muted",
-            true,
+            false,
           ),
     ],
   );

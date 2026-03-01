@@ -60,9 +60,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
                 loadedData?.participants ?? const <VoiceParticipant>[];
             final selfParticipantUserId =
                 loadedData?.activeConnection?.participantUserId;
-            final isSelfMuted = loadedData?.isSelfMuted ?? false;
             final isSelfDeafened = loadedData?.isSelfDeafened ?? false;
-            final isConnected = loadedData?.connectedChannelId != null;
             final visibleParticipants = isLoading && participants.isEmpty
                 ? _skeletonParticipants()
                 : participants;
@@ -73,21 +71,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
                 channelName: selectedVoiceChannel.name,
                 participants: visibleParticipants,
                 selfParticipantUserId: selfParticipantUserId,
-                isLoading: isLoading,
-                isConnected: isConnected,
-                isSelfMuted: isSelfMuted,
                 isSelfDeafened: isSelfDeafened,
-                onToggleSelfMute: () => context.read<VoiceSessionsBloc>().add(
-                      SetSelfMutedRequested(muted: !isSelfMuted),
-                    ),
-                onToggleSelfDeafen: () => context
-                    .read<VoiceSessionsBloc>()
-                    .add(SetSelfDeafenedRequested(deafened: !isSelfDeafened)),
-                onLeave: () => context.read<VoiceSessionsBloc>().add(
-                      DisconnectVoiceSessionRequested(
-                        channelId: selectedVoiceChannel.id,
-                      ),
-                    ),
               ),
             );
           },

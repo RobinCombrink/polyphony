@@ -122,11 +122,14 @@ class _VoiceChannelsPaneWidgetState extends State<VoiceChannelsPaneWidget> {
                         ),
                       );
                   context.read<VoiceSessionsBloc>().add(
-                        LoadVoiceSessionsRequested(channelId: voiceChannel.id),
+                        LoadVoiceSessionsRequested(
+                          channelId: voiceChannel.id,
+                        ),
                       );
                   context.read<VoiceSessionsBloc>().add(
                         ConnectVoiceSessionRequested(
-                            channelId: voiceChannel.id),
+                          channelId: voiceChannel.id,
+                        ),
                       );
                 },
                 onCreate: () {},

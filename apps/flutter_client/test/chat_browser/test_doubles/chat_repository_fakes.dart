@@ -367,6 +367,8 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
     _isSelfDeafened = deafened;
     if (deafened) {
       _isSelfMuted = true;
+    } else {
+      _isSelfMuted = false;
     }
 
     return const Ok<void>(null);

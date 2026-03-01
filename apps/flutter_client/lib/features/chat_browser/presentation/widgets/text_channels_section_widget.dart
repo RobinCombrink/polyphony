@@ -58,6 +58,7 @@ class TextChannelsSectionWidget extends StatefulWidget {
     this.createActionLabel = "Create channel",
     this.showCreateControls = true,
     this.interactionType = ChannelInteractionType.text,
+    this.bottomSection,
     super.key,
   });
 
@@ -78,6 +79,7 @@ class TextChannelsSectionWidget extends StatefulWidget {
   final String createActionLabel;
   final bool showCreateControls;
   final ChannelInteractionType interactionType;
+  final Widget? bottomSection;
 
   @override
   State<TextChannelsSectionWidget> createState() =>
@@ -238,55 +240,50 @@ class _TextChannelsSectionWidgetState extends State<TextChannelsSectionWidget> {
                             padding: const EdgeInsets.only(top: 4),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: voiceParticipants
-                                  .map(
-                                    (participant) {
-                                      final isSelfParticipant =
-                                          participant.userId ==
-                                              widget.selfParticipantUserId;
-                                      final showSelfDeafened =
-                                          isSelfParticipant &&
-                                              widget.isSelfDeafened;
+                              children: voiceParticipants.map(
+                                (participant) {
+                                  final isSelfParticipant =
+                                      participant.userId ==
+                                          widget.selfParticipantUserId;
+                                  final showSelfDeafened = isSelfParticipant &&
+                                      widget.isSelfDeafened;
 
-                                      return Padding(
-                                        padding:
-                                            const EdgeInsets.only(bottom: 2),
-                                        child: Row(
-                                          children: <Widget>[
-                                            const Icon(
-                                              Icons.account_circle,
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 2),
+                                    child: Row(
+                                      children: <Widget>[
+                                        const Icon(
+                                          Icons.account_circle,
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            participant.displayName,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (participant.isMuted)
+                                          const Icon(
+                                            Icons.mic_off,
+                                            size: 14,
+                                          ),
+                                        if (showSelfDeafened)
+                                          const Padding(
+                                            padding: EdgeInsets.only(left: 4),
+                                            child: Icon(
+                                              Icons.headset_off,
                                               size: 14,
                                             ),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                participant.displayName,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            if (participant.isMuted)
-                                              const Icon(
-                                                Icons.mic_off,
-                                                size: 14,
-                                              ),
-                                            if (showSelfDeafened)
-                                              const Padding(
-                                                padding:
-                                                    EdgeInsets.only(left: 4),
-                                                child: Icon(
-                                                  Icons.headset_off,
-                                                  size: 14,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  )
-                                  .toList(),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ).toList(),
                             ),
                           )
                         : null,
@@ -345,6 +342,16 @@ class _TextChannelsSectionWidgetState extends State<TextChannelsSectionWidget> {
               },
             ),
           ),
+          if (widget.bottomSection != null) ...<Widget>[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: widget.bottomSection!,
+              ),
+            ),
+          ],
         ],
       ),
     );
