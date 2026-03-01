@@ -13,10 +13,12 @@ class CreateChannelCommand {
   const CreateChannelCommand({
     required this.serverId,
     required this.name,
+    required this.channelType,
   });
 
   final String serverId;
   final String name;
+  final ChannelType channelType;
 }
 
 class DeleteChannelCommand {

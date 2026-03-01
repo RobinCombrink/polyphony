@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
 abstract interface class VoiceRuntimeService {
@@ -17,4 +19,6 @@ abstract interface class VoiceRuntimeService {
   bool isSelfDeafened();
 
   Iterable<String> currentParticipantUserIds();
+
+  Stream<Set<String>> speakingParticipantUserIds();
 }

@@ -40,17 +40,20 @@ class ApiChannel {
     required this.id,
     required this.serverId,
     required this.name,
+    this.channelType = "text",
   });
 
   final String id;
   final String serverId;
   final String name;
+  final String channelType;
 
   factory ApiChannel.fromJson(Map<String, dynamic> json) {
     return ApiChannel(
       id: json["id"] as String,
       serverId: json["server_id"] as String,
       name: json["name"] as String,
+      channelType: (json["channel_type"] as String?) ?? "text",
     );
   }
 }

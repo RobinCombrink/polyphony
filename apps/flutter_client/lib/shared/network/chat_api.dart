@@ -1,5 +1,6 @@
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 abstract interface class ChatApi {
   Future<Result<List<ApiServer>>> listServers({
@@ -36,6 +37,7 @@ abstract interface class ChatApi {
     required String baseUrl,
     required String serverId,
     required String name,
+    required ChannelType channelType,
   });
 
   Future<Result<void>> deleteChannel({

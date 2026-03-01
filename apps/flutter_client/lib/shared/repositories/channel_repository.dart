@@ -33,6 +33,7 @@ class ChannelRepository implements ChannelRepo {
     final serviceResult = await _channelService.createChannel(
       serverId: command.serverId,
       name: command.name,
+      channelType: command.channelType,
     );
 
     return switch (serviceResult) {

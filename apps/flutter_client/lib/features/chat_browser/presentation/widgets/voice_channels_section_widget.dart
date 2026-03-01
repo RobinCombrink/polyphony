@@ -70,7 +70,18 @@ class VoiceChannelsSectionWidget extends StatelessWidget {
                           isSelfParticipant && isSelfDeafened;
 
                       return ListTile(
-                        leading: const Icon(Icons.account_circle),
+                        leading: DecoratedBox(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: participant.isSpeaking
+                                ? Border.all(
+                                    color: Colors.green,
+                                    width: 2,
+                                  )
+                                : null,
+                          ),
+                          child: const Icon(Icons.account_circle),
+                        ),
                         title: Text(participant.displayName),
                         trailing: participant.isMuted || showDeafenedIcon
                             ? Row(

@@ -1,5 +1,6 @@
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
+import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -36,6 +37,7 @@ class RestChannelService implements ChannelService {
   Future<Result<ApiChannel>> createChannel({
     required String serverId,
     required String name,
+    required ChannelType channelType,
   }) async {
     if (_authenticationStateSource.currentAuthState
         is! AuthenticationAuthenticatedState) {
@@ -46,6 +48,7 @@ class RestChannelService implements ChannelService {
       baseUrl: _baseUrl,
       serverId: serverId,
       name: name,
+      channelType: channelType,
     );
   }
 

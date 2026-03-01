@@ -7,6 +7,8 @@ import "package:polyphony_flutter_client/shared/services/voice_runtime_service.d
 class LivekitVoiceRuntimeService implements VoiceRuntimeService {
   Room? _room;
   EventsListener<RoomEvent>? _roomListener;
+  final _speakingParticipantUserIdsController =
+      StreamController<Set<String>>.broadcast();
   var _isSelfMuted = false;
   var _isSelfDeafened = false;
 
@@ -30,6 +32,9 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
       _isSelfMuted = false;
       _isSelfDeafened = false;
       _roomListener = room.createListener()
+        ..on<ActiveSpeakersChangedEvent>((event) {
+          _emitSpeakingParticipantUserIds(event.speakers);
+        })
         ..on<TrackSubscribedEvent>((event) {
           if (!_isSelfDeafened || event.track is! RemoteAudioTrack) {
             return;
@@ -37,6 +42,7 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
 
           unawaited(event.publication.unsubscribe());
         });
+      _emitSpeakingParticipantUserIds(room.activeSpeakers);
       _room = room;
       return const Ok<void>(null);
     } on Exception catch (error) {
@@ -50,6 +56,7 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
       await _disconnectCurrentRoom();
       _isSelfMuted = false;
       _isSelfDeafened = false;
+      _speakingParticipantUserIdsController.add(const <String>{});
       return const Ok<void>(null);
     } on Exception catch (error) {
       return Error<void>(error);
@@ -124,6 +131,11 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
     };
   }
 
+  @override
+  Stream<Set<String>> speakingParticipantUserIds() {
+    return _speakingParticipantUserIdsController.stream;
+  }
+
   Future<void> _disconnectCurrentRoom() async {
     final activeListener = _roomListener;
     _roomListener = null;
@@ -158,5 +170,14 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
         }
       }
     }
+  }
+
+  void _emitSpeakingParticipantUserIds(Iterable<Participant> speakers) {
+    final speakingUserIds = speakers
+        .map((participant) => participant.identity)
+        .where((identity) => identity.isNotEmpty)
+        .toSet();
+
+    _speakingParticipantUserIdsController.add(speakingUserIds);
   }
 }

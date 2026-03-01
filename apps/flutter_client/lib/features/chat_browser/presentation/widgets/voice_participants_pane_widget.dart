@@ -1,3 +1,4 @@
+import "package:collection/collection.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
@@ -17,6 +18,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
         userId: "participant-skeleton-$index",
         displayName: "Participant ${index + 1}",
         isMuted: false,
+        isSpeaking: false,
       ),
     );
   }
@@ -42,13 +44,12 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
               return SomethingWentWrongWidget(message: errorMessage);
             }
 
-            final selectedVoiceChannel = channelData?.channels.firstWhere(
+            final selectedVoiceChannel =
+                channelData?.voiceChannels.firstWhereOrNull(
               (channel) => channel.id == channelData.selectedVoiceChannelId,
-              orElse: () => const Channel(id: "", serverId: "", name: ""),
             );
 
-            if (selectedVoiceChannel == null ||
-                selectedVoiceChannel.id.isEmpty) {
+            if (selectedVoiceChannel == null) {
               return const Card(
                 child: Center(
                   child: Text("Select a voice channel to see participants"),

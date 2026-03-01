@@ -3,6 +3,7 @@ import "dart:convert";
 import "package:http/http.dart" as http;
 
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
+import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -114,12 +115,16 @@ class PolyphonyApiClient implements ChatApi {
     required String baseUrl,
     required String serverId,
     required String name,
+    required ChannelType channelType,
   }) {
     return _performPostRequest<ApiChannel>(
       baseUrl: baseUrl,
       endpoint: "/api/v1/servers/$serverId/channels",
       operation: "create channel",
-      body: <String, dynamic>{"name": name},
+      body: <String, dynamic>{
+        "name": name,
+        "channel_type": Channel.channelTypeToApiValue(channelType),
+      },
       expectedStatusCode: 201,
       decodeItem: ApiChannel.fromJson,
     );
