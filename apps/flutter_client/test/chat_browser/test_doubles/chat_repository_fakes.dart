@@ -8,8 +8,8 @@ import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
-import "package:polyphony_flutter_client/shared/services/voice_runtime_service.dart";
 
 import "../../entity_seeder.dart";
 
@@ -278,12 +278,13 @@ class FakeTextSessionRepository implements TextSessionRepo {
   }
 }
 
-class FakeVoiceRuntimeService implements VoiceRuntimeService {
+class FakeVoiceRuntimeService implements MediaRuntimeService {
   FakeVoiceRuntimeService({
     this.forceConnectError = false,
     this.forceDisconnectError = false,
     this.forceSetSelfMutedError = false,
     this.forceSetSelfDeafenedError = false,
+    this.forceSetSelfVideoEnabledError = false,
     this.initialParticipantUserIds = const <String>{"auth0|u1"},
   });
 
@@ -291,14 +292,26 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
   final bool forceDisconnectError;
   final bool forceSetSelfMutedError;
   final bool forceSetSelfDeafenedError;
+  final bool forceSetSelfVideoEnabledError;
   final Set<String> initialParticipantUserIds;
   final _participantUserIdsController = StreamController<Set<String>>.broadcast();
   final _speakingParticipantUserIdsController =
       StreamController<Set<String>>.broadcast();
-    late Set<String> _currentParticipantUserIds =
+  final _participantVideoTracksController =
+      StreamController<Map<String, Object>>.broadcast();
+  late Set<String> _currentParticipantUserIds =
       Set<String>.from(initialParticipantUserIds);
+  final Map<String, Object> _currentParticipantVideoTracks = <String, Object>{};
+  final Map<String, RuntimeAudioChannel> _audioChannelByParticipantUserId =
+      <String, RuntimeAudioChannel>{};
+  final Map<RuntimeAudioChannel, bool> _audioChannelEnabled =
+      <RuntimeAudioChannel, bool>{
+    RuntimeAudioChannel.voice: true,
+    RuntimeAudioChannel.livestream: true,
+  };
   var _isSelfMuted = false;
   var _isSelfDeafened = false;
+  var _isSelfVideoEnabled = false;
 
   @override
   Future<Result<void>> connect({
@@ -311,6 +324,15 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
 
     _isSelfMuted = false;
     _isSelfDeafened = false;
+    _isSelfVideoEnabled = false;
+    _currentParticipantVideoTracks.clear();
+    _audioChannelByParticipantUserId.clear();
+    _audioChannelEnabled
+      ..clear()
+      ..addAll(<RuntimeAudioChannel, bool>{
+        RuntimeAudioChannel.voice: true,
+        RuntimeAudioChannel.livestream: true,
+      });
     return const Ok<void>(null);
   }
 
@@ -322,6 +344,15 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
 
     _isSelfMuted = false;
     _isSelfDeafened = false;
+    _isSelfVideoEnabled = false;
+    _currentParticipantVideoTracks.clear();
+    _audioChannelByParticipantUserId.clear();
+    _audioChannelEnabled
+      ..clear()
+      ..addAll(<RuntimeAudioChannel, bool>{
+        RuntimeAudioChannel.voice: true,
+        RuntimeAudioChannel.livestream: true,
+      });
     return const Ok<void>(null);
   }
 
@@ -362,6 +393,50 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
   }
 
   @override
+  Future<Result<void>> setSelfVideoEnabled({required bool enabled}) async {
+    if (forceSetSelfVideoEnabledError) {
+      return Error<void>(Exception("Failed to update camera state"));
+    }
+
+    _isSelfVideoEnabled = enabled;
+    return const Ok<void>(null);
+  }
+
+  @override
+  bool isSelfVideoEnabled() {
+    return _isSelfVideoEnabled;
+  }
+
+  @override
+  Future<Result<void>> setAudioChannelEnabled({
+    required RuntimeAudioChannel channel,
+    required bool enabled,
+  }) async {
+    _audioChannelEnabled[channel] = enabled;
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> setParticipantAudioChannel({
+    required String participantUserId,
+    required RuntimeAudioChannel channel,
+  }) async {
+    _audioChannelByParticipantUserId[participantUserId] = channel;
+    return const Ok<void>(null);
+  }
+
+  @override
+  bool isAudioChannelEnabled(RuntimeAudioChannel channel) {
+    return _audioChannelEnabled[channel] ?? true;
+  }
+
+  @override
+  RuntimeAudioChannel participantAudioChannel(String participantUserId) {
+    return _audioChannelByParticipantUserId[participantUserId] ??
+        RuntimeAudioChannel.voice;
+  }
+
+  @override
   Iterable<String> currentParticipantUserIds() {
     return _currentParticipantUserIds;
   }
@@ -376,6 +451,16 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
     return _speakingParticipantUserIdsController.stream;
   }
 
+  @override
+  Map<String, Object> currentParticipantVideoTracks() {
+    return Map<String, Object>.from(_currentParticipantVideoTracks);
+  }
+
+  @override
+  Stream<Map<String, Object>> participantVideoTracks() {
+    return _participantVideoTracksController.stream;
+  }
+
   void emitSpeakingParticipantUserIds(Set<String> userIds) {
     _speakingParticipantUserIdsController.add(userIds);
   }
@@ -383,6 +468,13 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
   void emitParticipantUserIds(Set<String> userIds) {
     _currentParticipantUserIds = Set<String>.from(userIds);
     _participantUserIdsController.add(userIds);
+  }
+
+  void emitParticipantVideoTracks(Map<String, Object> videoTracks) {
+    _currentParticipantVideoTracks
+      ..clear()
+      ..addAll(videoTracks);
+    _participantVideoTracksController.add(Map<String, Object>.from(videoTracks));
   }
 }
 

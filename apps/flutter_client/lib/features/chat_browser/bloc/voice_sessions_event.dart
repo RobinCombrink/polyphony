@@ -56,6 +56,14 @@ final class SetSelfDeafenedRequested extends VoiceSessionsEvent {
   final bool deafened;
 }
 
+final class SetSelfVideoEnabledRequested extends VoiceSessionsEvent {
+  const SetSelfVideoEnabledRequested({
+    required this.enabled,
+  });
+
+  final bool enabled;
+}
+
 final class SpeakingParticipantUserIdsUpdated extends VoiceSessionsEvent {
   const SpeakingParticipantUserIdsUpdated({
     required this.speakingParticipantUserIds,
@@ -70,4 +78,12 @@ final class ParticipantUserIdsUpdated extends VoiceSessionsEvent {
   });
 
   final Set<String> participantUserIds;
+}
+
+final class ParticipantVideoTracksUpdated extends VoiceSessionsEvent {
+  const ParticipantVideoTracksUpdated({
+    required this.participantVideoTracks,
+  });
+
+  final Map<String, Object> participantVideoTracks;
 }

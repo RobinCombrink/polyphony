@@ -5,6 +5,7 @@ import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_blo
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/something_went_wrong_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:livekit_client/livekit_client.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
 class VoiceParticipantsPaneWidget extends StatelessWidget {
@@ -61,6 +62,8 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
             final selfParticipantUserId =
                 loadedData?.activeConnection?.participantUserId;
             final isSelfDeafened = loadedData?.isSelfDeafened ?? false;
+            final participantVideoTracks =
+              loadedData?.participantVideoTracks ?? const <String, Object>{};
             final visibleParticipants = isLoading && participants.isEmpty
                 ? _skeletonParticipants()
                 : participants;
@@ -79,9 +82,12 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
                       ),
                     ),
                     const Divider(height: 1),
-                    const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: SizedBox.shrink(),
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: _VoiceVideoGridWidget(
+                        participants: visibleParticipants,
+                        participantVideoTracks: participantVideoTracks,
+                      ),
                     ),
                     Expanded(
                       child: ListView(
@@ -145,6 +151,94 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _VoiceVideoGridWidget extends StatelessWidget {
+  const _VoiceVideoGridWidget({
+    required this.participants,
+    required this.participantVideoTracks,
+  });
+
+  final List<VoiceParticipant> participants;
+  final Map<String, Object> participantVideoTracks;
+
+  @override
+  Widget build(BuildContext context) {
+    final participantsWithVideo = participants
+        .where((participant) => participantVideoTracks[participant.userId] != null)
+        .toList();
+
+    if (participantsWithVideo.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      height: 180,
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: 16 / 9,
+        ),
+        itemCount: participantsWithVideo.length,
+        itemBuilder: (context, index) {
+          final participant = participantsWithVideo[index];
+          final trackObject = participantVideoTracks[participant.userId];
+
+          if (trackObject case VideoTrack videoTrack) {
+            return _VoiceVideoTileWidget(
+              displayName: participant.displayName,
+              videoTrack: videoTrack,
+            );
+          }
+
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+}
+
+class _VoiceVideoTileWidget extends StatelessWidget {
+  const _VoiceVideoTileWidget({
+    required this.displayName,
+    required this.videoTrack,
+  });
+
+  final String displayName;
+  final VideoTrack videoTrack;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          VideoTrackRenderer(videoTrack),
+          Align(
+            alignment: Alignment.bottomLeft,
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Text(displayName),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

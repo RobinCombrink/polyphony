@@ -22,7 +22,8 @@ import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repository.dart";
 import "package:polyphony_flutter_client/shared/services/channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_message_runtime_service.dart";
-import "package:polyphony_flutter_client/shared/services/livekit/livekit_voice_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/livekit/livekit_media_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_service.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
@@ -34,7 +35,6 @@ import "package:polyphony_flutter_client/shared/services/rest/rest_text_session_
 import "package:polyphony_flutter_client/shared/services/rest/rest_voice_session_service.dart";
 import "package:polyphony_flutter_client/shared/services/server_service.dart";
 import "package:polyphony_flutter_client/shared/services/text_session_service.dart";
-import "package:polyphony_flutter_client/shared/services/voice_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/voice_session_service.dart";
 import "package:provider/provider.dart";
 
@@ -103,8 +103,8 @@ class PolyphonyApp extends StatelessWidget {
             authenticationStateSource: context.read<AuthenticationBloc>(),
           ),
         ),
-        Provider<VoiceRuntimeService>(
-          create: (_) => LivekitVoiceRuntimeService(),
+        Provider<MediaRuntimeService>(
+          create: (_) => LivekitMediaRuntimeService(),
         ),
         Provider<MessageRuntimeService>(
           create: (_) => LivekitMessageRuntimeService(),

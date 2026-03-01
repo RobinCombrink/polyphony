@@ -360,6 +360,90 @@ void main() {
   );
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "set self video enabled updates camera state",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+    ),
+    act: (bloc) {
+      bloc
+        ..add(LoadVoiceSessionsRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ))
+        ..add(ConnectVoiceSessionRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ))
+        ..add(const SetSelfVideoEnabledRequested(enabled: true))
+        ..add(const SetSelfVideoEnabledRequested(enabled: false));
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.isSelfVideoEnabled,
+        "is self video enabled",
+        true,
+      ),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.isSelfVideoEnabled,
+        "is self video enabled",
+        false,
+      ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "updates participant video tracks from runtime stream",
+    build: () {
+      speakingRuntimeService = FakeVoiceRuntimeService(
+        initialParticipantUserIds: <String>{
+          fixture.connectedVoiceSession.participantUserId,
+        },
+      );
+
+      return VoiceSessionsBloc(
+        voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+        voiceRuntimeService: speakingRuntimeService,
+        profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+      );
+    },
+    act: (bloc) async {
+      final videoTrackToken = Object();
+
+      bloc
+        ..add(LoadVoiceSessionsRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ))
+        ..add(ConnectVoiceSessionRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ));
+
+      await Future<void>.delayed(Duration.zero);
+
+      speakingRuntimeService.emitParticipantVideoTracks(
+        <String, Object>{
+          fixture.connectedVoiceSession.participantUserId: videoTrackToken,
+        },
+      );
+
+      await Future<void>.delayed(Duration.zero);
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.participantVideoTracks
+            .containsKey(fixture.connectedVoiceSession.participantUserId),
+        "contains self participant video track",
+        true,
+      ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "switching voice channels clears stale participants from previous channel",
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),

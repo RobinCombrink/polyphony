@@ -432,6 +432,7 @@ class _VoiceQuickActionsOverlay extends StatelessWidget {
         final activeVoiceConnection = loadedData?.activeConnection;
         final isSelfMuted = loadedData?.isSelfMuted ?? false;
         final isSelfDeafened = loadedData?.isSelfDeafened ?? false;
+        final isSelfVideoEnabled = loadedData?.isSelfVideoEnabled ?? false;
 
         return Positioned(
           left: 0,
@@ -440,6 +441,7 @@ class _VoiceQuickActionsOverlay extends StatelessWidget {
             channelId: activeVoiceConnection?.channelId,
             isSelfMuted: isSelfMuted,
             isSelfDeafened: isSelfDeafened,
+            isSelfVideoEnabled: isSelfVideoEnabled,
           ),
         );
       },
@@ -452,11 +454,13 @@ class _VoiceQuickActionsCard extends StatelessWidget {
     required this.channelId,
     required this.isSelfMuted,
     required this.isSelfDeafened,
+    required this.isSelfVideoEnabled,
   });
 
   final String? channelId;
   final bool isSelfMuted;
   final bool isSelfDeafened;
+  final bool isSelfVideoEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -497,6 +501,19 @@ class _VoiceQuickActionsCard extends StatelessWidget {
                       ),
               tooltip: isSelfDeafened ? "Undeafen" : "Deafen",
               icon: Icon(isSelfDeafened ? Icons.headset_off : Icons.headset),
+            ),
+            IconButton(
+              onPressed: !controlsEnabled
+                  ? null
+                  : () => context.read<VoiceSessionsBloc>().add(
+                        SetSelfVideoEnabledRequested(
+                          enabled: !isSelfVideoEnabled,
+                        ),
+                      ),
+              tooltip: isSelfVideoEnabled ? "Stop camera" : "Start camera",
+              icon: Icon(
+                isSelfVideoEnabled ? Icons.videocam : Icons.videocam_off,
+              ),
             ),
           ],
         ),
