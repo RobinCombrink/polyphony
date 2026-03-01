@@ -48,6 +48,15 @@ class _VoiceChannelsPaneWidgetState extends State<VoiceChannelsPaneWidget> {
             participantsByChannelId,
           _ => const <String, List<VoiceParticipant>>{},
         };
+        final selfParticipantUserId = switch (voiceSessionsState) {
+          VoiceSessionsLoadedDataState(:final activeConnection) =>
+            activeConnection?.participantUserId,
+          _ => null,
+        };
+        final isSelfDeafened = switch (voiceSessionsState) {
+          VoiceSessionsLoadedDataState(:final isSelfDeafened) => isSelfDeafened,
+          _ => false,
+        };
 
         return BlocBuilder<ChannelsBloc, ChannelsState>(
           builder: (context, channelsState) {
@@ -97,6 +106,8 @@ class _VoiceChannelsPaneWidgetState extends State<VoiceChannelsPaneWidget> {
                 voiceParticipantCount: 0,
                 voiceParticipantsByChannelId: voiceParticipantsByChannelId,
                 connectedVoiceChannelId: activeVoiceChannelId,
+                selfParticipantUserId: selfParticipantUserId,
+                isSelfDeafened: isSelfDeafened,
                 isLoading: isLoading,
                 createController: widget.createController,
                 title: "Voice channels",

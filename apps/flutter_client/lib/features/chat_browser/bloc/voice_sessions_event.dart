@@ -47,3 +47,11 @@ final class SetSelfMutedRequested extends VoiceSessionsEvent {
 
   final bool muted;
 }
+
+final class SetSelfDeafenedRequested extends VoiceSessionsEvent {
+  const SetSelfDeafenedRequested({
+    required this.deafened,
+  });
+
+  final bool deafened;
+}

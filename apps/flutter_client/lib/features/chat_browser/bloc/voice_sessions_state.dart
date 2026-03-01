@@ -23,6 +23,7 @@ sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
     required this.participants,
     required this.participantsByChannelId,
     required this.isSelfMuted,
+    required this.isSelfDeafened,
   });
 
   final VoiceConnectSession? activeConnection;
@@ -30,6 +31,7 @@ sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
   final List<VoiceParticipant> participants;
   final Map<String, List<VoiceParticipant>> participantsByChannelId;
   final bool isSelfMuted;
+  final bool isSelfDeafened;
 
   String? get connectedChannelId => activeConnection?.channelId;
 }
@@ -41,6 +43,7 @@ final class VoiceSessionsLoadedState extends VoiceSessionsLoadedDataState {
     required super.participants,
     required super.participantsByChannelId,
     required super.isSelfMuted,
+    required super.isSelfDeafened,
   });
 }
 
@@ -53,6 +56,7 @@ final class VoiceSessionsValidationFailedState
     required super.participants,
     required super.participantsByChannelId,
     required super.isSelfMuted,
+    required super.isSelfDeafened,
   });
 
   final VoiceSessionsValidationIssue issue;

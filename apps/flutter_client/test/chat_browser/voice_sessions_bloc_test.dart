@@ -164,6 +164,100 @@ void main() {
   );
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "set self deafened enables mute and toggles deafen state",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+    ),
+    act: (bloc) {
+      bloc
+        ..add(LoadVoiceSessionsRequested(
+          channelId: fixture.listedChannel.id,
+        ))
+        ..add(ConnectVoiceSessionRequested(
+          channelId: fixture.listedChannel.id,
+        ))
+        ..add(const SetSelfDeafenedRequested(deafened: true))
+        ..add(const SetSelfDeafenedRequested(deafened: false));
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadedState>()
+          .having(
+            (state) => state.isSelfDeafened,
+            "is self deafened",
+            true,
+          )
+          .having(
+            (state) => state.isSelfMuted,
+            "is self muted",
+            true,
+          ),
+      isA<VoiceSessionsLoadedState>()
+          .having(
+            (state) => state.isSelfDeafened,
+            "is self deafened",
+            false,
+          )
+          .having(
+            (state) => state.isSelfMuted,
+            "is self muted",
+            true,
+          ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "set self muted false while deafened undeafens and unmutes",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+    ),
+    act: (bloc) {
+      bloc
+        ..add(LoadVoiceSessionsRequested(
+          channelId: fixture.listedChannel.id,
+        ))
+        ..add(ConnectVoiceSessionRequested(
+          channelId: fixture.listedChannel.id,
+        ))
+        ..add(const SetSelfDeafenedRequested(deafened: true))
+        ..add(const SetSelfMutedRequested(muted: false));
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadedState>()
+          .having(
+            (state) => state.isSelfDeafened,
+            "is self deafened",
+            true,
+          )
+          .having(
+            (state) => state.isSelfMuted,
+            "is self muted",
+            true,
+          ),
+      isA<VoiceSessionsLoadedState>()
+          .having(
+            (state) => state.isSelfDeafened,
+            "is self deafened",
+            false,
+          )
+          .having(
+            (state) => state.isSelfMuted,
+            "is self muted",
+            false,
+          ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "switching voice channels clears stale participants from previous channel",
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),

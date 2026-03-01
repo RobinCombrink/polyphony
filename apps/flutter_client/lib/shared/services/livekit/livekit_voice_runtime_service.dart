@@ -8,6 +8,7 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
   Room? _room;
   EventsListener<RoomEvent>? _roomListener;
   var _isSelfMuted = false;
+  var _isSelfDeafened = false;
 
   @override
   Future<Result<void>> connect({
@@ -27,7 +28,15 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
       await room.connect(livekitUrl, accessToken);
       await room.localParticipant?.setMicrophoneEnabled(true);
       _isSelfMuted = false;
-      _roomListener = room.createListener();
+      _isSelfDeafened = false;
+      _roomListener = room.createListener()
+        ..on<TrackSubscribedEvent>((event) {
+          if (!_isSelfDeafened || event.track is! RemoteAudioTrack) {
+            return;
+          }
+
+          unawaited(event.publication.unsubscribe());
+        });
       _room = room;
       return const Ok<void>(null);
     } on Exception catch (error) {
@@ -40,6 +49,7 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
     try {
       await _disconnectCurrentRoom();
       _isSelfMuted = false;
+      _isSelfDeafened = false;
       return const Ok<void>(null);
     } on Exception catch (error) {
       return Error<void>(error);
@@ -65,6 +75,34 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
   @override
   bool isSelfMuted() {
     return _isSelfMuted;
+  }
+
+  @override
+  Future<Result<void>> setSelfDeafened({required bool deafened}) async {
+    try {
+      final activeRoom = _room;
+      if (activeRoom == null) {
+        return Error<void>(Exception("Not connected to a voice session."));
+      }
+
+      if (deafened) {
+        await activeRoom.localParticipant?.setMicrophoneEnabled(false);
+        _isSelfMuted = true;
+        await _setRemoteAudioSubscriptionsEnabled(enabled: false);
+      } else {
+        await _setRemoteAudioSubscriptionsEnabled(enabled: true);
+      }
+
+      _isSelfDeafened = deafened;
+      return const Ok<void>(null);
+    } on Exception catch (error) {
+      return Error<void>(error);
+    }
+  }
+
+  @override
+  bool isSelfDeafened() {
+    return _isSelfDeafened;
   }
 
   @override
@@ -99,5 +137,24 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
     }
 
     await activeRoom.disconnect();
+  }
+
+  Future<void> _setRemoteAudioSubscriptionsEnabled({
+    required bool enabled,
+  }) async {
+    final activeRoom = _room;
+    if (activeRoom == null) {
+      return;
+    }
+
+    for (final remoteParticipant in activeRoom.remoteParticipants.values) {
+      for (final publication in remoteParticipant.audioTrackPublications) {
+        if (enabled) {
+          await publication.subscribe();
+        } else {
+          await publication.unsubscribe();
+        }
+      }
+    }
   }
 }

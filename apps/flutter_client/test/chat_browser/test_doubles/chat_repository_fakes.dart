@@ -313,12 +313,15 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
     this.forceConnectError = false,
     this.forceDisconnectError = false,
     this.forceSetSelfMutedError = false,
+    this.forceSetSelfDeafenedError = false,
   });
 
   final bool forceConnectError;
   final bool forceDisconnectError;
   final bool forceSetSelfMutedError;
+  final bool forceSetSelfDeafenedError;
   var _isSelfMuted = false;
+  var _isSelfDeafened = false;
 
   @override
   Future<Result<void>> connect({
@@ -330,6 +333,7 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
     }
 
     _isSelfMuted = false;
+    _isSelfDeafened = false;
     return const Ok<void>(null);
   }
 
@@ -340,6 +344,7 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
     }
 
     _isSelfMuted = false;
+    _isSelfDeafened = false;
     return const Ok<void>(null);
   }
 
@@ -354,8 +359,27 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
   }
 
   @override
+  Future<Result<void>> setSelfDeafened({required bool deafened}) async {
+    if (forceSetSelfDeafenedError) {
+      return Error<void>(Exception("Failed to update deafen state"));
+    }
+
+    _isSelfDeafened = deafened;
+    if (deafened) {
+      _isSelfMuted = true;
+    }
+
+    return const Ok<void>(null);
+  }
+
+  @override
   bool isSelfMuted() {
     return _isSelfMuted;
+  }
+
+  @override
+  bool isSelfDeafened() {
+    return _isSelfDeafened;
   }
 
   @override

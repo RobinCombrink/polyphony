@@ -46,6 +46,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         await _onDisconnectVoiceSessionRequested(event, emit);
       case SetSelfMutedRequested():
         await _onSetSelfMutedRequested(event, emit);
+      case SetSelfDeafenedRequested():
+        await _onSetSelfDeafenedRequested(event, emit);
     }
   }
 
@@ -71,6 +73,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participants: loadedState.participants,
         participantsByChannelId: loadedState.participantsByChannelId,
         isSelfMuted: loadedState.isSelfMuted,
+        isSelfDeafened: loadedState.isSelfDeafened,
       ));
       return;
     }
@@ -100,6 +103,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         activeConnection: loadedState?.activeConnection,
         participantsByChannelId: participantsByChannelId,
       ),
+      isSelfDeafened: loadedState?.isSelfDeafened ?? false,
     ));
   }
 
@@ -151,6 +155,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         activeConnection: loadedState?.activeConnection,
         participantsByChannelId: participantsByChannelId,
       ),
+      isSelfDeafened: loadedState?.isSelfDeafened ?? false,
     ));
   }
 
@@ -177,6 +182,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participants: loadedState.participants,
         participantsByChannelId: loadedState.participantsByChannelId,
         isSelfMuted: loadedState.isSelfMuted,
+        isSelfDeafened: loadedState.isSelfDeafened,
       ));
       return;
     }
@@ -206,6 +212,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           activeConnection: activeConnection,
           participantsByChannelId: participantsByChannelId,
         ),
+        isSelfDeafened: loadedState.isSelfDeafened,
       ));
       return;
     }
@@ -295,6 +302,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                 activeConnection: value,
                 participantsByChannelId: participantsByChannelId,
               ),
+              isSelfDeafened: _voiceRuntimeService.isSelfDeafened(),
             ));
           case Error<void>(:final error):
             emit(VoiceSessionsExceptionState(error: error));
@@ -326,6 +334,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participants: loadedState.participants,
         participantsByChannelId: loadedState.participantsByChannelId,
         isSelfMuted: loadedState.isSelfMuted,
+        isSelfDeafened: loadedState.isSelfDeafened,
       ));
       return;
     }
@@ -355,6 +364,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
             loadedState,
           )..[trimmedChannelId] = const <VoiceParticipant>[],
           isSelfMuted: false,
+          isSelfDeafened: false,
         ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
@@ -382,6 +392,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         participants: loadedState.participants,
         participantsByChannelId: loadedState.participantsByChannelId,
         isSelfMuted: loadedState.isSelfMuted,
+        isSelfDeafened: loadedState.isSelfDeafened,
       ));
       return;
     }
@@ -394,8 +405,25 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return;
     }
 
+    var effectiveMuted = event.muted;
+    var isSelfDeafened = loadedState.isSelfDeafened;
+
+    if (!event.muted && loadedState.isSelfDeafened) {
+      final undeafenResult = await _voiceRuntimeService.setSelfDeafened(
+        deafened: false,
+      );
+
+      if (undeafenResult case Error<void>(:final error)) {
+        emit(VoiceSessionsExceptionState(error: error));
+        return;
+      }
+
+      isSelfDeafened = false;
+      effectiveMuted = false;
+    }
+
     final setMutedResult = await _voiceRuntimeService.setSelfMuted(
-      muted: event.muted,
+      muted: effectiveMuted,
     );
 
     switch (setMutedResult) {
@@ -403,7 +431,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         final backendSetMutedResult = await _voiceSessionRepo.updateOne(
           command: SetSelfVoiceSessionMuteCommand(
             channelId: activeConnection.channelId,
-            isMuted: event.muted,
+            isMuted: effectiveMuted,
           ),
         );
 
@@ -446,6 +474,100 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           participants: selectedParticipants,
           participantsByChannelId: participantsByChannelId,
           isSelfMuted: isSelfMuted,
+          isSelfDeafened: isSelfDeafened,
+        ));
+      case Error<void>(:final error):
+        emit(VoiceSessionsExceptionState(error: error));
+    }
+  }
+
+  Future<void> _onSetSelfDeafenedRequested(
+    SetSelfDeafenedRequested event,
+    Emitter<VoiceSessionsState> emit,
+  ) async {
+    final loadedState = _loadedStateOrNull(state);
+
+    if (loadedState == null) {
+      emit(VoiceSessionsExceptionState(
+        error: Exception("Voice sessions must be loaded before deafening."),
+      ));
+      return;
+    }
+
+    if (loadedState.activeConnection == null) {
+      emit(VoiceSessionsValidationFailedState(
+        issue: VoiceSessionsValidationIssue.channelSelectionRequired,
+        activeConnection: loadedState.activeConnection,
+        selectedChannelId: loadedState.selectedChannelId,
+        participants: loadedState.participants,
+        participantsByChannelId: loadedState.participantsByChannelId,
+        isSelfMuted: loadedState.isSelfMuted,
+        isSelfDeafened: loadedState.isSelfDeafened,
+      ));
+      return;
+    }
+
+    final activeConnection = loadedState.activeConnection;
+    if (activeConnection == null) {
+      emit(VoiceSessionsExceptionState(
+        error: Exception("Voice connection was lost while deafening."),
+      ));
+      return;
+    }
+
+    final setDeafenedResult = await _voiceRuntimeService.setSelfDeafened(
+      deafened: event.deafened,
+    );
+
+    switch (setDeafenedResult) {
+      case Ok<void>():
+        final backendSetMutedResult = await _voiceSessionRepo.updateOne(
+          command: SetSelfVoiceSessionMuteCommand(
+            channelId: activeConnection.channelId,
+            isMuted: _voiceRuntimeService.isSelfMuted(),
+          ),
+        );
+
+        if (backendSetMutedResult case Error<void>(:final error)) {
+          emit(VoiceSessionsExceptionState(error: error));
+          return;
+        }
+
+        final participantsResult = await _loadParticipantsForChannel(
+          channelId: activeConnection.channelId,
+          loadedState: loadedState,
+        );
+
+        if (participantsResult
+            case Error<List<VoiceParticipant>>(:final error)) {
+          emit(VoiceSessionsExceptionState(error: error));
+          return;
+        }
+
+        final activeChannelParticipants =
+            (participantsResult as Ok<List<VoiceParticipant>>).value;
+        final participantsByChannelId = _participantsByChannelIdFromState(
+          loadedState,
+        )..[activeConnection.channelId] = activeChannelParticipants;
+
+        final selectedParticipants =
+            loadedState.selectedChannelId == activeConnection.channelId
+                ? activeChannelParticipants
+                : loadedState.participants;
+
+        final isSelfMuted = activeChannelParticipants.any(
+          (participant) =>
+              participant.userId == activeConnection.participantUserId &&
+              participant.isMuted,
+        );
+
+        emit(VoiceSessionsLoadedState(
+          activeConnection: activeConnection,
+          selectedChannelId: loadedState.selectedChannelId,
+          participants: selectedParticipants,
+          participantsByChannelId: participantsByChannelId,
+          isSelfMuted: isSelfMuted,
+          isSelfDeafened: _voiceRuntimeService.isSelfDeafened(),
         ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));

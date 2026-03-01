@@ -46,6 +46,8 @@ class TextChannelsSectionWidget extends StatefulWidget {
     this.voiceParticipantsByChannelId =
         const <String, List<VoiceParticipant>>{},
     this.connectedVoiceChannelId,
+    this.selfParticipantUserId,
+    this.isSelfDeafened = false,
     required this.isLoading,
     required this.createController,
     required this.onTap,
@@ -64,6 +66,8 @@ class TextChannelsSectionWidget extends StatefulWidget {
   final int voiceParticipantCount;
   final Map<String, List<VoiceParticipant>> voiceParticipantsByChannelId;
   final String? connectedVoiceChannelId;
+  final String? selfParticipantUserId;
+  final bool isSelfDeafened;
   final bool isLoading;
   final TextEditingController createController;
   final void Function(Channel channel) onTap;
@@ -236,32 +240,51 @@ class _TextChannelsSectionWidgetState extends State<TextChannelsSectionWidget> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: voiceParticipants
                                   .map(
-                                    (participant) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 2),
-                                      child: Row(
-                                        children: <Widget>[
-                                          const Icon(
-                                            Icons.account_circle,
-                                            size: 14,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              participant.displayName,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          if (participant.isMuted)
+                                    (participant) {
+                                      final isSelfParticipant =
+                                          participant.userId ==
+                                              widget.selfParticipantUserId;
+                                      final showSelfDeafened =
+                                          isSelfParticipant &&
+                                              widget.isSelfDeafened;
+
+                                      return Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 2),
+                                        child: Row(
+                                          children: <Widget>[
                                             const Icon(
-                                              Icons.mic_off,
+                                              Icons.account_circle,
                                               size: 14,
                                             ),
-                                        ],
-                                      ),
-                                    ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                participant.displayName,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            if (participant.isMuted)
+                                              const Icon(
+                                                Icons.mic_off,
+                                                size: 14,
+                                              ),
+                                            if (showSelfDeafened)
+                                              const Padding(
+                                                padding:
+                                                    EdgeInsets.only(left: 4),
+                                                child: Icon(
+                                                  Icons.headset_off,
+                                                  size: 14,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      );
+                                    },
                                   )
                                   .toList(),
                             ),

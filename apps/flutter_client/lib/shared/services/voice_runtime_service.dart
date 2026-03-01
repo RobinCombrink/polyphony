@@ -10,7 +10,11 @@ abstract interface class VoiceRuntimeService {
 
   Future<Result<void>> setSelfMuted({required bool muted});
 
+  Future<Result<void>> setSelfDeafened({required bool deafened});
+
   bool isSelfMuted();
+
+  bool isSelfDeafened();
 
   Iterable<String> currentParticipantUserIds();
 }
