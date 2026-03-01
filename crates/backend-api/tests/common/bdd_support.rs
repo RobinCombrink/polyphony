@@ -13,7 +13,6 @@ use backend_api::{
     config::LiveKitConfig,
     storage::{
         ChannelRepository, InMemoryRepository, MessageRepository, ServerRepository, UserRepository,
-        VoiceRepository,
     },
 };
 use serde_json::Value;
@@ -375,30 +374,17 @@ pub(crate) async fn connect_voice_session_with_token(
     app.clone()
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/channels/{channel_id}/voice/connect"))
+                .uri(format!("/api/v1/channels/{channel_id}/session"))
                 .method("POST")
                 .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
-                .body(Body::empty())
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "session_type": "voice" }).to_string(),
+                ))
                 .expect("connect voice session request to be valid"),
         )
         .await
         .expect("connect voice session response from app")
-}
-
-pub(crate) async fn list_voice_sessions(
-    app: &axum::Router,
-    channel_id: &str,
-) -> axum::response::Response {
-    app.clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!("/api/v1/channels/{channel_id}/voice/sessions"))
-                .header(header::AUTHORIZATION, "Bearer valid-token")
-                .body(Body::empty())
-                .expect("list voice sessions request to be valid"),
-        )
-        .await
-        .expect("list voice sessions response from app")
 }
 
 pub(crate) async fn get_me_with_token(
@@ -491,7 +477,6 @@ pub(crate) fn seeded_state_with_store(
     let user_store: Arc<dyn UserRepository> = repository.clone();
     let server_store: Arc<dyn ServerRepository> = repository.clone();
     let channel_store: Arc<dyn ChannelRepository> = repository.clone();
-    let voice_store: Arc<dyn VoiceRepository> = repository.clone();
     let message_store: Arc<dyn MessageRepository> = repository;
 
     ApiState {
@@ -499,7 +484,6 @@ pub(crate) fn seeded_state_with_store(
         user_repository: user_store,
         server_repository: server_store,
         channel_repository: channel_store,
-        voice_repository: voice_store,
         message_repository: message_store,
         livekit_config: Arc::new(LiveKitConfig::default()),
     }

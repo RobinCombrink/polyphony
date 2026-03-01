@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, ChannelType, Membership, Message, Server, User, VoiceSession};
+use backend_domain::{Channel, ChannelType, Membership, Message, Server, User};
 use uuid::Uuid;
 
 use crate::MutationResult;
@@ -66,25 +66,5 @@ pub trait ChannelRepository: Send + Sync {
     ) -> MutationResult;
     async fn delete_channel(&self, channel_id: Uuid, actor_user_id: Uuid) -> MutationResult;
     async fn list_channels_for_server(&self, server_id: Uuid) -> Option<Vec<Channel>>;
-}
-
-#[async_trait]
-pub trait VoiceRepository: Send + Sync {
-    async fn join_voice_session(
-        &self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-    ) -> Option<VoiceSession>;
-    async fn leave_voice_session(
-        &self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-    ) -> MutationResult;
-    async fn set_voice_session_muted(
-        &self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-        is_muted: bool,
-    ) -> MutationResult;
-    async fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>>;
+    async fn find_channel_by_id(&self, channel_id: Uuid) -> Option<Channel>;
 }

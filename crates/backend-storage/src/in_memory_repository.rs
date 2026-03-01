@@ -1,11 +1,11 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, ChannelType, Membership, Message, Server, User, VoiceSession};
+use backend_domain::{Channel, ChannelType, Membership, Message, Server, User};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
     ChannelRepository, InMemoryStore, MessageRepository, MutationResult, ServerRepository,
-    UserRepository, VoiceRepository,
+    UserRepository,
 };
 
 #[derive(Debug, Default)]
@@ -169,40 +169,9 @@ impl ChannelRepository for InMemoryRepository {
 
         Some(channels)
     }
-}
 
-#[async_trait]
-impl VoiceRepository for InMemoryRepository {
-    async fn join_voice_session(
-        &self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-    ) -> Option<VoiceSession> {
-        let mut store = self.store.write().await;
-        store.join_voice_session(channel_id, participant_user_id)
-    }
-
-    async fn leave_voice_session(
-        &self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-    ) -> MutationResult {
-        let mut store = self.store.write().await;
-        store.leave_voice_session(channel_id, participant_user_id)
-    }
-
-    async fn set_voice_session_muted(
-        &self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-        is_muted: bool,
-    ) -> MutationResult {
-        let mut store = self.store.write().await;
-        store.set_voice_session_muted(channel_id, participant_user_id, is_muted)
-    }
-
-    async fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>> {
+    async fn find_channel_by_id(&self, channel_id: Uuid) -> Option<Channel> {
         let store = self.store.read().await;
-        store.list_voice_sessions(channel_id)
+        store.channels.get(&channel_id).cloned()
     }
 }

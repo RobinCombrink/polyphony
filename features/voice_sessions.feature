@@ -1,7 +1,7 @@
 Feature: Backend API voice sessions
   As an authenticated user
-  I want to connect to voice sessions in channels
-  So that voice participation stays consistent across channels
+  I want to request voice connection credentials for channels
+  So that the client can connect directly to LiveKit
 
   Scenario: Authenticated user can connect to voice in existing voice channel
     Given an authenticated user exists
@@ -14,12 +14,3 @@ Feature: Backend API voice sessions
     Given an authenticated user exists
     When I connect to voice for a missing channel
     Then the channel is reported as not found
-
-  Scenario: Connecting to a second channel moves the user from the first channel
-    Given an authenticated user exists
-    And a server exists for that user
-    And two voice channels exist in that server
-    When I connect to voice for the first channel
-    And I connect to voice for the second channel
-    Then listing voice sessions for the first channel returns no participants
-    And listing voice sessions for the second channel includes the authenticated user

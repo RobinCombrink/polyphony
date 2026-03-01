@@ -63,7 +63,7 @@ Runtime env configuration used by backend:
 - Token generation is implemented via LiveKit Rust Server SDK (`livekit-api`), not custom JWT assembly.
 
 Current backend voice connect endpoint:
-- `POST /api/v1/channels/{channel_id}/voice/connect`
+- `POST /api/v1/channels/{channel_id}/session` with body `{ "session_type": "voice" }`
 - Requires bearer auth.
 - Returns: `livekit_url`, `access_token`, `channel_id`, `participant_subject`.
 

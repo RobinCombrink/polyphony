@@ -1,14 +1,11 @@
 use async_trait::async_trait;
-use backend_domain::{
-    Channel, ChannelType, DisplayName, Membership, Message, Server, User, VoiceSession,
-};
+use backend_domain::{Channel, ChannelType, DisplayName, Membership, Message, Server, User};
 use sqlx::migrate::Migrator;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use uuid::Uuid;
 
 use crate::{
     ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
-    VoiceRepository,
 };
 
 #[cfg(target_family = "windows")]
@@ -580,132 +577,25 @@ impl ChannelRepository for PostgresRepository {
 
         Some(channels)
     }
-}
 
-#[async_trait]
-impl VoiceRepository for PostgresRepository {
-    async fn join_voice_session(
-        &self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-    ) -> Option<VoiceSession> {
-        if !self
-            .channel_exists_by_kind(channel_id, ChannelType::Voice)
-            .await
-            .ok()?
-        {
-            return None;
-        }
-
-        let upserted = sqlx::query_as::<_, (bool,)>(
-            "INSERT INTO voice_sessions (channel_id, participant_user_id, is_muted)
-             VALUES ($1, $2, FALSE)
-               ON CONFLICT (participant_user_id)
-               DO UPDATE SET channel_id = EXCLUDED.channel_id
-             RETURNING is_muted",
+    async fn find_channel_by_id(&self, channel_id: Uuid) -> Option<Channel> {
+        let channel = sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
+            "SELECT id, server_id, name, channel_type
+             FROM channels
+             WHERE id = $1",
         )
         .bind(channel_id)
-        .bind(participant_user_id)
-        .fetch_one(&self.pool)
-        .await;
-
-        let is_muted = upserted.ok()?.0;
-
-        Some(VoiceSession {
-            channel_id,
-            participant_user_id,
-            is_muted,
-        })
-    }
-
-    async fn leave_voice_session(
-        &self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-    ) -> MutationResult {
-        if !self
-            .channel_exists_by_kind(channel_id, ChannelType::Voice)
-            .await
-            .unwrap_or(false)
-        {
-            return MutationResult::NotFound;
-        }
-
-        let deleted = sqlx::query(
-            "DELETE FROM voice_sessions
-               WHERE channel_id = $1 AND participant_user_id = $2",
-        )
-        .bind(channel_id)
-        .bind(participant_user_id)
-        .execute(&self.pool)
-        .await;
-
-        match deleted {
-            Ok(result) if result.rows_affected() > 0 => MutationResult::Deleted,
-            Ok(_) => MutationResult::NotFound,
-            Err(_) => MutationResult::NotFound,
-        }
-    }
-
-    async fn set_voice_session_muted(
-        &self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-        is_muted: bool,
-    ) -> MutationResult {
-        if !self
-            .channel_exists_by_kind(channel_id, ChannelType::Voice)
-            .await
-            .unwrap_or(false)
-        {
-            return MutationResult::NotFound;
-        }
-
-        let updated = sqlx::query(
-            "UPDATE voice_sessions
-             SET is_muted = $3
-             WHERE channel_id = $1 AND participant_user_id = $2",
-        )
-        .bind(channel_id)
-        .bind(participant_user_id)
-        .bind(is_muted)
-        .execute(&self.pool)
-        .await;
-
-        match updated {
-            Ok(result) if result.rows_affected() > 0 => MutationResult::Updated,
-            Ok(_) => MutationResult::NotFound,
-            Err(_) => MutationResult::NotFound,
-        }
-    }
-
-    async fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>> {
-        if !self
-            .channel_exists_by_kind(channel_id, ChannelType::Voice)
-            .await
-            .ok()?
-        {
-            return None;
-        }
-
-        let sessions = sqlx::query_as::<_, (Uuid, Uuid, bool)>(
-            "SELECT channel_id, participant_user_id, is_muted
-             FROM voice_sessions
-             WHERE channel_id = $1
-             ORDER BY participant_user_id ASC",
-        )
-        .bind(channel_id)
-        .fetch_all(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .ok()?
-        .into_iter()
-        .map(|(channel_id, participant_user_id, is_muted)| VoiceSession {
-            channel_id,
-            participant_user_id,
-            is_muted,
-        })
-        .collect();
+        .and_then(
+            |(id, server_id, name, channel_type)| match channel_type.as_str() {
+                "text" => Some(Channel::new_text(id, server_id, name)),
+                "voice" => Some(Channel::new_voice(id, server_id, name)),
+                _ => None,
+            },
+        );
 
-        Some(sessions)
+        channel
     }
 }

@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use backend_domain::{
-    Channel, ChannelType, DisplayName, Membership, Message, Server, User, VoiceSession,
-};
+use backend_domain::{Channel, ChannelType, DisplayName, Membership, Message, Server, User};
 use uuid::Uuid;
 
 use crate::MutationResult;
@@ -15,14 +13,9 @@ pub(crate) struct InMemoryStore {
     pub(crate) server_members_by_id: HashMap<Uuid, Vec<Uuid>>,
     pub(crate) channels: HashMap<Uuid, Channel>,
     pub(crate) messages_by_channel: HashMap<Uuid, Vec<Message>>,
-    pub(crate) voice_participants_by_channel: HashMap<Uuid, Vec<VoiceSession>>,
 }
 
 impl InMemoryStore {
-    fn channel_type(&self, channel_id: Uuid) -> Option<ChannelType> {
-        self.channels.get(&channel_id).map(Channel::kind)
-    }
-
     pub(crate) fn find_user_by_id(&self, user_id: Uuid) -> Option<User> {
         self.users_by_id.get(&user_id).cloned()
     }
@@ -128,7 +121,6 @@ impl InMemoryStore {
         for channel_id in channel_ids {
             self.channels.remove(&channel_id);
             self.messages_by_channel.remove(&channel_id);
-            self.voice_participants_by_channel.remove(&channel_id);
         }
 
         MutationResult::Deleted
@@ -233,7 +225,6 @@ impl InMemoryStore {
 
         self.channels.remove(&channel_id);
         self.messages_by_channel.remove(&channel_id);
-        self.voice_participants_by_channel.remove(&channel_id);
 
         MutationResult::Deleted
     }
@@ -244,7 +235,8 @@ impl InMemoryStore {
         author_user_id: Uuid,
         content: String,
     ) -> Option<Message> {
-        if self.channel_type(channel_id) != Some(ChannelType::Text) {
+        let channel_type = self.channels.get(&channel_id).map(Channel::kind);
+        if channel_type != Some(ChannelType::Text) {
             return None;
         }
 
@@ -317,113 +309,4 @@ impl InMemoryStore {
         }
     }
 
-    pub(crate) fn join_voice_session(
-        &mut self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-    ) -> Option<VoiceSession> {
-        if self.channel_type(channel_id) != Some(ChannelType::Voice) {
-            return None;
-        }
-
-        let mut existing_is_muted = false;
-        let mut had_existing_session = false;
-
-        for sessions in self.voice_participants_by_channel.values_mut() {
-            if let Some(index) = sessions
-                .iter()
-                .position(|session| session.participant_user_id == participant_user_id)
-            {
-                let existing_session = sessions.remove(index);
-                existing_is_muted = existing_session.is_muted;
-                had_existing_session = true;
-            }
-        }
-
-        let participants = self
-            .voice_participants_by_channel
-            .entry(channel_id)
-            .or_default();
-
-        let session = VoiceSession {
-            channel_id,
-            participant_user_id,
-            is_muted: if had_existing_session {
-                existing_is_muted
-            } else {
-                false
-            },
-        };
-
-        participants.push(session.clone());
-
-        Some(session)
-    }
-
-    pub(crate) fn leave_voice_session(
-        &mut self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-    ) -> MutationResult {
-        if self.channel_type(channel_id) != Some(ChannelType::Voice) {
-            return MutationResult::NotFound;
-        }
-
-        let participants = match self.voice_participants_by_channel.get_mut(&channel_id) {
-            Some(existing_participants) => existing_participants,
-            None => return MutationResult::NotFound,
-        };
-
-        match participants
-            .iter()
-            .position(|session| session.participant_user_id == participant_user_id)
-        {
-            Some(index) => {
-                participants.remove(index);
-                MutationResult::Deleted
-            }
-            None => MutationResult::NotFound,
-        }
-    }
-
-    pub(crate) fn set_voice_session_muted(
-        &mut self,
-        channel_id: Uuid,
-        participant_user_id: Uuid,
-        is_muted: bool,
-    ) -> MutationResult {
-        if self.channel_type(channel_id) != Some(ChannelType::Voice) {
-            return MutationResult::NotFound;
-        }
-
-        let participants = match self.voice_participants_by_channel.get_mut(&channel_id) {
-            Some(existing_participants) => existing_participants,
-            None => return MutationResult::NotFound,
-        };
-
-        match participants
-            .iter_mut()
-            .find(|session| session.participant_user_id == participant_user_id)
-        {
-            Some(session) => {
-                session.is_muted = is_muted;
-                MutationResult::Updated
-            }
-            None => MutationResult::NotFound,
-        }
-    }
-
-    pub(crate) fn list_voice_sessions(&self, channel_id: Uuid) -> Option<Vec<VoiceSession>> {
-        if self.channel_type(channel_id) != Some(ChannelType::Voice) {
-            return None;
-        }
-
-        let sessions = self
-            .voice_participants_by_channel
-            .get(&channel_id)
-            .map(|sessions| sessions.to_vec())
-            .unwrap_or_default();
-
-        Some(sessions)
-    }
 }

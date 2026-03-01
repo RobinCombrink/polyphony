@@ -1,7 +1,6 @@
 use backend_domain::ChannelType;
 use backend_storage::{
     ChannelRepository, MessageRepository, PostgresRepository, ServerRepository, UserRepository,
-    VoiceRepository,
 };
 use sqlx::PgPool;
 use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
@@ -59,18 +58,10 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
     assert_eq!(listed_messages[0].id, message.id);
     assert_eq!(listed_messages[0].author_user_id, user.id);
 
-    let voice_channel = repository
+    let _voice_channel = repository
         .create_channel(server.id, "voice".to_owned(), ChannelType::Voice)
         .await
         .expect("voice channel to be created");
-
-    let voice_session = repository
-        .join_voice_session(voice_channel.id(), user.id)
-        .await
-        .expect("voice session to be created");
-
-    assert_eq!(voice_session.channel_id, voice_channel.id());
-    assert_eq!(voice_session.participant_user_id, user.id);
 
     assert_date_created_columns(&pool).await;
     assert_inserted_rows_have_date_created(&pool).await;
