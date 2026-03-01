@@ -246,16 +246,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                BlocBuilder<ProfileBloc, ProfileState>(
-                  builder: (context, profileState) {
-                    final displayName = switch (profileState) {
-                      ProfileLoadedDataState(:final displayName) => displayName,
-                      _ => null,
-                    };
-
-                    return Text("Display name: ${displayName ?? "Not set"}");
-                  },
-                ),
+                const _DisplayNameBanner(),
                 const SizedBox(height: 12),
                 Expanded(
                   child: Row(
@@ -278,77 +269,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                 ),
               ],
             ),
-            BlocBuilder<VoiceSessionsBloc, VoiceSessionsState>(
-              builder: (context, voiceState) {
-                final loadedData = voiceState is VoiceSessionsLoadedDataState
-                    ? voiceState
-                    : null;
-                final activeVoiceConnection = loadedData?.activeConnection;
-                final isSelfMuted = loadedData?.isSelfMuted ?? false;
-                final isSelfDeafened = loadedData?.isSelfDeafened ?? false;
-                final controlsEnabled = activeVoiceConnection != null;
-
-                if (activeVoiceConnection == null) {
-                  return const SizedBox.shrink();
-                }
-
-                return Positioned(
-                  left: 0,
-                  bottom: 0,
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 2,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          IconButton(
-                            onPressed: !controlsEnabled
-                                ? null
-                                : () => context.read<VoiceSessionsBloc>().add(
-                                      DisconnectVoiceSessionRequested(
-                                        channelId:
-                                            activeVoiceConnection.channelId,
-                                      ),
-                                    ),
-                            tooltip: "Disconnect voice",
-                            icon: const Icon(Icons.call_end),
-                          ),
-                          IconButton(
-                            onPressed: !controlsEnabled
-                                ? null
-                                : () => context.read<VoiceSessionsBloc>().add(
-                                      SetSelfMutedRequested(
-                                        muted: !isSelfMuted,
-                                      ),
-                                    ),
-                            tooltip: isSelfMuted ? "Unmute" : "Mute",
-                            icon: Icon(isSelfMuted ? Icons.mic_off : Icons.mic),
-                          ),
-                          IconButton(
-                            onPressed: !controlsEnabled
-                                ? null
-                                : () => context.read<VoiceSessionsBloc>().add(
-                                      SetSelfDeafenedRequested(
-                                        deafened: !isSelfDeafened,
-                                      ),
-                                    ),
-                            tooltip: isSelfDeafened ? "Undeafen" : "Deafen",
-                            icon: Icon(
-                              isSelfDeafened
-                                  ? Icons.headset_off
-                                  : Icons.headset,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+            const _VoiceQuickActionsOverlay(),
           ],
         ),
       ),
@@ -489,6 +410,105 @@ class _ServerWorkspaceWidget extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _DisplayNameBanner extends StatelessWidget {
+  const _DisplayNameBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ProfileBloc, ProfileState>(
+      builder: (context, profileState) {
+        final displayName = switch (profileState) {
+          ProfileLoadedDataState(:final displayName) => displayName,
+          _ => null,
+        };
+
+        return Text("Display name: ${displayName ?? "Not set"}");
+      },
+    );
+  }
+}
+
+class _VoiceQuickActionsOverlay extends StatelessWidget {
+  const _VoiceQuickActionsOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<VoiceSessionsBloc, VoiceSessionsState>(
+      builder: (context, voiceState) {
+        final loadedData =
+            voiceState is VoiceSessionsLoadedDataState ? voiceState : null;
+        final activeVoiceConnection = loadedData?.activeConnection;
+        final isSelfMuted = loadedData?.isSelfMuted ?? false;
+        final isSelfDeafened = loadedData?.isSelfDeafened ?? false;
+
+        if (activeVoiceConnection == null) {
+          return const SizedBox.shrink();
+        }
+
+        return Positioned(
+          left: 0,
+          bottom: 0,
+          child: _VoiceQuickActionsCard(
+            channelId: activeVoiceConnection.channelId,
+            isSelfMuted: isSelfMuted,
+            isSelfDeafened: isSelfDeafened,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _VoiceQuickActionsCard extends StatelessWidget {
+  const _VoiceQuickActionsCard({
+    required this.channelId,
+    required this.isSelfMuted,
+    required this.isSelfDeafened,
+  });
+
+  final String channelId;
+  final bool isSelfMuted;
+  final bool isSelfDeafened;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 4,
+          vertical: 2,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            IconButton(
+              onPressed: () => context.read<VoiceSessionsBloc>().add(
+                    DisconnectVoiceSessionRequested(channelId: channelId),
+                  ),
+              tooltip: "Disconnect voice",
+              icon: const Icon(Icons.call_end),
+            ),
+            IconButton(
+              onPressed: () => context.read<VoiceSessionsBloc>().add(
+                    SetSelfMutedRequested(muted: !isSelfMuted),
+                  ),
+              tooltip: isSelfMuted ? "Unmute" : "Mute",
+              icon: Icon(isSelfMuted ? Icons.mic_off : Icons.mic),
+            ),
+            IconButton(
+              onPressed: () => context.read<VoiceSessionsBloc>().add(
+                    SetSelfDeafenedRequested(deafened: !isSelfDeafened),
+                  ),
+              tooltip: isSelfDeafened ? "Undeafen" : "Deafen",
+              icon: Icon(isSelfDeafened ? Icons.headset_off : Icons.headset),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
