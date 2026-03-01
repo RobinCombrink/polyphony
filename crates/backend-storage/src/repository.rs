@@ -53,6 +53,12 @@ pub trait ServerRepository: Send + Sync {
 #[async_trait]
 pub trait ChannelRepository: Send + Sync {
     async fn create_channel(&self, server_id: Uuid, name: String) -> Option<Channel>;
+    async fn update_channel_name(
+        &self,
+        channel_id: Uuid,
+        actor_user_id: Uuid,
+        name: String,
+    ) -> MutationResult;
     async fn delete_channel(&self, channel_id: Uuid, actor_user_id: Uuid) -> MutationResult;
     async fn list_channels_for_server(&self, server_id: Uuid) -> Option<Vec<Channel>>;
 }

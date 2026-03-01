@@ -133,6 +133,16 @@ impl ChannelRepository for InMemoryRepository {
         store.create_channel(server_id, name)
     }
 
+    async fn update_channel_name(
+        &self,
+        channel_id: Uuid,
+        actor_user_id: Uuid,
+        name: String,
+    ) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.update_channel_name(channel_id, actor_user_id, name)
+    }
+
     async fn delete_channel(&self, channel_id: Uuid, actor_user_id: Uuid) -> MutationResult {
         let mut store = self.store.write().await;
         store.delete_channel(channel_id, actor_user_id)

@@ -444,6 +444,48 @@ impl ChannelRepository for PostgresRepository {
         })
     }
 
+    async fn update_channel_name(
+        &self,
+        channel_id: Uuid,
+        actor_user_id: Uuid,
+        name: String,
+    ) -> MutationResult {
+        let owner_user_id = sqlx::query_scalar::<_, Uuid>(
+            "SELECT s.owner_user_id
+             FROM channels c
+             INNER JOIN servers s ON s.id = c.server_id
+             WHERE c.id = $1",
+        )
+        .bind(channel_id)
+        .fetch_optional(&self.pool)
+        .await;
+
+        let owner_user_id = match owner_user_id {
+            Ok(value) => value,
+            Err(_) => return MutationResult::NotFound,
+        };
+
+        let Some(owner_user_id) = owner_user_id else {
+            return MutationResult::NotFound;
+        };
+
+        if owner_user_id != actor_user_id {
+            return MutationResult::Forbidden;
+        }
+
+        let updated = sqlx::query("UPDATE channels SET name = $1 WHERE id = $2")
+            .bind(name)
+            .bind(channel_id)
+            .execute(&self.pool)
+            .await;
+
+        match updated {
+            Ok(result) if result.rows_affected() > 0 => MutationResult::Updated,
+            Ok(_) => MutationResult::NotFound,
+            Err(_) => MutationResult::NotFound,
+        }
+    }
+
     async fn delete_channel(&self, channel_id: Uuid, actor_user_id: Uuid) -> MutationResult {
         let owner_user_id = sqlx::query_scalar::<_, Uuid>(
             "SELECT s.owner_user_id

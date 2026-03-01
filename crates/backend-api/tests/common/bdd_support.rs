@@ -12,8 +12,7 @@ use backend_api::{
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
     storage::{
-        ChannelRepository, InMemoryRepository, MessageRepository,
-        ServerRepository, UserRepository,
+        ChannelRepository, InMemoryRepository, MessageRepository, ServerRepository, UserRepository,
         VoiceRepository,
     },
 };
@@ -107,6 +106,36 @@ pub(crate) async fn delete_channel(
     channel_id: &str,
 ) -> axum::response::Response {
     delete_channel_with_token(app, channel_id, "valid-token").await
+}
+
+pub(crate) async fn update_channel(
+    app: &axum::Router,
+    channel_id: &str,
+    channel_name: &str,
+) -> axum::response::Response {
+    update_channel_with_token(app, channel_id, channel_name, "valid-token").await
+}
+
+pub(crate) async fn update_channel_with_token(
+    app: &axum::Router,
+    channel_id: &str,
+    channel_name: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/channels/{channel_id}"))
+                .method("PATCH")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "name": channel_name }).to_string(),
+                ))
+                .expect("update channel request to be valid"),
+        )
+        .await
+        .expect("update channel response from app")
 }
 
 pub(crate) async fn delete_channel_with_token(

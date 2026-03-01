@@ -11,7 +11,9 @@ use uuid::Uuid;
 use crate::{
     ApiState,
     auth::AuthenticatedUser,
-    dto::{AddServerMemberRequest, CreateChannelRequest, CreateServerRequest},
+    dto::{
+        AddServerMemberRequest, CreateChannelRequest, CreateServerRequest, UpdateChannelRequest,
+    },
 };
 
 #[utoipa::path(
@@ -187,6 +189,39 @@ pub(crate) async fn create_channel(
     match created_channel {
         Some(channel) => (StatusCode::CREATED, Json(channel)).into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/channels/{channel_id}",
+    request_body = UpdateChannelRequest,
+    responses(
+        (status = 204, description = "Channel updated"),
+        (status = 403, description = "Only server owner can update channel"),
+        (status = 404, description = "Channel not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("channel_id" = Uuid, Path, description = "Channel id")),
+    tag = "backend-api"
+)]
+pub(crate) async fn update_channel(
+    State(state): State<ApiState>,
+    authenticated_user: AuthenticatedUser,
+    Path(channel_id): Path<Uuid>,
+    Json(request): Json<UpdateChannelRequest>,
+) -> impl IntoResponse {
+    let mutation_result = state
+        .channel_repository
+        .update_channel_name(channel_id, authenticated_user.user_id, request.name)
+        .await;
+
+    match mutation_result {
+        MutationResult::Updated => StatusCode::NO_CONTENT.into_response(),
+        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
+        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
+        MutationResult::Deleted => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 

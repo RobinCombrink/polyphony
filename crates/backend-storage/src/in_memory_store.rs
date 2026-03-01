@@ -165,6 +165,35 @@ impl InMemoryStore {
         Some(channel)
     }
 
+    pub(crate) fn update_channel_name(
+        &mut self,
+        channel_id: Uuid,
+        actor_user_id: Uuid,
+        name: String,
+    ) -> MutationResult {
+        let server_id = match self.channels.get(&channel_id) {
+            Some(existing_channel) => existing_channel.server_id,
+            None => return MutationResult::NotFound,
+        };
+
+        let server = match self.servers.get(&server_id) {
+            Some(existing_server) => existing_server,
+            None => return MutationResult::NotFound,
+        };
+
+        if server.owner_user_id != actor_user_id {
+            return MutationResult::Forbidden;
+        }
+
+        match self.channels.get_mut(&channel_id) {
+            Some(existing_channel) => {
+                existing_channel.name = name;
+                MutationResult::Updated
+            }
+            None => MutationResult::NotFound,
+        }
+    }
+
     pub(crate) fn delete_channel(
         &mut self,
         channel_id: Uuid,

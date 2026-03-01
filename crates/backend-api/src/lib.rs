@@ -25,7 +25,7 @@ use routes::{
     messages::{create_message, delete_message, list_messages, update_message},
     servers::{
         add_server_member, create_channel, create_server, delete_channel, delete_server,
-        list_channels, list_server_members, list_servers,
+        list_channels, list_server_members, list_servers, update_channel,
     },
     users::get_user_by_id,
     voice::{connect_voice_session, list_voice_sessions, update_self_mute_state},
@@ -112,7 +112,7 @@ pub fn build_app(state: ApiState) -> Router {
         )
         .route(
             "/api/v1/channels/{channel_id}",
-            axum::routing::delete(delete_channel),
+            patch(update_channel).delete(delete_channel),
         )
         .route(
             "/api/v1/channels/{channel_id}/messages/{message_id}",

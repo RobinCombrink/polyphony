@@ -7,8 +7,8 @@ use utoipa::{Modify, OpenApi};
 
 use crate::dto::{
     AddServerMemberRequest, CreateChannelRequest, CreateMessageRequest, CreateServerRequest,
-    HealthResponse, MeResponse, SetVoiceSessionMuteRequest, UpdateMeRequest, UpdateMessageRequest,
-    UserLookupResponse, VoiceConnectResponse,
+    HealthResponse, MeResponse, SetVoiceSessionMuteRequest, UpdateChannelRequest, UpdateMeRequest,
+    UpdateMessageRequest, UserLookupResponse, VoiceConnectResponse,
 };
 
 #[derive(OpenApi)]
@@ -24,6 +24,7 @@ use crate::dto::{
         crate::routes::servers::add_server_member,
         crate::routes::servers::delete_server,
         crate::routes::servers::create_channel,
+        crate::routes::servers::update_channel,
         crate::routes::servers::delete_channel,
         crate::routes::servers::list_channels,
         crate::routes::messages::create::create_message,
@@ -49,6 +50,7 @@ use crate::dto::{
         AddServerMemberRequest,
         CreateServerRequest,
         CreateChannelRequest,
+        UpdateChannelRequest,
         CreateMessageRequest,
         UpdateMessageRequest
     )),
