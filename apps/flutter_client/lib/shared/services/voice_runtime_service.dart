@@ -20,5 +20,7 @@ abstract interface class VoiceRuntimeService {
 
   Iterable<String> currentParticipantUserIds();
 
+  Stream<Set<String>> participantUserIds();
+
   Stream<Set<String>> speakingParticipantUserIds();
 }

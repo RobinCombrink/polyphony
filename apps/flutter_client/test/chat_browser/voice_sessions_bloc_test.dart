@@ -305,6 +305,61 @@ void main() {
   );
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "updates participant list from runtime participant stream",
+    build: () {
+      speakingRuntimeService = FakeVoiceRuntimeService(
+        initialParticipantUserIds: <String>{
+          fixture.connectedVoiceSession.participantUserId,
+        },
+      );
+
+      return VoiceSessionsBloc(
+        voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+        voiceRuntimeService: speakingRuntimeService,
+        profileRepo: FakeProfileRepository(
+          userId: fixture.ownerUserId,
+          displayNamesByUserId: const <String, String?>{
+            "auth0|u2": "Remote User",
+          },
+        ),
+      );
+    },
+    act: (bloc) async {
+      bloc
+        ..add(LoadVoiceSessionsRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ))
+        ..add(ConnectVoiceSessionRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ));
+
+      await Future<void>.delayed(Duration.zero);
+
+      speakingRuntimeService.emitParticipantUserIds(
+        <String>{
+          fixture.connectedVoiceSession.participantUserId,
+          "auth0|u2",
+        },
+      );
+
+      await Future<void>.delayed(Duration.zero);
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.participants.map((participant) => participant.userId),
+        "participant user ids",
+        containsAll(<String>[
+          fixture.connectedVoiceSession.participantUserId,
+          "auth0|u2",
+        ]),
+      ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "switching voice channels clears stale participants from previous channel",
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),

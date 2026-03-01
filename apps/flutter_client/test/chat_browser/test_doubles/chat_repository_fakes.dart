@@ -284,16 +284,19 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
     this.forceDisconnectError = false,
     this.forceSetSelfMutedError = false,
     this.forceSetSelfDeafenedError = false,
-    this.participantUserIds = const <String>{"auth0|u1"},
+    this.initialParticipantUserIds = const <String>{"auth0|u1"},
   });
 
   final bool forceConnectError;
   final bool forceDisconnectError;
   final bool forceSetSelfMutedError;
   final bool forceSetSelfDeafenedError;
-  final Set<String> participantUserIds;
+  final Set<String> initialParticipantUserIds;
+  final _participantUserIdsController = StreamController<Set<String>>.broadcast();
   final _speakingParticipantUserIdsController =
       StreamController<Set<String>>.broadcast();
+    late Set<String> _currentParticipantUserIds =
+      Set<String>.from(initialParticipantUserIds);
   var _isSelfMuted = false;
   var _isSelfDeafened = false;
 
@@ -360,7 +363,12 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
 
   @override
   Iterable<String> currentParticipantUserIds() {
-    return participantUserIds;
+    return _currentParticipantUserIds;
+  }
+
+  @override
+  Stream<Set<String>> participantUserIds() {
+    return _participantUserIdsController.stream;
   }
 
   @override
@@ -370,6 +378,11 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
 
   void emitSpeakingParticipantUserIds(Set<String> userIds) {
     _speakingParticipantUserIdsController.add(userIds);
+  }
+
+  void emitParticipantUserIds(Set<String> userIds) {
+    _currentParticipantUserIds = Set<String>.from(userIds);
+    _participantUserIdsController.add(userIds);
   }
 }
 

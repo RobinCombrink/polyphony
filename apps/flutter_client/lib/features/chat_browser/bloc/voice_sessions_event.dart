@@ -63,3 +63,11 @@ final class SpeakingParticipantUserIdsUpdated extends VoiceSessionsEvent {
 
   final Set<String> speakingParticipantUserIds;
 }
+
+final class ParticipantUserIdsUpdated extends VoiceSessionsEvent {
+  const ParticipantUserIdsUpdated({
+    required this.participantUserIds,
+  });
+
+  final Set<String> participantUserIds;
+}

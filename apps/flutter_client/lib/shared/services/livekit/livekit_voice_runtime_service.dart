@@ -7,6 +7,7 @@ import "package:polyphony_flutter_client/shared/services/voice_runtime_service.d
 class LivekitVoiceRuntimeService implements VoiceRuntimeService {
   Room? _room;
   EventsListener<RoomEvent>? _roomListener;
+  final _participantUserIdsController = StreamController<Set<String>>.broadcast();
   final _speakingParticipantUserIdsController =
       StreamController<Set<String>>.broadcast();
   var _isSelfMuted = false;
@@ -32,6 +33,9 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
       _isSelfMuted = false;
       _isSelfDeafened = false;
       _roomListener = room.createListener()
+        ..on<RoomEvent>((_) {
+          _emitParticipantUserIds(room);
+        })
         ..on<ActiveSpeakersChangedEvent>((event) {
           _emitSpeakingParticipantUserIds(event.speakers);
         })
@@ -42,6 +46,7 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
 
           unawaited(event.publication.unsubscribe());
         });
+      _emitParticipantUserIds(room);
       _emitSpeakingParticipantUserIds(room.activeSpeakers);
       _room = room;
       return const Ok<void>(null);
@@ -56,6 +61,7 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
       await _disconnectCurrentRoom();
       _isSelfMuted = false;
       _isSelfDeafened = false;
+      _participantUserIdsController.add(const <String>{});
       _speakingParticipantUserIdsController.add(const <String>{});
       return const Ok<void>(null);
     } on Exception catch (error) {
@@ -121,8 +127,17 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
       return const <String>[];
     }
 
-    final localIdentity = activeRoom.localParticipant?.identity;
-    final remoteIdentities = activeRoom.remoteParticipants.values
+    return _participantUserIdsFromRoom(activeRoom);
+  }
+
+  @override
+  Stream<Set<String>> participantUserIds() {
+    return _participantUserIdsController.stream;
+  }
+
+  Set<String> _participantUserIdsFromRoom(Room room) {
+    final localIdentity = room.localParticipant?.identity;
+    final remoteIdentities = room.remoteParticipants.values
         .map((participant) => participant.identity);
 
     return <String>{
@@ -179,5 +194,9 @@ class LivekitVoiceRuntimeService implements VoiceRuntimeService {
         .toSet();
 
     _speakingParticipantUserIdsController.add(speakingUserIds);
+  }
+
+  void _emitParticipantUserIds(Room room) {
+    _participantUserIdsController.add(_participantUserIdsFromRoom(room));
   }
 }

@@ -34,11 +34,21 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         ),
       );
     });
+
+    _participantUserIdsSubscription =
+        _voiceRuntimeService.participantUserIds().listen((participantUserIds) {
+      add(
+        ParticipantUserIdsUpdated(
+          participantUserIds: participantUserIds,
+        ),
+      );
+    });
   }
 
   final VoiceSessionRepo _voiceSessionRepo;
   final VoiceRuntimeService _voiceRuntimeService;
   final ProfileRepo _profileRepo;
+  StreamSubscription<Set<String>>? _participantUserIdsSubscription;
   StreamSubscription<Set<String>>? _speakingParticipantUserIdsSubscription;
   Set<String> _speakingParticipantUserIds = const <String>{};
 
@@ -65,6 +75,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         await _onSetSelfDeafenedRequested(event, emit);
       case SpeakingParticipantUserIdsUpdated():
         _onSpeakingParticipantUserIdsUpdated(event, emit);
+      case ParticipantUserIdsUpdated():
+        await _onParticipantUserIdsUpdated(event, emit);
     }
   }
 
@@ -695,8 +707,54 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     ));
   }
 
+  Future<void> _onParticipantUserIdsUpdated(
+    ParticipantUserIdsUpdated event,
+    Emitter<VoiceSessionsState> emit,
+  ) async {
+    final _ = event;
+
+    final loadedState = _loadedStateOrNull(state);
+    final activeConnection = loadedState?.activeConnection;
+
+    if (loadedState == null || activeConnection == null) {
+      return;
+    }
+
+    final participantsResult = await _loadParticipantsForChannel(
+      channelId: activeConnection.channelId,
+      loadedState: loadedState,
+      activeConnection: activeConnection,
+    );
+
+    if (participantsResult case Error<List<VoiceParticipant>>(:final error)) {
+      emit(VoiceSessionsExceptionState(error: error));
+      return;
+    }
+
+    final activeChannelParticipants =
+        (participantsResult as Ok<List<VoiceParticipant>>).value;
+    final participantsByChannelId = _participantsByChannelIdFromState(
+      loadedState,
+    )..[activeConnection.channelId] = activeChannelParticipants;
+
+    final selectedParticipants =
+        loadedState.selectedChannelId == activeConnection.channelId
+            ? activeChannelParticipants
+            : loadedState.participants;
+
+    emit(VoiceSessionsLoadedState(
+      activeConnection: activeConnection,
+      selectedChannelId: loadedState.selectedChannelId,
+      participants: selectedParticipants,
+      participantsByChannelId: participantsByChannelId,
+      isSelfMuted: _voiceRuntimeService.isSelfMuted(),
+      isSelfDeafened: loadedState.isSelfDeafened,
+    ));
+  }
+
   @override
   Future<void> close() async {
+    await _participantUserIdsSubscription?.cancel();
     await _speakingParticipantUserIdsSubscription?.cancel();
     return super.close();
   }
