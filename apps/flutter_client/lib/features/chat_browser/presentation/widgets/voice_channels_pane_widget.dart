@@ -26,7 +26,7 @@ class _VoiceChannelsPaneWidgetState extends State<VoiceChannelsPaneWidget> {
   List<Channel> _skeletonChannels() {
     return List<Channel>.generate(
       4,
-      (index) => Channel(
+      (index) => VoiceChannel(
         id: "voc-skeleton-$index",
         serverId: "srv-skeleton",
         name: "voice-${index + 1}",
@@ -72,7 +72,7 @@ class _VoiceChannelsPaneWidgetState extends State<VoiceChannelsPaneWidget> {
               return SomethingWentWrongWidget(message: errorMessage);
             }
 
-            final channels = loadedData?.channels ?? const <Channel>[];
+            final channels = loadedData?.voiceChannels ?? const <Channel>[];
             final visibleChannels =
                 isLoading && channels.isEmpty ? _skeletonChannels() : channels;
             final visibleChannelIds = visibleChannels

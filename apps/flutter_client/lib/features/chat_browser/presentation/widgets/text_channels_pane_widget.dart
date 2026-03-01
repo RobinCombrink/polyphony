@@ -7,6 +7,7 @@ import "package:polyphony_flutter_client/features/chat_browser/bloc/messages_blo
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/something_went_wrong_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/text_channels_section_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
 class TextChannelsPaneWidget extends StatelessWidget {
@@ -20,7 +21,7 @@ class TextChannelsPaneWidget extends StatelessWidget {
   List<Channel> _skeletonChannels() {
     return List<Channel>.generate(
       6,
-      (index) => Channel(
+      (index) => TextChannel(
         id: "txt-skeleton-$index",
         serverId: "srv-skeleton",
         name: "channel-${index + 1}",
@@ -110,7 +111,7 @@ class TextChannelsPaneWidget extends StatelessWidget {
             return SomethingWentWrongWidget(message: errorMessage);
           }
 
-          final channels = loadedData?.channels ?? const <Channel>[];
+          final channels = loadedData?.textChannels ?? const <Channel>[];
           final visibleChannels =
               isLoading && channels.isEmpty ? _skeletonChannels() : channels;
 
@@ -133,6 +134,7 @@ class TextChannelsPaneWidget extends StatelessWidget {
                     CreateChannelRequested(
                       serverId: loadedData?.serverId ?? "",
                       channelName: createController.text,
+                      channelType: ChannelType.text,
                     ),
                   ),
               onDeleteChannel: (channel) => unawaited(

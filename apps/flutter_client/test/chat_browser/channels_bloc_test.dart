@@ -1,6 +1,7 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
+import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 
 import "../entity_seeder.dart";
 import "test_doubles/chat_repository_fakes.dart";
@@ -21,6 +22,7 @@ void main() {
         ..add(const CreateChannelRequested(
           serverId: "",
           channelName: "channel",
+          channelType: ChannelType.text,
         ));
     },
     expect: () => <Matcher>[
@@ -46,11 +48,17 @@ void main() {
     ),
     expect: () => <Matcher>[
       isA<ChannelsLoadingState>(),
-      isA<ChannelsLoadedState>().having(
-        (state) => state.channels.length,
-        "channels length",
-        1,
-      ),
+      isA<ChannelsLoadedState>()
+          .having(
+            (state) => state.textChannels.length,
+            "text channels length",
+            1,
+          )
+          .having(
+            (state) => state.voiceChannels.length,
+            "voice channels length",
+            1,
+          ),
     ],
   );
 
@@ -93,7 +101,9 @@ void main() {
         ..add(LoadChannelsRequested(
           serverId: fixture.listedServer.id,
         ))
-        ..add(SelectVoiceChannelRequested(channelId: fixture.listedChannel.id));
+        ..add(SelectVoiceChannelRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ));
     },
     expect: () => <Matcher>[
       isA<ChannelsLoadingState>(),
@@ -102,7 +112,7 @@ void main() {
           .having(
             (state) => state.selectedVoiceChannelId,
             "selected voice channel",
-            fixture.listedChannel.id,
+            fixture.listedVoiceChannel.id,
           )
           .having(
             (state) => state.selectionMode,
@@ -141,7 +151,12 @@ void main() {
       isA<ChannelsLoadedState>(),
       isA<ChannelsLoadingState>(),
       isA<ChannelsLoadedState>()
-          .having((state) => state.channels, "channels", isEmpty)
+          .having((state) => state.textChannels, "text channels", isEmpty)
+          .having(
+            (state) => state.voiceChannels.length,
+            "voice channels length",
+            1,
+          )
           .having(
             (state) => state.selectedTextChannelId,
             "selected text channel",

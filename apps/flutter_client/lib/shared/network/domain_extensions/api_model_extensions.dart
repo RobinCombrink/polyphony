@@ -1,4 +1,5 @@
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 
 extension ApiServerToDomainExtension on ApiServer {
@@ -41,11 +42,18 @@ extension DomainServerMemberToApiExtension on ServerMember {
 
 extension ApiChannelToDomainExtension on ApiChannel {
   Channel toDomainModel() {
-    return Channel(
-      id: id,
-      serverId: serverId,
-      name: name,
-    );
+    return switch (channelType) {
+      ChannelType.voice => VoiceChannel(
+          id: id,
+          serverId: serverId,
+          name: name,
+        ),
+      ChannelType.text => TextChannel(
+          id: id,
+          serverId: serverId,
+          name: name,
+        ),
+    };
   }
 }
 
@@ -55,6 +63,7 @@ extension DomainChannelToApiExtension on Channel {
       id: id,
       serverId: serverId,
       name: name,
+      channelType: channelType,
     );
   }
 }

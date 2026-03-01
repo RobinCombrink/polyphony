@@ -1,10 +1,10 @@
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
-import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/channel_service.dart";
+import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 
 class RestChannelService implements ChannelService {
   const RestChannelService({

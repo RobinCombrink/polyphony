@@ -20,10 +20,12 @@ final class CreateChannelRequested extends ChannelsEvent {
   const CreateChannelRequested({
     required this.serverId,
     required this.channelName,
+    required this.channelType,
   });
 
   final String serverId;
   final String channelName;
+  final ChannelType channelType;
 }
 
 final class DeleteChannelRequested extends ChannelsEvent {

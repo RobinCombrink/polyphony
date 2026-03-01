@@ -25,14 +25,16 @@ final class ChannelsLoadingState extends ChannelsState {
 
 sealed class ChannelsLoadedDataState extends ChannelsState {
   const ChannelsLoadedDataState({
-    required this.channels,
+    required this.textChannels,
+    required this.voiceChannels,
     required this.serverId,
     required this.selectedTextChannelId,
     required this.selectedVoiceChannelId,
     required this.selectionMode,
   });
 
-  final List<Channel> channels;
+  final List<TextChannel> textChannels;
+  final List<VoiceChannel> voiceChannels;
   final String serverId;
   final String? selectedTextChannelId;
   final String? selectedVoiceChannelId;
@@ -41,7 +43,8 @@ sealed class ChannelsLoadedDataState extends ChannelsState {
 
 final class ChannelsLoadedState extends ChannelsLoadedDataState {
   const ChannelsLoadedState({
-    required super.channels,
+    required super.textChannels,
+    required super.voiceChannels,
     required super.serverId,
     required super.selectedTextChannelId,
     required super.selectedVoiceChannelId,
@@ -52,7 +55,8 @@ final class ChannelsLoadedState extends ChannelsLoadedDataState {
 final class ChannelsValidationFailedState extends ChannelsLoadedDataState {
   const ChannelsValidationFailedState({
     required this.issue,
-    required super.channels,
+    required super.textChannels,
+    required super.voiceChannels,
     required super.serverId,
     required super.selectedTextChannelId,
     required super.selectedVoiceChannelId,

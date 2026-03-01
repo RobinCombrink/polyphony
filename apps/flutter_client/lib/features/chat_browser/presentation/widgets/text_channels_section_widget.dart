@@ -2,6 +2,7 @@ import "dart:async";
 
 import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/channel_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/section_status.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
@@ -223,120 +224,37 @@ class _TextChannelsSectionWidgetState extends State<TextChannelsSectionWidget> {
                                   globalPosition: details.globalPosition,
                                 ),
                               ),
-                  child: ListTile(
-                    dense: true,
-                    selected: isSelected,
-                    leading: Icon(
-                      widget.interactionType == ChannelInteractionType.voice
-                          ? Icons.volume_up
-                          : Icons.tag,
-                      size: 18,
-                    ),
-                    title: Text(channel.name),
-                    subtitle: widget.interactionType ==
-                                ChannelInteractionType.voice &&
-                            voiceParticipants.isNotEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: voiceParticipants.map(
-                                (participant) {
-                                  final isSelfParticipant =
-                                      participant.userId ==
-                                          widget.selfParticipantUserId;
-                                  final showSelfDeafened = isSelfParticipant &&
-                                      widget.isSelfDeafened;
+                  onLongPress:
+                      widget.isLoading || widget.onDeleteChannel == null
+                          ? null
+                          : () {
+                              final renderBox =
+                                  context.findRenderObject() as RenderBox?;
+                              final globalPosition = renderBox == null
+                                  ? Offset.zero
+                                  : renderBox.localToGlobal(
+                                      renderBox.size.center(Offset.zero),
+                                    );
 
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 2),
-                                    child: Row(
-                                      children: <Widget>[
-                                        const Icon(
-                                          Icons.account_circle,
-                                          size: 14,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Expanded(
-                                          child: Text(
-                                            participant.displayName,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        if (participant.isMuted)
-                                          const Icon(
-                                            Icons.mic_off,
-                                            size: 14,
-                                          ),
-                                        if (showSelfDeafened)
-                                          const Padding(
-                                            padding: EdgeInsets.only(left: 4),
-                                            child: Icon(
-                                              Icons.headset_off,
-                                              size: 14,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ).toList(),
-                            ),
-                          )
-                        : null,
-                    trailing: isConnectedVoiceChannel || showParticipantCount
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              if (isConnectedVoiceChannel)
-                                const Icon(Icons.headset, size: 16),
-                              if (isConnectedVoiceChannel &&
-                                  showParticipantCount)
-                                const SizedBox(width: 4),
-                              if (showParticipantCount)
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    Icon(
-                                      widget.interactionType ==
-                                              ChannelInteractionType.voice
-                                          ? Icons.headset
-                                          : Icons.mic,
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(widget.voiceParticipantCount
-                                        .toString()),
-                                  ],
+                              unawaited(
+                                _showChannelContextMenu(
+                                  context: context,
+                                  channel: channel,
+                                  globalPosition: globalPosition,
                                 ),
-                            ],
-                          )
-                        : null,
+                              );
+                            },
+                  child: ChannelWidget.fromChannel(
+                    channel: channel,
+                    isSelected: isSelected,
+                    showParticipantCount: showParticipantCount,
+                    voiceParticipantCount: widget.voiceParticipantCount,
+                    isConnectedVoiceChannel: isConnectedVoiceChannel,
+                    voiceParticipants: voiceParticipants,
+                    selfParticipantUserId: widget.selfParticipantUserId,
+                    isSelfDeafened: widget.isSelfDeafened,
                     onTap:
                         widget.isLoading ? null : () => widget.onTap(channel),
-                    onLongPress:
-                        widget.isLoading || widget.onDeleteChannel == null
-                            ? null
-                            : () {
-                                final renderBox =
-                                    context.findRenderObject() as RenderBox?;
-                                final globalPosition = renderBox == null
-                                    ? Offset.zero
-                                    : renderBox.localToGlobal(
-                                        renderBox.size.center(Offset.zero),
-                                      );
-
-                                unawaited(
-                                  _showChannelContextMenu(
-                                    context: context,
-                                    channel: channel,
-                                    globalPosition: globalPosition,
-                                  ),
-                                );
-                              },
                   ),
                 );
               },

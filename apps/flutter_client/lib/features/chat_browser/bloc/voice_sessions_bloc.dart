@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
@@ -22,11 +24,23 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       _onVoiceSessionsEvent,
       transformer: sequential(),
     );
+
+    _speakingParticipantUserIdsSubscription = _voiceRuntimeService
+        .speakingParticipantUserIds()
+        .listen((speakingParticipantUserIds) {
+      add(
+        SpeakingParticipantUserIdsUpdated(
+          speakingParticipantUserIds: speakingParticipantUserIds,
+        ),
+      );
+    });
   }
 
   final VoiceSessionRepo _voiceSessionRepo;
   final VoiceRuntimeService _voiceRuntimeService;
   final ProfileRepo _profileRepo;
+  StreamSubscription<Set<String>>? _speakingParticipantUserIdsSubscription;
+  Set<String> _speakingParticipantUserIds = const <String>{};
 
   Future<void> _onVoiceSessionsEvent(
     VoiceSessionsEvent event,
@@ -35,6 +49,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     switch (event) {
       case ResetVoiceSessionsRequested():
         await _voiceRuntimeService.disconnect();
+        _speakingParticipantUserIds = const <String>{};
         emit(const VoiceSessionsInitialState());
       case LoadVoiceSessionsRequested():
         await _onLoadVoiceSessionsRequested(event, emit);
@@ -48,6 +63,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         await _onSetSelfMutedRequested(event, emit);
       case SetSelfDeafenedRequested():
         await _onSetSelfDeafenedRequested(event, emit);
+      case SpeakingParticipantUserIdsUpdated():
+        _onSpeakingParticipantUserIdsUpdated(event, emit);
     }
   }
 
@@ -665,6 +682,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                   ? "Member"
                   : resolvedDisplayName,
           isMuted: mutedByUserId[participantUserId] ?? false,
+          isSpeaking: _speakingParticipantUserIds.contains(participantUserId),
         ),
       );
     }
@@ -689,5 +707,66 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           participant.userId == activeConnection.participantUserId &&
           participant.isMuted,
     );
+  }
+
+  void _onSpeakingParticipantUserIdsUpdated(
+    SpeakingParticipantUserIdsUpdated event,
+    Emitter<VoiceSessionsState> emit,
+  ) {
+    _speakingParticipantUserIds = event.speakingParticipantUserIds;
+
+    final loadedState = _loadedStateOrNull(state);
+    if (loadedState == null) {
+      return;
+    }
+
+    final participantsByChannelId =
+        Map<String, List<VoiceParticipant>>.fromEntries(
+      loadedState.participantsByChannelId.entries.map(
+        (entry) => MapEntry(
+          entry.key,
+          entry.value
+              .map(
+                (participant) => VoiceParticipant(
+                  userId: participant.userId,
+                  displayName: participant.displayName,
+                  isMuted: participant.isMuted,
+                  isSpeaking:
+                      _speakingParticipantUserIds.contains(participant.userId),
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+
+    final selectedParticipants =
+        participantsByChannelId[loadedState.selectedChannelId] ??
+            loadedState.participants
+                .map(
+                  (participant) => VoiceParticipant(
+                    userId: participant.userId,
+                    displayName: participant.displayName,
+                    isMuted: participant.isMuted,
+                    isSpeaking: _speakingParticipantUserIds
+                        .contains(participant.userId),
+                  ),
+                )
+                .toList();
+
+    emit(VoiceSessionsLoadedState(
+      activeConnection: loadedState.activeConnection,
+      selectedChannelId: loadedState.selectedChannelId,
+      participants: selectedParticipants,
+      participantsByChannelId: participantsByChannelId,
+      isSelfMuted: loadedState.isSelfMuted,
+      isSelfDeafened: loadedState.isSelfDeafened,
+    ));
+  }
+
+  @override
+  Future<void> close() async {
+    await _speakingParticipantUserIdsSubscription?.cancel();
+    return super.close();
   }
 }

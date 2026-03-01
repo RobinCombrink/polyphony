@@ -1,3 +1,5 @@
+import "package:polyphony_flutter_client/shared/models/channel_type.dart";
+
 class Server {
   const Server(
       {required this.id, required this.name, required this.ownerUserId});
@@ -32,20 +34,62 @@ class ServerMember {
   }
 }
 
-class Channel {
-  const Channel({required this.id, required this.serverId, required this.name});
+sealed class Channel {
+  const Channel({
+    required this.id,
+    required this.serverId,
+    required this.name,
+  });
 
   final String id;
   final String serverId;
   final String name;
 
   factory Channel.fromJson(Map<String, dynamic> json) {
-    return Channel(
-      id: json["id"] as String,
-      serverId: json["server_id"] as String,
-      name: json["name"] as String,
-    );
+    final id = json["id"] as String;
+    final serverId = json["server_id"] as String;
+    final name = json["name"] as String;
+    final channelType =
+        ChannelType.fromApiValue(json["channel_type"] as String?);
+
+    return switch (channelType) {
+      ChannelType.voice => VoiceChannel(
+          id: id,
+          serverId: serverId,
+          name: name,
+        ),
+      ChannelType.text => TextChannel(
+          id: id,
+          serverId: serverId,
+          name: name,
+        ),
+    };
   }
+}
+
+extension ChannelTypeExtension on Channel {
+  ChannelType get channelType {
+    return switch (this) {
+      VoiceChannel() => ChannelType.voice,
+      TextChannel() => ChannelType.text,
+    };
+  }
+}
+
+final class TextChannel extends Channel {
+  const TextChannel({
+    required super.id,
+    required super.serverId,
+    required super.name,
+  });
+}
+
+final class VoiceChannel extends Channel {
+  const VoiceChannel({
+    required super.id,
+    required super.serverId,
+    required super.name,
+  });
 }
 
 class Message {
@@ -110,11 +154,13 @@ class VoiceParticipant {
     required this.userId,
     required this.displayName,
     required this.isMuted,
+    required this.isSpeaking,
   });
 
   final String userId;
   final String displayName;
   final bool isMuted;
+  final bool isSpeaking;
 }
 
 class UserProfile {

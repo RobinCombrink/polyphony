@@ -55,3 +55,11 @@ final class SetSelfDeafenedRequested extends VoiceSessionsEvent {
 
   final bool deafened;
 }
+
+final class SpeakingParticipantUserIdsUpdated extends VoiceSessionsEvent {
+  const SpeakingParticipantUserIdsUpdated({
+    required this.speakingParticipantUserIds,
+  });
+
+  final Set<String> speakingParticipantUserIds;
+}

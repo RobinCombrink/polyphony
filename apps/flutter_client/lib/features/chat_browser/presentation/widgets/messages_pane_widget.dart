@@ -86,9 +86,13 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
       builder: (context, channelsState) {
         final channelsData =
             channelsState is ChannelsLoadedDataState ? channelsState : null;
-        final selectedTextChannel = channelsData?.channels.firstWhere(
+        final selectedTextChannel = channelsData?.textChannels.firstWhere(
           (channel) => channel.id == channelsData.selectedTextChannelId,
-          orElse: () => const Channel(id: "", serverId: "", name: ""),
+          orElse: () => const TextChannel(
+            id: "",
+            serverId: "",
+            name: "",
+          ),
         );
 
         if (selectedTextChannel == null || selectedTextChannel.id.isEmpty) {

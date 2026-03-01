@@ -7,6 +7,7 @@ import "test_doubles/chat_repository_fakes.dart";
 
 void main() {
   final fixture = EntitySeeder().chatApiFixture();
+  late FakeVoiceRuntimeService speakingRuntimeService;
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "loads selected channel context",
@@ -22,7 +23,7 @@ void main() {
     ),
     act: (bloc) => bloc.add(
       LoadVoiceSessionsRequested(
-        channelId: fixture.listedChannel.id,
+        channelId: fixture.listedVoiceChannel.id,
       ),
     ),
     expect: () => <Matcher>[
@@ -30,7 +31,7 @@ void main() {
           .having(
             (state) => state.selectedChannelId,
             "channel id",
-            fixture.listedChannel.id,
+            fixture.listedVoiceChannel.id,
           )
           .having(
             (state) =>
@@ -50,7 +51,7 @@ void main() {
     ),
     act: (bloc) {
       bloc.add(LoadVoiceSessionsRequested(
-        channelId: fixture.listedChannel.id,
+        channelId: fixture.listedVoiceChannel.id,
       ));
       bloc.add(const ConnectVoiceSessionRequested(
         channelId: "",
@@ -75,13 +76,13 @@ void main() {
     ),
     act: (bloc) {
       bloc.add(LoadVoiceSessionsRequested(
-        channelId: fixture.listedChannel.id,
+        channelId: fixture.listedVoiceChannel.id,
       ));
       bloc.add(ConnectVoiceSessionRequested(
-        channelId: fixture.listedChannel.id,
+        channelId: fixture.listedVoiceChannel.id,
       ));
       bloc.add(DisconnectVoiceSessionRequested(
-        channelId: fixture.listedChannel.id,
+        channelId: fixture.listedVoiceChannel.id,
       ));
     },
     expect: () => <Matcher>[
@@ -110,10 +111,10 @@ void main() {
     ),
     act: (bloc) {
       bloc.add(LoadVoiceSessionsRequested(
-        channelId: fixture.listedChannel.id,
+        channelId: fixture.listedVoiceChannel.id,
       ));
       bloc.add(ConnectVoiceSessionRequested(
-        channelId: fixture.listedChannel.id,
+        channelId: fixture.listedVoiceChannel.id,
       ));
       bloc.add(const SetSelfMutedRequested(muted: true));
       bloc.add(const SetSelfMutedRequested(muted: false));
@@ -173,10 +174,10 @@ void main() {
     act: (bloc) {
       bloc
         ..add(LoadVoiceSessionsRequested(
-          channelId: fixture.listedChannel.id,
+          channelId: fixture.listedVoiceChannel.id,
         ))
         ..add(ConnectVoiceSessionRequested(
-          channelId: fixture.listedChannel.id,
+          channelId: fixture.listedVoiceChannel.id,
         ))
         ..add(const SetSelfDeafenedRequested(deafened: true))
         ..add(const SetSelfDeafenedRequested(deafened: false));
@@ -220,10 +221,10 @@ void main() {
     act: (bloc) {
       bloc
         ..add(LoadVoiceSessionsRequested(
-          channelId: fixture.listedChannel.id,
+          channelId: fixture.listedVoiceChannel.id,
         ))
         ..add(ConnectVoiceSessionRequested(
-          channelId: fixture.listedChannel.id,
+          channelId: fixture.listedVoiceChannel.id,
         ))
         ..add(const SetSelfDeafenedRequested(deafened: true))
         ..add(const SetSelfMutedRequested(muted: false));
@@ -258,6 +259,52 @@ void main() {
   );
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "updates participant speaking state from runtime events",
+    build: () {
+      speakingRuntimeService = FakeVoiceRuntimeService();
+
+      return VoiceSessionsBloc(
+        voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+        voiceRuntimeService: speakingRuntimeService,
+        profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+      );
+    },
+    act: (bloc) async {
+      bloc
+        ..add(LoadVoiceSessionsRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ))
+        ..add(ConnectVoiceSessionRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ));
+
+      await Future<void>.delayed(Duration.zero);
+
+      speakingRuntimeService.emitSpeakingParticipantUserIds(
+        <String>{fixture.connectedVoiceSession.participantUserId},
+      );
+
+      await Future<void>.delayed(Duration.zero);
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.participants
+            .firstWhere(
+              (participant) =>
+                  participant.userId ==
+                  fixture.connectedVoiceSession.participantUserId,
+            )
+            .isSpeaking,
+        "self participant speaking",
+        true,
+      ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "switching voice channels clears stale participants from previous channel",
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
@@ -270,13 +317,14 @@ void main() {
       ),
     ),
     act: (bloc) {
-      bloc.add(LoadVoiceSessionsRequested(channelId: fixture.listedChannel.id));
       bloc.add(
-          ConnectVoiceSessionRequested(channelId: fixture.listedChannel.id));
-      bloc.add(
-          LoadVoiceSessionsRequested(channelId: fixture.createdChannel.id));
-      bloc.add(
-          ConnectVoiceSessionRequested(channelId: fixture.createdChannel.id));
+          LoadVoiceSessionsRequested(channelId: fixture.listedVoiceChannel.id));
+      bloc.add(ConnectVoiceSessionRequested(
+          channelId: fixture.listedVoiceChannel.id));
+      bloc.add(LoadVoiceSessionsRequested(
+          channelId: fixture.createdVoiceChannel.id));
+      bloc.add(ConnectVoiceSessionRequested(
+          channelId: fixture.createdVoiceChannel.id));
     },
     expect: () => <Matcher>[
       isA<VoiceSessionsLoadedState>(),
@@ -288,15 +336,17 @@ void main() {
           .having(
             (state) => state.connectedChannelId,
             "connected channel id",
-            fixture.createdChannel.id,
+            fixture.createdVoiceChannel.id,
           )
           .having(
-            (state) => state.participantsByChannelId[fixture.listedChannel.id],
+            (state) =>
+                state.participantsByChannelId[fixture.listedVoiceChannel.id],
             "previous channel participants",
             isEmpty,
           )
           .having(
-            (state) => state.participantsByChannelId[fixture.createdChannel.id]
+            (state) => state
+                .participantsByChannelId[fixture.createdVoiceChannel.id]
                 ?.map((participant) => participant.userId)
                 .toList(),
             "new channel participants",

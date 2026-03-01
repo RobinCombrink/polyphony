@@ -101,13 +101,16 @@ class FakeChannelRepository implements ChannelRepo {
     required ChatApiFixture fixture,
     this.forceDeleteError = false,
   })  : _channelsByServer = <String, List<Channel>>{
-          fixture.listedServer.id: <Channel>[fixture.listedChannel],
+          fixture.listedServer.id: <Channel>[
+            fixture.listedChannel,
+            fixture.listedVoiceChannel,
+          ],
         },
-        _createdChannel = fixture.createdChannel;
+        _createdTextChannel = fixture.createdChannel;
 
   final bool forceDeleteError;
   final Map<String, List<Channel>> _channelsByServer;
-  final Channel _createdChannel;
+  final Channel _createdTextChannel;
 
   @override
   Future<Result<Channel>> createOne({
@@ -117,8 +120,11 @@ class FakeChannelRepository implements ChannelRepo {
       command.serverId,
       () => <Channel>[],
     );
-    channels.add(_createdChannel);
-    return Ok<Channel>(_createdChannel);
+
+    final createdChannel = _createdTextChannel;
+
+    channels.add(createdChannel);
+    return Ok<Channel>(createdChannel);
   }
 
   @override
@@ -320,6 +326,8 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
   final bool forceDisconnectError;
   final bool forceSetSelfMutedError;
   final bool forceSetSelfDeafenedError;
+  final _speakingParticipantUserIdsController =
+      StreamController<Set<String>>.broadcast();
   var _isSelfMuted = false;
   var _isSelfDeafened = false;
 
@@ -387,6 +395,15 @@ class FakeVoiceRuntimeService implements VoiceRuntimeService {
   @override
   Iterable<String> currentParticipantUserIds() {
     return const <String>["auth0|local_user"];
+  }
+
+  @override
+  Stream<Set<String>> speakingParticipantUserIds() {
+    return _speakingParticipantUserIdsController.stream;
+  }
+
+  void emitSpeakingParticipantUserIds(Set<String> userIds) {
+    _speakingParticipantUserIdsController.add(userIds);
   }
 }
 

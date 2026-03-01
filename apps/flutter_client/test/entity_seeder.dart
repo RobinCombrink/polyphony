@@ -9,6 +9,8 @@ class ChatApiFixture {
     required this.createdServer,
     required this.listedChannel,
     required this.createdChannel,
+    required this.listedVoiceChannel,
+    required this.createdVoiceChannel,
     required this.listedMessage,
     required this.createdMessage,
     required this.connectedVoiceSession,
@@ -19,6 +21,8 @@ class ChatApiFixture {
   final Server createdServer;
   final Channel listedChannel;
   final Channel createdChannel;
+  final Channel listedVoiceChannel;
+  final Channel createdVoiceChannel;
   final Message listedMessage;
   final Message createdMessage;
   final VoiceConnectSession connectedVoiceSession;
@@ -40,8 +44,22 @@ class EntitySeeder {
 
     final listedServer = server(id: "srv-1", ownerUserId: ownerUserId);
     final createdServer = server(id: "srv-2", ownerUserId: ownerUserId);
-    final listedChannel = channel(id: "chn-1", serverId: listedServer.id);
-    final createdChannel = channel(id: "chn-2", serverId: listedServer.id);
+    final listedChannel = textChannel(
+      id: "chn-1",
+      serverId: listedServer.id,
+    );
+    final createdChannel = textChannel(
+      id: "chn-2",
+      serverId: listedServer.id,
+    );
+    final listedVoiceChannel = voiceChannel(
+      id: "vch-1",
+      serverId: listedServer.id,
+    );
+    final createdVoiceChannel = voiceChannel(
+      id: "vch-2",
+      serverId: listedServer.id,
+    );
     final listedMessage = message(
       id: "msg-1",
       channelId: listedChannel.id,
@@ -57,7 +75,7 @@ class EntitySeeder {
     final connectedVoiceSession = voiceConnectSession(
       livekitUrl: "ws://127.0.0.1:7880",
       accessToken: "test-access-token",
-      channelId: listedChannel.id,
+      channelId: listedVoiceChannel.id,
       participantUserId: ownerUserId,
     );
 
@@ -67,6 +85,8 @@ class EntitySeeder {
       createdServer: createdServer,
       listedChannel: listedChannel,
       createdChannel: createdChannel,
+      listedVoiceChannel: listedVoiceChannel,
+      createdVoiceChannel: createdVoiceChannel,
       listedMessage: listedMessage,
       createdMessage: createdMessage,
       connectedVoiceSession: connectedVoiceSession,
@@ -83,13 +103,37 @@ class EntitySeeder {
     );
   }
 
-  Channel channel({required String serverId, String? id, String? name}) {
+  TextChannel textChannel({
+    required String serverId,
+    String? id,
+    String? name,
+  }) {
     final randomSegment = _randomSegment();
 
-    return Channel(
-      id: id ?? "chn-seeded-$randomSegment",
+    final resolvedId = id ?? "chn-seeded-$randomSegment";
+    final resolvedName = name ?? "Channel-$randomSegment";
+
+    return TextChannel(
+      id: resolvedId,
       serverId: serverId,
-      name: name ?? "Channel-$randomSegment",
+      name: resolvedName,
+    );
+  }
+
+  VoiceChannel voiceChannel({
+    required String serverId,
+    String? id,
+    String? name,
+  }) {
+    final randomSegment = _randomSegment();
+
+    final resolvedId = id ?? "chn-seeded-$randomSegment";
+    final resolvedName = name ?? "Channel-$randomSegment";
+
+    return VoiceChannel(
+      id: resolvedId,
+      serverId: serverId,
+      name: resolvedName,
     );
   }
 
@@ -136,6 +180,7 @@ class EntitySeeder {
       "id": channel.id,
       "server_id": channel.serverId,
       "name": channel.name,
+      "channel_type": channel.channelType.apiValue,
     };
   }
 

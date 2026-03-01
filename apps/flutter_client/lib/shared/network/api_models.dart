@@ -1,3 +1,5 @@
+import "package:polyphony_flutter_client/shared/models/channel_type.dart";
+
 class ApiServer {
   const ApiServer({
     required this.id,
@@ -40,20 +42,20 @@ class ApiChannel {
     required this.id,
     required this.serverId,
     required this.name,
-    this.channelType = "text",
+    this.channelType = ChannelType.text,
   });
 
   final String id;
   final String serverId;
   final String name;
-  final String channelType;
+  final ChannelType channelType;
 
   factory ApiChannel.fromJson(Map<String, dynamic> json) {
     return ApiChannel(
       id: json["id"] as String,
       serverId: json["server_id"] as String,
       name: json["name"] as String,
-      channelType: (json["channel_type"] as String?) ?? "text",
+      channelType: ChannelType.fromApiValue(json["channel_type"] as String?),
     );
   }
 }
