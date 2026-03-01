@@ -167,7 +167,7 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 88,
+          height: 96,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: streamItems.length,
@@ -178,32 +178,15 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
                   item.participantUserId == focusedStream.participantUserId;
 
               return SizedBox(
-                width: 220,
-                child: OutlinedButton.icon(
-                  onPressed: () {
+                width: 240,
+                child: _VoiceStreamPreviewSelectorItem(
+                  streamItem: item,
+                  isFocused: isFocused,
+                  onTap: () {
                     setState(() {
                       _focusedParticipantUserId = item.participantUserId;
                     });
                   },
-                  icon: Icon(
-                    isFocused ? Icons.fullscreen_exit : Icons.fullscreen,
-                  ),
-                  label: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        item.displayName,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.statusText,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    ],
-                  ),
                 ),
               );
             },
@@ -337,6 +320,71 @@ class _VoiceVideoTileWidget extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VoiceStreamPreviewSelectorItem extends StatelessWidget {
+  const _VoiceStreamPreviewSelectorItem({
+    required this.streamItem,
+    required this.isFocused,
+    required this.onTap,
+  });
+
+  final _VoiceStreamItemData streamItem;
+  final bool isFocused;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.all(6),
+        side: BorderSide(
+          color: isFocused
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.outline,
+          width: isFocused ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          SizedBox(
+            width: 92,
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: _VoiceVideoTileWidget(
+                displayName: streamItem.displayName,
+                videoTrack: streamItem.videoTrack,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  streamItem.displayName,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  streamItem.statusText,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            isFocused ? Icons.fullscreen_exit : Icons.fullscreen,
+            size: 18,
           ),
         ],
       ),
