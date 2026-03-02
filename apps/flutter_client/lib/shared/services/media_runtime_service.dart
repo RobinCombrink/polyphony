@@ -48,11 +48,15 @@ abstract interface class MediaRuntimeService {
 
   Set<String> currentMutedParticipantUserIds();
 
+  Set<String> currentDeafenedParticipantUserIds();
+
   Stream<Set<String>> participantUserIds();
 
   Stream<Set<String>> speakingParticipantUserIds();
 
   Stream<Set<String>> mutedParticipantUserIds();
+
+  Stream<Set<String>> deafenedParticipantUserIds();
 
   Map<String, Object> currentParticipantVideoTracks();
 

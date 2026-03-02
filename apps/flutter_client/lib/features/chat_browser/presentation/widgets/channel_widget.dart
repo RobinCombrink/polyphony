@@ -129,7 +129,9 @@ final class VoiceChannelWidget extends ChannelWidget {
                 children: voiceParticipants.map((participant) {
                   final isSelfParticipant =
                       participant.userId == selfParticipantUserId;
-                  final showSelfDeafened = isSelfParticipant && isSelfDeafened;
+                  final showDeafened = isSelfParticipant
+                      ? isSelfDeafened
+                      : participant.isDeafened;
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 2),
@@ -149,7 +151,7 @@ final class VoiceChannelWidget extends ChannelWidget {
                             Icons.mic_off,
                             size: 14,
                           ),
-                        if (showSelfDeafened)
+                        if (showDeafened)
                           const Padding(
                             padding: EdgeInsets.only(left: 4),
                             child: Icon(

@@ -90,6 +90,14 @@ final class MutedParticipantUserIdsUpdated extends VoiceSessionsEvent {
   final Set<String> mutedParticipantUserIds;
 }
 
+final class DeafenedParticipantUserIdsUpdated extends VoiceSessionsEvent {
+  const DeafenedParticipantUserIdsUpdated({
+    required this.deafenedParticipantUserIds,
+  });
+
+  final Set<String> deafenedParticipantUserIds;
+}
+
 final class ParticipantVideoTracksUpdated extends VoiceSessionsEvent {
   const ParticipantVideoTracksUpdated({
     required this.participantVideoTracks,

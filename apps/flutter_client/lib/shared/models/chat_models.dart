@@ -148,12 +148,14 @@ class VoiceParticipant {
     required this.userId,
     required this.displayName,
     required this.isMuted,
+    required this.isDeafened,
     required this.isSpeaking,
   });
 
   final String userId;
   final String displayName;
   final bool isMuted;
+  final bool isDeafened;
   final bool isSpeaking;
 }
 

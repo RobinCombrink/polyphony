@@ -54,6 +54,16 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       );
     });
 
+    _deafenedParticipantUserIdsSubscription = _voiceRuntimeService
+        .deafenedParticipantUserIds()
+        .listen((deafenedParticipantUserIds) {
+      add(
+        DeafenedParticipantUserIdsUpdated(
+          deafenedParticipantUserIds: deafenedParticipantUserIds,
+        ),
+      );
+    });
+
     _participantVideoTracksSubscription = _voiceRuntimeService
         .participantVideoTracks()
         .listen((participantVideoTracks) {
@@ -71,6 +81,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
   StreamSubscription<Set<String>>? _participantUserIdsSubscription;
   StreamSubscription<Set<String>>? _speakingParticipantUserIdsSubscription;
   StreamSubscription<Set<String>>? _mutedParticipantUserIdsSubscription;
+  StreamSubscription<Set<String>>? _deafenedParticipantUserIdsSubscription;
   StreamSubscription<Map<String, Object>>? _participantVideoTracksSubscription;
   var _speakingParticipantUserIds = const <String>{};
 
@@ -103,6 +114,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         await _onParticipantUserIdsUpdated(event, emit);
       case MutedParticipantUserIdsUpdated():
         _onMutedParticipantUserIdsUpdated(event, emit);
+      case DeafenedParticipantUserIdsUpdated():
+        _onDeafenedParticipantUserIdsUpdated(event, emit);
       case ParticipantVideoTracksUpdated():
         _onParticipantVideoTracksUpdated(event, emit);
     }
@@ -699,15 +712,25 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       ..add(resolvedActiveConnection.participantUserId);
     final mutedParticipantUserIds =
         _voiceRuntimeService.currentMutedParticipantUserIds();
+    final deafenedParticipantUserIds =
+        _voiceRuntimeService.currentDeafenedParticipantUserIds();
     final mutedByUserId = <String, bool>{
       for (final participantUserId in runtimeParticipantUserIds)
         participantUserId: mutedParticipantUserIds.contains(participantUserId),
       resolvedActiveConnection.participantUserId:
           _voiceRuntimeService.isSelfMuted(),
     };
+    final deafenedByUserId = <String, bool>{
+      for (final participantUserId in runtimeParticipantUserIds)
+        participantUserId:
+            deafenedParticipantUserIds.contains(participantUserId),
+      resolvedActiveConnection.participantUserId:
+          _voiceRuntimeService.isSelfDeafened(),
+    };
     final participants = await _resolveParticipants(
       participantUserIds: runtimeParticipantUserIds.toList(),
       mutedByUserId: mutedByUserId,
+      deafenedByUserId: deafenedByUserId,
     );
 
     return Ok<List<VoiceParticipant>>(participants);
@@ -726,6 +749,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
   Future<List<VoiceParticipant>> _resolveParticipants({
     required List<String> participantUserIds,
     required Map<String, bool> mutedByUserId,
+    required Map<String, bool> deafenedByUserId,
   }) async {
     final resolvedParticipantUserIds = _participantUserIdsOrFallback(
       participantUserIds: participantUserIds,
@@ -754,6 +778,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                   ? "Member"
                   : resolvedDisplayName,
           isMuted: mutedByUserId[participantUserId] ?? false,
+          isDeafened: deafenedByUserId[participantUserId] ?? false,
           isSpeaking: _speakingParticipantUserIds.contains(participantUserId),
         ),
       );
@@ -797,6 +822,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                   userId: participant.userId,
                   displayName: participant.displayName,
                   isMuted: participant.isMuted,
+                  isDeafened: participant.isDeafened,
                   isSpeaking:
                       _speakingParticipantUserIds.contains(participant.userId),
                 ),
@@ -814,6 +840,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                     userId: participant.userId,
                     displayName: participant.displayName,
                     isMuted: participant.isMuted,
+                    isDeafened: participant.isDeafened,
                     isSpeaking: _speakingParticipantUserIds
                         .contains(participant.userId),
                   ),
@@ -900,6 +927,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                   displayName: participant.displayName,
                   isMuted: event.mutedParticipantUserIds
                       .contains(participant.userId),
+                  isDeafened: participant.isDeafened,
                   isSpeaking: participant.isSpeaking,
                 ),
               )
@@ -917,6 +945,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                     displayName: participant.displayName,
                     isMuted: event.mutedParticipantUserIds
                         .contains(participant.userId),
+                    isDeafened: participant.isDeafened,
                     isSpeaking: participant.isSpeaking,
                   ),
                 )
@@ -930,6 +959,63 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       participantVideoTracks: loadedState.participantVideoTracks,
       isSelfMuted: _voiceRuntimeService.isSelfMuted(),
       isSelfDeafened: loadedState.isSelfDeafened,
+      isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+    ));
+  }
+
+  void _onDeafenedParticipantUserIdsUpdated(
+    DeafenedParticipantUserIdsUpdated event,
+    Emitter<VoiceSessionsState> emit,
+  ) {
+    final loadedState = _loadedStateOrNull(state);
+    if (loadedState == null) {
+      return;
+    }
+
+    final participantsByChannelId =
+        Map<String, List<VoiceParticipant>>.fromEntries(
+      loadedState.participantsByChannelId.entries.map(
+        (entry) => MapEntry(
+          entry.key,
+          entry.value
+              .map(
+                (participant) => VoiceParticipant(
+                  userId: participant.userId,
+                  displayName: participant.displayName,
+                  isMuted: participant.isMuted,
+                  isDeafened: event.deafenedParticipantUserIds
+                      .contains(participant.userId),
+                  isSpeaking: participant.isSpeaking,
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+
+    final selectedParticipants =
+        participantsByChannelId[loadedState.selectedChannelId] ??
+            loadedState.participants
+                .map(
+                  (participant) => VoiceParticipant(
+                    userId: participant.userId,
+                    displayName: participant.displayName,
+                    isMuted: participant.isMuted,
+                    isDeafened: event.deafenedParticipantUserIds
+                        .contains(participant.userId),
+                    isSpeaking: participant.isSpeaking,
+                  ),
+                )
+                .toList();
+
+    emit(VoiceSessionsLoadedState(
+      activeConnection: loadedState.activeConnection,
+      selectedChannelId: loadedState.selectedChannelId,
+      participants: selectedParticipants,
+      participantsByChannelId: participantsByChannelId,
+      participantVideoTracks: loadedState.participantVideoTracks,
+      isSelfMuted: loadedState.isSelfMuted,
+      isSelfDeafened: _voiceRuntimeService.isSelfDeafened(),
       isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
     ));
   }
@@ -962,6 +1048,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     await _participantUserIdsSubscription?.cancel();
     await _speakingParticipantUserIdsSubscription?.cancel();
     await _mutedParticipantUserIdsSubscription?.cancel();
+    await _deafenedParticipantUserIdsSubscription?.cancel();
     await _participantVideoTracksSubscription?.cancel();
     return super.close();
   }

@@ -5,6 +5,8 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 
 class LivekitMediaRuntimeService implements MediaRuntimeService {
+  static const _deafenedAttributeKey = "polyphony_deafened";
+
   Room? _room;
   EventsListener<RoomEvent>? _roomListener;
   final _participantUserIdsController =
@@ -12,6 +14,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   final _speakingParticipantUserIdsController =
       StreamController<Set<String>>.broadcast();
   final _mutedParticipantUserIdsController =
+      StreamController<Set<String>>.broadcast();
+  final _deafenedParticipantUserIdsController =
       StreamController<Set<String>>.broadcast();
   final _participantVideoTracksController =
       StreamController<Map<String, Object>>.broadcast();
@@ -42,6 +46,10 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       await room.connect(livekitUrl, accessToken);
       await room.localParticipant?.setMicrophoneEnabled(true);
       await room.localParticipant?.setScreenShareEnabled(false);
+      _setLocalParticipantDeafenedAttribute(
+        localParticipant: room.localParticipant,
+        deafened: false,
+      );
       _isSelfMuted = false;
       _isSelfDeafened = false;
       _isSelfScreenShareEnabled = false;
@@ -56,6 +64,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         ..on<RoomEvent>((_) {
           _emitParticipantUserIds(room);
           _emitMutedParticipantUserIds(room);
+          _emitDeafenedParticipantUserIds(room);
           _emitParticipantVideoTracks(room);
         })
         ..on<ActiveSpeakersChangedEvent>((event) {
@@ -71,6 +80,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       _emitParticipantUserIds(room);
       _emitSpeakingParticipantUserIds(room.activeSpeakers);
       _emitMutedParticipantUserIds(room);
+      _emitDeafenedParticipantUserIds(room);
       _emitParticipantVideoTracks(room);
       _room = room;
       return const Ok<void>(null);
@@ -96,6 +106,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       _participantUserIdsController.add(const <String>{});
       _speakingParticipantUserIdsController.add(const <String>{});
       _mutedParticipantUserIdsController.add(const <String>{});
+      _deafenedParticipantUserIdsController.add(const <String>{});
       _participantVideoTracksController.add(const <String, Object>{});
       return const Ok<void>(null);
     } on Exception catch (error) {
@@ -144,7 +155,12 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       }
 
       _isSelfDeafened = deafened;
+      _setLocalParticipantDeafenedAttribute(
+        localParticipant: activeRoom.localParticipant,
+        deafened: deafened,
+      );
       _emitMutedParticipantUserIds(activeRoom);
+      _emitDeafenedParticipantUserIds(activeRoom);
       return const Ok<void>(null);
     } on Exception catch (error) {
       return Error<void>(error);
@@ -299,6 +315,16 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   }
 
   @override
+  Set<String> currentDeafenedParticipantUserIds() {
+    final activeRoom = _room;
+    if (activeRoom == null) {
+      return const <String>{};
+    }
+
+    return _deafenedParticipantUserIdsFromRoom(activeRoom);
+  }
+
+  @override
   Stream<Set<String>> participantUserIds() {
     return _participantUserIdsController.stream;
   }
@@ -324,6 +350,11 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   @override
   Stream<Set<String>> mutedParticipantUserIds() {
     return _mutedParticipantUserIdsController.stream;
+  }
+
+  @override
+  Stream<Set<String>> deafenedParticipantUserIds() {
+    return _deafenedParticipantUserIdsController.stream;
   }
 
   @override
@@ -425,6 +456,11 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         .add(_mutedParticipantUserIdsFromRoom(room));
   }
 
+  void _emitDeafenedParticipantUserIds(Room room) {
+    _deafenedParticipantUserIdsController
+        .add(_deafenedParticipantUserIdsFromRoom(room));
+  }
+
   Future<void> _applyRemoteAudioSubscriptions() async {
     await _setRemoteAudioSubscriptionsEnabled(enabled: !_isSelfDeafened);
   }
@@ -498,6 +534,57 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     }
 
     return mutedParticipantUserIds;
+  }
+
+  Set<String> _deafenedParticipantUserIdsFromRoom(Room room) {
+    final deafenedParticipantUserIds = <String>{};
+
+    final localIdentity = _normalizedParticipantUserId(
+      room.localParticipant?.identity,
+    );
+    final localDeafenedFromAttributes =
+        _isParticipantMarkedAsDeafened(room.localParticipant);
+    if (localIdentity.isNotEmpty &&
+        (_isSelfDeafened || localDeafenedFromAttributes)) {
+      deafenedParticipantUserIds.add(localIdentity);
+    }
+
+    for (final remoteParticipant in room.remoteParticipants.values) {
+      final remoteIdentity = _normalizedParticipantUserId(
+        remoteParticipant.identity,
+      );
+      if (remoteIdentity.isEmpty) {
+        continue;
+      }
+
+      if (_isParticipantMarkedAsDeafened(remoteParticipant)) {
+        deafenedParticipantUserIds.add(remoteIdentity);
+      }
+    }
+
+    return deafenedParticipantUserIds;
+  }
+
+  bool _isParticipantMarkedAsDeafened(Participant? participant) {
+    if (participant == null) {
+      return false;
+    }
+
+    final deafenedAttribute = participant.attributes[_deafenedAttributeKey];
+    return deafenedAttribute?.toLowerCase() == "true";
+  }
+
+  void _setLocalParticipantDeafenedAttribute({
+    required LocalParticipant? localParticipant,
+    required bool deafened,
+  }) {
+    if (localParticipant == null) {
+      return;
+    }
+
+    final attributes = Map<String, String>.from(localParticipant.attributes)
+      ..[_deafenedAttributeKey] = deafened ? "true" : "false";
+    localParticipant.setAttributes(attributes);
   }
 
   String _normalizedParticipantUserId(String? identity) {

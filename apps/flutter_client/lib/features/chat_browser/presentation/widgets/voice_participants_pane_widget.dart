@@ -26,6 +26,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
         userId: "participant-skeleton-$index",
         displayName: "Participant ${index + 1}",
         isMuted: false,
+        isDeafened: false,
         isSpeaking: false,
       ),
     );
@@ -447,12 +448,13 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
           final displayName = participant?.displayName ??
               (isSelfParticipant ? "You" : "Member");
           final isMuted = participant?.isMuted ?? false;
+          final isDeafened = participant?.isDeafened ?? false;
           final isSpeaking = participant?.isSpeaking ?? false;
           final statusText = _statusText(
             isMuted: isMuted,
+            isDeafened: isDeafened,
             isSpeaking: isSpeaking,
             isSelfParticipant: isSelfParticipant,
-            isSelfDeafened: widget.isSelfDeafened,
           );
           final rawVideoTrack =
               widget.participantVideoTracks[participantUserId];
@@ -480,11 +482,13 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
 
   String _statusText({
     required bool isMuted,
+    required bool isDeafened,
     required bool isSpeaking,
     required bool isSelfParticipant,
-    required bool isSelfDeafened,
   }) {
-    if (isSelfParticipant && isSelfDeafened) {
+    final showDeafened = isSelfParticipant ? widget.isSelfDeafened : isDeafened;
+
+    if (showDeafened) {
       return "Deafened";
     }
 

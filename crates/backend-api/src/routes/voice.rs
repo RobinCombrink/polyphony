@@ -67,6 +67,7 @@ pub(crate) async fn create_session(
         room: channel_id.to_string(),
         can_publish,
         can_subscribe: true,
+        can_update_own_metadata: true,
         ..Default::default()
     };
 

@@ -412,6 +412,58 @@ void main() {
   );
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "updates participant deafened state from runtime deafen stream",
+    build: () {
+      speakingRuntimeService = FakeVoiceRuntimeService(
+        initialParticipantUserIds: <String>{
+          fixture.connectedVoiceSession.participantUserId,
+          "auth0|u2",
+        },
+      );
+
+      return VoiceSessionsBloc(
+        voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+        voiceRuntimeService: speakingRuntimeService,
+        profileRepo: FakeProfileRepository(
+          userId: fixture.ownerUserId,
+          displayNamesByUserId: const <String, String?>{
+            "auth0|u2": "Remote User",
+          },
+        ),
+      );
+    },
+    act: (bloc) async {
+      bloc
+        ..add(LoadVoiceSessionsRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ))
+        ..add(ConnectVoiceSessionRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ));
+
+      await Future<void>.delayed(Duration.zero);
+
+      speakingRuntimeService.emitDeafenedParticipantUserIds(
+        <String>{"auth0|u2"},
+      );
+
+      await Future<void>.delayed(Duration.zero);
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.participants
+            .firstWhere((participant) => participant.userId == "auth0|u2")
+            .isDeafened,
+        "remote participant deafened",
+        true,
+      ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "set self screen share enabled updates screen share state",
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
