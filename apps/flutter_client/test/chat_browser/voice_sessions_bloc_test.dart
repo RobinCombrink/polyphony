@@ -1,6 +1,8 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 
 import "../entity_seeder.dart";
 import "test_doubles/chat_repository_fakes.dart";
@@ -8,6 +10,139 @@ import "test_doubles/chat_repository_fakes.dart";
 void main() {
   final fixture = EntitySeeder().chatApiFixture();
   late FakeVoiceRuntimeService speakingRuntimeService;
+
+  group("ParticipantStatusReducer", () {
+    VoiceSessionsLoadedState seededLoadedState({
+      required List<VoiceParticipant> participants,
+      required String selfParticipantUserId,
+      bool isSelfMuted = false,
+      bool isSelfDeafened = false,
+    }) {
+      final activeConnection = VoiceConnectSession(
+        livekitUrl: fixture.connectedVoiceSession.livekitUrl,
+        accessToken: fixture.connectedVoiceSession.accessToken,
+        channelId: fixture.listedVoiceChannel.id,
+        participantUserId: selfParticipantUserId,
+      );
+
+      return VoiceSessionsLoadedState(
+        activeConnection: activeConnection,
+        selectedChannelId: fixture.listedVoiceChannel.id,
+        participants: participants,
+        participantsByChannelId: <String, List<VoiceParticipant>>{
+          fixture.listedVoiceChannel.id: participants,
+        },
+        participantVideoTracks: const <String, Object>{},
+        isSelfMuted: isSelfMuted,
+        isSelfDeafened: isSelfDeafened,
+        isSelfScreenShareEnabled: false,
+      );
+    }
+
+    test("applies speaking updates to participant and speaking set", () {
+      final loadedState = seededLoadedState(
+        selfParticipantUserId: "auth0|u1",
+        participants: const <VoiceParticipant>[
+          VoiceParticipant(
+            userId: "auth0|u1",
+            displayName: "User One",
+            isMuted: false,
+            isDeafened: false,
+            isSpeaking: false,
+          ),
+          VoiceParticipant(
+            userId: "auth0|u2",
+            displayName: "User Two",
+            isMuted: false,
+            isDeafened: false,
+            isSpeaking: false,
+          ),
+        ],
+      );
+
+      final result = ParticipantStatusReducer.reduce(
+        loadedState: loadedState,
+        statusUpdate: const ParticipantSpeakingStatusUpdated(
+          participantUserId: "auth0|u2",
+          isSpeaking: true,
+        ),
+        speakingParticipantUserIds: const <String>{},
+      );
+
+      expect(result.speakingParticipantUserIds, contains("auth0|u2"));
+      final nextState = result.nextState;
+      expect(nextState, isNotNull);
+      expect(
+        nextState!.participants
+            .firstWhere((participant) => participant.userId == "auth0|u2")
+            .isSpeaking,
+        isTrue,
+      );
+    });
+
+    test("returns no next state when update does not change any participant",
+        () {
+      final loadedState = seededLoadedState(
+        selfParticipantUserId: "auth0|u1",
+        participants: const <VoiceParticipant>[
+          VoiceParticipant(
+            userId: "auth0|u1",
+            displayName: "User One",
+            isMuted: false,
+            isDeafened: false,
+            isSpeaking: false,
+          ),
+        ],
+      );
+
+      final result = ParticipantStatusReducer.reduce(
+        loadedState: loadedState,
+        statusUpdate: const ParticipantMutedStatusUpdated(
+          participantUserId: "auth0|missing",
+          isMuted: true,
+        ),
+        speakingParticipantUserIds: const <String>{"auth0|u1"},
+      );
+
+      expect(result.nextState, isNull);
+      expect(result.speakingParticipantUserIds, contains("auth0|u1"));
+    });
+
+    test("updates self mute flag when self participant mute update is applied",
+        () {
+      final loadedState = seededLoadedState(
+        selfParticipantUserId: "auth0|u1",
+        participants: const <VoiceParticipant>[
+          VoiceParticipant(
+            userId: "auth0|u1",
+            displayName: "User One",
+            isMuted: false,
+            isDeafened: false,
+            isSpeaking: false,
+          ),
+        ],
+      );
+
+      final result = ParticipantStatusReducer.reduce(
+        loadedState: loadedState,
+        statusUpdate: const ParticipantMutedStatusUpdated(
+          participantUserId: "auth0|u1",
+          isMuted: true,
+        ),
+        speakingParticipantUserIds: const <String>{},
+      );
+
+      final nextState = result.nextState;
+      expect(nextState, isNotNull);
+      expect(nextState!.isSelfMuted, isTrue);
+      expect(
+        nextState.participants
+            .firstWhere((participant) => participant.userId == "auth0|u1")
+            .isMuted,
+        isTrue,
+      );
+    });
+  });
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "loads selected channel context",
@@ -280,8 +415,11 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
 
-      speakingRuntimeService.emitSpeakingParticipantUserIds(
-        <String>{fixture.connectedVoiceSession.participantUserId},
+      speakingRuntimeService.emitParticipantStatusUpdate(
+        ParticipantSpeakingStatusUpdated(
+          participantUserId: fixture.connectedVoiceSession.participantUserId,
+          isSpeaking: true,
+        ),
       );
 
       await Future<void>.delayed(Duration.zero);
@@ -391,8 +529,11 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
 
-      speakingRuntimeService.emitMutedParticipantUserIds(
-        <String>{"auth0|u2"},
+      speakingRuntimeService.emitParticipantStatusUpdate(
+        const ParticipantMutedStatusUpdated(
+          participantUserId: "auth0|u2",
+          isMuted: true,
+        ),
       );
 
       await Future<void>.delayed(Duration.zero);
@@ -443,8 +584,11 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
 
-      speakingRuntimeService.emitDeafenedParticipantUserIds(
-        <String>{"auth0|u2"},
+      speakingRuntimeService.emitParticipantStatusUpdate(
+        const ParticipantDeafenedStatusUpdated(
+          participantUserId: "auth0|u2",
+          isDeafened: true,
+        ),
       );
 
       await Future<void>.delayed(Duration.zero);

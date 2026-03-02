@@ -302,12 +302,8 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   final Set<String> initialDeafenedParticipantUserIds;
   final _participantUserIdsController =
       StreamController<Set<String>>.broadcast();
-  final _speakingParticipantUserIdsController =
-      StreamController<Set<String>>.broadcast();
-  final _mutedParticipantUserIdsController =
-      StreamController<Set<String>>.broadcast();
-  final _deafenedParticipantUserIdsController =
-      StreamController<Set<String>>.broadcast();
+  final _participantStatusUpdatesController =
+      StreamController<ParticipantStatusUpdate>.broadcast();
   final _participantVideoTracksController =
       StreamController<Map<String, Object>>.broadcast();
   late var _currentParticipantUserIds =
@@ -493,18 +489,8 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   }
 
   @override
-  Stream<Set<String>> speakingParticipantUserIds() {
-    return _speakingParticipantUserIdsController.stream;
-  }
-
-  @override
-  Stream<Set<String>> mutedParticipantUserIds() {
-    return _mutedParticipantUserIdsController.stream;
-  }
-
-  @override
-  Stream<Set<String>> deafenedParticipantUserIds() {
-    return _deafenedParticipantUserIdsController.stream;
+  Stream<ParticipantStatusUpdate> participantStatusUpdates() {
+    return _participantStatusUpdatesController.stream;
   }
 
   @override
@@ -517,8 +503,8 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
     return _participantVideoTracksController.stream;
   }
 
-  void emitSpeakingParticipantUserIds(Set<String> userIds) {
-    _speakingParticipantUserIdsController.add(userIds);
+  void emitParticipantStatusUpdate(ParticipantStatusUpdate update) {
+    _participantStatusUpdatesController.add(update);
   }
 
   void emitParticipantUserIds(Set<String> userIds) {
@@ -532,20 +518,6 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
       ..addAll(videoTracks);
     _participantVideoTracksController
         .add(Map<String, Object>.from(videoTracks));
-  }
-
-  void emitMutedParticipantUserIds(Set<String> userIds) {
-    _currentMutedParticipantUserIds
-      ..clear()
-      ..addAll(userIds);
-    _mutedParticipantUserIdsController.add(Set<String>.from(userIds));
-  }
-
-  void emitDeafenedParticipantUserIds(Set<String> userIds) {
-    _currentDeafenedParticipantUserIds
-      ..clear()
-      ..addAll(userIds);
-    _deafenedParticipantUserIdsController.add(Set<String>.from(userIds));
   }
 }
 

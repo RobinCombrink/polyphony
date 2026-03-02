@@ -66,12 +66,12 @@ final class SetSelfScreenShareEnabledRequested extends VoiceSessionsEvent {
   final String? sourceId;
 }
 
-final class SpeakingParticipantUserIdsUpdated extends VoiceSessionsEvent {
-  const SpeakingParticipantUserIdsUpdated({
-    required this.speakingParticipantUserIds,
+final class ParticipantStatusUpdated extends VoiceSessionsEvent {
+  const ParticipantStatusUpdated({
+    required this.update,
   });
 
-  final Set<String> speakingParticipantUserIds;
+  final ParticipantStatusUpdate update;
 }
 
 final class ParticipantUserIdsUpdated extends VoiceSessionsEvent {
@@ -80,22 +80,6 @@ final class ParticipantUserIdsUpdated extends VoiceSessionsEvent {
   });
 
   final Set<String> participantUserIds;
-}
-
-final class MutedParticipantUserIdsUpdated extends VoiceSessionsEvent {
-  const MutedParticipantUserIdsUpdated({
-    required this.mutedParticipantUserIds,
-  });
-
-  final Set<String> mutedParticipantUserIds;
-}
-
-final class DeafenedParticipantUserIdsUpdated extends VoiceSessionsEvent {
-  const DeafenedParticipantUserIdsUpdated({
-    required this.deafenedParticipantUserIds,
-  });
-
-  final Set<String> deafenedParticipantUserIds;
 }
 
 final class ParticipantVideoTracksUpdated extends VoiceSessionsEvent {

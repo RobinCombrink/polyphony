@@ -9,6 +9,7 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 
 part "voice_sessions_event.dart";
+part "voice_sessions_participant_status_reducer.dart";
 part "voice_sessions_state.dart";
 
 class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
@@ -25,16 +26,6 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       transformer: sequential(),
     );
 
-    _speakingParticipantUserIdsSubscription = _voiceRuntimeService
-        .speakingParticipantUserIds()
-        .listen((speakingParticipantUserIds) {
-      add(
-        SpeakingParticipantUserIdsUpdated(
-          speakingParticipantUserIds: speakingParticipantUserIds,
-        ),
-      );
-    });
-
     _participantUserIdsSubscription =
         _voiceRuntimeService.participantUserIds().listen((participantUserIds) {
       add(
@@ -44,23 +35,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       );
     });
 
-    _mutedParticipantUserIdsSubscription = _voiceRuntimeService
-        .mutedParticipantUserIds()
-        .listen((mutedParticipantUserIds) {
+    _participantStatusUpdatesSubscription =
+        _voiceRuntimeService.participantStatusUpdates().listen((update) {
       add(
-        MutedParticipantUserIdsUpdated(
-          mutedParticipantUserIds: mutedParticipantUserIds,
-        ),
-      );
-    });
-
-    _deafenedParticipantUserIdsSubscription = _voiceRuntimeService
-        .deafenedParticipantUserIds()
-        .listen((deafenedParticipantUserIds) {
-      add(
-        DeafenedParticipantUserIdsUpdated(
-          deafenedParticipantUserIds: deafenedParticipantUserIds,
-        ),
+        ParticipantStatusUpdated(update: update),
       );
     });
 
@@ -79,9 +57,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
   final MediaRuntimeService _voiceRuntimeService;
   final ProfileRepo _profileRepo;
   StreamSubscription<Set<String>>? _participantUserIdsSubscription;
-  StreamSubscription<Set<String>>? _speakingParticipantUserIdsSubscription;
-  StreamSubscription<Set<String>>? _mutedParticipantUserIdsSubscription;
-  StreamSubscription<Set<String>>? _deafenedParticipantUserIdsSubscription;
+  StreamSubscription<ParticipantStatusUpdate>?
+      _participantStatusUpdatesSubscription;
   StreamSubscription<Map<String, Object>>? _participantVideoTracksSubscription;
   var _speakingParticipantUserIds = const <String>{};
 
@@ -108,14 +85,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         await _onSetSelfDeafenedRequested(event, emit);
       case SetSelfScreenShareEnabledRequested():
         await _onSetSelfScreenShareEnabledRequested(event, emit);
-      case SpeakingParticipantUserIdsUpdated():
-        _onSpeakingParticipantUserIdsUpdated(event, emit);
+      case ParticipantStatusUpdated():
+        _onParticipantStatusUpdated(event, emit);
       case ParticipantUserIdsUpdated():
         await _onParticipantUserIdsUpdated(event, emit);
-      case MutedParticipantUserIdsUpdated():
-        _onMutedParticipantUserIdsUpdated(event, emit);
-      case DeafenedParticipantUserIdsUpdated():
-        _onDeafenedParticipantUserIdsUpdated(event, emit);
       case ParticipantVideoTracksUpdated():
         _onParticipantVideoTracksUpdated(event, emit);
     }
@@ -800,65 +773,6 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     return _voiceRuntimeService.isSelfMuted();
   }
 
-  void _onSpeakingParticipantUserIdsUpdated(
-    SpeakingParticipantUserIdsUpdated event,
-    Emitter<VoiceSessionsState> emit,
-  ) {
-    _speakingParticipantUserIds = event.speakingParticipantUserIds;
-
-    final loadedState = _loadedStateOrNull(state);
-    if (loadedState == null) {
-      return;
-    }
-
-    final participantsByChannelId =
-        Map<String, List<VoiceParticipant>>.fromEntries(
-      loadedState.participantsByChannelId.entries.map(
-        (entry) => MapEntry(
-          entry.key,
-          entry.value
-              .map(
-                (participant) => VoiceParticipant(
-                  userId: participant.userId,
-                  displayName: participant.displayName,
-                  isMuted: participant.isMuted,
-                  isDeafened: participant.isDeafened,
-                  isSpeaking:
-                      _speakingParticipantUserIds.contains(participant.userId),
-                ),
-              )
-              .toList(),
-        ),
-      ),
-    );
-
-    final selectedParticipants =
-        participantsByChannelId[loadedState.selectedChannelId] ??
-            loadedState.participants
-                .map(
-                  (participant) => VoiceParticipant(
-                    userId: participant.userId,
-                    displayName: participant.displayName,
-                    isMuted: participant.isMuted,
-                    isDeafened: participant.isDeafened,
-                    isSpeaking: _speakingParticipantUserIds
-                        .contains(participant.userId),
-                  ),
-                )
-                .toList();
-
-    emit(VoiceSessionsLoadedState(
-      activeConnection: loadedState.activeConnection,
-      selectedChannelId: loadedState.selectedChannelId,
-      participants: selectedParticipants,
-      participantsByChannelId: participantsByChannelId,
-      participantVideoTracks: loadedState.participantVideoTracks,
-      isSelfMuted: loadedState.isSelfMuted,
-      isSelfDeafened: loadedState.isSelfDeafened,
-      isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
-    ));
-  }
-
   Future<void> _onParticipantUserIdsUpdated(
     ParticipantUserIdsUpdated event,
     Emitter<VoiceSessionsState> emit,
@@ -906,120 +820,6 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     ));
   }
 
-  void _onMutedParticipantUserIdsUpdated(
-    MutedParticipantUserIdsUpdated event,
-    Emitter<VoiceSessionsState> emit,
-  ) {
-    final loadedState = _loadedStateOrNull(state);
-    if (loadedState == null) {
-      return;
-    }
-
-    final participantsByChannelId =
-        Map<String, List<VoiceParticipant>>.fromEntries(
-      loadedState.participantsByChannelId.entries.map(
-        (entry) => MapEntry(
-          entry.key,
-          entry.value
-              .map(
-                (participant) => VoiceParticipant(
-                  userId: participant.userId,
-                  displayName: participant.displayName,
-                  isMuted: event.mutedParticipantUserIds
-                      .contains(participant.userId),
-                  isDeafened: participant.isDeafened,
-                  isSpeaking: participant.isSpeaking,
-                ),
-              )
-              .toList(),
-        ),
-      ),
-    );
-
-    final selectedParticipants =
-        participantsByChannelId[loadedState.selectedChannelId] ??
-            loadedState.participants
-                .map(
-                  (participant) => VoiceParticipant(
-                    userId: participant.userId,
-                    displayName: participant.displayName,
-                    isMuted: event.mutedParticipantUserIds
-                        .contains(participant.userId),
-                    isDeafened: participant.isDeafened,
-                    isSpeaking: participant.isSpeaking,
-                  ),
-                )
-                .toList();
-
-    emit(VoiceSessionsLoadedState(
-      activeConnection: loadedState.activeConnection,
-      selectedChannelId: loadedState.selectedChannelId,
-      participants: selectedParticipants,
-      participantsByChannelId: participantsByChannelId,
-      participantVideoTracks: loadedState.participantVideoTracks,
-      isSelfMuted: _voiceRuntimeService.isSelfMuted(),
-      isSelfDeafened: loadedState.isSelfDeafened,
-      isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
-    ));
-  }
-
-  void _onDeafenedParticipantUserIdsUpdated(
-    DeafenedParticipantUserIdsUpdated event,
-    Emitter<VoiceSessionsState> emit,
-  ) {
-    final loadedState = _loadedStateOrNull(state);
-    if (loadedState == null) {
-      return;
-    }
-
-    final participantsByChannelId =
-        Map<String, List<VoiceParticipant>>.fromEntries(
-      loadedState.participantsByChannelId.entries.map(
-        (entry) => MapEntry(
-          entry.key,
-          entry.value
-              .map(
-                (participant) => VoiceParticipant(
-                  userId: participant.userId,
-                  displayName: participant.displayName,
-                  isMuted: participant.isMuted,
-                  isDeafened: event.deafenedParticipantUserIds
-                      .contains(participant.userId),
-                  isSpeaking: participant.isSpeaking,
-                ),
-              )
-              .toList(),
-        ),
-      ),
-    );
-
-    final selectedParticipants =
-        participantsByChannelId[loadedState.selectedChannelId] ??
-            loadedState.participants
-                .map(
-                  (participant) => VoiceParticipant(
-                    userId: participant.userId,
-                    displayName: participant.displayName,
-                    isMuted: participant.isMuted,
-                    isDeafened: event.deafenedParticipantUserIds
-                        .contains(participant.userId),
-                    isSpeaking: participant.isSpeaking,
-                  ),
-                )
-                .toList();
-
-    emit(VoiceSessionsLoadedState(
-      activeConnection: loadedState.activeConnection,
-      selectedChannelId: loadedState.selectedChannelId,
-      participants: selectedParticipants,
-      participantsByChannelId: participantsByChannelId,
-      participantVideoTracks: loadedState.participantVideoTracks,
-      isSelfMuted: loadedState.isSelfMuted,
-      isSelfDeafened: _voiceRuntimeService.isSelfDeafened(),
-      isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
-    ));
-  }
-
   void _onParticipantVideoTracksUpdated(
     ParticipantVideoTracksUpdated event,
     Emitter<VoiceSessionsState> emit,
@@ -1043,12 +843,34 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     ));
   }
 
+  void _onParticipantStatusUpdated(
+    ParticipantStatusUpdated event,
+    Emitter<VoiceSessionsState> emit,
+  ) {
+    final loadedState = _loadedStateOrNull(state);
+    if (loadedState == null) {
+      return;
+    }
+
+    final reduced = ParticipantStatusReducer.reduce(
+      loadedState: loadedState,
+      statusUpdate: event.update,
+      speakingParticipantUserIds: _speakingParticipantUserIds,
+    );
+    _speakingParticipantUserIds = reduced.speakingParticipantUserIds;
+
+    final nextState = reduced.nextState;
+    if (nextState == null) {
+      return;
+    }
+
+    emit(nextState);
+  }
+
   @override
   Future<void> close() async {
     await _participantUserIdsSubscription?.cancel();
-    await _speakingParticipantUserIdsSubscription?.cancel();
-    await _mutedParticipantUserIdsSubscription?.cancel();
-    await _deafenedParticipantUserIdsSubscription?.cancel();
+    await _participantStatusUpdatesSubscription?.cancel();
     await _participantVideoTracksSubscription?.cancel();
     return super.close();
   }

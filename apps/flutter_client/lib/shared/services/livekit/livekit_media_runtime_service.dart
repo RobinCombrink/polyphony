@@ -12,12 +12,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   EventsListener<RoomEvent>? _roomListener;
   final _participantUserIdsController =
       StreamController<Set<String>>.broadcast();
-  final _speakingParticipantUserIdsController =
-      StreamController<Set<String>>.broadcast();
-  final _mutedParticipantUserIdsController =
-      StreamController<Set<String>>.broadcast();
-  final _deafenedParticipantUserIdsController =
-      StreamController<Set<String>>.broadcast();
+  final _participantStatusUpdatesController =
+      StreamController<ParticipantStatusUpdate>.broadcast();
   final _participantVideoTracksController =
       StreamController<Map<String, Object>>.broadcast();
 
@@ -368,18 +364,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   }
 
   @override
-  Stream<Set<String>> speakingParticipantUserIds() {
-    return _speakingParticipantUserIdsController.stream;
-  }
-
-  @override
-  Stream<Set<String>> mutedParticipantUserIds() {
-    return _mutedParticipantUserIdsController.stream;
-  }
-
-  @override
-  Stream<Set<String>> deafenedParticipantUserIds() {
-    return _deafenedParticipantUserIdsController.stream;
+  Stream<ParticipantStatusUpdate> participantStatusUpdates() {
+    return _participantStatusUpdatesController.stream;
   }
 
   @override
@@ -524,33 +510,50 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   void _emitSpeakingParticipantUserIdsFromSet(
     Set<ParticipantUserId> speakingUserIds,
   ) {
+    final previousSpeakingUserIds = _lastSpeakingParticipantUserIds;
     if (_setEquals(speakingUserIds, _lastSpeakingParticipantUserIds)) {
       return;
     }
 
+    _emitParticipantStatusUpdatesFromSetDiff(
+      previousValues: previousSpeakingUserIds,
+      currentValues: speakingUserIds,
+      updateForValue: (participantUserId, isEnabled) =>
+          ParticipantSpeakingStatusUpdated(
+        participantUserId: participantUserId.rawValue,
+        isSpeaking: isEnabled,
+      ),
+    );
+
     _lastSpeakingParticipantUserIds =
         Set<ParticipantUserId>.from(speakingUserIds);
-    _speakingParticipantUserIdsController.add(
-      LivekitRuntimeProjection.rawParticipantUserIds(speakingUserIds),
-    );
   }
 
   void _emitMutedParticipantUserIds(
       Set<ParticipantUserId> mutedParticipantUserIds) {
+    final previousMutedParticipantUserIds = _lastMutedParticipantUserIds;
     if (_setEquals(mutedParticipantUserIds, _lastMutedParticipantUserIds)) {
       return;
     }
 
+    _emitParticipantStatusUpdatesFromSetDiff(
+      previousValues: previousMutedParticipantUserIds,
+      currentValues: mutedParticipantUserIds,
+      updateForValue: (participantUserId, isEnabled) =>
+          ParticipantMutedStatusUpdated(
+        participantUserId: participantUserId.rawValue,
+        isMuted: isEnabled,
+      ),
+    );
+
     _lastMutedParticipantUserIds =
         Set<ParticipantUserId>.from(mutedParticipantUserIds);
-    _mutedParticipantUserIdsController.add(
-      LivekitRuntimeProjection.rawParticipantUserIds(mutedParticipantUserIds),
-    );
   }
 
   void _emitDeafenedParticipantUserIds(
     Set<ParticipantUserId> deafenedParticipantUserIds,
   ) {
+    final previousDeafenedParticipantUserIds = _lastDeafenedParticipantUserIds;
     if (_setEquals(
       deafenedParticipantUserIds,
       _lastDeafenedParticipantUserIds,
@@ -558,12 +561,18 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       return;
     }
 
+    _emitParticipantStatusUpdatesFromSetDiff(
+      previousValues: previousDeafenedParticipantUserIds,
+      currentValues: deafenedParticipantUserIds,
+      updateForValue: (participantUserId, isEnabled) =>
+          ParticipantDeafenedStatusUpdated(
+        participantUserId: participantUserId.rawValue,
+        isDeafened: isEnabled,
+      ),
+    );
+
     _lastDeafenedParticipantUserIds =
         Set<ParticipantUserId>.from(deafenedParticipantUserIds);
-    _deafenedParticipantUserIdsController.add(
-      LivekitRuntimeProjection.rawParticipantUserIds(
-          deafenedParticipantUserIds),
-    );
   }
 
   void _emitParticipantVideoTracks(Map<String, Object> participantVideoTracks) {
@@ -760,5 +769,34 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     }
 
     return true;
+  }
+
+  void _emitParticipantStatusUpdatesFromSetDiff({
+    required Set<ParticipantUserId>? previousValues,
+    required Set<ParticipantUserId> currentValues,
+    required ParticipantStatusUpdate Function(
+      ParticipantUserId participantUserId,
+      bool isEnabled,
+    ) updateForValue,
+  }) {
+    final previousSet = previousValues ?? const <ParticipantUserId>{};
+
+    final changedParticipantUserIds = <ParticipantUserId>{
+      ...previousSet,
+      ...currentValues,
+    };
+
+    for (final participantUserId in changedParticipantUserIds) {
+      final wasEnabled = previousSet.contains(participantUserId);
+      final isEnabled = currentValues.contains(participantUserId);
+
+      if (wasEnabled == isEnabled) {
+        continue;
+      }
+
+      _participantStatusUpdatesController.add(
+        updateForValue(participantUserId, isEnabled),
+      );
+    }
   }
 }

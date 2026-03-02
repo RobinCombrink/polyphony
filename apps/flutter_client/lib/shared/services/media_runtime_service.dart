@@ -7,6 +7,41 @@ enum RuntimeAudioChannel {
   livestream,
 }
 
+sealed class ParticipantStatusUpdate {
+  const ParticipantStatusUpdate({
+    required this.participantUserId,
+  });
+
+  final String participantUserId;
+}
+
+final class ParticipantSpeakingStatusUpdated extends ParticipantStatusUpdate {
+  const ParticipantSpeakingStatusUpdated({
+    required super.participantUserId,
+    required this.isSpeaking,
+  });
+
+  final bool isSpeaking;
+}
+
+final class ParticipantMutedStatusUpdated extends ParticipantStatusUpdate {
+  const ParticipantMutedStatusUpdated({
+    required super.participantUserId,
+    required this.isMuted,
+  });
+
+  final bool isMuted;
+}
+
+final class ParticipantDeafenedStatusUpdated extends ParticipantStatusUpdate {
+  const ParticipantDeafenedStatusUpdated({
+    required super.participantUserId,
+    required this.isDeafened,
+  });
+
+  final bool isDeafened;
+}
+
 abstract interface class MediaRuntimeService {
   Future<Result<void>> connect({
     required String livekitUrl,
@@ -52,11 +87,7 @@ abstract interface class MediaRuntimeService {
 
   Stream<Set<String>> participantUserIds();
 
-  Stream<Set<String>> speakingParticipantUserIds();
-
-  Stream<Set<String>> mutedParticipantUserIds();
-
-  Stream<Set<String>> deafenedParticipantUserIds();
+  Stream<ParticipantStatusUpdate> participantStatusUpdates();
 
   Map<String, Object> currentParticipantVideoTracks();
 
