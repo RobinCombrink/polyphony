@@ -2,15 +2,15 @@ import "dart:async";
 import "dart:convert";
 
 import "package:collection/collection.dart";
+import "package:desktop_multi_window/desktop_multi_window.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
-import "package:desktop_multi_window/desktop_multi_window.dart";
+import "package:livekit_client/livekit_client.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/something_went_wrong_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
-import "package:livekit_client/livekit_client.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
 class VoiceParticipantsPaneWidget extends StatelessWidget {

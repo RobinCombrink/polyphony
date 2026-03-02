@@ -300,12 +300,12 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
       StreamController<Set<String>>.broadcast();
   final _participantVideoTracksController =
       StreamController<Map<String, Object>>.broadcast();
-  late Set<String> _currentParticipantUserIds =
+  late var _currentParticipantUserIds =
       Set<String>.from(initialParticipantUserIds);
-  final Map<String, Object> _currentParticipantVideoTracks = <String, Object>{};
-  final Map<String, RuntimeAudioChannel> _audioChannelByParticipantUserId =
+  final _currentParticipantVideoTracks = <String, Object>{};
+  final _audioChannelByParticipantUserId =
       <String, RuntimeAudioChannel>{};
-  final Map<RuntimeAudioChannel, bool> _audioChannelEnabled =
+  final _audioChannelEnabled =
       <RuntimeAudioChannel, bool>{
     RuntimeAudioChannel.voice: true,
     RuntimeAudioChannel.livestream: true,

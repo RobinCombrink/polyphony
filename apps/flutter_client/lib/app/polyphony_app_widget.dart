@@ -1,3 +1,4 @@
+import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:http/http.dart" as http;
@@ -5,6 +6,7 @@ import "package:polyphony_flutter_client/features/authentication/bloc/authentica
 import "package:polyphony_flutter_client/features/authentication/presentation/authentication_gate_widget.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/auth/auth0_browser_token_provider.dart";
+import "package:polyphony_flutter_client/shared/auth/refresh_token_store.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/network/polyphony_api_client.dart";
@@ -21,8 +23,8 @@ import "package:polyphony_flutter_client/shared/repositories/text_session_reposi
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repository.dart";
 import "package:polyphony_flutter_client/shared/services/channel_service.dart";
-import "package:polyphony_flutter_client/shared/services/livekit/livekit_message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_media_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/livekit/livekit_message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_service.dart";
@@ -41,25 +43,52 @@ import "package:provider/provider.dart";
 class PolyphonyApp extends StatelessWidget {
   const PolyphonyApp({super.key});
 
+  String _auth0ClientIdForCurrentPlatform() {
+    if (kIsWeb) {
+      return PolyphonyConfig.auth0WebClientId;
+    }
+
+    return PolyphonyConfig.auth0NativeClientId;
+  }
+
+  AccessTokenProvider _createAccessTokenProvider(BuildContext context) {
+    final httpClient = context.read<http.Client>();
+    final auth0ClientId = _auth0ClientIdForCurrentPlatform();
+
+    if (kIsWeb) {
+      return Auth0WebTokenProvider(
+        domain: PolyphonyConfig.auth0Domain,
+        clientId: auth0ClientId,
+        audience: PolyphonyConfig.auth0Audience,
+        scopes: PolyphonyConfig.auth0Scopes,
+      );
+    }
+
+    return Auth0NativeTokenProvider(
+      httpClient: httpClient,
+      refreshTokenStore: context.read<RefreshTokenStore>(),
+      domain: PolyphonyConfig.auth0Domain,
+      clientId: auth0ClientId,
+      audience: PolyphonyConfig.auth0Audience,
+      scopes: PolyphonyConfig.auth0Scopes,
+      mobileRedirectUri: PolyphonyConfig.auth0MobileRedirectUri,
+      desktopRedirectUri: PolyphonyConfig.auth0DesktopRedirectUri,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         Provider<http.Client>(create: (_) => http.Client()),
+        Provider<RefreshTokenStore>(
+          create: (_) => createRefreshTokenStore(),
+        ),
         BlocProvider<AuthenticationBloc>(
           create: (_) => AuthenticationBloc(),
         ),
         Provider<AccessTokenProvider>(
-          create: (context) => Auth0TokenProvider(
-            httpClient: context.read<http.Client>(),
-            domain: PolyphonyConfig.auth0Domain,
-            clientId: PolyphonyConfig.auth0ClientId,
-            audience: PolyphonyConfig.auth0Audience,
-            scopes: PolyphonyConfig.auth0Scopes,
-            mobileRedirectUri: PolyphonyConfig.auth0MobileRedirectUri,
-            desktopRedirectUri: PolyphonyConfig.auth0DesktopRedirectUri,
-            webRedirectPath: PolyphonyConfig.auth0WebRedirectPath,
-          ),
+          create: _createAccessTokenProvider,
         ),
         Provider<ChatApi>(
           create: (context) => PolyphonyApiClient(

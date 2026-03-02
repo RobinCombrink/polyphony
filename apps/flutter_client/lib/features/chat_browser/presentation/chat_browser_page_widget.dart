@@ -19,6 +19,7 @@ import "package:polyphony_flutter_client/features/chat_browser/presentation/widg
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/token_tab_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/top_right_error_toast.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_participants_pane_widget.dart";
+import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 class ChatBrowserPageWidget extends StatefulWidget {
@@ -33,6 +34,17 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   final createChannelController = TextEditingController();
   final createMessageController = TextEditingController();
   var _isDisplayNamePromptOpen = false;
+
+  Future<void> _signOut(BuildContext context) async {
+    await context.read<AccessTokenProvider>().clearPersistedSession();
+    if (!context.mounted) {
+      return;
+    }
+
+    context
+        .read<AuthenticationBloc>()
+        .add(const AuthenticationLogoutRequested());
+  }
 
   @override
   void initState() {
@@ -107,9 +119,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
               icon: const Icon(Icons.refresh),
             ),
             IconButton(
-              onPressed: () => context
-                  .read<AuthenticationBloc>()
-                  .add(const AuthenticationLogoutRequested()),
+              onPressed: () => unawaited(_signOut(context)),
               tooltip: "Sign out",
               icon: const Icon(Icons.logout),
             ),

@@ -1,6 +1,5 @@
 import "dart:async";
 
-import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
@@ -19,8 +18,8 @@ import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
-import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 
 class AuthenticationGateWidget extends StatefulWidget {
   const AuthenticationGateWidget({super.key});
@@ -38,17 +37,37 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
   void initState() {
     super.initState();
 
-    if (kIsWeb) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      unawaited(_restoreSession());
+    });
+  }
+
+  Future<void> _restoreSession() async {
+    final accessTokenResult =
+        await context.read<AccessTokenProvider>().getPersistedAccessToken();
+
+    if (!mounted) {
+      return;
+    }
+
+    switch (accessTokenResult) {
+      case Ok<String?>(:final value):
+        final accessToken = value;
+        if (accessToken == null || accessToken.trim().isEmpty) {
           return;
         }
 
-        final authenticationState = context.read<AuthenticationBloc>().state;
-        if (authenticationState is AuthenticationUnauthenticatedState) {
-          unawaited(_signInWithAuth0());
-        }
-      });
+        context
+            .read<AuthenticationBloc>()
+            .add(AuthenticationLoginRequested(bearerToken: accessToken));
+      case Error<String?>(:final error):
+        setState(() {
+          _signInError = error.toString();
+        });
     }
   }
 

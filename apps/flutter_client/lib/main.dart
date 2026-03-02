@@ -1,11 +1,11 @@
 import "dart:convert";
+
 import "package:desktop_multi_window/desktop_multi_window.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
-
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_stream_popout_window_widget.dart";
 import "package:polyphony_flutter_client/app/polyphony_app_widget.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_stream_popout_window_widget.dart";
 
 export "app/polyphony_app_widget.dart";
 

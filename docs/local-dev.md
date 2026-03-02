@@ -101,16 +101,16 @@ In the app:
 
 Flutter OAuth settings (`--dart-define`):
 - `AUTH0_DOMAIN` (default: `dev-polyphony.eu.auth0.com`)
-- `AUTH0_CLIENT_ID` (default: `3QEwnOrRK5qAFqjNJvXWdPJDhLz1p0yZ`)
+- `AUTH0_NATIVE_CLIENT_ID` (default: `3QEwnOrRK5qAFqjNJvXWdPJDhLz1p0yZ`)
+- `AUTH0_WEB_CLIENT_ID` (default: `pyTVsVOWzcOK85LQfL4Ulwpeft4XpSqW`)
 - `AUTH0_AUDIENCE` (default: `https://polyphony.com`)
 - `AUTH0_SCOPES` (default: `openid profile email`)
 - `AUTH0_MOBILE_REDIRECT_URI` (default: `polyphony://auth/callback`)
-- `AUTH0_DESKTOP_REDIRECT_URI` (default: `http://localhost:3000`)
-- `AUTH0_WEB_REDIRECT_PATH` (default: `/auth.html`)
+- `AUTH0_DESKTOP_REDIRECT_URI` (default: `http://localhost:4000`)
 
 Package notes:
-- The Flutter client now uses `flutter_web_auth_2` for browser-based OAuth flow.
-- This supports Windows and Linux in addition to mobile/web.
+- The Flutter client uses `auth0_flutter` SDK for web and mobile/macOS auth flows.
+- Windows and Linux keep a desktop fallback OAuth flow with `flutter_web_auth_2`.
 
 ## Test Strategy
 - BDD-style acceptance tests live under `features/` and backend integration tests.

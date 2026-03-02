@@ -22,4 +22,13 @@ flutter run
 ```
 
 Default backend URL in the app is `http://127.0.0.1:5067`.
-Enter an Auth0 access token in the app and click **Load Servers**.
+
+## Authentication
+
+- The app signs in via Auth0 Authorization Code + PKCE.
+- On native platforms (Windows/Linux/Android/iOS/macOS), Auth0 refresh tokens are persisted with secure storage and used to restore sessions across app restarts.
+- On web, refresh token persistence is disabled because there is no secure storage mechanism.
+- Configure separate Auth0 application client IDs per platform:
+	- `AUTH0_NATIVE_CLIENT_ID`: Auth0 Native Application client (used on Windows/Linux/Android/iOS/macOS)
+	- `AUTH0_WEB_CLIENT_ID`: Auth0 SPA/Web client (used on web)
+- flutter_secure_storage read https://github.com/juliansteenbakker/flutter_secure_storage/blob/develop/README.md for build requirements

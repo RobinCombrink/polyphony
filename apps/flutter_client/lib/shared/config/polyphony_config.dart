@@ -9,9 +9,14 @@ abstract final class PolyphonyConfig {
     defaultValue: "dev-polyphony.eu.auth0.com",
   );
 
-  static const auth0ClientId = String.fromEnvironment(
-    "AUTH0_CLIENT_ID",
+  static const auth0NativeClientId = String.fromEnvironment(
+    "AUTH0_NATIVE_CLIENT_ID",
     defaultValue: "3QEwnOrRK5qAFqjNJvXWdPJDhLz1p0yZ",
+  );
+
+  static const auth0WebClientId = String.fromEnvironment(
+    "AUTH0_WEB_CLIENT_ID",
+    defaultValue: "pyTVsVOWzcOK85LQfL4Ulwpeft4XpSqW",
   );
 
   static const auth0Audience = String.fromEnvironment(
@@ -31,11 +36,6 @@ abstract final class PolyphonyConfig {
 
   static const auth0DesktopRedirectUri = String.fromEnvironment(
     "AUTH0_DESKTOP_REDIRECT_URI",
-    defaultValue: "http://localhost:3000",
-  );
-
-  static const auth0WebRedirectPath = String.fromEnvironment(
-    "AUTH0_WEB_REDIRECT_PATH",
-    defaultValue: "/auth.html",
+    defaultValue: "http://localhost:4000",
   );
 }
