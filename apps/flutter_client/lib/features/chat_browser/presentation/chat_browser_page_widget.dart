@@ -2,6 +2,7 @@ import "dart:async";
 
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_webrtc/flutter_webrtc.dart" as rtc;
 import "package:livekit_client/livekit_client.dart";
@@ -16,7 +17,6 @@ import "package:polyphony_flutter_client/features/chat_browser/presentation/widg
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/messages_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/server_users_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/servers_pane_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/token_tab_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/top_right_error_toast.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_participants_pane_widget.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
@@ -100,44 +100,45 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
         ? authenticationState.bearerToken
         : "";
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("Polyphony"),
-          actions: <Widget>[
-            IconButton(
-              onPressed: () => unawaited(
-                _showDisplayNameDialog(context, mandatory: false),
-              ),
-              tooltip: "Edit display name",
-              icon: const Icon(Icons.person),
-            ),
-            IconButton(
-              onPressed: () => _loadInitialData(context),
-              tooltip: "Refresh servers",
-              icon: const Icon(Icons.refresh),
-            ),
-            IconButton(
-              onPressed: () => unawaited(_signOut(context)),
-              tooltip: "Sign out",
-              icon: const Icon(Icons.logout),
-            ),
-          ],
-          bottom: const TabBar(
-            tabs: <Tab>[
-              Tab(text: "Chat"),
-              Tab(text: "Token"),
-            ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Polyphony"),
+        actions: <Widget>[
+          IconButton(
+            onPressed: () {
+              final currentProfileState = context.read<ProfileBloc>().state;
+              final currentDisplayName = switch (currentProfileState) {
+                ProfileLoadedDataState(:final displayName) => displayName,
+                _ => null,
+              };
+
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (settingsContext) => _SettingsPageWidget(
+                    bearerToken: bearerToken,
+                    initialDisplayName: currentDisplayName,
+                    onSaveDisplayName: (displayName) =>
+                        _requestUpdateDisplayName(context, displayName),
+                  ),
+                ),
+              );
+            },
+            tooltip: "Settings",
+            icon: const Icon(Icons.settings),
           ),
-        ),
-        body: TabBarView(
-          children: <Widget>[
-            _buildChatTab(context),
-            TokenTabWidget(bearerToken: bearerToken),
-          ],
-        ),
+          IconButton(
+            onPressed: () => _loadInitialData(context),
+            tooltip: "Refresh servers",
+            icon: const Icon(Icons.refresh),
+          ),
+          IconButton(
+            onPressed: () => unawaited(_signOut(context)),
+            tooltip: "Sign out",
+            icon: const Icon(Icons.logout),
+          ),
+        ],
       ),
+      body: _buildChatTab(context),
     );
   }
 
@@ -689,6 +690,122 @@ class _VoiceQuickActionsCard extends StatelessWidget {
                 ],
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsPageWidget extends StatefulWidget {
+  const _SettingsPageWidget({
+    required this.bearerToken,
+    required this.initialDisplayName,
+    required this.onSaveDisplayName,
+  });
+
+  final String bearerToken;
+  final String? initialDisplayName;
+  final ValueChanged<String> onSaveDisplayName;
+
+  @override
+  State<_SettingsPageWidget> createState() => _SettingsPageWidgetState();
+}
+
+class _SettingsPageWidgetState extends State<_SettingsPageWidget> {
+  late final TextEditingController _displayNameController;
+  var _developerOptionsEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayNameController =
+        TextEditingController(text: widget.initialDisplayName ?? "");
+  }
+
+  @override
+  void dispose() {
+    _displayNameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _copyToken() async {
+    await Clipboard.setData(ClipboardData(text: widget.bearerToken));
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Token copied")),
+    );
+  }
+
+  void _saveDisplayName() {
+    widget.onSaveDisplayName(_displayNameController.text);
+    FocusScope.of(context).unfocus();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Display name updated")),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Settings"),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text(
+              "Display name",
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _displayNameController,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _saveDisplayName(),
+              decoration: const InputDecoration(
+                labelText: "Display name",
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton(
+                onPressed: _saveDisplayName,
+                child: const Text("Save"),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              "Developer options",
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text("Enable developer options"),
+              value: _developerOptionsEnabled,
+              onChanged: (value) {
+                setState(() {
+                  _developerOptionsEnabled = value;
+                });
+              },
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton(
+                onPressed:
+                    _developerOptionsEnabled && widget.bearerToken.isNotEmpty
+                        ? () => unawaited(_copyToken())
+                        : null,
+                child: const Text("Copy token"),
+              ),
+            ),
           ],
         ),
       ),
