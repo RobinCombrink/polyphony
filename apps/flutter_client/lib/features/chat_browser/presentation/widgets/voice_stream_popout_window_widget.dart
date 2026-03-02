@@ -44,6 +44,7 @@ class _VoiceStreamPopoutWindowPageState
     extends State<_VoiceStreamPopoutWindowPage> {
   Room? _room;
   EventsListener<RoomEvent>? _roomListener;
+  WindowController? _currentWindowController;
   late final AppLifecycleListener _appLifecycleListener;
   final _windowChannel = const WindowMethodChannel(
     voiceStreamPopoutWindowChannelName,
@@ -62,11 +63,17 @@ class _VoiceStreamPopoutWindowPageState
     _appLifecycleListener = AppLifecycleListener(
       onExitRequested: _onExitRequested,
     );
+    unawaited(_registerWindowMethodHandler());
     unawaited(_connect());
   }
 
   @override
   void dispose() {
+    final currentWindowController = _currentWindowController;
+    if (currentWindowController != null) {
+      unawaited(currentWindowController.setWindowMethodHandler(null));
+    }
+
     _appLifecycleListener.dispose();
     unawaited(_disconnect());
     super.dispose();
@@ -78,11 +85,39 @@ class _VoiceStreamPopoutWindowPageState
   }
 
   Future<void> _popInAndHideWindow() async {
+    await _disconnect();
     await _notifyPopInRequested();
 
     try {
-      final currentWindow = await WindowController.fromCurrentEngine();
+      final currentWindow = _currentWindowController ??
+          await WindowController.fromCurrentEngine();
       await currentWindow.hide();
+    } on Exception {
+      return;
+    }
+  }
+
+  Future<void> _registerWindowMethodHandler() async {
+    try {
+      final currentWindowController =
+          await WindowController.fromCurrentEngine();
+      _currentWindowController = currentWindowController;
+
+      await currentWindowController.setWindowMethodHandler((call) async {
+        if (call.method != voiceStreamPopInRequestMethod) {
+          return null;
+        }
+
+        await _disconnect();
+
+        try {
+          await currentWindowController.hide();
+        } on Exception {
+          return null;
+        }
+
+        return null;
+      });
     } on Exception {
       return;
     }

@@ -367,6 +367,7 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
 
     setState(() {
       _poppedOutParticipantUserIds.remove(participantUserId);
+      _popoutWindowIdByParticipantUserId.remove(participantUserId);
     });
 
     if (windowId == null || windowId.isEmpty) {
@@ -374,7 +375,11 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
     }
 
     final windowController = WindowController.fromWindowId(windowId);
-    await windowController.hide();
+    try {
+      await windowController.invokeMethod<void>(voiceStreamPopInRequestMethod);
+    } on Exception {
+      await windowController.hide();
+    }
   }
 
   Future<void> _handleWindowsChanged() async {
