@@ -1,9 +1,12 @@
 import "dart:async";
 import "dart:convert";
+import "dart:ui";
 
 import "package:collection/collection.dart";
+import "package:desktop_multi_window/desktop_multi_window.dart";
 import "package:flutter/material.dart";
 import "package:livekit_client/livekit_client.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_stream_popout_channel.dart";
 
 class VoiceStreamPopoutWindowApp extends StatelessWidget {
   const VoiceStreamPopoutWindowApp({
@@ -41,22 +44,75 @@ class _VoiceStreamPopoutWindowPageState
     extends State<_VoiceStreamPopoutWindowPage> {
   Room? _room;
   EventsListener<RoomEvent>? _roomListener;
+  late final AppLifecycleListener _appLifecycleListener;
+  final _windowChannel = const WindowMethodChannel(
+    voiceStreamPopoutWindowChannelName,
+    mode: ChannelMode.unidirectional,
+  );
+
   VideoTrack? _videoTrack;
-  String? _displayName;
-  String? _targetParticipantUserId;
-  Exception? _error;
+  String _displayName = "Stream";
+  String _targetParticipantUserId = "";
   var _isLoading = true;
+  Exception? _error;
 
   @override
   void initState() {
     super.initState();
+    _appLifecycleListener = AppLifecycleListener(
+      onExitRequested: _onExitRequested,
+    );
     unawaited(_connect());
   }
 
   @override
   void dispose() {
+    _appLifecycleListener.dispose();
     unawaited(_disconnect());
     super.dispose();
+  }
+
+  Future<AppExitResponse> _onExitRequested() async {
+    await _popInAndHideWindow();
+    return AppExitResponse.cancel;
+  }
+
+  Future<void> _popInAndHideWindow() async {
+    await _notifyPopInRequested();
+
+    try {
+      final currentWindow = await WindowController.fromCurrentEngine();
+      await currentWindow.hide();
+    } on Exception {
+      return;
+    }
+  }
+
+  Future<void> _notifyPopInRequested() async {
+    if (_targetParticipantUserId.isEmpty) {
+      return;
+    }
+
+    try {
+      await _windowChannel.invokeMethod<void>(
+        voiceStreamPopInMethod,
+        <String, String>{
+          participantUserIdArgumentKey: _targetParticipantUserId,
+        },
+      );
+    } on Exception {
+      return;
+    }
+  }
+
+  List<Widget> _buildAppBarActions() {
+    return <Widget>[
+      IconButton(
+        tooltip: "Pop in",
+        onPressed: () => unawaited(_popInAndHideWindow()),
+        icon: const Icon(Icons.call_received),
+      ),
+    ];
   }
 
   Future<void> _connect() async {
@@ -89,18 +145,18 @@ class _VoiceStreamPopoutWindowPageState
           _updateVideoTrack();
         });
 
-      _room = room;
-      _displayName = displayName.isEmpty ? "Stream" : displayName;
-      _targetParticipantUserId = participantUserId;
-      _updateVideoTrack();
-
       if (!mounted) {
         return;
       }
 
       setState(() {
+        _room = room;
+        _displayName = displayName.isEmpty ? "Stream" : displayName;
+        _targetParticipantUserId = participantUserId;
         _isLoading = false;
       });
+
+      _updateVideoTrack();
     } on Exception catch (error) {
       if (!mounted) {
         return;
@@ -129,24 +185,26 @@ class _VoiceStreamPopoutWindowPageState
 
   void _updateVideoTrack() {
     final room = _room;
-    final targetParticipantUserId = _targetParticipantUserId;
-
-    if (room == null || targetParticipantUserId == null) {
+    if (room == null || _targetParticipantUserId.isEmpty) {
       return;
     }
 
     VideoTrack? resolvedTrack;
 
     final localParticipant = room.localParticipant;
-    if (localParticipant?.identity == targetParticipantUserId) {
+    if (localParticipant?.identity == _targetParticipantUserId) {
       resolvedTrack = _firstVideoTrackFromPublications(
         localParticipant?.trackPublications.values,
       );
     }
 
     final remoteParticipant = room.remoteParticipants.values.firstWhereOrNull(
-      (participant) => participant.identity == targetParticipantUserId,
+      (participant) => participant.identity == _targetParticipantUserId,
     );
+
+    if (remoteParticipant != null) {
+      _ensureRemoteVideoSubscribed(remoteParticipant);
+    }
 
     resolvedTrack ??= _firstVideoTrackFromPublications(
       remoteParticipant?.trackPublications.values,
@@ -159,6 +217,16 @@ class _VoiceStreamPopoutWindowPageState
     setState(() {
       _videoTrack = resolvedTrack;
     });
+  }
+
+  void _ensureRemoteVideoSubscribed(RemoteParticipant remoteParticipant) {
+    for (final publication in remoteParticipant.videoTrackPublications) {
+      if (publication.subscribed) {
+        continue;
+      }
+
+      unawaited(publication.subscribe());
+    }
   }
 
   VideoTrack? _firstVideoTrackFromPublications(
@@ -185,6 +253,7 @@ class _VoiceStreamPopoutWindowPageState
       return Scaffold(
         appBar: AppBar(
           title: const Text("Stream Popout"),
+          actions: _buildAppBarActions(),
         ),
         body: Center(
           child: Padding(
@@ -210,7 +279,8 @@ class _VoiceStreamPopoutWindowPageState
     if (track == null) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(_displayName ?? "Stream"),
+          title: Text(_displayName),
+          actions: _buildAppBarActions(),
         ),
         body: const Center(
           child: Text("Waiting for stream"),
@@ -219,6 +289,10 @@ class _VoiceStreamPopoutWindowPageState
     }
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text(_displayName),
+        actions: _buildAppBarActions(),
+      ),
       body: Stack(
         fit: StackFit.expand,
         children: <Widget>[
@@ -236,7 +310,7 @@ class _VoiceStreamPopoutWindowPageState
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Text(
-                    _displayName ?? "Stream",
+                    _displayName,
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),

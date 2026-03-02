@@ -77,6 +77,7 @@ abstract interface class ChatApi {
   Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
     required String baseUrl,
     required String channelId,
+    String? participantInstanceId,
   });
 
   Future<Result<ApiMe>> getMe({

@@ -4,9 +4,11 @@ import "package:polyphony_flutter_client/shared/repositories/repository_mixins.d
 class ConnectVoiceSessionCommand {
   const ConnectVoiceSessionCommand({
     required this.channelId,
+    this.participantInstanceId,
   });
 
   final String channelId;
+  final String? participantInstanceId;
 }
 
 abstract interface class VoiceSessionRepo

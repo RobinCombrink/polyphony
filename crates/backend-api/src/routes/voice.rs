@@ -45,12 +45,22 @@ pub(crate) async fn create_session(
         return StatusCode::NOT_FOUND.into_response();
     }
 
+    let participant_instance_id = request
+        .participant_instance_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+
     let can_publish = match channel {
-        Channel::Voice { .. } => true,
+        Channel::Voice { .. } => participant_instance_id.is_none(),
         Channel::Text { .. } => false,
     };
 
     let participant_user_id = authenticated_user.user_id;
+    let participant_identity = match participant_instance_id {
+        Some(instance_id) => format!("{}:{instance_id}", participant_user_id),
+        None => participant_user_id.to_string(),
+    };
 
     let grants = VideoGrants {
         room_join: true,
@@ -64,7 +74,7 @@ pub(crate) async fn create_session(
         &state.livekit_config.api_key,
         &state.livekit_config.api_secret,
     )
-    .with_identity(&participant_user_id.to_string())
+    .with_identity(&participant_identity)
     .with_ttl(std::time::Duration::from_secs(
         state.livekit_config.token_ttl_seconds,
     ))

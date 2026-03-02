@@ -18,6 +18,7 @@ class VoiceSessionRepository implements VoiceSessionRepo {
   }) async {
     final serviceResult = await _voiceSessionService.connectVoiceSession(
       channelId: command.channelId,
+      participantInstanceId: command.participantInstanceId,
     );
 
     return switch (serviceResult) {

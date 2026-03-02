@@ -16,11 +16,13 @@ final class RestVoiceSessionService extends AuthenticatedRestSessionServiceBase
   @override
   Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
     required String channelId,
+    String? participantInstanceId,
   }) {
     return executeAuthenticated(
       (baseUrl) => _chatApi.connectVoiceSession(
         baseUrl: baseUrl,
         channelId: channelId,
+        participantInstanceId: participantInstanceId,
       ),
     );
   }

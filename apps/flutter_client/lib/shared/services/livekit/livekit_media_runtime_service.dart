@@ -287,9 +287,11 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   }
 
   Set<String> _participantUserIdsFromRoom(Room room) {
-    final localIdentity = room.localParticipant?.identity;
-    final remoteIdentities = room.remoteParticipants.values
-        .map((participant) => participant.identity);
+    final localIdentity = _normalizedParticipantUserId(
+      room.localParticipant?.identity,
+    );
+    final remoteIdentities = room.remoteParticipants.values.map(
+        (participant) => _normalizedParticipantUserId(participant.identity));
 
     return <String>{
       if (localIdentity != null && localIdentity.isNotEmpty) localIdentity,
@@ -344,7 +346,13 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
 
     for (final remoteParticipant in activeRoom.remoteParticipants.values) {
       for (final publication in remoteParticipant.audioTrackPublications) {
-        final participantIdentity = remoteParticipant.identity;
+        final participantIdentity = _normalizedParticipantUserId(
+          remoteParticipant.identity,
+        );
+        if (participantIdentity.isEmpty) {
+          continue;
+        }
+
         final participantChannel = participantAudioChannel(participantIdentity);
         final channelEnabled = isAudioChannelEnabled(participantChannel);
         final shouldBeEnabled = enabled && channelEnabled;
@@ -361,7 +369,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
 
   void _emitSpeakingParticipantUserIds(Iterable<Participant> speakers) {
     final speakingUserIds = speakers
-        .map((participant) => participant.identity)
+        .map(
+            (participant) => _normalizedParticipantUserId(participant.identity))
         .where((identity) => identity.isNotEmpty)
         .toSet();
 
@@ -397,7 +406,9 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     final tracksByUserId = <String, Object>{};
 
     final localParticipant = room.localParticipant;
-    final localIdentity = localParticipant?.identity;
+    final localIdentity = _normalizedParticipantUserId(
+      localParticipant?.identity,
+    );
     final localTrack = _firstVideoTrackFromPublications(
       localParticipant?.trackPublications.values,
     );
@@ -409,7 +420,9 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     }
 
     for (final remoteParticipant in room.remoteParticipants.values) {
-      final remoteIdentity = remoteParticipant.identity;
+      final remoteIdentity = _normalizedParticipantUserId(
+        remoteParticipant.identity,
+      );
       if (remoteIdentity.isEmpty) {
         continue;
       }
@@ -424,6 +437,20 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     }
 
     return tracksByUserId;
+  }
+
+  String _normalizedParticipantUserId(String? identity) {
+    final trimmedIdentity = identity?.trim() ?? "";
+    if (trimmedIdentity.isEmpty) {
+      return "";
+    }
+
+    final separatorIndex = trimmedIdentity.indexOf(":");
+    if (separatorIndex <= 0) {
+      return trimmedIdentity;
+    }
+
+    return trimmedIdentity.substring(0, separatorIndex);
   }
 
   void _emitParticipantVideoTracks(Room room) {

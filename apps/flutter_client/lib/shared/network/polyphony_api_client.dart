@@ -208,12 +208,20 @@ class PolyphonyApiClient implements ChatApi {
   Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
     required String baseUrl,
     required String channelId,
+    String? participantInstanceId,
   }) {
+    final trimmedParticipantInstanceId = participantInstanceId?.trim();
+
     return _performPostRequest<ApiVoiceConnectSession>(
       baseUrl: baseUrl,
       endpoint: "/api/v1/channels/$channelId/session",
       operation: "connect voice session",
-      body: const <String, dynamic>{"session_type": "voice"},
+      body: <String, dynamic>{
+        "session_type": "voice",
+        if (trimmedParticipantInstanceId != null &&
+            trimmedParticipantInstanceId.isNotEmpty)
+          "participant_instance_id": trimmedParticipantInstanceId,
+      },
       expectedStatusCode: 200,
       decodeItem: ApiVoiceConnectSession.fromJson,
     );

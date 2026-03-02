@@ -10,7 +10,10 @@ import "package:livekit_client/livekit_client.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/something_went_wrong_widget.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_stream_popout_channel.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
 class VoiceParticipantsPaneWidget extends StatelessWidget {
@@ -132,14 +135,19 @@ class _VoiceFocusedStreamWidget extends StatefulWidget {
 class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
   String? _focusedParticipantUserId;
   StreamSubscription<void>? _windowsChangedSubscription;
-  final _popoutWindowIdByParticipantUserId =
-      <String, String>{};
+  final _windowChannel = const WindowMethodChannel(
+    voiceStreamPopoutWindowChannelName,
+    mode: ChannelMode.unidirectional,
+  );
+  final _popoutWindowIdByParticipantUserId = <String, String>{};
+  final _poppedOutParticipantUserIds = <String>{};
 
   @override
   void initState() {
     super.initState();
 
     if (_isDesktopRuntime()) {
+      unawaited(_registerWindowMethodHandler());
       _windowsChangedSubscription = onWindowsChanged.listen((_) {
         unawaited(_handleWindowsChanged());
       });
@@ -148,8 +156,34 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
 
   @override
   void dispose() {
+    unawaited(_windowChannel.setMethodCallHandler(null));
     unawaited(_windowsChangedSubscription?.cancel());
     super.dispose();
+  }
+
+  Future<void> _registerWindowMethodHandler() {
+    return _windowChannel.setMethodCallHandler((call) async {
+      if (call.method != voiceStreamPopInMethod) {
+        return null;
+      }
+
+      final arguments = call.arguments;
+      if (arguments is! Map) {
+        return null;
+      }
+
+      final participantUserId =
+          (arguments[participantUserIdArgumentKey] as String? ?? "").trim();
+      if (participantUserId.isEmpty || !mounted) {
+        return null;
+      }
+
+      setState(() {
+        _poppedOutParticipantUserIds.remove(participantUserId);
+      });
+
+      return null;
+    });
   }
 
   @override
@@ -187,11 +221,21 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
     return Column(
       children: <Widget>[
         Expanded(
-          child: _VoiceVideoTileWidget(
-            displayName: focusedStream.displayName,
-            videoTrack: focusedStream.videoTrack,
-            isFocused: true,
-          ),
+          child: focusedStream.isPoppedOut
+              ? _PoppedOutStreamPlaceholderWidget(
+                  displayName: focusedStream.displayName,
+                  onPopIn: () => unawaited(
+                      _popInParticipant(focusedStream.participantUserId)),
+                )
+              : (focusedStream.videoTrack == null
+                  ? _NoVideoPlaceholderWidget(
+                      displayName: focusedStream.displayName,
+                    )
+                  : _VoiceVideoTileWidget(
+                      displayName: focusedStream.displayName,
+                      videoTrack: focusedStream.videoTrack!,
+                      isFocused: true,
+                    )),
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -216,10 +260,14 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
                     });
                   },
                   onPopout: _isDesktopRuntime()
-                      ? (item.isSelfParticipant
+                      ? (item.isSelfParticipant || item.videoTrack == null
                           ? null
-                          : () => unawaited(_openPopoutWindow(item)))
+                          : (item.isPoppedOut
+                              ? () => unawaited(
+                                  _popInParticipant(item.participantUserId))
+                              : () => unawaited(_openPopoutWindow(item))))
                       : null,
+                  isPoppedOut: item.isPoppedOut,
                 ),
               );
             },
@@ -244,7 +292,7 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
   }
 
   Future<void> _openPopoutWindow(_VoiceStreamItemData streamItem) async {
-    if (streamItem.isSelfParticipant) {
+    if (streamItem.isSelfParticipant || streamItem.videoTrack == null) {
       return;
     }
 
@@ -253,10 +301,42 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
       return;
     }
 
+    final participantInstanceId =
+        "popout-${streamItem.participantUserId}-${DateTime.now().microsecondsSinceEpoch}";
+    final popoutSessionResult =
+        await context.read<VoiceSessionRepo>().createOne(
+              command: ConnectVoiceSessionCommand(
+                channelId: activeConnection.channelId,
+                participantInstanceId: participantInstanceId,
+              ),
+            );
+
+    if (popoutSessionResult case Error<VoiceConnectSession>()) {
+      return;
+    }
+
+    final popoutSession =
+        (popoutSessionResult as Ok<VoiceConnectSession>).value;
+
+    final existingWindowId =
+        _popoutWindowIdByParticipantUserId[streamItem.participantUserId];
+    if (existingWindowId != null && existingWindowId.isNotEmpty) {
+      final existingWindow = WindowController.fromWindowId(existingWindowId);
+      await existingWindow.show();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _poppedOutParticipantUserIds.add(streamItem.participantUserId);
+      });
+      return;
+    }
+
     final payload = jsonEncode(<String, String>{
       "type": "voice_stream_popout",
-      "livekitUrl": activeConnection.livekitUrl,
-      "accessToken": activeConnection.accessToken,
+      "livekitUrl": popoutSession.livekitUrl,
+      "accessToken": popoutSession.accessToken,
       "participantUserId": streamItem.participantUserId,
       "displayName": streamItem.displayName,
     });
@@ -268,7 +348,33 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
     );
     _popoutWindowIdByParticipantUserId[streamItem.participantUserId] =
         windowController.windowId;
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _poppedOutParticipantUserIds.add(streamItem.participantUserId);
+    });
     await windowController.show();
+  }
+
+  Future<void> _popInParticipant(String participantUserId) async {
+    final windowId = _popoutWindowIdByParticipantUserId[participantUserId];
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _poppedOutParticipantUserIds.remove(participantUserId);
+    });
+
+    if (windowId == null || windowId.isEmpty) {
+      return;
+    }
+
+    final windowController = WindowController.fromWindowId(windowId);
+    await windowController.hide();
   }
 
   Future<void> _handleWindowsChanged() async {
@@ -291,6 +397,7 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
 
     for (final participantUserId in closedParticipantUserIds) {
       _popoutWindowIdByParticipantUserId.remove(participantUserId);
+      _poppedOutParticipantUserIds.remove(participantUserId);
     }
 
     final selfParticipantUserId = widget.selfParticipantUserId;
@@ -322,37 +429,40 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
     };
     final selfUserId = widget.selfParticipantUserId;
 
-    return widget.participantVideoTracks.entries
-        .map((entry) {
-          final participantUserId = entry.key;
+    final participantUserIds = <String>{
+      ...participantByUserId.keys,
+      ...widget.participantVideoTracks.keys,
+    };
 
-          if (entry.value case final VideoTrack videoTrack) {
-            final participant = participantByUserId[participantUserId];
-            final isSelfParticipant =
-                selfUserId != null && participantUserId == selfUserId;
-            final displayName = participant?.displayName ??
-                (isSelfParticipant ? "You" : "Member");
-            final isMuted = participant?.isMuted ?? false;
-            final isSpeaking = participant?.isSpeaking ?? false;
-            final statusText = _statusText(
-              isMuted: isMuted,
-              isSpeaking: isSpeaking,
-              isSelfParticipant: isSelfParticipant,
-              isSelfDeafened: widget.isSelfDeafened,
-            );
+    return participantUserIds
+        .map((participantUserId) {
+          final participant = participantByUserId[participantUserId];
+          final isSelfParticipant =
+              selfUserId != null && participantUserId == selfUserId;
+          final displayName = participant?.displayName ??
+              (isSelfParticipant ? "You" : "Member");
+          final isMuted = participant?.isMuted ?? false;
+          final isSpeaking = participant?.isSpeaking ?? false;
+          final statusText = _statusText(
+            isMuted: isMuted,
+            isSpeaking: isSpeaking,
+            isSelfParticipant: isSelfParticipant,
+            isSelfDeafened: widget.isSelfDeafened,
+          );
+          final rawVideoTrack =
+              widget.participantVideoTracks[participantUserId];
+          final videoTrack = rawVideoTrack is VideoTrack ? rawVideoTrack : null;
 
-            return _VoiceStreamItemData(
-              participantUserId: participantUserId,
-              displayName: displayName,
-              isSelfParticipant: isSelfParticipant,
-              statusText: statusText,
-              videoTrack: videoTrack,
-            );
-          }
-
-          return null;
+          return _VoiceStreamItemData(
+            participantUserId: participantUserId,
+            displayName: displayName,
+            isSelfParticipant: isSelfParticipant,
+            statusText: statusText,
+            videoTrack: videoTrack,
+            isPoppedOut:
+                _poppedOutParticipantUserIds.contains(participantUserId),
+          );
         })
-        .whereType<_VoiceStreamItemData>()
         .toList()
         .sorted((left, right) {
           if (left.isSelfParticipant != right.isSelfParticipant) {
@@ -392,13 +502,77 @@ class _VoiceStreamItemData {
     required this.isSelfParticipant,
     required this.statusText,
     required this.videoTrack,
+    required this.isPoppedOut,
   });
 
   final String participantUserId;
   final String displayName;
   final bool isSelfParticipant;
   final String statusText;
-  final VideoTrack videoTrack;
+  final VideoTrack? videoTrack;
+  final bool isPoppedOut;
+}
+
+class _NoVideoPlaceholderWidget extends StatelessWidget {
+  const _NoVideoPlaceholderWidget({
+    required this.displayName,
+  });
+
+  final String displayName;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(displayName),
+            const SizedBox(height: 8),
+            const Text("No video"),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PoppedOutStreamPlaceholderWidget extends StatelessWidget {
+  const _PoppedOutStreamPlaceholderWidget({
+    required this.displayName,
+    required this.onPopIn,
+  });
+
+  final String displayName;
+  final VoidCallback onPopIn;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text("$displayName popped out"),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: onPopIn,
+              icon: const Icon(Icons.call_received),
+              label: const Text("Pop in"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _VoiceVideoTileWidget extends StatelessWidget {
@@ -452,10 +626,12 @@ class _VoiceStreamPreviewSelectorItem extends StatelessWidget {
     required this.isFocused,
     required this.onFocus,
     required this.onPopout,
+    required this.isPoppedOut,
   });
 
   final _VoiceStreamItemData streamItem;
   final bool isFocused;
+  final bool isPoppedOut;
   final VoidCallback onFocus;
   final VoidCallback? onPopout;
 
@@ -483,10 +659,34 @@ class _VoiceStreamPreviewSelectorItem extends StatelessWidget {
                 width: 92,
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: _VoiceVideoTileWidget(
-                    displayName: streamItem.displayName,
-                    videoTrack: streamItem.videoTrack,
-                  ),
+                  child: isPoppedOut
+                      ? DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.open_in_new_off, size: 18),
+                          ),
+                        )
+                      : (streamItem.videoTrack == null
+                          ? DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.videocam_off, size: 18),
+                              ),
+                            )
+                          : _VoiceVideoTileWidget(
+                              displayName: streamItem.displayName,
+                              videoTrack: streamItem.videoTrack!,
+                            )),
                 ),
               ),
               const SizedBox(width: 8),
@@ -518,10 +718,10 @@ class _VoiceStreamPreviewSelectorItem extends StatelessWidget {
               ),
               if (onPopout != null)
                 IconButton(
-                  tooltip: "Pop out",
+                  tooltip: isPoppedOut ? "Pop in" : "Pop out",
                   onPressed: onPopout,
-                  icon: const Icon(
-                    Icons.open_in_new,
+                  icon: Icon(
+                    isPoppedOut ? Icons.call_received : Icons.open_in_new,
                     size: 18,
                   ),
                 ),
