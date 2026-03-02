@@ -11,6 +11,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       StreamController<Set<String>>.broadcast();
   final _speakingParticipantUserIdsController =
       StreamController<Set<String>>.broadcast();
+  final _mutedParticipantUserIdsController =
+      StreamController<Set<String>>.broadcast();
   final _participantVideoTracksController =
       StreamController<Map<String, Object>>.broadcast();
   var _isSelfMuted = false;
@@ -53,6 +55,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       _roomListener = room.createListener()
         ..on<RoomEvent>((_) {
           _emitParticipantUserIds(room);
+          _emitMutedParticipantUserIds(room);
           _emitParticipantVideoTracks(room);
         })
         ..on<ActiveSpeakersChangedEvent>((event) {
@@ -67,6 +70,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         });
       _emitParticipantUserIds(room);
       _emitSpeakingParticipantUserIds(room.activeSpeakers);
+      _emitMutedParticipantUserIds(room);
       _emitParticipantVideoTracks(room);
       _room = room;
       return const Ok<void>(null);
@@ -91,6 +95,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         });
       _participantUserIdsController.add(const <String>{});
       _speakingParticipantUserIdsController.add(const <String>{});
+      _mutedParticipantUserIdsController.add(const <String>{});
       _participantVideoTracksController.add(const <String, Object>{});
       return const Ok<void>(null);
     } on Exception catch (error) {
@@ -108,6 +113,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
 
       await activeRoom.localParticipant?.setMicrophoneEnabled(!muted);
       _isSelfMuted = muted;
+      _emitMutedParticipantUserIds(activeRoom);
       return const Ok<void>(null);
     } on Exception catch (error) {
       return Error<void>(error);
@@ -138,6 +144,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       }
 
       _isSelfDeafened = deafened;
+      _emitMutedParticipantUserIds(activeRoom);
       return const Ok<void>(null);
     } on Exception catch (error) {
       return Error<void>(error);
@@ -282,6 +289,16 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   }
 
   @override
+  Set<String> currentMutedParticipantUserIds() {
+    final activeRoom = _room;
+    if (activeRoom == null) {
+      return const <String>{};
+    }
+
+    return _mutedParticipantUserIdsFromRoom(activeRoom);
+  }
+
+  @override
   Stream<Set<String>> participantUserIds() {
     return _participantUserIdsController.stream;
   }
@@ -294,7 +311,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         (participant) => _normalizedParticipantUserId(participant.identity));
 
     return <String>{
-      if (localIdentity != null && localIdentity.isNotEmpty) localIdentity,
+      if (localIdentity.isNotEmpty) localIdentity,
       ...remoteIdentities.where((identity) => identity.isNotEmpty),
     };
   }
@@ -302,6 +319,11 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   @override
   Stream<Set<String>> speakingParticipantUserIds() {
     return _speakingParticipantUserIdsController.stream;
+  }
+
+  @override
+  Stream<Set<String>> mutedParticipantUserIds() {
+    return _mutedParticipantUserIdsController.stream;
   }
 
   @override
@@ -398,6 +420,11 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     unawaited(_applyRemoteAudioSubscriptions());
   }
 
+  void _emitMutedParticipantUserIds(Room room) {
+    _mutedParticipantUserIdsController
+        .add(_mutedParticipantUserIdsFromRoom(room));
+  }
+
   Future<void> _applyRemoteAudioSubscriptions() async {
     await _setRemoteAudioSubscriptionsEnabled(enabled: !_isSelfDeafened);
   }
@@ -413,9 +440,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       localParticipant?.trackPublications.values,
     );
 
-    if (localIdentity != null &&
-        localIdentity.isNotEmpty &&
-        localTrack != null) {
+    if (localIdentity.isNotEmpty && localTrack != null) {
       tracksByUserId[localIdentity] = localTrack;
     }
 
@@ -437,6 +462,42 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     }
 
     return tracksByUserId;
+  }
+
+  Set<String> _mutedParticipantUserIdsFromRoom(Room room) {
+    final mutedParticipantUserIds = <String>{};
+
+    final localIdentity = _normalizedParticipantUserId(
+      room.localParticipant?.identity,
+    );
+    final localAudioPublications =
+        room.localParticipant?.audioTrackPublications;
+    final isLocalMutedByTrack =
+        localAudioPublications?.any((publication) => publication.muted) ??
+            false;
+
+    if (localIdentity.isNotEmpty && (_isSelfMuted || isLocalMutedByTrack)) {
+      mutedParticipantUserIds.add(localIdentity);
+    }
+
+    for (final remoteParticipant in room.remoteParticipants.values) {
+      final remoteIdentity = _normalizedParticipantUserId(
+        remoteParticipant.identity,
+      );
+
+      if (remoteIdentity.isEmpty) {
+        continue;
+      }
+
+      final isRemoteMuted = remoteParticipant.audioTrackPublications
+          .any((publication) => publication.muted);
+
+      if (isRemoteMuted) {
+        mutedParticipantUserIds.add(remoteIdentity);
+      }
+    }
+
+    return mutedParticipantUserIds;
   }
 
   String _normalizedParticipantUserId(String? identity) {

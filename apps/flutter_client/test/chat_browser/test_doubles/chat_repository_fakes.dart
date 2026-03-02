@@ -286,6 +286,8 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
     this.forceSetSelfDeafenedError = false,
     this.forceSetSelfScreenShareEnabledError = false,
     this.initialParticipantUserIds = const <String>{"auth0|u1"},
+    this.selfParticipantUserId = "auth0|u1",
+    this.initialMutedParticipantUserIds = const <String>{},
   });
 
   final bool forceConnectError;
@@ -294,22 +296,26 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   final bool forceSetSelfDeafenedError;
   final bool forceSetSelfScreenShareEnabledError;
   final Set<String> initialParticipantUserIds;
+  final String selfParticipantUserId;
+  final Set<String> initialMutedParticipantUserIds;
   final _participantUserIdsController =
       StreamController<Set<String>>.broadcast();
   final _speakingParticipantUserIdsController =
+      StreamController<Set<String>>.broadcast();
+  final _mutedParticipantUserIdsController =
       StreamController<Set<String>>.broadcast();
   final _participantVideoTracksController =
       StreamController<Map<String, Object>>.broadcast();
   late var _currentParticipantUserIds =
       Set<String>.from(initialParticipantUserIds);
   final _currentParticipantVideoTracks = <String, Object>{};
-  final _audioChannelByParticipantUserId =
-      <String, RuntimeAudioChannel>{};
-  final _audioChannelEnabled =
-      <RuntimeAudioChannel, bool>{
+  final _audioChannelByParticipantUserId = <String, RuntimeAudioChannel>{};
+  final _audioChannelEnabled = <RuntimeAudioChannel, bool>{
     RuntimeAudioChannel.voice: true,
     RuntimeAudioChannel.livestream: true,
   };
+  late final Set<String> _currentMutedParticipantUserIds =
+      Set<String>.from(initialMutedParticipantUserIds);
   var _isSelfMuted = false;
   var _isSelfDeafened = false;
   var _isSelfScreenShareEnabled = false;
@@ -444,6 +450,20 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   }
 
   @override
+  Set<String> currentMutedParticipantUserIds() {
+    final mutedParticipantUserIds =
+        Set<String>.from(_currentMutedParticipantUserIds);
+
+    if (_isSelfMuted) {
+      mutedParticipantUserIds.add(selfParticipantUserId);
+    } else {
+      mutedParticipantUserIds.remove(selfParticipantUserId);
+    }
+
+    return mutedParticipantUserIds;
+  }
+
+  @override
   Stream<Set<String>> participantUserIds() {
     return _participantUserIdsController.stream;
   }
@@ -451,6 +471,11 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   @override
   Stream<Set<String>> speakingParticipantUserIds() {
     return _speakingParticipantUserIdsController.stream;
+  }
+
+  @override
+  Stream<Set<String>> mutedParticipantUserIds() {
+    return _mutedParticipantUserIdsController.stream;
   }
 
   @override
@@ -478,6 +503,13 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
       ..addAll(videoTracks);
     _participantVideoTracksController
         .add(Map<String, Object>.from(videoTracks));
+  }
+
+  void emitMutedParticipantUserIds(Set<String> userIds) {
+    _currentMutedParticipantUserIds
+      ..clear()
+      ..addAll(userIds);
+    _mutedParticipantUserIdsController.add(Set<String>.from(userIds));
   }
 }
 

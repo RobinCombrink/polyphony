@@ -46,9 +46,13 @@ abstract interface class MediaRuntimeService {
 
   Iterable<String> currentParticipantUserIds();
 
+  Set<String> currentMutedParticipantUserIds();
+
   Stream<Set<String>> participantUserIds();
 
   Stream<Set<String>> speakingParticipantUserIds();
+
+  Stream<Set<String>> mutedParticipantUserIds();
 
   Map<String, Object> currentParticipantVideoTracks();
 

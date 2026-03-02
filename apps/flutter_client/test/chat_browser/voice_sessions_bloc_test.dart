@@ -360,6 +360,58 @@ void main() {
   );
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "updates participant mute state from runtime mute stream",
+    build: () {
+      speakingRuntimeService = FakeVoiceRuntimeService(
+        initialParticipantUserIds: <String>{
+          fixture.connectedVoiceSession.participantUserId,
+          "auth0|u2",
+        },
+      );
+
+      return VoiceSessionsBloc(
+        voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+        voiceRuntimeService: speakingRuntimeService,
+        profileRepo: FakeProfileRepository(
+          userId: fixture.ownerUserId,
+          displayNamesByUserId: const <String, String?>{
+            "auth0|u2": "Remote User",
+          },
+        ),
+      );
+    },
+    act: (bloc) async {
+      bloc
+        ..add(LoadVoiceSessionsRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ))
+        ..add(ConnectVoiceSessionRequested(
+          channelId: fixture.listedVoiceChannel.id,
+        ));
+
+      await Future<void>.delayed(Duration.zero);
+
+      speakingRuntimeService.emitMutedParticipantUserIds(
+        <String>{"auth0|u2"},
+      );
+
+      await Future<void>.delayed(Duration.zero);
+    },
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadedState>().having(
+        (state) => state.participants
+            .firstWhere((participant) => participant.userId == "auth0|u2")
+            .isMuted,
+        "remote participant muted",
+        true,
+      ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "set self screen share enabled updates screen share state",
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
