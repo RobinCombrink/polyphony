@@ -132,7 +132,7 @@ class _VoiceFocusedStreamWidget extends StatefulWidget {
 class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
   String? _focusedParticipantUserId;
   StreamSubscription<void>? _windowsChangedSubscription;
-  final Map<String, String> _popoutWindowIdByParticipantUserId =
+  final _popoutWindowIdByParticipantUserId =
       <String, String>{};
 
   @override
@@ -263,7 +263,6 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
 
     final windowController = await WindowController.create(
       WindowConfiguration(
-        hiddenAtLaunch: true,
         arguments: payload,
       ),
     );

@@ -393,7 +393,7 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: widget.bottomSection!,
+                  child: widget.bottomSection,
                 ),
               ),
             ],

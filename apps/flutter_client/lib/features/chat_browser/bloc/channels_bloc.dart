@@ -1,7 +1,6 @@
 import "package:flutter_bloc/flutter_bloc.dart";
-
-import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
+import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 

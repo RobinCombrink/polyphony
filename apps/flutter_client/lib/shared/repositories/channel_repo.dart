@@ -1,5 +1,5 @@
-import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
+import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
 
 class GetChannelsQuery {

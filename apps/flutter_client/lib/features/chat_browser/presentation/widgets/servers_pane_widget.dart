@@ -5,7 +5,6 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/servers_section_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/something_went_wrong_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";

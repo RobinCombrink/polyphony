@@ -26,7 +26,7 @@ class ChannelsPaneWidget extends StatefulWidget {
 }
 
 class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
-  String _lastVisibleVoiceChannelIdsKey = "";
+  var _lastVisibleVoiceChannelIdsKey = "";
 
   void _onTextChannelTapped(BuildContext context, TextChannel channel) {
     context.read<ChannelsBloc>().add(

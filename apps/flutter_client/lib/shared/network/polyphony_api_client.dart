@@ -1,12 +1,11 @@
 import "dart:convert";
 
 import "package:http/http.dart" as http;
-
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
+import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
-import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 
 class PolyphonyApiClient implements ChatApi {
   PolyphonyApiClient({
