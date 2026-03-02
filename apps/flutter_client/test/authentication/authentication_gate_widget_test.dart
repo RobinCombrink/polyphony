@@ -5,6 +5,7 @@ import "package:polyphony_flutter_client/features/authentication/bloc/authentica
 import "package:polyphony_flutter_client/features/authentication/presentation/authentication_gate_widget.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:provider/provider.dart";
 
 class _RecordingAuthenticationBloc extends AuthenticationBloc {
@@ -29,7 +30,7 @@ class _FakeAccessTokenProvider implements AccessTokenProvider {
   }
 
   @override
-  Future<Result<String>> getAccessToken() async {
+  Future<Result<String>> getAccessToken({String? loginHint}) async {
     return Error<String>(Exception("Not used in this test."));
   }
 
@@ -54,6 +55,9 @@ void main() {
                 persistedTokenResult: Ok<String?>("persisted-access-token"),
               ),
             ),
+            Provider<PreferencesStore>(
+              create: (_) => InMemoryPreferencesStore(),
+            ),
             BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
           ],
           child: const MaterialApp(home: AuthenticationGateWidget()),
@@ -64,8 +68,8 @@ void main() {
 
       expect(authenticationBloc.recordedEvents, hasLength(1));
 
-      final loginEvent =
-          authenticationBloc.recordedEvents.single as AuthenticationLoginRequested;
+      final loginEvent = authenticationBloc.recordedEvents.single
+          as AuthenticationLoginRequested;
 
       expect(loginEvent.bearerToken, "persisted-access-token");
     },

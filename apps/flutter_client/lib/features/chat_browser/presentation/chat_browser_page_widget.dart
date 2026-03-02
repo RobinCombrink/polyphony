@@ -104,7 +104,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text("Polyphony MVP Client"),
+          title: const Text("Polyphony"),
           actions: <Widget>[
             IconButton(
               onPressed: () => unawaited(

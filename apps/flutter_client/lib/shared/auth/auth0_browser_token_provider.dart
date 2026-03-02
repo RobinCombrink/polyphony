@@ -47,8 +47,8 @@ class Auth0TokenProvider implements AccessTokenProvider {
   }
 
   @override
-  Future<Result<String>> getAccessToken() {
-    return _delegate.getAccessToken();
+  Future<Result<String>> getAccessToken({String? loginHint}) {
+    return _delegate.getAccessToken(loginHint: loginHint);
   }
 
   @override
@@ -98,12 +98,16 @@ final class Auth0WebTokenProvider implements AccessTokenProvider {
   }
 
   @override
-  Future<Result<String>> getAccessToken() async {
+  Future<Result<String>> getAccessToken({String? loginHint}) async {
     try {
+      final normalizedLoginHint = _normalizedLoginHint(loginHint);
       await _auth0Web.loginWithRedirect(
         audience: _audience,
         scopes: _scopes,
         redirectUrl: _redirectUrl,
+        parameters: <String, String>{
+          if (normalizedLoginHint != null) "login_hint": normalizedLoginHint,
+        },
       );
 
       return Error<String>(Exception("Redirecting to Auth0 for sign in."));
@@ -165,8 +169,8 @@ final class Auth0NativeTokenProvider implements AccessTokenProvider {
   }
 
   @override
-  Future<Result<String>> getAccessToken() {
-    return _delegate.getAccessToken();
+  Future<Result<String>> getAccessToken({String? loginHint}) {
+    return _delegate.getAccessToken(loginHint: loginHint);
   }
 
   @override
@@ -214,13 +218,17 @@ final class _Auth0SdkNativeTokenProvider implements AccessTokenProvider {
   }
 
   @override
-  Future<Result<String>> getAccessToken() async {
+  Future<Result<String>> getAccessToken({String? loginHint}) async {
     try {
+      final normalizedLoginHint = _normalizedLoginHint(loginHint);
       final credentials = await _auth0.webAuthentication().login(
-            audience: _audience,
-            scopes: _scopes,
-            redirectUrl: _mobileRedirectUri,
-          );
+        audience: _audience,
+        scopes: _scopes,
+        redirectUrl: _mobileRedirectUri,
+        parameters: <String, String>{
+          if (normalizedLoginHint != null) "login_hint": normalizedLoginHint,
+        },
+      );
 
       return _tokenResult(credentials.accessToken);
     } on Exception catch (error) {
@@ -288,7 +296,7 @@ final class _DesktopAuth0TokenProvider implements AccessTokenProvider {
   }
 
   @override
-  Future<Result<String>> getAccessToken() async {
+  Future<Result<String>> getAccessToken({String? loginHint}) async {
     if (_domain.trim().isEmpty) {
       return Error<String>(
         Exception("Missing AUTH0_DOMAIN configuration."),
@@ -305,7 +313,8 @@ final class _DesktopAuth0TokenProvider implements AccessTokenProvider {
       audience: _audience,
       state: state,
       codeChallenge: codeChallenge,
-      prompt: "consent",
+      prompt: null,
+      loginHint: _normalizedLoginHint(loginHint),
     );
 
     try {
@@ -481,6 +490,7 @@ final class _DesktopAuth0TokenProvider implements AccessTokenProvider {
     required String state,
     required String codeChallenge,
     required String? prompt,
+    required String? loginHint,
   }) {
     final queryParameters = <String, String>{
       "response_type": "code",
@@ -492,6 +502,8 @@ final class _DesktopAuth0TokenProvider implements AccessTokenProvider {
       "code_challenge_method": "S256",
       if (audience != null) "audience": audience,
       if (prompt != null && prompt.trim().isNotEmpty) "prompt": prompt,
+      if (loginHint != null && loginHint.trim().isNotEmpty)
+        "login_hint": loginHint,
     };
 
     return Uri.parse("${_issuerBaseUrl()}/authorize").replace(
@@ -580,6 +592,15 @@ Set<String> _normalizedScopes(
 
 String _resolvedWebRedirectUrl() {
   return Uri.base.replace(query: "", fragment: "").toString();
+}
+
+String? _normalizedLoginHint(String? loginHint) {
+  if (loginHint == null) {
+    return null;
+  }
+
+  final trimmedLoginHint = loginHint.trim();
+  return trimmedLoginHint.isEmpty ? null : trimmedLoginHint;
 }
 
 String _codeChallengeFromVerifier(String codeVerifier) {

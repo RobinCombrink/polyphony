@@ -28,6 +28,7 @@ import "package:polyphony_flutter_client/shared/services/livekit/livekit_message
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_service.dart";
+import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_message_service.dart";
@@ -41,7 +42,12 @@ import "package:polyphony_flutter_client/shared/services/voice_session_service.d
 import "package:provider/provider.dart";
 
 class PolyphonyApp extends StatelessWidget {
-  const PolyphonyApp({super.key});
+  const PolyphonyApp({
+    super.key,
+    this.preferencesStore,
+  });
+
+  final PreferencesStore? preferencesStore;
 
   String _auth0ClientIdForCurrentPlatform() {
     if (kIsWeb) {
@@ -83,6 +89,9 @@ class PolyphonyApp extends StatelessWidget {
         Provider<http.Client>(create: (_) => http.Client()),
         Provider<RefreshTokenStore>(
           create: (_) => createRefreshTokenStore(),
+        ),
+        Provider<PreferencesStore>(
+          create: (_) => preferencesStore ?? createPreferencesStore(),
         ),
         BlocProvider<AuthenticationBloc>(
           create: (_) => AuthenticationBloc(),
