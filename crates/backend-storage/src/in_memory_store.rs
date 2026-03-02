@@ -308,5 +308,4 @@ impl InMemoryStore {
             None => MutationResult::NotFound,
         }
     }
-
 }

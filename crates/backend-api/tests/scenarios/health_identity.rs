@@ -114,7 +114,9 @@ async fn given_existing_user_when_lookup_by_id_then_returns_minimal_profile() {
         patch_me_display_name_with_token(&app, "Lookup Name", "valid-token").await;
     assert_eq!(update_response.status(), StatusCode::OK);
 
-    let me_payload = common::bdd_support::response_payload_json(get_me_with_token(&app, "valid-token").await).await;
+    let me_payload =
+        common::bdd_support::response_payload_json(get_me_with_token(&app, "valid-token").await)
+            .await;
     let user_id = me_payload["user_id"]
         .as_str()
         .expect("user id to be present")
@@ -147,12 +149,9 @@ async fn given_invalid_token_when_lookup_by_id_then_returns_unauthorized() {
     let state = seeded_state("auth0|lookup-user", "valid-token");
     let app = build_app(state);
 
-    let response = get_user_by_id_with_token(
-        &app,
-        "00000000-0000-0000-0000-000000000001",
-        "wrong-token",
-    )
-    .await;
+    let response =
+        get_user_by_id_with_token(&app, "00000000-0000-0000-0000-000000000001", "wrong-token")
+            .await;
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }

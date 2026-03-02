@@ -407,15 +407,17 @@ async fn given_server_owner_when_update_channel_name_then_status_is_204_and_chan
     let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
-    let create_server_payload = response_payload_json(create_server(&app, &fixture.server.name).await).await;
+    let create_server_payload =
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
     let created_server_id = create_server_payload["id"]
         .as_str()
         .expect("created server id to be present")
         .to_owned();
 
-    let create_channel_payload =
-        response_payload_json(create_channel(&app, &created_server_id, fixture.channel.name()).await)
-            .await;
+    let create_channel_payload = response_payload_json(
+        create_channel(&app, &created_server_id, fixture.channel.name()).await,
+    )
+    .await;
     let created_channel_id = create_channel_payload["id"]
         .as_str()
         .expect("created channel id to be present")
@@ -435,8 +437,14 @@ async fn given_server_owner_when_update_channel_name_then_status_is_204_and_chan
         .expect("channel list payload to be array");
 
     assert_eq!(listed_channels.len(), 1);
-    assert_eq!(listed_channels[0]["id"].as_str(), Some(created_channel_id.as_str()));
-    assert_eq!(listed_channels[0]["name"].as_str(), Some(updated_channel_name));
+    assert_eq!(
+        listed_channels[0]["id"].as_str(),
+        Some(created_channel_id.as_str())
+    );
+    assert_eq!(
+        listed_channels[0]["name"].as_str(),
+        Some(updated_channel_name)
+    );
 }
 
 #[tokio::test]

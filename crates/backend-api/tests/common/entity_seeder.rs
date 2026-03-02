@@ -68,7 +68,11 @@ impl EntitySeeder {
             .collect::<String>()
             .to_lowercase();
 
-        Channel::new_text(Uuid::new_v4(), server_id, format!("Channel-{random_segment}"))
+        Channel::new_text(
+            Uuid::new_v4(),
+            server_id,
+            format!("Channel-{random_segment}"),
+        )
     }
 
     pub fn voice_channel(&self, server_id: Uuid) -> Channel {
