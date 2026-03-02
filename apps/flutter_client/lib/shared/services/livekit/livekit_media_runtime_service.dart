@@ -67,6 +67,12 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
           _emitDeafenedParticipantUserIds(room);
           _emitParticipantVideoTracks(room);
         })
+        ..on<TrackMutedEvent>((_) {
+          _emitMutedParticipantUserIds(room);
+        })
+        ..on<TrackUnmutedEvent>((_) {
+          _emitMutedParticipantUserIds(room);
+        })
         ..on<ActiveSpeakersChangedEvent>((event) {
           _emitSpeakingParticipantUserIds(event.speakers);
         })
