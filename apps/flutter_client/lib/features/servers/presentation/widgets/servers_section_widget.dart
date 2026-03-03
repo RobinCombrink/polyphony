@@ -2,8 +2,8 @@ import "dart:async";
 
 import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
-import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 
 SectionStatus? buildServersSectionStatus(ServersState state) {
   if (state is ServersValidationFailedState) {

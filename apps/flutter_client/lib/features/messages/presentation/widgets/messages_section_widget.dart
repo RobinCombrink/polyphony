@@ -1,7 +1,7 @@
 import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
-import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 
 SectionStatus? buildMessagesSectionStatus(MessagesState state) {
   if (state is MessagesValidationFailedState) {

@@ -151,7 +151,7 @@ void main() {
     });
 
     test("uses key id fallback when key label is empty", () {
-      final chord = KeybindingChord(
+      const chord = KeybindingChord(
         keyId: 1337,
         isControlPressed: false,
         isShiftPressed: false,
