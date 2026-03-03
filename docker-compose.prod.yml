@@ -17,9 +17,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   backend-api:
-    build:
-      context: .
-      dockerfile: crates/backend-api/Dockerfile
+    image: ${BACKEND_API_IMAGE:?BACKEND_API_IMAGE is required}
     environment:
       BACKEND_API_BIND: 0.0.0.0:5067
       POSTGRES_HOST: postgres

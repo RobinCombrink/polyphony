@@ -9,6 +9,11 @@ Deploy Polyphony services to a production VM with Docker Compose, without storin
 - `.env.production.example` (template only, safe to commit)
 - `.env.production` (real secrets, do not commit)
 
+## Backend image publishing (GHCR)
+- Workflow: `.github/workflows/backend_ci.yml`
+- Published image: `ghcr.io/polyphony-org/polyphony/backend-api`
+- Tags include: `latest` (main), branch refs, commit SHA, and git tags (`v*`)
+
 ## Setup on the VM
 ```bash
 cp .env.production.example .env.production
@@ -22,6 +27,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 - `LIVEKIT_API_SECRET`
 
 ## Required runtime values
+- `BACKEND_API_IMAGE` (for example `ghcr.io/polyphony-org/polyphony/backend-api:latest`)
 - `LIVEKIT_URL` (public URL clients should use, for example `wss://livekit.polyphony.com`)
 
 ## Services started
@@ -36,3 +42,5 @@ The backend container reads:
 ## Notes
 - `docker-compose.local.yml` and `livekit.local.yaml` are local-development only.
 - Keep `.env.production` on the VM or in a secret manager-backed deployment process.
+- On the VM, authenticate to GHCR before first pull if the package is private:
+	- `echo <github_pat_with_read_packages> | docker login ghcr.io -u <github_username> --password-stdin`
