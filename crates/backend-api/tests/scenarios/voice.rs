@@ -1,11 +1,14 @@
 use axum::http::StatusCode;
 use backend_api::build_app;
+use std::sync::Arc;
+use backend_api::storage::InMemoryRepository;
 use uuid::Uuid;
 
 use super::common::{
     bdd_support::{
-        connect_voice_session, create_server, create_voice_channel, response_payload_json,
-        seeded_state,
+        connect_voice_session, connect_voice_session_with_token, create_server,
+        create_server_with_token, create_voice_channel, create_channel_with_token,
+        response_payload_json, seeded_state, seeded_state_with_store,
     },
     entity_seeder::EntitySeeder,
 };
@@ -70,4 +73,56 @@ async fn given_missing_channel_when_connect_voice_session_then_status_is_404() {
         connect_voice_session(&app, "00000000-0000-0000-0000-000000000001").await;
 
     assert_eq!(connect_response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn given_voice_channel_owned_by_another_server_when_connect_then_status_is_403() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+    let second_user = entity_seeder.user();
+
+    let shared_store = Arc::new(InMemoryRepository::new());
+
+    let owner_app = build_app(seeded_state_with_store(
+        &fixture.user.external_reference,
+        "owner-token",
+        Arc::clone(&shared_store),
+    ));
+
+    let create_server_payload = response_payload_json(
+        create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
+    )
+    .await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel_with_token(
+            &owner_app,
+            &created_server_id,
+            fixture.channel.name(),
+            "voice",
+            "owner-token",
+        )
+        .await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let second_user_app = build_app(seeded_state_with_store(
+        &second_user.external_reference,
+        "member-token",
+        shared_store,
+    ));
+
+    let connect_response =
+        connect_voice_session_with_token(&second_user_app, &created_channel_id, "member-token")
+            .await;
+
+    assert_eq!(connect_response.status(), StatusCode::FORBIDDEN);
 }

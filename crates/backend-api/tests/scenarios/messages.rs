@@ -7,7 +7,8 @@ use super::common::{
     bdd_support::{
         create_channel, create_channel_with_token, create_message, create_message_with_token,
         create_server, create_server_with_token, delete_message, delete_message_with_token,
-        list_messages, response_payload_json, seeded_state, seeded_state_with_store,
+        list_messages, list_messages_with_token, response_payload_json, seeded_state,
+        seeded_state_with_store,
         update_message, update_message_with_token,
     },
     entity_seeder::EntitySeeder,
@@ -303,6 +304,58 @@ async fn given_message_owned_by_another_user_when_delete_message_then_status_is_
     .await;
 
     assert_eq!(delete_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn given_channel_owned_by_another_server_when_list_messages_then_status_is_403() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+    let other_user = entity_seeder.user();
+
+    let owner_subject = fixture.user.external_reference.clone();
+    let other_subject = other_user.external_reference.clone();
+    let shared_store = Arc::new(InMemoryRepository::new());
+
+    let owner_app = build_app(seeded_state_with_store(
+        &owner_subject,
+        "owner-token",
+        Arc::clone(&shared_store),
+    ));
+
+    let create_server_payload = response_payload_json(
+        create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
+    )
+    .await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel_with_token(
+            &owner_app,
+            &created_server_id,
+            fixture.channel.name(),
+            "text",
+            "owner-token",
+        )
+        .await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let other_user_app = build_app(seeded_state_with_store(
+        &other_subject,
+        "other-token",
+        shared_store,
+    ));
+
+    let response = list_messages_with_token(&other_user_app, &created_channel_id, "other-token").await;
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]

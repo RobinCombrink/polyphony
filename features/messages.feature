@@ -37,6 +37,13 @@ Feature: Backend API channel messages
     When the authenticated user deletes the other user's message
     Then the delete is forbidden
 
+  Scenario: Non-member cannot list messages in another server's channel
+    Given a server owner exists
+    And a second authenticated user exists
+    And a channel exists in the owner's server
+    When the second user lists messages in that channel
+    Then listing messages is forbidden
+
   Scenario: Updating a missing message returns not found
     Given an authenticated user exists
     And a channel exists in the user's server

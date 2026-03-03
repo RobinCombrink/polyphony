@@ -16,6 +16,24 @@ pub(crate) struct InMemoryStore {
 }
 
 impl InMemoryStore {
+    pub(crate) fn is_server_member(&self, server_id: Uuid, user_id: Uuid) -> Option<bool> {
+        if !self.servers.contains_key(&server_id) {
+            return None;
+        }
+
+        let is_member = self
+            .server_members_by_id
+            .get(&server_id)
+            .is_some_and(|members| members.contains(&user_id));
+
+        Some(is_member)
+    }
+
+    pub(crate) fn is_channel_member(&self, channel_id: Uuid, user_id: Uuid) -> Option<bool> {
+        let server_id = self.channels.get(&channel_id).map(Channel::server_id)?;
+        self.is_server_member(server_id, user_id)
+    }
+
     pub(crate) fn find_user_by_id(&self, user_id: Uuid) -> Option<User> {
         self.users_by_id.get(&user_id).cloned()
     }

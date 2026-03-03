@@ -312,11 +312,19 @@ pub(crate) async fn list_messages(
     app: &axum::Router,
     channel_id: &str,
 ) -> axum::response::Response {
+    list_messages_with_token(app, channel_id, "valid-token").await
+}
+
+pub(crate) async fn list_messages_with_token(
+    app: &axum::Router,
+    channel_id: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
                 .uri(format!("/api/v1/channels/{channel_id}/messages"))
-                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .body(Body::empty())
                 .expect("list messages request to be valid"),
         )
@@ -345,11 +353,19 @@ pub(crate) async fn list_servers_with_token(
 }
 
 pub(crate) async fn list_channels(app: &axum::Router, server_id: &str) -> axum::response::Response {
+    list_channels_with_token(app, server_id, "valid-token").await
+}
+
+pub(crate) async fn list_channels_with_token(
+    app: &axum::Router,
+    server_id: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
                 .uri(format!("/api/v1/servers/{server_id}/channels"))
-                .header(header::AUTHORIZATION, "Bearer valid-token")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .body(Body::empty())
                 .expect("list channels request to be valid"),
         )

@@ -40,6 +40,7 @@ pub trait UserRepository: Send + Sync {
 pub trait ServerRepository: Send + Sync {
     async fn create_server(&self, name: String, owner_user_id: Uuid) -> Server;
     async fn list_servers_for_user(&self, user_id: Uuid) -> Vec<Server>;
+    async fn is_server_member(&self, server_id: Uuid, user_id: Uuid) -> Option<bool>;
     async fn add_server_member(
         &self,
         server_id: Uuid,
@@ -67,4 +68,5 @@ pub trait ChannelRepository: Send + Sync {
     async fn delete_channel(&self, channel_id: Uuid, actor_user_id: Uuid) -> MutationResult;
     async fn list_channels_for_server(&self, server_id: Uuid) -> Option<Vec<Channel>>;
     async fn find_channel_by_id(&self, channel_id: Uuid) -> Option<Channel>;
+    async fn is_channel_member(&self, channel_id: Uuid, user_id: Uuid) -> Option<bool>;
 }

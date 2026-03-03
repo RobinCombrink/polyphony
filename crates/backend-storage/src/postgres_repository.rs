@@ -83,6 +83,44 @@ impl PostgresRepository {
 
         Ok(row > 0)
     }
+
+    async fn is_user_member_of_server(
+        &self,
+        server_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<bool>, sqlx::Error> {
+        if !self.server_exists(server_id).await? {
+            return Ok(None);
+        }
+
+        let row = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1) FROM server_members WHERE server_id = $1 AND user_id = $2",
+        )
+        .bind(server_id)
+        .bind(user_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(Some(row > 0))
+    }
+
+    async fn is_user_member_of_channel(
+        &self,
+        channel_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<bool>, sqlx::Error> {
+        let server_id =
+            sqlx::query_scalar::<_, Uuid>("SELECT server_id FROM channels WHERE id = $1")
+                .bind(channel_id)
+                .fetch_optional(&self.pool)
+                .await?;
+
+        let Some(server_id) = server_id else {
+            return Ok(None);
+        };
+
+        self.is_user_member_of_server(server_id, user_id).await
+    }
 }
 
 #[async_trait]
@@ -93,6 +131,14 @@ impl MessageRepository for PostgresRepository {
         author_user_id: Uuid,
         content: String,
     ) -> Option<Message> {
+        let is_channel_member = self
+            .is_user_member_of_channel(channel_id, author_user_id)
+            .await
+            .ok()??;
+        if !is_channel_member {
+            return None;
+        }
+
         if !self
             .channel_exists_by_kind(channel_id, ChannelType::Text)
             .await
@@ -344,6 +390,12 @@ impl ServerRepository for PostgresRepository {
             owner_user_id,
         })
         .collect()
+    }
+
+    async fn is_server_member(&self, server_id: Uuid, user_id: Uuid) -> Option<bool> {
+        self.is_user_member_of_server(server_id, user_id)
+            .await
+            .ok()?
     }
 
     async fn add_server_member(
@@ -602,5 +654,11 @@ impl ChannelRepository for PostgresRepository {
                 _ => None,
             },
         )
+    }
+
+    async fn is_channel_member(&self, channel_id: Uuid, user_id: Uuid) -> Option<bool> {
+        self.is_user_member_of_channel(channel_id, user_id)
+            .await
+            .ok()?
     }
 }

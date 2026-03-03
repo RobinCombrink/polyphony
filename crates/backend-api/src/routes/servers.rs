@@ -285,6 +285,7 @@ where
     path = "/api/v1/servers/{server_id}/channels",
     responses(
         (status = 200, description = "Channels listed for server", body = [Channel]),
+        (status = 403, description = "User is not a member of the server"),
         (status = 404, description = "Server not found"),
         (status = 401, description = "Authentication failed")
     ),
@@ -300,7 +301,18 @@ pub(crate) async fn list_channels<Repos>(
 where
     Repos: RepositoryProfile,
 {
-    let _ = authenticated_user;
+    let is_server_member = match state
+        .server_repository
+        .is_server_member(server_id, authenticated_user.user_id)
+        .await
+    {
+        Some(value) => value,
+        None => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    if !is_server_member {
+        return StatusCode::FORBIDDEN.into_response();
+    }
 
     let channels = state
         .channel_repository

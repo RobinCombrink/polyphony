@@ -18,6 +18,7 @@ use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser};
     request_body = CreateSessionRequest,
     responses(
         (status = 200, description = "LiveKit connection details returned", body = VoiceConnectResponse),
+        (status = 403, description = "User is not a member of the channel server"),
         (status = 404, description = "Channel not found"),
         (status = 500, description = "Failed to create access token"),
         (status = 401, description = "Authentication failed")
@@ -35,6 +36,19 @@ pub(crate) async fn create_session<Repos>(
 where
     Repos: RepositoryProfile,
 {
+    let is_channel_member = match state
+        .channel_repository
+        .is_channel_member(channel_id, authenticated_user.user_id)
+        .await
+    {
+        Some(value) => value,
+        None => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    if !is_channel_member {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+
     let channel = match state
         .channel_repository
         .find_channel_by_id(channel_id)

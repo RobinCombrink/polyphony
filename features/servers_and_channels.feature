@@ -57,6 +57,14 @@ Feature: Backend API servers and channels
     When the second user lists their servers
     Then the shared server is included in their server list
 
+  Scenario: Non-member cannot list channels in a server they do not belong to
+    Given a server owner exists
+    And a second authenticated user exists
+    And the owner already has a server
+    And a channel exists in the owner's server
+    When the second user lists channels in that server
+    Then listing channels is forbidden
+
   Scenario: Non-owner cannot add a server member
     Given a server owner exists
     And a second authenticated user exists

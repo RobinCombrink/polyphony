@@ -14,3 +14,10 @@ Feature: Backend API voice sessions
     Given an authenticated user exists
     When I connect to voice for a missing channel
     Then the channel is reported as not found
+
+  Scenario: Non-member cannot connect to voice in another server's channel
+    Given a server owner exists
+    And a second authenticated user exists
+    And a voice channel exists in the owner's server
+    When the second user connects to voice for that channel
+    Then voice connection is forbidden

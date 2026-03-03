@@ -5,7 +5,7 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::Message;
-use backend_storage::MessageRepository;
+use backend_storage::{ChannelRepository, MessageRepository};
 use uuid::Uuid;
 
 use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser};
@@ -15,6 +15,8 @@ use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser};
     path = "/api/v1/channels/{channel_id}/messages",
     responses(
         (status = 200, description = "Messages listed", body = [Message]),
+        (status = 403, description = "User is not a member of the channel server"),
+        (status = 404, description = "Channel not found"),
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
@@ -29,9 +31,20 @@ pub(crate) async fn list_messages<Repos>(
 where
     Repos: RepositoryProfile,
 {
-    let _ = authenticated_user;
+    let is_channel_member = match state
+        .channel_repository
+        .is_channel_member(channel_id, authenticated_user.user_id)
+        .await
+    {
+        Some(value) => value,
+        None => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    if !is_channel_member {
+        return StatusCode::FORBIDDEN.into_response();
+    }
 
     let messages = state.message_repository.list_messages(channel_id).await;
 
-    (StatusCode::OK, Json(messages))
+    (StatusCode::OK, Json(messages)).into_response()
 }

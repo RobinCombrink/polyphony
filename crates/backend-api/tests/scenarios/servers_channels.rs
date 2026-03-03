@@ -7,7 +7,8 @@ use super::common::{
         add_server_member, add_server_member_with_token, create_channel, create_channel_with_token,
         create_server, create_server_with_token, delete_channel, delete_channel_with_token,
         delete_server, delete_server_with_token, get_me_with_token, list_channels, list_servers,
-        list_servers_with_token, response_payload_json, seeded_state, seeded_state_with_store,
+        list_channels_with_token, list_servers_with_token, response_payload_json, seeded_state,
+        seeded_state_with_store,
         update_channel, update_channel_with_token,
     },
     entity_seeder::EntitySeeder,
@@ -116,6 +117,50 @@ async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_res
         listed_channels[0]["name"].as_str(),
         Some(fixture.channel.name())
     );
+}
+
+#[tokio::test]
+async fn given_server_owned_by_another_user_when_list_channels_then_status_is_403() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+    let second_user = entity_seeder.user();
+
+    let shared_store = Arc::new(InMemoryRepository::new());
+
+    let owner_app = build_app(seeded_state_with_store(
+        &fixture.user.external_reference,
+        "owner-token",
+        Arc::clone(&shared_store),
+    ));
+
+    let create_server_payload = response_payload_json(
+        create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
+    )
+    .await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_response = create_channel_with_token(
+        &owner_app,
+        &created_server_id,
+        fixture.channel.name(),
+        "text",
+        "owner-token",
+    )
+    .await;
+    assert_eq!(create_channel_response.status(), StatusCode::CREATED);
+
+    let second_user_app = build_app(seeded_state_with_store(
+        &second_user.external_reference,
+        "member-token",
+        shared_store,
+    ));
+
+    let response = list_channels_with_token(&second_user_app, &created_server_id, "member-token").await;
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]

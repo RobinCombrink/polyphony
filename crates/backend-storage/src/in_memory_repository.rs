@@ -105,6 +105,11 @@ impl ServerRepository for InMemoryRepository {
             .collect::<Vec<_>>()
     }
 
+    async fn is_server_member(&self, server_id: Uuid, user_id: Uuid) -> Option<bool> {
+        let store = self.store.read().await;
+        store.is_server_member(server_id, user_id)
+    }
+
     async fn add_server_member(
         &self,
         server_id: Uuid,
@@ -173,5 +178,10 @@ impl ChannelRepository for InMemoryRepository {
     async fn find_channel_by_id(&self, channel_id: Uuid) -> Option<Channel> {
         let store = self.store.read().await;
         store.channels.get(&channel_id).cloned()
+    }
+
+    async fn is_channel_member(&self, channel_id: Uuid, user_id: Uuid) -> Option<bool> {
+        let store = self.store.read().await;
+        store.is_channel_member(channel_id, user_id)
     }
 }
