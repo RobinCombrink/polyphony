@@ -21,16 +21,15 @@ void main() {
       textSessionRepo: FakeTextSessionRepository(fixture: fixture),
       messageRuntimeService: FakeMessageRuntimeService(),
     ),
-    act: (bloc) {
-      bloc.add(LoadMessagesRequested(
+    act: (bloc) => bloc
+      ..add(LoadMessagesRequested(
         channelId: fixture.listedChannel.id,
-      ));
-      bloc.add(UpdateMessageRequested(
+      ))
+      ..add(UpdateMessageRequested(
         channelId: fixture.listedChannel.id,
         messageId: fixture.listedMessage.id,
         messageContent: "edited",
-      ));
-    },
+      )),
     expect: () => <Matcher>[
       isA<MessagesLoadingState>(),
       isA<MessagesLoadedState>(),
@@ -63,15 +62,14 @@ void main() {
       textSessionRepo: FakeTextSessionRepository(fixture: fixture),
       messageRuntimeService: FakeMessageRuntimeService(),
     ),
-    act: (bloc) {
-      bloc.add(LoadMessagesRequested(
+    act: (bloc) => bloc
+      ..add(LoadMessagesRequested(
         channelId: fixture.listedChannel.id,
-      ));
-      bloc.add(DeleteMessageRequested(
+      ))
+      ..add(DeleteMessageRequested(
         channelId: fixture.listedChannel.id,
         messageId: fixture.listedMessage.id,
-      ));
-    },
+      )),
     expect: () => <Matcher>[
       isA<MessagesLoadingState>(),
       isA<MessagesLoadedState>(),

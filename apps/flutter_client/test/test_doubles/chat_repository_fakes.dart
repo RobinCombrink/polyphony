@@ -67,11 +67,12 @@ class FakeServerRepository implements ServerRepo {
       return Error<void>(Exception("Failed to add server member"));
     }
 
-    final members = _membersByServerId.putIfAbsent(
-      command.serverId,
-      () => <String>{},
-    );
-    members.add(command.userId);
+    _membersByServerId
+        .putIfAbsent(
+          command.serverId,
+          () => <String>{},
+        )
+        .add(command.userId);
 
     return const Ok<void>(null);
   }
@@ -171,9 +172,9 @@ class FakeMessageRepository implements MessageRepo {
   Future<Result<Message>> createOne({
     required CreateMessageCommand command,
   }) async {
-    final messages =
-        _messagesByChannel.putIfAbsent(command.channelId, () => <Message>[]);
-    messages.add(_createdMessage);
+    _messagesByChannel
+        .putIfAbsent(command.channelId, () => <Message>[])
+        .add(_createdMessage);
     return Ok<Message>(_createdMessage);
   }
 
@@ -185,8 +186,8 @@ class FakeMessageRepository implements MessageRepo {
       return Error<void>(Exception("Failed to delete message: 404 Not found"));
     }
 
-    final messages = _messagesByChannel[command.channelId] ?? <Message>[];
-    messages.removeWhere((message) => message.id == command.messageId);
+    (_messagesByChannel[command.channelId] ?? <Message>[])
+        .removeWhere((message) => message.id == command.messageId);
     return const Ok<void>(null);
   }
 

@@ -29,12 +29,11 @@ void main() {
     build: () => ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
-    act: (bloc) {
-      bloc.add(const LoadServersRequested());
-      bloc.add(const CreateServerRequested(
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(const CreateServerRequested(
         serverName: "   ",
-      ));
-    },
+      )),
     expect: () => <Matcher>[
       isA<ServersLoadingState>(),
       isA<ServersLoadedState>(),
@@ -51,10 +50,9 @@ void main() {
     build: () => ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
-    act: (bloc) {
-      bloc.add(const LoadServersRequested());
-      bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
-    },
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id)),
     expect: () => <Matcher>[
       isA<ServersLoadingState>(),
       isA<ServersLoadedState>(),
@@ -81,14 +79,13 @@ void main() {
     build: () => ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
-    act: (bloc) {
-      bloc.add(const LoadServersRequested());
-      bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
-      bloc.add(AddServerMemberRequested(
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id))
+      ..add(AddServerMemberRequested(
         serverId: fixture.listedServer.id,
         userId: "auth0|new_member",
-      ));
-    },
+      )),
     expect: () => <Matcher>[
       isA<ServersLoadingState>(),
       isA<ServersLoadedState>(),
@@ -107,11 +104,10 @@ void main() {
     build: () => ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
-    act: (bloc) {
-      bloc.add(const LoadServersRequested());
-      bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
-      bloc.add(DeleteServerRequested(serverId: fixture.listedServer.id));
-    },
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id))
+      ..add(DeleteServerRequested(serverId: fixture.listedServer.id)),
     expect: () => <Matcher>[
       isA<ServersLoadingState>(),
       isA<ServersLoadedState>(),
@@ -132,14 +128,13 @@ void main() {
     build: () => ServersBloc(
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
-    act: (bloc) {
-      bloc.add(const LoadServersRequested());
-      bloc.add(SelectServerRequested(serverId: fixture.listedServer.id));
-      bloc.add(AddServerMemberRequested(
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id))
+      ..add(AddServerMemberRequested(
         serverId: fixture.listedServer.id,
         userId: "   ",
-      ));
-    },
+      )),
     expect: () => <Matcher>[
       isA<ServersLoadingState>(),
       isA<ServersLoadedState>(),

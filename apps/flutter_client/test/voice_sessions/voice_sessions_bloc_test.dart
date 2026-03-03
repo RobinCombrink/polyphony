@@ -184,14 +184,13 @@ void main() {
       voiceRuntimeService: FakeVoiceRuntimeService(),
       profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
     ),
-    act: (bloc) {
-      bloc.add(LoadVoiceSessionsRequested(
+    act: (bloc) => bloc
+      ..add(LoadVoiceSessionsRequested(
         channelId: fixture.listedVoiceChannel.id,
-      ));
-      bloc.add(const ConnectVoiceSessionRequested(
+      ))
+      ..add(const ConnectVoiceSessionRequested(
         channelId: "",
-      ));
-    },
+      )),
     expect: () => <Matcher>[
       isA<VoiceSessionsLoadedState>(),
       isA<VoiceSessionsValidationFailedState>().having(
@@ -209,17 +208,16 @@ void main() {
       voiceRuntimeService: FakeVoiceRuntimeService(),
       profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
     ),
-    act: (bloc) {
-      bloc.add(LoadVoiceSessionsRequested(
+    act: (bloc) => bloc
+      ..add(LoadVoiceSessionsRequested(
         channelId: fixture.listedVoiceChannel.id,
-      ));
-      bloc.add(ConnectVoiceSessionRequested(
+      ))
+      ..add(ConnectVoiceSessionRequested(
         channelId: fixture.listedVoiceChannel.id,
-      ));
-      bloc.add(DisconnectVoiceSessionRequested(
+      ))
+      ..add(DisconnectVoiceSessionRequested(
         channelId: fixture.listedVoiceChannel.id,
-      ));
-    },
+      )),
     expect: () => <Matcher>[
       isA<VoiceSessionsLoadedState>(),
       isA<VoiceSessionsLoadingState>(),
@@ -244,16 +242,15 @@ void main() {
       voiceRuntimeService: FakeVoiceRuntimeService(),
       profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
     ),
-    act: (bloc) {
-      bloc.add(LoadVoiceSessionsRequested(
+    act: (bloc) => bloc
+      ..add(LoadVoiceSessionsRequested(
         channelId: fixture.listedVoiceChannel.id,
-      ));
-      bloc.add(ConnectVoiceSessionRequested(
+      ))
+      ..add(ConnectVoiceSessionRequested(
         channelId: fixture.listedVoiceChannel.id,
-      ));
-      bloc.add(const SetSelfMutedRequested(muted: true));
-      bloc.add(const SetSelfMutedRequested(muted: false));
-    },
+      ))
+      ..add(const SetSelfMutedRequested(muted: true))
+      ..add(const SetSelfMutedRequested(muted: false)),
     expect: () => <Matcher>[
       isA<VoiceSessionsLoadedState>(),
       isA<VoiceSessionsLoadingState>(),
@@ -703,16 +700,19 @@ void main() {
         },
       ),
     ),
-    act: (bloc) {
-      bloc.add(
-          LoadVoiceSessionsRequested(channelId: fixture.listedVoiceChannel.id));
-      bloc.add(ConnectVoiceSessionRequested(
-          channelId: fixture.listedVoiceChannel.id));
-      bloc.add(LoadVoiceSessionsRequested(
-          channelId: fixture.createdVoiceChannel.id));
-      bloc.add(ConnectVoiceSessionRequested(
-          channelId: fixture.createdVoiceChannel.id));
-    },
+    act: (bloc) => bloc
+      ..add(
+        LoadVoiceSessionsRequested(channelId: fixture.listedVoiceChannel.id),
+      )
+      ..add(
+        ConnectVoiceSessionRequested(channelId: fixture.listedVoiceChannel.id),
+      )
+      ..add(
+        LoadVoiceSessionsRequested(channelId: fixture.createdVoiceChannel.id),
+      )
+      ..add(
+        ConnectVoiceSessionRequested(channelId: fixture.createdVoiceChannel.id),
+      ),
     expect: () => <Matcher>[
       isA<VoiceSessionsLoadedState>(),
       isA<VoiceSessionsLoadingState>(),

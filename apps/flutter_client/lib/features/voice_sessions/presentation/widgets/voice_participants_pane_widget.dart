@@ -419,13 +419,13 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
       return;
     }
 
-    final voiceSessionsBloc = context.read<VoiceSessionsBloc>();
-    voiceSessionsBloc.add(
-      DisconnectVoiceSessionRequested(channelId: channelId),
-    );
-    voiceSessionsBloc.add(
-      ConnectVoiceSessionRequested(channelId: channelId),
-    );
+    context.read<VoiceSessionsBloc>()
+      ..add(
+        DisconnectVoiceSessionRequested(channelId: channelId),
+      )
+      ..add(
+        ConnectVoiceSessionRequested(channelId: channelId),
+      );
   }
 
   List<_VoiceStreamItemData> _streamItems() {
