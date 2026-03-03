@@ -10,13 +10,12 @@ import "package:polyphony_flutter_client/features/chat_browser/bloc/server_membe
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/chat_browser_settings_page_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/channels_pane_widget.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/display_name_banner_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/messages_pane_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/server_users_pane_widget.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/server_workspace_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/servers_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/top_right_error_toast.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_keybindings_focus_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_participants_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_quick_actions_overlay_widget.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 
@@ -268,7 +267,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    const _DisplayNameBanner(),
+                    const DisplayNameBannerWidget(),
                     const SizedBox(height: 12),
                     Expanded(
                       child: Row(
@@ -281,7 +280,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: _ServerWorkspaceWidget(
+                            child: ServerWorkspaceWidget(
                               createChannelController: createChannelController,
                               createMessageController: createMessageController,
                             ),
@@ -352,96 +351,5 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
     }
 
     _requestUpdateDisplayName(context, result);
-  }
-}
-
-class _ServerWorkspaceWidget extends StatelessWidget {
-  const _ServerWorkspaceWidget({
-    required this.createChannelController,
-    required this.createMessageController,
-  });
-
-  final TextEditingController createChannelController;
-  final TextEditingController createMessageController;
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ServersBloc, ServersState>(
-      builder: (context, serversState) {
-        final loadedData =
-            serversState is ServersLoadedDataState ? serversState : null;
-        final selectedServerId = loadedData?.selectedServerId;
-        final selectedServerName = loadedData?.servers
-            .where((server) => server.id == selectedServerId)
-            .map((server) => server.name)
-            .firstOrNull;
-
-        if (selectedServerId == null) {
-          return const Card(
-            child: Center(
-              child: Text(
-                "Select a server to view channels and messages.",
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-
-        return Row(
-          children: <Widget>[
-            SizedBox(
-              width: 360,
-              child: ChannelsPaneWidget(
-                createController: createChannelController,
-                serverName: selectedServerName,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: BlocBuilder<ChannelsBloc, ChannelsState>(
-                builder: (context, channelsState) {
-                  final selectionMode = switch (channelsState) {
-                    ChannelsLoadedDataState(:final selectionMode) =>
-                      selectionMode,
-                    _ => ChannelSelectionMode.text,
-                  };
-
-                  return switch (selectionMode) {
-                    ChannelSelectionMode.voice =>
-                      const VoiceParticipantsPaneWidget(),
-                    ChannelSelectionMode.text => MessagesPaneWidget(
-                        createController: createMessageController,
-                      ),
-                  };
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            const SizedBox(
-              width: 280,
-              child: ServerUsersPaneWidget(),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _DisplayNameBanner extends StatelessWidget {
-  const _DisplayNameBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ProfileBloc, ProfileState>(
-      builder: (context, profileState) {
-        final displayName = switch (profileState) {
-          ProfileLoadedDataState(:final displayName) => displayName,
-          _ => null,
-        };
-
-        return Text("Display name: ${displayName ?? "Not set"}");
-      },
-    );
   }
 }
