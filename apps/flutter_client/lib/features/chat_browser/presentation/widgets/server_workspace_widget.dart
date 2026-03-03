@@ -1,10 +1,10 @@
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/channels_pane_widget.dart";
+import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
+import "package:polyphony_flutter_client/features/channels/presentation/widgets/channels_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/messages_pane_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/server_users_pane_widget.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/presentation/widgets/server_users_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_participants_pane_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
