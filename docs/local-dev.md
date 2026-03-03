@@ -36,6 +36,8 @@ Connection info:
 - API key `devkey`
 - API secret `secret`
 
+For production deployment with Docker Compose and secret handling, see `docs/production-deploy.md`.
+
 If web clients fail with ICE timeout (for example `Timed out waiting for PeerConnection to connect`):
 - Restart LiveKit after config changes: `docker compose -f docker-compose.local.yml up -d --force-recreate livekit`
 - Ensure Windows Firewall allows:

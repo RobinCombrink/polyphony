@@ -97,7 +97,6 @@ impl PostgresConfig {
 #[derive(Clone, Debug)]
 pub struct LiveKitConfig {
     pub url: String,
-    pub server_api_url: String,
     pub api_key: String,
     pub api_secret: String,
     pub token_ttl_seconds: u64,
@@ -108,9 +107,6 @@ impl Default for LiveKitConfig {
         let url = "ws://127.0.0.1:7880".to_owned();
 
         Self {
-            server_api_url: url
-                .replace("wss://", "https://")
-                .replace("ws://", "http://"),
             url,
             api_key: "devkey".to_owned(),
             api_secret: "secret".to_owned(),
@@ -124,8 +120,6 @@ impl LiveKitConfig {
         let default_config = Self::default();
 
         let url = std::env::var("LIVEKIT_URL").unwrap_or(default_config.url);
-        let server_api_url =
-            std::env::var("LIVEKIT_SERVER_API_URL").unwrap_or(default_config.server_api_url);
         let api_key = std::env::var("LIVEKIT_API_KEY").unwrap_or(default_config.api_key);
         let api_secret = std::env::var("LIVEKIT_API_SECRET").unwrap_or(default_config.api_secret);
         let token_ttl_seconds = std::env::var("LIVEKIT_TOKEN_TTL_SECONDS")
@@ -135,7 +129,6 @@ impl LiveKitConfig {
 
         Self {
             url,
-            server_api_url,
             api_key,
             api_secret,
             token_ttl_seconds,

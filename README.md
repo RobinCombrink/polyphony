@@ -71,5 +71,6 @@ pulumi/                # Infrastructure as code
 
 See also:
 - `docs/local-dev.md`
+- `docs/production-deploy.md`
 - `apps/flutter_client/README.md`
 - `pulumi/README.md`

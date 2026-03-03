@@ -1,7 +1,10 @@
 use async_trait::async_trait;
 use backend_domain::{Channel, ChannelType, DisplayName, Membership, Message, Server, User};
 use sqlx::migrate::Migrator;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{
+    PgPool,
+    postgres::{PgConnectOptions, PgPoolOptions},
+};
 use uuid::Uuid;
 
 use crate::{
@@ -28,12 +31,16 @@ impl PostgresRepository {
         password: &str,
         max_connections: u32,
     ) -> Result<Self, sqlx::Error> {
-        let connection_string =
-            format!("postgres://{username}:{password}@{host}:{port}/{database}");
+        let connect_options = PgConnectOptions::new()
+            .host(host)
+            .port(port)
+            .database(database)
+            .username(username)
+            .password(password);
 
         let pool = PgPoolOptions::new()
             .max_connections(max_connections)
-            .connect(&connection_string)
+            .connect_with(connect_options)
             .await?;
 
         let repository = Self { pool };
