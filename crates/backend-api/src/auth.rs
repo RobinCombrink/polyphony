@@ -5,7 +5,7 @@ use axum::{
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
-use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
+use backend_storage::UserRepository;
 use http::header::AUTHORIZATION;
 use jwt_authorizer::{Authorizer, JwtAuthorizer, Validation};
 use serde::Deserialize;
@@ -28,15 +28,11 @@ impl AuthState {
     }
 }
 
-impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo>
-    FromRef<crate::ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>> for Arc<AuthState>
+impl<Repos> FromRef<crate::ApiState<Repos>> for Arc<AuthState>
 where
-    UserRepo: UserRepository,
-    ServerRepo: ServerRepository,
-    ChannelRepo: ChannelRepository,
-    MessageRepo: MessageRepository,
+    Repos: crate::RepositoryProfile,
 {
-    fn from_ref(input: &crate::ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>) -> Self {
+    fn from_ref(input: &crate::ApiState<Repos>) -> Self {
         input.auth_state.clone()
     }
 }
@@ -156,20 +152,15 @@ impl IntoResponse for AuthError {
     }
 }
 
-impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo>
-    FromRequestParts<crate::ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>
-    for AuthenticatedUser
+impl<Repos> FromRequestParts<crate::ApiState<Repos>> for AuthenticatedUser
 where
-    UserRepo: UserRepository,
-    ServerRepo: ServerRepository,
-    ChannelRepo: ChannelRepository,
-    MessageRepo: MessageRepository,
+    Repos: crate::RepositoryProfile,
 {
     type Rejection = AuthError;
 
     fn from_request_parts(
         parts: &mut Parts,
-        state: &crate::ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>,
+        state: &crate::ApiState<Repos>,
     ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
         let auth_state = state.auth_state.clone();
         let user_repository = state.user_repository.clone();

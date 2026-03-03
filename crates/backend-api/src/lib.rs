@@ -8,6 +8,7 @@ mod routes;
 pub use backend_domain as domain;
 pub use backend_storage as storage;
 
+use std::marker::PhantomData;
 use std::{net::SocketAddr, sync::Arc};
 
 use auth::{AuthState, JwksTokenVerifier, TokenVerifier};
@@ -34,28 +35,76 @@ use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
-pub struct ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>
+pub trait RepositoryProfile {
+    type UserRepo: UserRepository;
+    type ServerRepo: ServerRepository;
+    type ChannelRepo: ChannelRepository;
+    type MessageRepo: MessageRepository;
+}
+
+pub struct SplitRepositories<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    PhantomData<(UserRepo, ServerRepo, ChannelRepo, MessageRepo)>,
+)
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository;
+
+impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo> RepositoryProfile
+    for SplitRepositories<UserRepo, ServerRepo, ChannelRepo, MessageRepo>
 where
     UserRepo: UserRepository,
     ServerRepo: ServerRepository,
     ChannelRepo: ChannelRepository,
     MessageRepo: MessageRepository,
 {
-    pub auth_state: Arc<AuthState>,
-    pub user_repository: Arc<UserRepo>,
-    pub server_repository: Arc<ServerRepo>,
-    pub channel_repository: Arc<ChannelRepo>,
-    pub message_repository: Arc<MessageRepo>,
-    pub livekit_config: Arc<config::LiveKitConfig>,
+    type UserRepo = UserRepo;
+    type ServerRepo = ServerRepo;
+    type ChannelRepo = ChannelRepo;
+    type MessageRepo = MessageRepo;
 }
 
-impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo> Clone
-    for ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>
+pub struct ApiState<Repos>
 where
-    UserRepo: UserRepository,
-    ServerRepo: ServerRepository,
-    ChannelRepo: ChannelRepository,
-    MessageRepo: MessageRepository,
+    Repos: RepositoryProfile,
+{
+    pub auth_state: Arc<AuthState>,
+    pub user_repository: Arc<Repos::UserRepo>,
+    pub server_repository: Arc<Repos::ServerRepo>,
+    pub channel_repository: Arc<Repos::ChannelRepo>,
+    pub message_repository: Arc<Repos::MessageRepo>,
+    pub livekit_config: Arc<config::LiveKitConfig>,
+    _profile: PhantomData<Repos>,
+}
+
+impl<Repos> ApiState<Repos>
+where
+    Repos: RepositoryProfile,
+{
+    pub fn new(
+        auth_state: Arc<AuthState>,
+        user_repository: Arc<Repos::UserRepo>,
+        server_repository: Arc<Repos::ServerRepo>,
+        channel_repository: Arc<Repos::ChannelRepo>,
+        message_repository: Arc<Repos::MessageRepo>,
+        livekit_config: Arc<config::LiveKitConfig>,
+    ) -> Self {
+        Self {
+            auth_state,
+            user_repository,
+            server_repository,
+            channel_repository,
+            message_repository,
+            livekit_config,
+            _profile: PhantomData,
+        }
+    }
+}
+
+impl<Repos> Clone for ApiState<Repos>
+where
+    Repos: RepositoryProfile,
 {
     fn clone(&self) -> Self {
         Self {
@@ -65,12 +114,18 @@ where
             channel_repository: self.channel_repository.clone(),
             message_repository: self.message_repository.clone(),
             livekit_config: self.livekit_config.clone(),
+            _profile: PhantomData,
         }
     }
 }
 
-pub type DefaultApiState =
-    ApiState<PostgresRepository, PostgresRepository, PostgresRepository, PostgresRepository>;
+pub type DefaultRepositories = SplitRepositories<
+    PostgresRepository,
+    PostgresRepository,
+    PostgresRepository,
+    PostgresRepository,
+>;
+pub type DefaultApiState = ApiState<DefaultRepositories>;
 
 pub fn default_bind_address() -> SocketAddr {
     config::BackendApiConfig::from_environment().bind_address
@@ -102,24 +157,23 @@ pub async fn default_api_state() -> DefaultApiState {
     let channel_store = repository.clone();
     let message_store = repository;
 
-    ApiState {
-        auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
-        user_repository: user_store,
-        server_repository: server_store,
-        channel_repository: channel_store,
-        message_repository: message_store,
-        livekit_config: Arc::new(backend_config.livekit),
-    }
+    ApiState::new(
+        Arc::new(AuthState::new(auth_config, token_verifier)),
+        user_store,
+        server_store,
+        channel_store,
+        message_store,
+        Arc::new(backend_config.livekit),
+    )
 }
 
-pub fn build_app<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
-    state: ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>,
-) -> Router
+pub fn build_app<Repos>(state: ApiState<Repos>) -> Router
 where
-    UserRepo: UserRepository + 'static,
-    ServerRepo: ServerRepository + 'static,
-    ChannelRepo: ChannelRepository + 'static,
-    MessageRepo: MessageRepository + 'static,
+    Repos: RepositoryProfile + Send + Sync + 'static,
+    Repos::UserRepo: 'static,
+    Repos::ServerRepo: 'static,
+    Repos::ChannelRepo: 'static,
+    Repos::MessageRepo: 'static,
 {
     Router::new()
         .route("/health", get(health))

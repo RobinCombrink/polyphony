@@ -5,12 +5,10 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::Message;
-use backend_storage::{
-    ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
-};
+use backend_storage::{MessageRepository, MutationResult};
 use uuid::Uuid;
 
-use crate::{ApiState, auth::AuthenticatedUser, dto::UpdateMessageRequest};
+use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser, dto::UpdateMessageRequest};
 
 #[utoipa::path(
     patch,
@@ -29,17 +27,14 @@ use crate::{ApiState, auth::AuthenticatedUser, dto::UpdateMessageRequest};
     ),
     tag = "backend-api"
 )]
-pub(crate) async fn update_message<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
-    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
+pub(crate) async fn update_message<Repos>(
+    State(state): State<ApiState<Repos>>,
     authenticated_user: AuthenticatedUser,
     Path((channel_id, message_id)): Path<(Uuid, Uuid)>,
     Json(request): Json<UpdateMessageRequest>,
 ) -> impl IntoResponse
 where
-    UserRepo: UserRepository,
-    ServerRepo: ServerRepository,
-    ChannelRepo: ChannelRepository,
-    MessageRepo: MessageRepository,
+    Repos: RepositoryProfile,
 {
     let mutation_result = state
         .message_repository

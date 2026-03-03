@@ -1,8 +1,8 @@
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
-use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
+use backend_storage::UserRepository;
 
 use crate::{
-    ApiState,
+    ApiState, RepositoryProfile,
     auth::AuthenticatedUser,
     dto::{MeResponse, UpdateMeRequest},
 };
@@ -17,15 +17,12 @@ use crate::{
     security(("bearer_auth" = [])),
     tag = "backend-api"
 )]
-pub(crate) async fn me<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
-    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
+pub(crate) async fn me<Repos>(
+    State(state): State<ApiState<Repos>>,
     authenticated_user: AuthenticatedUser,
 ) -> impl IntoResponse
 where
-    UserRepo: UserRepository,
-    ServerRepo: ServerRepository,
-    ChannelRepo: ChannelRepository,
-    MessageRepo: MessageRepository,
+    Repos: RepositoryProfile,
 {
     let user = state
         .user_repository
@@ -55,16 +52,13 @@ where
     security(("bearer_auth" = [])),
     tag = "backend-api"
 )]
-pub(crate) async fn update_me<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
-    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
+pub(crate) async fn update_me<Repos>(
+    State(state): State<ApiState<Repos>>,
     authenticated_user: AuthenticatedUser,
     Json(request): Json<UpdateMeRequest>,
 ) -> impl IntoResponse
 where
-    UserRepo: UserRepository,
-    ServerRepo: ServerRepository,
-    ChannelRepo: ChannelRepository,
-    MessageRepo: MessageRepository,
+    Repos: RepositoryProfile,
 {
     let trimmed_display_name = request.display_name.trim();
 

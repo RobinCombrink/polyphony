@@ -4,10 +4,10 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
+use backend_storage::UserRepository;
 use uuid::Uuid;
 
-use crate::{ApiState, auth::AuthenticatedUser, dto::UserLookupResponse};
+use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser, dto::UserLookupResponse};
 
 #[utoipa::path(
     get,
@@ -23,16 +23,13 @@ use crate::{ApiState, auth::AuthenticatedUser, dto::UserLookupResponse};
     security(("bearer_auth" = [])),
     tag = "backend-api"
 )]
-pub(crate) async fn get_user_by_id<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
-    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
+pub(crate) async fn get_user_by_id<Repos>(
+    State(state): State<ApiState<Repos>>,
     _authenticated_user: AuthenticatedUser,
     Path(user_id): Path<Uuid>,
 ) -> impl IntoResponse
 where
-    UserRepo: UserRepository,
-    ServerRepo: ServerRepository,
-    ChannelRepo: ChannelRepository,
-    MessageRepo: MessageRepository,
+    Repos: RepositoryProfile,
 {
     let Some(user) = state.user_repository.find_user_by_id(user_id).await else {
         return StatusCode::NOT_FOUND.into_response();

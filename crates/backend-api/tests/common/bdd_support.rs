@@ -9,6 +9,7 @@ use axum::{
 };
 use backend_api::{
     ApiState,
+    SplitRepositories,
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
     storage::InMemoryRepository,
@@ -451,7 +452,14 @@ pub(crate) async fn response_payload_json(response: axum::response::Response) ->
 pub(crate) fn seeded_state(
     external_reference: &str,
     token: &str,
-) -> ApiState<InMemoryRepository, InMemoryRepository, InMemoryRepository, InMemoryRepository> {
+) -> ApiState<
+    SplitRepositories<
+        InMemoryRepository,
+        InMemoryRepository,
+        InMemoryRepository,
+        InMemoryRepository,
+    >,
+> {
     seeded_state_with_store(
         external_reference,
         token,
@@ -463,7 +471,14 @@ pub(crate) fn seeded_state_with_store(
     external_reference: &str,
     token: &str,
     repository: Arc<InMemoryRepository>,
-) -> ApiState<InMemoryRepository, InMemoryRepository, InMemoryRepository, InMemoryRepository> {
+) -> ApiState<
+    SplitRepositories<
+        InMemoryRepository,
+        InMemoryRepository,
+        InMemoryRepository,
+        InMemoryRepository,
+    >,
+> {
     let auth_config = Auth0Config {
         issuer: Url::parse("https://example-dev.us.auth0.com/").expect("valid issuer url"),
         audience: "polyphony-api".to_owned(),
@@ -480,12 +495,12 @@ pub(crate) fn seeded_state_with_store(
     let channel_store = repository.clone();
     let message_store = repository;
 
-    ApiState {
-        auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
-        user_repository: user_store,
-        server_repository: server_store,
-        channel_repository: channel_store,
-        message_repository: message_store,
-        livekit_config: Arc::new(LiveKitConfig::default()),
-    }
+    ApiState::new(
+        Arc::new(AuthState::new(auth_config, token_verifier)),
+        user_store,
+        server_store,
+        channel_store,
+        message_store,
+        Arc::new(LiveKitConfig::default()),
+    )
 }

@@ -3,12 +3,10 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_storage::{
-    ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
-};
+use backend_storage::{MessageRepository, MutationResult};
 use uuid::Uuid;
 
-use crate::{ApiState, auth::AuthenticatedUser};
+use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser};
 
 #[utoipa::path(
     delete,
@@ -26,16 +24,13 @@ use crate::{ApiState, auth::AuthenticatedUser};
     ),
     tag = "backend-api"
 )]
-pub(crate) async fn delete_message<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
-    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
+pub(crate) async fn delete_message<Repos>(
+    State(state): State<ApiState<Repos>>,
     authenticated_user: AuthenticatedUser,
     Path((channel_id, message_id)): Path<(Uuid, Uuid)>,
 ) -> impl IntoResponse
 where
-    UserRepo: UserRepository,
-    ServerRepo: ServerRepository,
-    ChannelRepo: ChannelRepository,
-    MessageRepo: MessageRepository,
+    Repos: RepositoryProfile,
 {
     let mutation_result = state
         .message_repository

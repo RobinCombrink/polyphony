@@ -5,12 +5,10 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::Message;
-use backend_storage::{
-    ChannelRepository, MessageRepository, ServerRepository, UserRepository,
-};
+use backend_storage::MessageRepository;
 use uuid::Uuid;
 
-use crate::{ApiState, auth::AuthenticatedUser, dto::CreateMessageRequest};
+use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser, dto::CreateMessageRequest};
 
 #[utoipa::path(
     post,
@@ -25,17 +23,14 @@ use crate::{ApiState, auth::AuthenticatedUser, dto::CreateMessageRequest};
     params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
-pub(crate) async fn create_message<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
-    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
+pub(crate) async fn create_message<Repos>(
+    State(state): State<ApiState<Repos>>,
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
     Json(request): Json<CreateMessageRequest>,
 ) -> impl IntoResponse
 where
-    UserRepo: UserRepository,
-    ServerRepo: ServerRepository,
-    ChannelRepo: ChannelRepository,
-    MessageRepo: MessageRepository,
+    Repos: RepositoryProfile,
 {
     let created_message = state
         .message_repository
