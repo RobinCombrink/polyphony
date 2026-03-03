@@ -13,11 +13,13 @@ import "package:polyphony_flutter_client/features/chat_browser/bloc/profile_bloc
 import "package:polyphony_flutter_client/features/chat_browser/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/settings_keybindings_section_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/channels_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/messages_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/server_users_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/servers_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/top_right_error_toast.dart";
+import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_keybindings_focus_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_participants_pane_widget.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
@@ -33,6 +35,7 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   final createServerController = TextEditingController();
   final createChannelController = TextEditingController();
   final createMessageController = TextEditingController();
+  var _keybindingsRefreshToken = 0;
   var _isDisplayNamePromptOpen = false;
 
   Future<void> _signOut(BuildContext context) async {
@@ -105,14 +108,14 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
         title: const Text("Polyphony"),
         actions: <Widget>[
           IconButton(
-            onPressed: () {
+            onPressed: () async {
               final currentProfileState = context.read<ProfileBloc>().state;
               final currentDisplayName = switch (currentProfileState) {
                 ProfileLoadedDataState(:final displayName) => displayName,
                 _ => null,
               };
 
-              Navigator.of(context).push(
+              await Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (settingsContext) => _SettingsPageWidget(
                     bearerToken: bearerToken,
@@ -122,6 +125,14 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
                   ),
                 ),
               );
+
+              if (!mounted) {
+                return;
+              }
+
+              setState(() {
+                _keybindingsRefreshToken = _keybindingsRefreshToken + 1;
+              });
             },
             tooltip: "Settings",
             icon: const Icon(Icons.settings),
@@ -143,148 +154,152 @@ class _ChatBrowserPageWidgetState extends State<ChatBrowserPageWidget> {
   }
 
   Widget _buildChatTab(BuildContext context) {
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<ProfileBloc, ProfileState>(
-          listenWhen: (_, current) {
-            return current is ProfileLoadedDataState &&
-                current.displayName == null;
-          },
-          listener: (context, state) {
-            if (_isDisplayNamePromptOpen || state is! ProfileLoadedDataState) {
-              return;
-            }
+    return VoiceKeybindingsFocusWidget(
+        refreshToken: _keybindingsRefreshToken,
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<ProfileBloc, ProfileState>(
+              listenWhen: (_, current) {
+                return current is ProfileLoadedDataState &&
+                    current.displayName == null;
+              },
+              listener: (context, state) {
+                if (_isDisplayNamePromptOpen ||
+                    state is! ProfileLoadedDataState) {
+                  return;
+                }
 
-            _isDisplayNamePromptOpen = true;
-            unawaited(
-              _showDisplayNameDialog(context, mandatory: true).whenComplete(
-                () => _isDisplayNamePromptOpen = false,
-              ),
-            );
-          },
-        ),
-        BlocListener<ServersBloc, ServersState>(
-          listenWhen: (_, current) => current is ServersExceptionState,
-          listener: (context, state) {
-            if (state is! ServersExceptionState) {
-              return;
-            }
-
-            showTopRightErrorToast(
-              context,
-              state.error.toString(),
-            );
-          },
-        ),
-        BlocListener<ServersBloc, ServersState>(
-          listenWhen: (_, current) => current is ServersLoadedDataState,
-          listener: (context, state) {
-            if (state is! ServersLoadedDataState) {
-              return;
-            }
-
-            final selectedServerId = state.selectedServerId;
-
-            if (selectedServerId == null || selectedServerId.isEmpty) {
-              context.read<ServerMembersBloc>().add(
-                    const ResetServerMembersRequested(),
-                  );
-              return;
-            }
-
-            context.read<ServerMembersBloc>().add(
-                  LoadServerMembersRequested(serverId: selectedServerId),
-                );
-          },
-        ),
-        BlocListener<ChannelsBloc, ChannelsState>(
-          listenWhen: (_, current) => current is ChannelsExceptionState,
-          listener: (context, state) {
-            if (state is! ChannelsExceptionState) {
-              return;
-            }
-
-            showTopRightErrorToast(
-              context,
-              state.error.toString(),
-            );
-          },
-        ),
-        BlocListener<MessagesBloc, MessagesState>(
-          listenWhen: (_, current) => current is MessagesExceptionState,
-          listener: (context, state) {
-            if (state is! MessagesExceptionState) {
-              return;
-            }
-
-            showTopRightErrorToast(
-              context,
-              state.error.toString(),
-            );
-          },
-        ),
-        BlocListener<VoiceSessionsBloc, VoiceSessionsState>(
-          listenWhen: (_, current) => current is VoiceSessionsExceptionState,
-          listener: (context, state) {
-            if (state is! VoiceSessionsExceptionState) {
-              return;
-            }
-
-            showTopRightErrorToast(
-              context,
-              state.error.toString(),
-            );
-          },
-        ),
-        BlocListener<ProfileBloc, ProfileState>(
-          listenWhen: (_, current) => current is ProfileExceptionState,
-          listener: (context, state) {
-            if (state is! ProfileExceptionState) {
-              return;
-            }
-
-            showTopRightErrorToast(
-              context,
-              state.error.toString(),
-            );
-          },
-        ),
-      ],
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Stack(
-          children: <Widget>[
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const _DisplayNameBanner(),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: Row(
-                    children: <Widget>[
-                      SizedBox(
-                        width: 120,
-                        child: ServersPaneWidget(
-                          createController: createServerController,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _ServerWorkspaceWidget(
-                          createChannelController: createChannelController,
-                          createMessageController: createMessageController,
-                        ),
-                      ),
-                    ],
+                _isDisplayNamePromptOpen = true;
+                unawaited(
+                  _showDisplayNameDialog(context, mandatory: true).whenComplete(
+                    () => _isDisplayNamePromptOpen = false,
                   ),
+                );
+              },
+            ),
+            BlocListener<ServersBloc, ServersState>(
+              listenWhen: (_, current) => current is ServersExceptionState,
+              listener: (context, state) {
+                if (state is! ServersExceptionState) {
+                  return;
+                }
+
+                showTopRightErrorToast(
+                  context,
+                  state.error.toString(),
+                );
+              },
+            ),
+            BlocListener<ServersBloc, ServersState>(
+              listenWhen: (_, current) => current is ServersLoadedDataState,
+              listener: (context, state) {
+                if (state is! ServersLoadedDataState) {
+                  return;
+                }
+
+                final selectedServerId = state.selectedServerId;
+
+                if (selectedServerId == null || selectedServerId.isEmpty) {
+                  context.read<ServerMembersBloc>().add(
+                        const ResetServerMembersRequested(),
+                      );
+                  return;
+                }
+
+                context.read<ServerMembersBloc>().add(
+                      LoadServerMembersRequested(serverId: selectedServerId),
+                    );
+              },
+            ),
+            BlocListener<ChannelsBloc, ChannelsState>(
+              listenWhen: (_, current) => current is ChannelsExceptionState,
+              listener: (context, state) {
+                if (state is! ChannelsExceptionState) {
+                  return;
+                }
+
+                showTopRightErrorToast(
+                  context,
+                  state.error.toString(),
+                );
+              },
+            ),
+            BlocListener<MessagesBloc, MessagesState>(
+              listenWhen: (_, current) => current is MessagesExceptionState,
+              listener: (context, state) {
+                if (state is! MessagesExceptionState) {
+                  return;
+                }
+
+                showTopRightErrorToast(
+                  context,
+                  state.error.toString(),
+                );
+              },
+            ),
+            BlocListener<VoiceSessionsBloc, VoiceSessionsState>(
+              listenWhen: (_, current) =>
+                  current is VoiceSessionsExceptionState,
+              listener: (context, state) {
+                if (state is! VoiceSessionsExceptionState) {
+                  return;
+                }
+
+                showTopRightErrorToast(
+                  context,
+                  state.error.toString(),
+                );
+              },
+            ),
+            BlocListener<ProfileBloc, ProfileState>(
+              listenWhen: (_, current) => current is ProfileExceptionState,
+              listener: (context, state) {
+                if (state is! ProfileExceptionState) {
+                  return;
+                }
+
+                showTopRightErrorToast(
+                  context,
+                  state.error.toString(),
+                );
+              },
+            ),
+          ],
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Stack(
+              children: <Widget>[
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    const _DisplayNameBanner(),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: Row(
+                        children: <Widget>[
+                          SizedBox(
+                            width: 120,
+                            child: ServersPaneWidget(
+                              createController: createServerController,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _ServerWorkspaceWidget(
+                              createChannelController: createChannelController,
+                              createMessageController: createMessageController,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+                const _VoiceQuickActionsOverlay(),
               ],
             ),
-            const _VoiceQuickActionsOverlay(),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 
   Future<void> _showDisplayNameDialog(
@@ -781,6 +796,8 @@ class _SettingsPageWidgetState extends State<_SettingsPageWidget> {
                 child: const Text("Save"),
               ),
             ),
+            const SizedBox(height: 24),
+            const SettingsKeybindingsSectionWidget(),
             const SizedBox(height: 24),
             Text(
               "Developer options",

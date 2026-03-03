@@ -1,5 +1,92 @@
+import "dart:convert";
+
 import "package:flutter/foundation.dart";
 import "package:shared_preferences/shared_preferences.dart";
+
+final class KeybindingChord {
+  const KeybindingChord({
+    required this.keyId,
+    required this.isControlPressed,
+    required this.isShiftPressed,
+    required this.isAltPressed,
+    required this.isMetaPressed,
+  });
+
+  final int keyId;
+  final bool isControlPressed;
+  final bool isShiftPressed;
+  final bool isAltPressed;
+  final bool isMetaPressed;
+
+  Map<String, Object> toJson() {
+    return <String, Object>{
+      "keyId": keyId,
+      "isControlPressed": isControlPressed,
+      "isShiftPressed": isShiftPressed,
+      "isAltPressed": isAltPressed,
+      "isMetaPressed": isMetaPressed,
+    };
+  }
+
+  static KeybindingChord? fromJson(Object? value) {
+    if (value is! Map<String, Object?>) {
+      return null;
+    }
+
+    final keyIdValue = value["keyId"];
+    if (keyIdValue is! num) {
+      return null;
+    }
+
+    final isControlPressedValue = value["isControlPressed"];
+    final isShiftPressedValue = value["isShiftPressed"];
+    final isAltPressedValue = value["isAltPressed"];
+    final isMetaPressedValue = value["isMetaPressed"];
+
+    if (isControlPressedValue is! bool ||
+        isShiftPressedValue is! bool ||
+        isAltPressedValue is! bool ||
+        isMetaPressedValue is! bool) {
+      return null;
+    }
+
+    return KeybindingChord(
+      keyId: keyIdValue.toInt(),
+      isControlPressed: isControlPressedValue,
+      isShiftPressed: isShiftPressedValue,
+      isAltPressed: isAltPressedValue,
+      isMetaPressed: isMetaPressedValue,
+    );
+  }
+}
+
+final class KeybindingsPreferences {
+  const KeybindingsPreferences({
+    required this.mute,
+    required this.deafen,
+  });
+
+  const KeybindingsPreferences.unset()
+      : mute = null,
+        deafen = null;
+
+  final KeybindingChord? mute;
+  final KeybindingChord? deafen;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      "mute": mute?.toJson(),
+      "deafen": deafen?.toJson(),
+    };
+  }
+
+  static KeybindingsPreferences fromJson(Map<String, Object?> json) {
+    return KeybindingsPreferences(
+      mute: KeybindingChord.fromJson(json["mute"]),
+      deafen: KeybindingChord.fromJson(json["deafen"]),
+    );
+  }
+}
 
 abstract interface class PreferencesStore {
   Future<bool> readRememberEmailEnabled();
@@ -7,15 +94,19 @@ abstract interface class PreferencesStore {
   Future<String?> readRememberedEmailAddress();
   Future<void> writeRememberedEmailAddress(String emailAddress);
   Future<void> clearRememberedEmailAddress();
+  Future<KeybindingsPreferences> readKeybindingsPreferences();
+  Future<void> writeKeybindingsPreferences(KeybindingsPreferences value);
 }
 
 final class SharedPreferencesBackedPreferencesStore
     implements PreferencesStore {
   static const _rememberEmailKey = "auth.remember_email";
   static const _rememberedEmailAddressKey = "auth.remembered_email_address";
+  static const _keybindingsKey = "settings.keybindings";
   static const _allowList = <String>{
     _rememberEmailKey,
     _rememberedEmailAddressKey,
+    _keybindingsKey,
   };
 
   SharedPreferencesBackedPreferencesStore()
@@ -68,11 +159,37 @@ final class SharedPreferencesBackedPreferencesStore
     final sharedPreferences = await _sharedPreferencesWithCacheFuture;
     await sharedPreferences.remove(_rememberedEmailAddressKey);
   }
+
+  @override
+  Future<KeybindingsPreferences> readKeybindingsPreferences() async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    final encoded = sharedPreferences.getString(_keybindingsKey);
+    if (encoded == null || encoded.trim().isEmpty) {
+      return const KeybindingsPreferences.unset();
+    }
+
+    final decoded = jsonDecode(encoded);
+    if (decoded is! Map<String, Object?>) {
+      return const KeybindingsPreferences.unset();
+    }
+
+    return KeybindingsPreferences.fromJson(decoded);
+  }
+
+  @override
+  Future<void> writeKeybindingsPreferences(KeybindingsPreferences value) async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    await sharedPreferences.setString(
+      _keybindingsKey,
+      jsonEncode(value.toJson()),
+    );
+  }
 }
 
 final class InMemoryPreferencesStore implements PreferencesStore {
   var _rememberEmailEnabled = false;
   String? _rememberedEmailAddress;
+  var _keybindingsPreferences = const KeybindingsPreferences.unset();
 
   @override
   Future<bool> readRememberEmailEnabled() async {
@@ -99,6 +216,16 @@ final class InMemoryPreferencesStore implements PreferencesStore {
   @override
   Future<void> clearRememberedEmailAddress() async {
     _rememberedEmailAddress = null;
+  }
+
+  @override
+  Future<KeybindingsPreferences> readKeybindingsPreferences() async {
+    return _keybindingsPreferences;
+  }
+
+  @override
+  Future<void> writeKeybindingsPreferences(KeybindingsPreferences value) async {
+    _keybindingsPreferences = value;
   }
 }
 
@@ -127,6 +254,16 @@ final class WebPreferencesStore implements PreferencesStore {
 
   @override
   Future<void> clearRememberedEmailAddress() async {
+    return;
+  }
+
+  @override
+  Future<KeybindingsPreferences> readKeybindingsPreferences() async {
+    return const KeybindingsPreferences.unset();
+  }
+
+  @override
+  Future<void> writeKeybindingsPreferences(KeybindingsPreferences value) async {
     return;
   }
 }
