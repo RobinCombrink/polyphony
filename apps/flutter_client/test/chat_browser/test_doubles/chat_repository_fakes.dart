@@ -314,9 +314,9 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
     RuntimeAudioChannel.voice: true,
     RuntimeAudioChannel.livestream: true,
   };
-  late final Set<String> _currentMutedParticipantUserIds =
+  late final _currentMutedParticipantUserIds =
       Set<String>.from(initialMutedParticipantUserIds);
-  late final Set<String> _currentDeafenedParticipantUserIds =
+  late final _currentDeafenedParticipantUserIds =
       Set<String>.from(initialDeafenedParticipantUserIds);
   var _isSelfMuted = false;
   var _isSelfDeafened = false;

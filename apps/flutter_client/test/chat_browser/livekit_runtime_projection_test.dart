@@ -52,7 +52,7 @@ void main() {
         RuntimeAudioChannel.voice,
       );
       expect(
-        synchronized.containsKey(ParticipantUserId.fromRaw("auth0|stale")!),
+        synchronized.containsKey(ParticipantUserId.fromRaw("auth0|stale")),
         isFalse,
       );
     });

@@ -52,8 +52,8 @@ class _VoiceStreamPopoutWindowPageState
   );
 
   VideoTrack? _videoTrack;
-  String _displayName = "Stream";
-  String _targetParticipantUserId = "";
+  var _displayName = "Stream";
+  var _targetParticipantUserId = "";
   var _isLoading = true;
   Exception? _error;
 
