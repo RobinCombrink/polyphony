@@ -7,6 +7,10 @@ import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 
+enum _PaneMenuAction { createChannel }
+
+enum _ChannelMenuAction { deleteChannel }
+
 SectionStatus? buildChannelPaneStatus(ChannelsState state) {
   if (state is ChannelsValidationFailedState) {
     return switch (state.issue) {
@@ -100,72 +104,64 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
 
             return AlertDialog(
               title: const Text("Create channel"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  RadioListTile<ChannelType>(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    value: ChannelType.text,
-                    groupValue: selectedChannelType,
-                    onChanged: (value) {
-                      if (value == null) {
-                        return;
-                      }
+              content: RadioGroup<ChannelType>(
+                groupValue: selectedChannelType,
+                onChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
 
-                      setDialogState(() {
-                        selectedChannelType = value;
-                      });
-                    },
-                    title: const Row(
-                      children: <Widget>[
-                        Icon(Icons.tag, size: 18),
-                        SizedBox(width: 8),
-                        Text("Text channel"),
-                      ],
+                  setDialogState(() {
+                    selectedChannelType = value;
+                  });
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const RadioListTile<ChannelType>(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: ChannelType.text,
+                      title: Row(
+                        children: <Widget>[
+                          Icon(Icons.tag, size: 18),
+                          SizedBox(width: 8),
+                          Text("Text channel"),
+                        ],
+                      ),
                     ),
-                  ),
-                  RadioListTile<ChannelType>(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    value: ChannelType.voice,
-                    groupValue: selectedChannelType,
-                    onChanged: (value) {
-                      if (value == null) {
-                        return;
-                      }
+                    const RadioListTile<ChannelType>(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: ChannelType.voice,
+                      title: Row(
+                        children: <Widget>[
+                          Icon(Icons.volume_up, size: 18),
+                          SizedBox(width: 8),
+                          Text("Voice channel"),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: widget.createController,
+                      autofocus: true,
+                      textInputAction: TextInputAction.done,
+                      onChanged: (_) => setDialogState(() {}),
+                      onSubmitted: (_) {
+                        if (!canCreateChannel) {
+                          return;
+                        }
 
-                      setDialogState(() {
-                        selectedChannelType = value;
-                      });
-                    },
-                    title: const Row(
-                      children: <Widget>[
-                        Icon(Icons.volume_up, size: 18),
-                        SizedBox(width: 8),
-                        Text("Voice channel"),
-                      ],
+                        Navigator.of(dialogContext).pop(true);
+                      },
+                      decoration: const InputDecoration(
+                        labelText: "Channel name",
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: widget.createController,
-                    autofocus: true,
-                    textInputAction: TextInputAction.done,
-                    onChanged: (_) => setDialogState(() {}),
-                    onSubmitted: (_) {
-                      if (!canCreateChannel) {
-                        return;
-                      }
-
-                      Navigator.of(dialogContext).pop(true);
-                    },
-                    decoration: const InputDecoration(
-                      labelText: "Channel name",
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               actions: <Widget>[
                 TextButton(
@@ -206,7 +202,7 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
       return;
     }
 
-    await showMenu<void>(
+    final selectedAction = await showMenu<_PaneMenuAction>(
       context: context,
       position: RelativeRect.fromLTRB(
         globalPosition.dx,
@@ -214,16 +210,19 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
         globalPosition.dx,
         globalPosition.dy,
       ),
-      items: <PopupMenuEntry<void>>[
-        PopupMenuItem<void>(
-          onTap: () => Future<void>.delayed(
-            Duration.zero,
-            () => _showCreateChannelDialog(context),
-          ),
-          child: const Text("Create channel"),
+      items: <PopupMenuEntry<_PaneMenuAction>>[
+        const PopupMenuItem<_PaneMenuAction>(
+          value: _PaneMenuAction.createChannel,
+          child: Text("Create channel"),
         ),
       ],
     );
+
+    if (!context.mounted || selectedAction != _PaneMenuAction.createChannel) {
+      return;
+    }
+
+    await _showCreateChannelDialog(context);
   }
 
   Future<void> _showChannelContextMenu({
@@ -237,7 +236,7 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
     }
 
     final errorColor = Theme.of(context).colorScheme.error;
-    await showMenu<void>(
+    final selectedAction = await showMenu<_ChannelMenuAction>(
       context: context,
       position: RelativeRect.fromLTRB(
         globalPosition.dx,
@@ -245,12 +244,9 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
         globalPosition.dx,
         globalPosition.dy,
       ),
-      items: <PopupMenuEntry<void>>[
-        PopupMenuItem<void>(
-          onTap: () => Future<void>.delayed(
-            Duration.zero,
-            () => onDeleteChannel(channel),
-          ),
+      items: <PopupMenuEntry<_ChannelMenuAction>>[
+        PopupMenuItem<_ChannelMenuAction>(
+          value: _ChannelMenuAction.deleteChannel,
           child: Text(
             "Delete channel",
             style: TextStyle(color: errorColor),
@@ -258,6 +254,12 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
         ),
       ],
     );
+
+    if (!mounted || selectedAction != _ChannelMenuAction.deleteChannel) {
+      return;
+    }
+
+    onDeleteChannel(channel);
   }
 
   @override

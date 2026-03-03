@@ -140,6 +140,9 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
   }
 
   Future<void> _signInWithAuth0({String? loginHint}) async {
+    final authenticationBloc = context.read<AuthenticationBloc>();
+    final accessTokenProvider = context.read<AccessTokenProvider>();
+
     await _persistRememberedEmailAddressPreference();
 
     setState(() {
@@ -147,9 +150,9 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
       _signInError = null;
     });
 
-    final accessTokenResult = await context
-        .read<AccessTokenProvider>()
-        .getAccessToken(loginHint: loginHint);
+    final accessTokenResult = await accessTokenProvider.getAccessToken(
+      loginHint: loginHint,
+    );
 
     if (!mounted) {
       return;
@@ -157,9 +160,9 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
 
     switch (accessTokenResult) {
       case Ok<String>(:final value):
-        context
-            .read<AuthenticationBloc>()
-            .add(AuthenticationLoginRequested(bearerToken: value));
+        authenticationBloc.add(
+          AuthenticationLoginRequested(bearerToken: value),
+        );
       case Error<String>(:final error):
         final errorMessage = error.toString();
         if (errorMessage.contains("Redirecting to Auth0 for sign in.")) {
