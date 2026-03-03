@@ -25,6 +25,8 @@ jobs:
     name: Rust backend CI
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      image_tags: ${{ steps.meta.outputs.tags }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,46 +48,15 @@ jobs:
       - name: Unit and acceptance tests
         run: cargo test --workspace --all-targets
 
-      - name: Package backend build
+      - name: Prepare dist directory
+        run: mkdir -p dist
+
+      - name: Build backend image artifact
         run: |
-          mkdir -p dist
-          cp target/release/backend-api dist/
-          tar -czf "dist/polyphony-backend-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz" -C dist backend-api
-
-      - name: Upload backend build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-backend-build-${{ github.run_id }}-${{ github.run_attempt }}
-          path: dist/polyphony-backend-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
-
-  release:
-    name: Publish to GitHub container registry and create GitHub release
-    runs-on: ubuntu-latest
-    needs:
-      - rust-backend
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
-    steps:
-      - name: Download backend build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: rust-backend-build-${{ github.run_id }}-${{ github.run_attempt }}
-          path: release-assets
-
-      - name: Generate release metadata
-        id: release_meta
-        run: |
-          echo "tag=backend-0.0.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          docker build \
+            -f crates/backend-api/Dockerfile \
+            -t polyphony/backend-api:ci-${{ github.run_id }}-${{ github.run_attempt }} \
+            .
 
       - name: Extract image metadata
         id: meta
@@ -98,14 +69,72 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
+      - name: Tag image for release
+        run: |
+          source_image="polyphony/backend-api:ci-${{ github.run_id }}-${{ github.run_attempt }}"
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            docker tag "$source_image" "$tag"
+          done <<< "${{ steps.meta.outputs.tags }}"
+
+      - name: Save backend image artifact
+        run: |
+          docker save \
+            --output dist/backend-api-image.tar \
+            polyphony/backend-api:ci-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Package backend build
+        run: |
+          mkdir -p dist
+          cp target/release/backend-api dist/
+          tar -czf "dist/polyphony-backend-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz" -C dist backend-api
+
+      - name: Upload backend build artifact
+        uses: actions/upload-artifact@v4
         with:
-          context: .
-          file: crates/backend-api/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          name: rust-backend-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/polyphony-backend-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
+            dist/backend-api-image.tar
+
+  release:
+    name: Publish to GitHub container registry and create GitHub release
+    runs-on: ubuntu-latest
+    needs:
+      - rust-backend
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Download backend build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-backend-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-assets
+
+      - name: Generate release metadata
+        id: release_meta
+        run: |
+          echo "tag=backend-0.0.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+      - name: Load prebuilt backend image
+        run: docker load --input release-assets/backend-api-image.tar
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push prebuilt image tags
+        run: |
+          source_image="polyphony/backend-api:ci-${{ github.run_id }}-${{ github.run_attempt }}"
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            docker tag "$source_image" "$tag"
+            docker push "$tag"
+          done <<< "${{ needs.rust-backend.outputs.image_tags }}"
       - name: Publish release
         uses: actions/github-script@v7
         env:
