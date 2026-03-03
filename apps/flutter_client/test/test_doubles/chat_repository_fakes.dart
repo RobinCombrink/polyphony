@@ -11,7 +11,7 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 
-import "../../entity_seeder.dart";
+import "../entity_seeder.dart";
 
 class FakeServerRepository implements ServerRepo {
   FakeServerRepository({

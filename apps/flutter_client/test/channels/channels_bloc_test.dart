@@ -4,7 +4,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 
 import "../entity_seeder.dart";
-import "test_doubles/chat_repository_fakes.dart";
+import "../test_doubles/chat_repository_fakes.dart";
 
 void main() {
   final fixture = EntitySeeder().chatApiFixture();

@@ -13,7 +13,7 @@ import "package:polyphony_flutter_client/shared/services/preferences_store.dart"
 import "package:provider/provider.dart";
 
 import "../entity_seeder.dart";
-import "test_doubles/chat_repository_fakes.dart";
+import "../test_doubles/chat_repository_fakes.dart";
 
 class _RecordingServerMembersBloc extends ServerMembersBloc {
   _RecordingServerMembersBloc({

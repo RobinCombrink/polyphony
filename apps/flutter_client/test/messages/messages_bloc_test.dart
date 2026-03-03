@@ -3,7 +3,7 @@ import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 
 import "../entity_seeder.dart";
-import "test_doubles/chat_repository_fakes.dart";
+import "../test_doubles/chat_repository_fakes.dart";
 
 void main() {
   final fixture = EntitySeeder().chatApiFixture();
