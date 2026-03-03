@@ -11,9 +11,7 @@ use backend_api::{
     ApiState,
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
-    storage::{
-        ChannelRepository, InMemoryRepository, MessageRepository, ServerRepository, UserRepository,
-    },
+    storage::InMemoryRepository,
 };
 use serde_json::Value;
 use tower::ServiceExt;
@@ -450,7 +448,10 @@ pub(crate) async fn response_payload_json(response: axum::response::Response) ->
     .expect("valid json payload")
 }
 
-pub(crate) fn seeded_state(external_reference: &str, token: &str) -> ApiState {
+pub(crate) fn seeded_state(
+    external_reference: &str,
+    token: &str,
+) -> ApiState<InMemoryRepository, InMemoryRepository, InMemoryRepository, InMemoryRepository> {
     seeded_state_with_store(
         external_reference,
         token,
@@ -462,7 +463,7 @@ pub(crate) fn seeded_state_with_store(
     external_reference: &str,
     token: &str,
     repository: Arc<InMemoryRepository>,
-) -> ApiState {
+) -> ApiState<InMemoryRepository, InMemoryRepository, InMemoryRepository, InMemoryRepository> {
     let auth_config = Auth0Config {
         issuer: Url::parse("https://example-dev.us.auth0.com/").expect("valid issuer url"),
         audience: "polyphony-api".to_owned(),
@@ -474,10 +475,10 @@ pub(crate) fn seeded_state_with_store(
         external_reference: external_reference.to_owned(),
     });
 
-    let user_store: Arc<dyn UserRepository> = repository.clone();
-    let server_store: Arc<dyn ServerRepository> = repository.clone();
-    let channel_store: Arc<dyn ChannelRepository> = repository.clone();
-    let message_store: Arc<dyn MessageRepository> = repository;
+    let user_store = repository.clone();
+    let server_store = repository.clone();
+    let channel_store = repository.clone();
+    let message_store = repository;
 
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),

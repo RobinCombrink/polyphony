@@ -4,6 +4,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
 use uuid::Uuid;
 
 use crate::{ApiState, auth::AuthenticatedUser, dto::UserLookupResponse};
@@ -22,11 +23,17 @@ use crate::{ApiState, auth::AuthenticatedUser, dto::UserLookupResponse};
     security(("bearer_auth" = [])),
     tag = "backend-api"
 )]
-pub(crate) async fn get_user_by_id(
-    State(state): State<ApiState>,
+pub(crate) async fn get_user_by_id<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     _authenticated_user: AuthenticatedUser,
     Path(user_id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let Some(user) = state.user_repository.find_user_by_id(user_id).await else {
         return StatusCode::NOT_FOUND.into_response();
     };

@@ -6,6 +6,9 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::Channel;
+use backend_storage::{
+    ChannelRepository, MessageRepository, ServerRepository, UserRepository,
+};
 use livekit_api::access_token::{AccessToken, VideoGrants};
 use uuid::Uuid;
 
@@ -25,12 +28,18 @@ use crate::{ApiState, auth::AuthenticatedUser};
     params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
-pub(crate) async fn create_session(
-    State(state): State<ApiState>,
+pub(crate) async fn create_session<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
     Json(request): Json<CreateSessionRequest>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let channel = match state
         .channel_repository
         .find_channel_by_id(channel_id)

@@ -5,7 +5,9 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::{Channel, Membership, Server};
-use backend_storage::MutationResult;
+use backend_storage::{
+    ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -27,11 +29,17 @@ use crate::{
     security(("bearer_auth" = [])),
     tag = "backend-api"
 )]
-pub(crate) async fn create_server(
-    State(state): State<ApiState>,
+pub(crate) async fn create_server<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Json(request): Json<CreateServerRequest>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let created_server = state
         .server_repository
         .create_server(request.name, authenticated_user.user_id)
@@ -50,10 +58,16 @@ pub(crate) async fn create_server(
     security(("bearer_auth" = [])),
     tag = "backend-api"
 )]
-pub(crate) async fn list_servers(
-    State(state): State<ApiState>,
+pub(crate) async fn list_servers<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let servers = state
         .server_repository
         .list_servers_for_user(authenticated_user.user_id)
@@ -74,11 +88,17 @@ pub(crate) async fn list_servers(
     params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
-pub(crate) async fn list_server_members(
-    State(state): State<ApiState>,
+pub(crate) async fn list_server_members<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Path(server_id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let _ = authenticated_user;
 
     let members = state.server_repository.list_server_members(server_id).await;
@@ -103,12 +123,18 @@ pub(crate) async fn list_server_members(
     params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
-pub(crate) async fn add_server_member(
-    State(state): State<ApiState>,
+pub(crate) async fn add_server_member<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Path(server_id): Path<Uuid>,
     Json(request): Json<AddServerMemberRequest>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let mutation_result = state
         .server_repository
         .add_server_member(server_id, authenticated_user.user_id, request.user_id)
@@ -142,11 +168,17 @@ pub(crate) async fn add_server_member(
     params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
-pub(crate) async fn delete_server(
-    State(state): State<ApiState>,
+pub(crate) async fn delete_server<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Path(server_id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let mutation_result = state
         .server_repository
         .delete_server(server_id, authenticated_user.user_id)
@@ -173,12 +205,18 @@ pub(crate) async fn delete_server(
     params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
-pub(crate) async fn create_channel(
-    State(state): State<ApiState>,
+pub(crate) async fn create_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Path(server_id): Path<Uuid>,
     Json(request): Json<CreateChannelRequest>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let _ = authenticated_user;
 
     let created_channel = state
@@ -206,12 +244,18 @@ pub(crate) async fn create_channel(
     params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
-pub(crate) async fn update_channel(
-    State(state): State<ApiState>,
+pub(crate) async fn update_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
     Json(request): Json<UpdateChannelRequest>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let mutation_result = state
         .channel_repository
         .update_channel_name(channel_id, authenticated_user.user_id, request.name)
@@ -238,11 +282,17 @@ pub(crate) async fn update_channel(
     params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
-pub(crate) async fn delete_channel(
-    State(state): State<ApiState>,
+pub(crate) async fn delete_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let mutation_result = state
         .channel_repository
         .delete_channel(channel_id, authenticated_user.user_id)
@@ -268,11 +318,17 @@ pub(crate) async fn delete_channel(
     params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
-pub(crate) async fn list_channels(
-    State(state): State<ApiState>,
+pub(crate) async fn list_channels<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Path(server_id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let _ = authenticated_user;
 
     let channels = state

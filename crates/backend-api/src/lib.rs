@@ -34,21 +34,49 @@ use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
-#[derive(Clone)]
-pub struct ApiState {
+pub struct ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     pub auth_state: Arc<AuthState>,
-    pub user_repository: Arc<dyn UserRepository>,
-    pub server_repository: Arc<dyn ServerRepository>,
-    pub channel_repository: Arc<dyn ChannelRepository>,
-    pub message_repository: Arc<dyn MessageRepository>,
+    pub user_repository: Arc<UserRepo>,
+    pub server_repository: Arc<ServerRepo>,
+    pub channel_repository: Arc<ChannelRepo>,
+    pub message_repository: Arc<MessageRepo>,
     pub livekit_config: Arc<config::LiveKitConfig>,
 }
+
+impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo> Clone
+    for ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
+    fn clone(&self) -> Self {
+        Self {
+            auth_state: self.auth_state.clone(),
+            user_repository: self.user_repository.clone(),
+            server_repository: self.server_repository.clone(),
+            channel_repository: self.channel_repository.clone(),
+            message_repository: self.message_repository.clone(),
+            livekit_config: self.livekit_config.clone(),
+        }
+    }
+}
+
+pub type DefaultApiState =
+    ApiState<PostgresRepository, PostgresRepository, PostgresRepository, PostgresRepository>;
 
 pub fn default_bind_address() -> SocketAddr {
     config::BackendApiConfig::from_environment().bind_address
 }
 
-pub async fn default_api_state() -> ApiState {
+pub async fn default_api_state() -> DefaultApiState {
     let backend_config = config::BackendApiConfig::from_environment();
     let auth_config = backend_config.auth0;
     let token_verifier: Arc<dyn TokenVerifier> = Arc::new(
@@ -69,10 +97,10 @@ pub async fn default_api_state() -> ApiState {
         .await
         .expect("postgres repository initialization to succeed"),
     );
-    let user_store: Arc<dyn UserRepository> = repository.clone();
-    let server_store: Arc<dyn ServerRepository> = repository.clone();
-    let channel_store: Arc<dyn ChannelRepository> = repository.clone();
-    let message_store: Arc<dyn MessageRepository> = repository;
+    let user_store = repository.clone();
+    let server_store = repository.clone();
+    let channel_store = repository.clone();
+    let message_store = repository;
 
     ApiState {
         auth_state: Arc::new(AuthState::new(auth_config, token_verifier)),
@@ -84,7 +112,15 @@ pub async fn default_api_state() -> ApiState {
     }
 }
 
-pub fn build_app(state: ApiState) -> Router {
+pub fn build_app<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    state: ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>,
+) -> Router
+where
+    UserRepo: UserRepository + 'static,
+    ServerRepo: ServerRepository + 'static,
+    ChannelRepo: ChannelRepository + 'static,
+    MessageRepo: MessageRepository + 'static,
+{
     Router::new()
         .route("/health", get(health))
         .route("/api/v1/me", get(me).patch(update_me))

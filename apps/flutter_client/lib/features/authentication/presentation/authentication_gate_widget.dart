@@ -7,10 +7,10 @@ import "package:polyphony_flutter_client/features/authentication/bloc/authentica
 import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/profile_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/server_members_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/chat_browser_page_widget.dart";
+import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
@@ -221,7 +221,7 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
                 ),
               ),
             ],
-            child: const ChatBrowserPageWidget(),
+            child: const HomePageWidget(),
           );
         }
 

@@ -5,6 +5,9 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::Message;
+use backend_storage::{
+    ChannelRepository, MessageRepository, ServerRepository, UserRepository,
+};
 use uuid::Uuid;
 
 use crate::{ApiState, auth::AuthenticatedUser, dto::CreateMessageRequest};
@@ -22,12 +25,18 @@ use crate::{ApiState, auth::AuthenticatedUser, dto::CreateMessageRequest};
     params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
-pub(crate) async fn create_message(
-    State(state): State<ApiState>,
+pub(crate) async fn create_message<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
     Json(request): Json<CreateMessageRequest>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let created_message = state
         .message_repository
         .create_message(channel_id, authenticated_user.user_id, request.content)

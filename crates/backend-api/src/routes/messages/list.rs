@@ -5,6 +5,9 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::Message;
+use backend_storage::{
+    ChannelRepository, MessageRepository, ServerRepository, UserRepository,
+};
 use uuid::Uuid;
 
 use crate::{ApiState, auth::AuthenticatedUser};
@@ -20,11 +23,17 @@ use crate::{ApiState, auth::AuthenticatedUser};
     params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
-pub(crate) async fn list_messages(
-    State(state): State<ApiState>,
+pub(crate) async fn list_messages<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo>>,
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+{
     let _ = authenticated_user;
 
     let messages = state.message_repository.list_messages(channel_id).await;
