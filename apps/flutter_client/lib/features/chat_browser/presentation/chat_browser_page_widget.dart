@@ -3,11 +3,10 @@ import "dart:async";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/bloc/profile_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/server_members_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/chat_browser_settings_page_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/display_name_banner_widget.dart";
@@ -15,8 +14,9 @@ import "package:polyphony_flutter_client/features/chat_browser/presentation/widg
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/server_workspace_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/servers_pane_widget.dart";
 import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/top_right_error_toast.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_keybindings_focus_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_quick_actions_overlay_widget.dart";
+import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_keybindings_focus_widget.dart";
+import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_quick_actions_overlay_widget.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 
 class ChatBrowserPageWidget extends StatefulWidget {

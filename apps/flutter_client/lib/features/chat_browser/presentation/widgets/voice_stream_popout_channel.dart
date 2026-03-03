@@ -1,5 +1,1 @@
-const voiceStreamPopoutWindowChannelName =
-    "polyphony.voice_stream_popout_window";
-const voiceStreamPopInMethod = "voice_stream_pop_in";
-const voiceStreamPopInRequestMethod = "voice_stream_pop_in_request";
-const participantUserIdArgumentKey = "participantUserId";
+export "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_stream_popout_channel.dart";
