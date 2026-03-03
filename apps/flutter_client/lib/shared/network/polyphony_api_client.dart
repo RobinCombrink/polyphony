@@ -473,32 +473,4 @@ class PolyphonyApiClient implements ChatApi {
       return Error<void>(error);
     }
   }
-
-  Future<Result<void>> _performPatchRequestWithoutResponseBody({
-    required String baseUrl,
-    required String endpoint,
-    required String operation,
-    required Map<String, dynamic> body,
-    required int expectedStatusCode,
-  }) async {
-    try {
-      final response = await _httpClient.patch(
-        Uri.parse("$baseUrl$endpoint"),
-        headers: _headers(),
-        body: jsonEncode(body),
-      );
-
-      if (response.statusCode != expectedStatusCode) {
-        return Error<void>(
-          Exception(
-            "Failed to $operation: ${response.statusCode} ${response.body}",
-          ),
-        );
-      }
-
-      return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
-    }
-  }
 }
