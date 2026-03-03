@@ -58,6 +58,10 @@ Runtime env configuration used by backend:
 - `LIVEKIT_API_KEY` (default `devkey`)
 - `LIVEKIT_API_SECRET` (default `secret`)
 - `LIVEKIT_TOKEN_TTL_SECONDS` (default `3600`)
+- `BACKEND_API_HTTP_REQUEST_LOGGING_ENABLED` (default `true`)
+- `BACKEND_API_HTTP_REQUEST_LOGGING_LEVEL` (default `info`; one of `trace|debug|info|warn|error`)
+
+HTTP request logging is implemented via automatic middleware instrumentation (Tower HTTP `TraceLayer`) and logs each request with method, path, status, and latency. Request/response headers and bodies are not logged by default.
 
 ## Live Audio Architecture (Current)
 - LiveKit handles media transport, room signaling, and participant media plumbing.

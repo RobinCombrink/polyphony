@@ -31,7 +31,9 @@ use routes::{
     voice::create_session,
 };
 use tower_http::cors::{AllowOrigin, CorsLayer};
-use tower_http::trace::TraceLayer;
+use tower_http::trace::{
+    DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer,
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
@@ -175,7 +177,9 @@ where
     Repos::ChannelRepo: 'static,
     Repos::MessageRepo: 'static,
 {
-    Router::new()
+    let backend_config = config::BackendApiConfig::from_environment();
+
+    let router = Router::new()
         .route("/health", get(health))
         .route("/api/v1/me", get(me).patch(update_me))
         .route("/api/v1/users/{user_id}", get(get_user_by_id))
@@ -214,8 +218,29 @@ where
                 .config(Config::default().try_it_out_enabled(true)),
         )
         .with_state(state)
-        .layer(build_cors_layer())
-        .layer(TraceLayer::new_for_http())
+        .layer(build_cors_layer());
+
+    if backend_config.http_request_logging.enabled {
+        let log_level = backend_config.http_request_logging.level.as_tracing_level();
+
+        let trace_layer = TraceLayer::new_for_http()
+            .make_span_with(
+                DefaultMakeSpan::new()
+                    .level(log_level)
+                    .include_headers(false),
+            )
+            .on_request(DefaultOnRequest::new().level(log_level))
+            .on_response(
+                DefaultOnResponse::new()
+                    .level(log_level)
+                    .include_headers(false),
+            )
+            .on_failure(DefaultOnFailure::new().level(log_level));
+
+        router.layer(trace_layer)
+    } else {
+        router
+    }
 }
 
 fn build_cors_layer() -> CorsLayer {

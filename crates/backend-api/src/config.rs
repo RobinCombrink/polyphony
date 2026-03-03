@@ -8,6 +8,7 @@ pub struct BackendApiConfig {
     pub auth0: Auth0Config,
     pub livekit: LiveKitConfig,
     pub postgres: PostgresConfig,
+    pub http_request_logging: HttpRequestLoggingConfig,
 }
 
 impl Default for BackendApiConfig {
@@ -17,6 +18,7 @@ impl Default for BackendApiConfig {
             auth0: Auth0Config::default(),
             livekit: LiveKitConfig::default(),
             postgres: PostgresConfig::default(),
+            http_request_logging: HttpRequestLoggingConfig::default(),
         }
     }
 }
@@ -33,12 +35,93 @@ impl BackendApiConfig {
         let auth0 = Auth0Config::from_environment();
         let livekit = LiveKitConfig::from_environment();
         let postgres = PostgresConfig::from_environment();
+        let http_request_logging = HttpRequestLoggingConfig::from_environment();
 
         Self {
             bind_address,
             auth0,
             livekit,
             postgres,
+            http_request_logging,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct HttpRequestLoggingConfig {
+    pub enabled: bool,
+    pub level: HttpRequestLogLevel,
+}
+
+impl Default for HttpRequestLoggingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            level: HttpRequestLogLevel::Info,
+        }
+    }
+}
+
+impl HttpRequestLoggingConfig {
+    pub fn from_environment() -> Self {
+        let default_config = Self::default();
+
+        let enabled = std::env::var("BACKEND_API_HTTP_REQUEST_LOGGING_ENABLED")
+            .ok()
+            .and_then(|value| match value.trim().to_ascii_lowercase().as_str() {
+                "1" | "true" | "yes" | "on" => Some(true),
+                "0" | "false" | "no" | "off" => Some(false),
+                _ => None,
+            })
+            .unwrap_or(default_config.enabled);
+
+        let level = std::env::var("BACKEND_API_HTTP_REQUEST_LOGGING_LEVEL")
+            .ok()
+            .and_then(HttpRequestLogLevel::from_str)
+            .unwrap_or(default_config.level);
+
+        Self { enabled, level }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum HttpRequestLogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+impl HttpRequestLogLevel {
+    pub fn from_str(value: String) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "trace" => Some(Self::Trace),
+            "debug" => Some(Self::Debug),
+            "info" => Some(Self::Info),
+            "warn" | "warning" => Some(Self::Warn),
+            "error" => Some(Self::Error),
+            _ => None,
+        }
+    }
+
+    pub fn as_tracing_level(self) -> tracing::Level {
+        match self {
+            Self::Trace => tracing::Level::TRACE,
+            Self::Debug => tracing::Level::DEBUG,
+            Self::Info => tracing::Level::INFO,
+            Self::Warn => tracing::Level::WARN,
+            Self::Error => tracing::Level::ERROR,
+        }
+    }
+
+    pub fn as_env_directive(self) -> &'static str {
+        match self {
+            Self::Trace => "trace",
+            Self::Debug => "debug",
+            Self::Info => "info",
+            Self::Warn => "warn",
+            Self::Error => "error",
         }
     }
 }

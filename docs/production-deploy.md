@@ -38,6 +38,9 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 The backend container reads:
 - Postgres: `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DATABASE`, `POSTGRES_USERNAME`, `POSTGRES_PASSWORD`
 - LiveKit: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`
+- HTTP request logging: `BACKEND_API_HTTP_REQUEST_LOGGING_ENABLED`, `BACKEND_API_HTTP_REQUEST_LOGGING_LEVEL`
+
+HTTP request logs are emitted by automatic middleware instrumentation for every request (method, path, status, latency). Keep request/response headers and bodies disabled unless you have a temporary debugging need and a reviewed redaction plan.
 
 ## Notes
 - `docker-compose.local.yml` and `livekit.local.yaml` are local-development only.
