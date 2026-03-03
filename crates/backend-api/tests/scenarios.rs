@@ -1,3 +1,5 @@
+#[path = "common.rs"]
+mod common;
 #[path = "scenarios/health_identity.rs"]
 mod health_identity;
 #[path = "scenarios/messages.rs"]

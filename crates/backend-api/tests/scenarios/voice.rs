@@ -2,10 +2,7 @@ use axum::http::StatusCode;
 use backend_api::build_app;
 use uuid::Uuid;
 
-#[path = "../common.rs"]
-mod common;
-
-use common::{
+use super::common::{
     bdd_support::{
         connect_voice_session, create_server, create_voice_channel, response_payload_json,
         seeded_state,

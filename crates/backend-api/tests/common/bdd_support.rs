@@ -8,8 +8,7 @@ use axum::{
     http::{Request, header},
 };
 use backend_api::{
-    ApiState,
-    SplitRepositories,
+    ApiState, SplitRepositories,
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
     storage::InMemoryRepository,

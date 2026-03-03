@@ -2,11 +2,7 @@ use axum::http::StatusCode;
 use backend_api::build_app;
 use std::sync::Arc;
 
-#[path = "../common.rs"]
-mod common;
-
-use backend_api::storage::InMemoryRepository;
-use common::{
+use super::common::{
     bdd_support::{
         add_server_member, add_server_member_with_token, create_channel, create_channel_with_token,
         create_server, create_server_with_token, delete_channel, delete_channel_with_token,
@@ -16,6 +12,7 @@ use common::{
     },
     entity_seeder::EntitySeeder,
 };
+use backend_api::storage::InMemoryRepository;
 
 #[tokio::test]
 async fn given_authenticated_user_when_create_server_then_created_status_and_server_id_returned() {

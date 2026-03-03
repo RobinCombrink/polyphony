@@ -7,13 +7,10 @@ use serde_json::Value;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-#[path = "../common.rs"]
-mod common;
-
-use common::{
+use super::common::{
     bdd_support::{
         get_me_with_token, get_user_by_id_with_token, patch_me_display_name_with_token,
-        seeded_state,
+        response_payload_json, seeded_state,
     },
     entity_seeder::EntitySeeder,
 };
@@ -78,7 +75,7 @@ async fn given_authenticated_user_when_updating_display_name_then_me_returns_upd
 
     assert_eq!(patch_response.status(), StatusCode::OK);
 
-    let patch_payload = common::bdd_support::response_payload_json(patch_response).await;
+    let patch_payload = response_payload_json(patch_response).await;
     assert_eq!(
         patch_payload["display_name"].as_str(),
         Some(updated_display_name)
@@ -87,7 +84,7 @@ async fn given_authenticated_user_when_updating_display_name_then_me_returns_upd
     let me_response = get_me_with_token(&app, "valid-token").await;
     assert_eq!(me_response.status(), StatusCode::OK);
 
-    let me_payload = common::bdd_support::response_payload_json(me_response).await;
+    let me_payload = response_payload_json(me_response).await;
     assert!(Uuid::parse_str(me_payload["user_id"].as_str().expect("user id string")).is_ok());
     assert_eq!(
         me_payload["external_reference"].as_str(),
@@ -114,9 +111,7 @@ async fn given_existing_user_when_lookup_by_id_then_returns_minimal_profile() {
         patch_me_display_name_with_token(&app, "Lookup Name", "valid-token").await;
     assert_eq!(update_response.status(), StatusCode::OK);
 
-    let me_payload =
-        common::bdd_support::response_payload_json(get_me_with_token(&app, "valid-token").await)
-            .await;
+    let me_payload = response_payload_json(get_me_with_token(&app, "valid-token").await).await;
     let user_id = me_payload["user_id"]
         .as_str()
         .expect("user id to be present")
@@ -125,7 +120,7 @@ async fn given_existing_user_when_lookup_by_id_then_returns_minimal_profile() {
     let response = get_user_by_id_with_token(&app, &user_id, "valid-token").await;
     assert_eq!(response.status(), StatusCode::OK);
 
-    let payload = common::bdd_support::response_payload_json(response).await;
+    let payload = response_payload_json(response).await;
     assert_eq!(payload["id"].as_str(), Some(user_id.as_str()));
     assert_eq!(payload["display_name"].as_str(), Some("Lookup Name"));
     assert!(payload.get("issuer").is_none());

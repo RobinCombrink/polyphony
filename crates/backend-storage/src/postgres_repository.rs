@@ -579,7 +579,7 @@ impl ChannelRepository for PostgresRepository {
     }
 
     async fn find_channel_by_id(&self, channel_id: Uuid) -> Option<Channel> {
-        let channel = sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
+        sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
             "SELECT id, server_id, name, channel_type
              FROM channels
              WHERE id = $1",
@@ -594,8 +594,6 @@ impl ChannelRepository for PostgresRepository {
                 "voice" => Some(Channel::new_voice(id, server_id, name)),
                 _ => None,
             },
-        );
-
-        channel
+        )
     }
 }

@@ -3,10 +3,7 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use backend_api::{build_app, storage::InMemoryRepository};
 
-#[path = "../common.rs"]
-mod common;
-
-use common::{
+use super::common::{
     bdd_support::{
         create_channel, create_channel_with_token, create_message, create_message_with_token,
         create_server, create_server_with_token, delete_message, delete_message_with_token,

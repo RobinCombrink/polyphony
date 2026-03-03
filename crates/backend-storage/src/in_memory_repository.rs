@@ -99,7 +99,7 @@ impl ServerRepository for InMemoryRepository {
                 store
                     .server_members_by_id
                     .get(&server.id)
-                    .is_some_and(|members| members.iter().any(|member_id| *member_id == user_id))
+                    .is_some_and(|members| members.contains(&user_id))
             })
             .cloned()
             .collect::<Vec<_>>()
