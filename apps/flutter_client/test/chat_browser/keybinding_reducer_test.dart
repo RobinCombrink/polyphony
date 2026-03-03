@@ -1,6 +1,6 @@
 import "package:flutter/services.dart";
 import "package:flutter_test/flutter_test.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/reducers/keybinding_reducer.dart";
+import "package:polyphony_flutter_client/features/settings/presentation/reducers/keybinding_reducer.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
 void main() {

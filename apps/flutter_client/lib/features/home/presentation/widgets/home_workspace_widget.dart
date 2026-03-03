@@ -1,3 +1,4 @@
+import "package:collection/collection.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
@@ -6,10 +7,9 @@ import "package:polyphony_flutter_client/features/messages/presentation/widgets/
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/server_users_pane_widget.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_participants_pane_widget.dart";
-import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
-class ServerWorkspaceWidget extends StatelessWidget {
-  const ServerWorkspaceWidget({
+class HomeWorkspaceWidget extends StatelessWidget {
+  const HomeWorkspaceWidget({
     required this.createChannelController,
     required this.createMessageController,
     super.key,
@@ -26,9 +26,8 @@ class ServerWorkspaceWidget extends StatelessWidget {
             serversState is ServersLoadedDataState ? serversState : null;
         final selectedServerId = loadedData?.selectedServerId;
         final selectedServerName = loadedData?.servers
-            .where((server) => server.id == selectedServerId)
-            .map((server) => server.name)
-            .firstOrNull;
+            .firstWhereOrNull((server) => server.id == selectedServerId)
+            ?.name;
 
         if (selectedServerId == null) {
           return const Card(

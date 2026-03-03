@@ -2,13 +2,13 @@ import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/messages_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/profile_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/server_members_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/chat_browser_page_widget.dart";
+import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
+import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
+import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
+import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:provider/provider.dart";
 
@@ -92,7 +92,7 @@ void main() {
               BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
             ],
-            child: const MaterialApp(home: ChatBrowserPageWidget()),
+            child: const MaterialApp(home: HomePageWidget()),
           ),
         ),
       );

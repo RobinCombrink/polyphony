@@ -3,7 +3,7 @@ import "dart:async";
 import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/presentation/widgets/channel_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/section_status.dart";
+import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 

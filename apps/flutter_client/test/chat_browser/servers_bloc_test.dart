@@ -1,6 +1,6 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/servers_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 
 import "../entity_seeder.dart";
 import "test_doubles/chat_repository_fakes.dart";

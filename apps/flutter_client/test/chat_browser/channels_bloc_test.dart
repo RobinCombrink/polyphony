@@ -1,6 +1,6 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/channels_bloc.dart";
+import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 
 import "../entity_seeder.dart";

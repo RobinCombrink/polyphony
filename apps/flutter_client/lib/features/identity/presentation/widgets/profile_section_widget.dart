@@ -1,5 +1,5 @@
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/section_status.dart";
+import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 
 SectionStatus? buildProfileSectionStatus(ProfileState state) {
   if (state is ProfileValidationFailedState) {

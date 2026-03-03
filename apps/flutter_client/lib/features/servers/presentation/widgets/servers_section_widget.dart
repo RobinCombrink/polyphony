@@ -2,7 +2,7 @@ import "dart:async";
 
 import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/section_status.dart";
+import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 SectionStatus? buildServersSectionStatus(ServersState state) {

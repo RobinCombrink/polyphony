@@ -1,6 +1,6 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
-import "package:polyphony_flutter_client/features/chat_browser/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 

@@ -8,8 +8,8 @@ import "package:livekit_client/livekit_client.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/top_right_error_toast.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/presentation/widgets/top_right_error_toast.dart";
 
 class VoiceQuickActionsOverlayWidget extends StatelessWidget {
   const VoiceQuickActionsOverlayWidget({super.key});
