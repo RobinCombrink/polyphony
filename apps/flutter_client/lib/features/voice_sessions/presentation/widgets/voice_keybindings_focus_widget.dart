@@ -3,8 +3,8 @@ import "dart:async";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
+import "package:polyphony_flutter_client/features/settings/presentation/reducers/keybinding_reducer.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/reducers/keybinding_reducer.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
 class VoiceKeybindingsFocusWidget extends StatefulWidget {

@@ -5,7 +5,7 @@ import "package:polyphony_flutter_client/features/channels/presentation/widgets/
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_pane_widget.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/server_users_pane_widget.dart";
-import "package:polyphony_flutter_client/features/chat_browser/presentation/widgets/voice_participants_pane_widget.dart";
+import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_participants_pane_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 class ServerWorkspaceWidget extends StatelessWidget {
