@@ -34,6 +34,12 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
   ) async {
     final trimmedServerId = event.serverId.trim();
     final loadedState = _loadedStateOrNull(state);
+    final existingMembers = switch (loadedState) {
+      ServerMembersLoadedDataState(:final serverId, :final members)
+          when serverId == trimmedServerId =>
+        members,
+      _ => const <UserProfile>[],
+    };
 
     if (trimmedServerId.isEmpty) {
       if (loadedState == null) {
@@ -59,7 +65,10 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
 
     switch (membersResult) {
       case Ok<Iterable<ServerMember>>(:final value):
-        final members = await _resolveUserProfiles(value.toList());
+        final members = await _resolveUserProfiles(
+          members: value.toList(),
+          existingMembers: existingMembers,
+        );
         emit(ServerMembersLoadedState(
           serverId: trimmedServerId,
           members: members,
@@ -69,18 +78,33 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     }
   }
 
-  Future<List<UserProfile>> _resolveUserProfiles(
-    List<ServerMember> members,
-  ) async {
+  Future<List<UserProfile>> _resolveUserProfiles({
+    required List<ServerMember> members,
+    required List<UserProfile> existingMembers,
+  }) async {
     final uniqueUserIds = members
         .map((member) => member.userId.trim())
         .where((userId) => userId.isNotEmpty)
         .toSet()
         .toList();
+    final existingDisplayNamesByUserId = <String, String?>{
+      for (final profile in existingMembers)
+        profile.userId.trim(): profile.displayName?.trim(),
+    };
 
     final resolvedProfiles = <UserProfile>[];
 
     for (final userId in uniqueUserIds) {
+      if (existingDisplayNamesByUserId.containsKey(userId)) {
+        resolvedProfiles.add(
+          UserProfile(
+            userId: userId,
+            displayName: existingDisplayNamesByUserId[userId],
+          ),
+        );
+        continue;
+      }
+
       final userResult = await _profileRepo.getUserById(
         query: GetUserProfileByIdQuery(userId: userId),
       );
