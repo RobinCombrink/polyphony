@@ -17,11 +17,16 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   backend-api:
+    image: polyphony-backend-api:local
     build:
       context: .
       dockerfile: crates/backend-api/Dockerfile
+      cache_from:
+        - type=local,src=.docker-cache/backend-api
+      cache_to:
+        - type=local,dest=.docker-cache/backend-api,mode=max
     environment:
-      BACKEND_API_BIND: 127.0.0.1:5067
+      BACKEND_API_BIND: 0.0.0.0:5067
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DATABASE: polyphony
@@ -30,8 +35,13 @@ services:
       LIVEKIT_URL: ws://127.0.0.1:7880
       LIVEKIT_API_KEY: devkey
       LIVEKIT_API_SECRET: secret
+      BACKEND_API_HTTP_REQUEST_LOGGING_LEVEL: ${BACKEND_API_HTTP_REQUEST_LOGGING_LEVEL:-info}
     ports:
       - "5067:5067"
+    develop: 
+      watch:
+        - action: rebuild
+          path:   ./crates/
     depends_on:
       postgres:
         condition: service_healthy

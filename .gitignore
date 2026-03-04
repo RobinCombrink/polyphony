@@ -1,3 +1,5 @@
 /target
 output.wav
 .env.production
+.env
+.env.*
