@@ -14,3 +14,4 @@ When upding bdd tests, always update the feature files first to ensure that the 
 Never use the "as" keyword in Rust to perform type conversions; instead, implement the From trait for the relevant types to ensure safe and explicit conversions.
 Never use the "as" keyword in Dart to perform type coercions; instead, use appropriate pattern matching or type checking to ensure safe and explicit conversions.
 BDD scenarios should describe behaviour and outcomes, not implementation mechanics.
+When implementing caching, implement them in the service layer and not in the repository layer to ensure that the caching logic is separate from the data access logic and can be easily modified or removed without affecting the underlying data access code. Reuse the existing MemoryCache<T> implementation for in-memory caching needs. Do not implement separate cache classes for different entities; instead, use the generic MemoryCache<T> to handle caching for all entity types.
