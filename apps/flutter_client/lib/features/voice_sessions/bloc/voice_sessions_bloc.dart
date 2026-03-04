@@ -1,6 +1,7 @@
 import "dart:async";
 
 import "package:bloc_concurrency/bloc_concurrency.dart";
+import "package:collection/collection.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
@@ -176,42 +177,65 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return;
     }
 
-    final participantsByChannelId =
-        _participantsByChannelIdFromState(loadedState);
-
-    for (final channelId in trimmedChannelIds) {
-      final participantsResult = await _loadParticipantsForChannel(
-        channelId: channelId,
-        loadedState: loadedState,
-      );
-
-      if (participantsResult case Error<List<VoiceParticipant>>(:final error)) {
-        emit(VoiceSessionsExceptionState(error: error));
-        return;
-      }
-
-      participantsByChannelId[channelId] =
-          (participantsResult as Ok<List<VoiceParticipant>>).value;
+    if (loadedState == null) {
+      emit(const VoiceSessionsExceptionState(
+        error: VoiceSessionPreconditionException(
+          operation: VoiceSessionOperation.refreshParticipants,
+          issue: VoiceSessionPreconditionIssue.loadedStateRequired,
+        ),
+      ));
+      return;
     }
 
-    final selectedChannelId = loadedState?.selectedChannelId ?? "";
+    final participantsByChannelId =
+        _participantsByChannelIdFromState(loadedState);
+    final participantEntries = await Future.wait(trimmedChannelIds.map(
+        (channelId) => _loadParticipantsForChannel(
+              channelId: channelId,
+              loadedState: loadedState,
+            ).then((participantsResult) =>
+                MapEntry(channelId, participantsResult))));
+
+    final firstError = participantEntries
+        .map((entry) => entry.value)
+        .whereType<Error<List<VoiceParticipant>>>()
+        .firstOrNull;
+
+    if (firstError != null) {
+      emit(VoiceSessionsExceptionState(error: firstError.error));
+      return;
+    }
+
+    final newParticipants = participantEntries
+        .map((entry) => switch (entry.value) {
+              Ok(:final value) => MapEntry(entry.key, value),
+              Error() => null,
+            })
+        .nonNulls;
+
+    final refreshedParticipantsByChannelId = {
+      ...participantsByChannelId,
+      ...Map<String, List<VoiceParticipant>>.fromEntries(newParticipants),
+    };
+
+    final selectedChannelId = loadedState.selectedChannelId;
     final selectedParticipants = selectedChannelId.isEmpty
-        ? loadedState?.participants ?? const <VoiceParticipant>[]
-        : participantsByChannelId[selectedChannelId] ??
+        ? loadedState.participants
+        : refreshedParticipantsByChannelId[selectedChannelId] ??
             const <VoiceParticipant>[];
 
     emit(VoiceSessionsLoadedState(
-      activeConnection: loadedState?.activeConnection,
+      activeConnection: loadedState.activeConnection,
       selectedChannelId: selectedChannelId,
       participants: selectedParticipants,
-      participantsByChannelId: participantsByChannelId,
+      participantsByChannelId: refreshedParticipantsByChannelId,
       participantVideoTracks: _participantVideoTracksFromState(loadedState),
       isSelfMuted: _isSelfMutedFromParticipants(
-        activeConnection: loadedState?.activeConnection,
-        participantsByChannelId: participantsByChannelId,
+        activeConnection: loadedState.activeConnection,
+        participantsByChannelId: refreshedParticipantsByChannelId,
       ),
-      isSelfDeafened: loadedState?.isSelfDeafened ?? false,
-      isSelfScreenShareEnabled: loadedState?.isSelfScreenShareEnabled ?? false,
+      isSelfDeafened: loadedState.isSelfDeafened,
+      isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
     ));
   }
 
@@ -824,15 +848,26 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     final deafenedParticipantUserIds =
         _voiceRuntimeService.currentDeafenedParticipantUserIds();
     final mutedByUserId = <String, bool>{
-      for (final participantUserId in runtimeParticipantUserIds)
-        participantUserId: mutedParticipantUserIds.contains(participantUserId),
+      ...Map<String, bool>.fromEntries(
+        runtimeParticipantUserIds.map(
+          (participantUserId) => MapEntry(
+            participantUserId,
+            mutedParticipantUserIds.contains(participantUserId),
+          ),
+        ),
+      ),
       resolvedActiveConnection.participantUserId:
           _voiceRuntimeService.isSelfMuted(),
     };
     final deafenedByUserId = <String, bool>{
-      for (final participantUserId in runtimeParticipantUserIds)
-        participantUserId:
+      ...Map<String, bool>.fromEntries(
+        runtimeParticipantUserIds.map(
+          (participantUserId) => MapEntry(
+            participantUserId,
             deafenedParticipantUserIds.contains(participantUserId),
+          ),
+        ),
+      ),
       resolvedActiveConnection.participantUserId:
           _voiceRuntimeService.isSelfDeafened(),
     };
@@ -840,9 +875,49 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       participantUserIds: runtimeParticipantUserIds.toList(),
       mutedByUserId: mutedByUserId,
       deafenedByUserId: deafenedByUserId,
+      existingDisplayNamesByUserId: _participantDisplayNamesFromState(
+        loadedState: loadedState,
+      ),
     );
 
     return Ok<List<VoiceParticipant>>(participants);
+  }
+
+  Map<String, String?> _participantDisplayNamesFromState({
+    required VoiceSessionsLoadedDataState? loadedState,
+  }) {
+    if (loadedState == null) {
+      return const <String, String?>{};
+    }
+
+    final allParticipants = <VoiceParticipant>[
+      ...loadedState.participantsByChannelId.values.expand(
+        (participants) => participants,
+      ),
+      ...loadedState.participants,
+    ];
+
+    return allParticipants.fold(<String, String?>{}, (
+      displayNamesByUserId,
+      participant,
+    ) {
+      final trimmedUserId = participant.userId.trim();
+      if (trimmedUserId.isEmpty ||
+          displayNamesByUserId.containsKey(trimmedUserId)) {
+        return displayNamesByUserId;
+      }
+
+      final trimmedDisplayName = participant.displayName.trim();
+      final normalizedDisplayName =
+          trimmedDisplayName.isEmpty || trimmedDisplayName == "Member"
+              ? null
+              : trimmedDisplayName;
+
+      return {
+        ...displayNamesByUserId,
+        trimmedUserId: normalizedDisplayName,
+      };
+    });
   }
 
   List<String> _participantUserIdsOrFallback({
@@ -859,6 +934,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     required List<String> participantUserIds,
     required Map<String, bool> mutedByUserId,
     required Map<String, bool> deafenedByUserId,
+    Map<String, String?> existingDisplayNamesByUserId =
+        const <String, String?>{},
   }) async {
     final resolvedParticipantUserIds = _participantUserIdsOrFallback(
       participantUserIds: participantUserIds,
@@ -868,32 +945,33 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return const <VoiceParticipant>[];
     }
 
-    final participants = <VoiceParticipant>[];
-    for (final participantUserId in resolvedParticipantUserIds) {
-      final profileResult = await _profileRepo.getUserById(
-        query: GetUserProfileByIdQuery(userId: participantUserId),
-      );
+    return Future.wait(
+      resolvedParticipantUserIds.map((participantUserId) async {
+        final resolvedDisplayName = existingDisplayNamesByUserId.containsKey(
+          participantUserId,
+        )
+            ? existingDisplayNamesByUserId[participantUserId]
+            : switch (await _profileRepo.getUserById(
+                query: GetUserProfileByIdQuery(userId: participantUserId),
+              )) {
+                Ok<UserProfile>(:final value) => value.displayName?.trim(),
+                Error<UserProfile>() => null,
+              };
 
-      final resolvedDisplayName = switch (profileResult) {
-        Ok<UserProfile>(:final value) => value.displayName?.trim(),
-        Error<UserProfile>() => null,
-      };
+        final resolvedParticipantDisplayName = switch (resolvedDisplayName) {
+          final String name when name.isNotEmpty => name,
+          _ => "Member",
+        };
 
-      participants.add(
-        VoiceParticipant(
+        return VoiceParticipant(
           userId: participantUserId,
-          displayName:
-              resolvedDisplayName == null || resolvedDisplayName.isEmpty
-                  ? "Member"
-                  : resolvedDisplayName,
+          displayName: resolvedParticipantDisplayName,
           isMuted: mutedByUserId[participantUserId] ?? false,
           isDeafened: deafenedByUserId[participantUserId] ?? false,
           isSpeaking: _speakingParticipantUserIds.contains(participantUserId),
-        ),
-      );
-    }
-
-    return participants;
+        );
+      }),
+    );
   }
 
   bool _isSelfMutedFromParticipants({

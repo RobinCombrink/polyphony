@@ -50,6 +50,7 @@ enum VoiceSessionOperation {
   setMute,
   setDeafen,
   toggleScreenShare,
+  refreshParticipants,
 }
 
 enum VoiceSessionPreconditionIssue {

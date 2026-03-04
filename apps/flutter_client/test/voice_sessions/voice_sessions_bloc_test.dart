@@ -3,14 +3,34 @@ import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 
 import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
 
+class _CountingProfileRepository extends FakeProfileRepository {
+  _CountingProfileRepository({
+    required super.userId,
+    super.displayNamesByUserId,
+  });
+
+  var getUserByIdCalls = 0;
+
+  @override
+  Future<Result<UserProfile>> getUserById({
+    required GetUserProfileByIdQuery query,
+  }) {
+    getUserByIdCalls += 1;
+    return super.getUserById(query: query);
+  }
+}
+
 void main() {
   final fixture = EntitySeeder().chatApiFixture();
   late FakeVoiceRuntimeService speakingRuntimeService;
+  late _CountingProfileRepository countingProfileRepository;
 
   group("ParticipantStatusReducer", () {
     VoiceSessionsLoadedState seededLoadedState({
@@ -144,6 +164,39 @@ void main() {
       );
     });
   });
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "reuses participant profiles when refreshing connected channel",
+    build: () {
+      countingProfileRepository = _CountingProfileRepository(
+        userId: fixture.ownerUserId,
+        displayNamesByUserId: const <String, String?>{
+          "auth0|u1": "User One",
+        },
+      );
+
+      return VoiceSessionsBloc(
+        voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+        voiceRuntimeService: FakeVoiceRuntimeService(
+          
+        ),
+        profileRepo: countingProfileRepository,
+      );
+    },
+    act: (bloc) => bloc
+      ..add(
+          LoadVoiceSessionsRequested(channelId: fixture.listedVoiceChannel.id))
+      ..add(ConnectVoiceSessionRequested(
+          channelId: fixture.listedVoiceChannel.id))
+      ..add(
+        RefreshVoiceParticipantsRequested(
+          channelIds: <String>[fixture.listedVoiceChannel.id],
+        ),
+      ),
+    verify: (bloc) {
+      expect(countingProfileRepository.getUserByIdCalls, 1);
+    },
+  );
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "loads selected channel context",
