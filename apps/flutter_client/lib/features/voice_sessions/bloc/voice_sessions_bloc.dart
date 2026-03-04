@@ -106,8 +106,11 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     if (trimmedChannelId.isEmpty) {
       if (loadedState == null) {
-        emit(VoiceSessionsExceptionState(
-          error: Exception("Voice sessions must be loaded before validation."),
+        emit(const VoiceSessionsExceptionState(
+          error: VoiceSessionPreconditionException(
+            operation: VoiceSessionOperation.load,
+            issue: VoiceSessionPreconditionIssue.loadedStateRequired,
+          ),
         ));
         return;
       }
@@ -220,8 +223,11 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     final previousConnectedChannelId = loadedState?.connectedChannelId;
 
     if (loadedState == null) {
-      emit(VoiceSessionsExceptionState(
-        error: Exception("Voice sessions must be loaded before joining."),
+      emit(const VoiceSessionsExceptionState(
+        error: VoiceSessionPreconditionException(
+          operation: VoiceSessionOperation.connect,
+          issue: VoiceSessionPreconditionIssue.loadedStateRequired,
+        ),
       ));
       return;
     }
@@ -386,8 +392,11 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     final loadedState = _loadedStateOrNull(state);
 
     if (loadedState == null) {
-      emit(VoiceSessionsExceptionState(
-        error: Exception("Voice sessions must be loaded before leaving."),
+      emit(const VoiceSessionsExceptionState(
+        error: VoiceSessionPreconditionException(
+          operation: VoiceSessionOperation.disconnect,
+          issue: VoiceSessionPreconditionIssue.loadedStateRequired,
+        ),
       ));
       return;
     }
@@ -444,13 +453,17 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     final loadedState = _loadedStateOrNull(state);
 
     if (loadedState == null) {
-      emit(VoiceSessionsExceptionState(
-        error: Exception("Voice sessions must be loaded before muting."),
+      emit(const VoiceSessionsExceptionState(
+        error: VoiceSessionPreconditionException(
+          operation: VoiceSessionOperation.setMute,
+          issue: VoiceSessionPreconditionIssue.loadedStateRequired,
+        ),
       ));
       return;
     }
 
-    if (loadedState.activeConnection == null) {
+    final resolvedActiveConnection = loadedState.activeConnection;
+    if (resolvedActiveConnection == null) {
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
@@ -465,13 +478,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return;
     }
 
-    final activeConnection = loadedState.activeConnection;
-    if (activeConnection == null) {
-      emit(VoiceSessionsExceptionState(
-        error: Exception("Voice connection was lost while muting."),
-      ));
-      return;
-    }
+    final activeConnection = resolvedActiveConnection;
 
     var effectiveMuted = event.muted;
     var isSelfDeafened = loadedState.isSelfDeafened;
@@ -541,13 +548,17 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     final loadedState = _loadedStateOrNull(state);
 
     if (loadedState == null) {
-      emit(VoiceSessionsExceptionState(
-        error: Exception("Voice sessions must be loaded before deafening."),
+      emit(const VoiceSessionsExceptionState(
+        error: VoiceSessionPreconditionException(
+          operation: VoiceSessionOperation.setDeafen,
+          issue: VoiceSessionPreconditionIssue.loadedStateRequired,
+        ),
       ));
       return;
     }
 
-    if (loadedState.activeConnection == null) {
+    final resolvedActiveConnection = loadedState.activeConnection;
+    if (resolvedActiveConnection == null) {
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
@@ -562,13 +573,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return;
     }
 
-    final activeConnection = loadedState.activeConnection;
-    if (activeConnection == null) {
-      emit(VoiceSessionsExceptionState(
-        error: Exception("Voice connection was lost while deafening."),
-      ));
-      return;
-    }
+    final activeConnection = resolvedActiveConnection;
 
     final setDeafenedResult = await _voiceRuntimeService.setSelfDeafened(
       deafened: event.deafened,
@@ -627,9 +632,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     final loadedState = _loadedStateOrNull(state);
 
     if (loadedState == null) {
-      emit(VoiceSessionsExceptionState(
-        error: Exception(
-          "Voice sessions must be loaded before screen sharing toggle.",
+      emit(const VoiceSessionsExceptionState(
+        error: VoiceSessionPreconditionException(
+          operation: VoiceSessionOperation.toggleScreenShare,
+          issue: VoiceSessionPreconditionIssue.loadedStateRequired,
         ),
       ));
       return;

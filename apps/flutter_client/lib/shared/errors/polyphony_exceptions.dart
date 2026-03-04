@@ -42,3 +42,26 @@ final class RuntimeConnectionException implements Exception {
     return "Runtime connection $operation failed: $cause";
   }
 }
+
+enum VoiceSessionOperation {
+  load,
+  connect,
+  disconnect,
+  setMute,
+  setDeafen,
+  toggleScreenShare,
+}
+
+enum VoiceSessionPreconditionIssue {
+  loadedStateRequired,
+}
+
+final class VoiceSessionPreconditionException implements Exception {
+  const VoiceSessionPreconditionException({
+    required this.operation,
+    required this.issue,
+  });
+
+  final VoiceSessionOperation operation;
+  final VoiceSessionPreconditionIssue issue;
+}
