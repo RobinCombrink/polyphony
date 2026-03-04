@@ -21,6 +21,8 @@ services:
     build:
       context: .
       dockerfile: crates/backend-api/Dockerfile
+      args:
+        BUILD_PROFILE: debug
       cache_from:
         - type=local,src=.docker-cache/backend-api
       cache_to:

@@ -51,12 +51,20 @@ jobs:
       - name: Prepare dist directory
         run: mkdir -p dist
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build backend image artifact
-        run: |
-          docker build \
-            -f crates/backend-api/Dockerfile \
-            -t polyphony/backend-api:ci-${{ github.run_id }}-${{ github.run_attempt }} \
-            .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: crates/backend-api/Dockerfile
+          build-args: |
+            BUILD_PROFILE=release
+          tags: polyphony/backend-api:ci-${{ github.run_id }}-${{ github.run_attempt }}
+          load: true
+          cache-from: type=gha,scope=backend-api-image
+          cache-to: type=gha,scope=backend-api-image,mode=max
 
       - name: Extract image metadata
         id: meta

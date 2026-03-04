@@ -1,18 +1,46 @@
-FROM rust:1.90-bookworm AS builder
+# syntax=docker/dockerfile:1.7
+
+FROM rust:1.90-bookworm AS chef
+
+RUN cargo install cargo-chef --locked
 
 WORKDIR /app
 
-COPY Cargo.toml Cargo.toml
-COPY crates/backend-api/Cargo.toml crates/backend-api/Cargo.toml
-COPY crates/backend-domain/Cargo.toml crates/backend-domain/Cargo.toml
-COPY crates/backend-storage/Cargo.toml crates/backend-storage/Cargo.toml
-COPY crates/backend-api/src crates/backend-api/src
-COPY crates/backend-domain/src crates/backend-domain/src
-COPY crates/backend-storage/src crates/backend-storage/src
-COPY crates/backend-storage/migrations crates/backend-storage/migrations
-COPY crates/backend-storage/build.rs crates/backend-storage/build.rs
+FROM chef AS planner
 
-RUN cargo build --release -p backend-api
+WORKDIR /app
+
+COPY . .
+
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
+
+WORKDIR /app
+
+ARG BUILD_PROFILE=release
+
+COPY --from=planner /app/recipe.json recipe.json
+
+RUN --mount=type=cache,id=polyphony-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=polyphony-cargo-git,target=/usr/local/cargo/git \
+        if [ "$BUILD_PROFILE" = "release" ]; then \
+            cargo chef cook --release --locked --recipe-path recipe.json; \
+        else \
+            cargo chef cook --locked --recipe-path recipe.json; \
+        fi
+
+COPY . .
+
+RUN --mount=type=cache,id=polyphony-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=polyphony-cargo-git,target=/usr/local/cargo/git \
+        if [ "$BUILD_PROFILE" = "release" ]; then \
+            cargo build --release -p backend-api --locked; \
+            cp /app/target/release/backend-api /tmp/backend-api; \
+        else \
+            cargo build -p backend-api --locked; \
+            cp /app/target/debug/backend-api /tmp/backend-api; \
+        fi
 
 FROM debian:bookworm-slim AS runtime
 
@@ -22,7 +50,7 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY --from=builder /app/target/release/backend-api /usr/local/bin/backend-api
+COPY --from=builder /tmp/backend-api /usr/local/bin/backend-api
 
 EXPOSE 5067
 
