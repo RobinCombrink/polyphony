@@ -385,6 +385,23 @@ pub(crate) async fn connect_voice_session_with_token(
     channel_id: &str,
     bearer_token: &str,
 ) -> axum::response::Response {
+    connect_channel_session_with_type_and_token(app, channel_id, "voice", bearer_token).await
+}
+
+pub(crate) async fn connect_channel_session_with_type(
+    app: &axum::Router,
+    channel_id: &str,
+    session_type: &str,
+) -> axum::response::Response {
+    connect_channel_session_with_type_and_token(app, channel_id, session_type, "valid-token").await
+}
+
+pub(crate) async fn connect_channel_session_with_type_and_token(
+    app: &axum::Router,
+    channel_id: &str,
+    session_type: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
     app.clone()
         .oneshot(
             Request::builder()
@@ -393,7 +410,7 @@ pub(crate) async fn connect_voice_session_with_token(
                 .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(
-                    serde_json::json!({ "session_type": "voice" }).to_string(),
+                    serde_json::json!({ "session_type": session_type }).to_string(),
                 ))
                 .expect("connect voice session request to be valid"),
         )

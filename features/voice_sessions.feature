@@ -21,3 +21,15 @@ Feature: Backend API voice sessions
     And a voice channel exists in the owner's server
     When the second user connects to voice for that channel
     Then voice connection is forbidden
+
+  Scenario: Connecting to voice in a text channel returns semantic mismatch
+    Given an authenticated user exists
+    And a text channel exists in the user's server
+    When I connect to voice for that text channel
+    Then the channel kind mismatch is reported
+
+  Scenario: Connecting to text session in a voice channel returns semantic mismatch
+    Given an authenticated user exists
+    And a voice channel exists in the user's server
+    When I connect to text session for that voice channel
+    Then the channel kind mismatch is reported

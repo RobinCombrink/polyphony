@@ -5,10 +5,14 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::Message;
-use backend_storage::{ChannelRepository, MessageRepository};
+use backend_storage::{ChannelRepository, CreateMessageResult, MessageRepository};
 use uuid::Uuid;
 
-use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser, dto::CreateMessageRequest};
+use crate::{
+    ApiState, RepositoryProfile,
+    auth::AuthenticatedUser,
+    dto::{ApiErrorResponse, CreateMessageRequest},
+};
 
 #[utoipa::path(
     post,
@@ -17,6 +21,7 @@ use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser, dto::CreateMes
     responses(
         (status = 201, description = "Message created", body = Message),
         (status = 403, description = "User is not a member of the channel server"),
+        (status = 422, description = "Channel does not support text messages", body = ApiErrorResponse),
         (status = 404, description = "Channel not found"),
         (status = 401, description = "Authentication failed")
     ),
@@ -52,7 +57,18 @@ where
         .await;
 
     match created_message {
-        Some(message) => (StatusCode::CREATED, Json(message)).into_response(),
-        None => StatusCode::NOT_FOUND.into_response(),
+        CreateMessageResult::Created(message) => {
+            (StatusCode::CREATED, Json(message)).into_response()
+        }
+        CreateMessageResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
+        CreateMessageResult::ChannelKindMismatch => (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(ApiErrorResponse::new(
+                "CHANNEL_KIND_MISMATCH",
+                "channel does not support text messages",
+            )),
+        )
+            .into_response(),
+        CreateMessageResult::NotFound => StatusCode::NOT_FOUND.into_response(),
     }
 }

@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use super::common::{
     bdd_support::{
-        connect_voice_session, connect_voice_session_with_token, create_server,
+        connect_channel_session_with_type, connect_voice_session, connect_voice_session_with_token, create_server,
         create_server_with_token, create_voice_channel, create_channel_with_token,
         response_payload_json, seeded_state, seeded_state_with_store,
     },
@@ -125,4 +125,82 @@ async fn given_voice_channel_owned_by_another_server_when_connect_then_status_is
             .await;
 
     assert_eq!(connect_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn given_text_channel_when_connect_voice_session_then_status_is_422_with_kind_mismatch() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel_with_token(
+            &app,
+            &created_server_id,
+            fixture.channel.name(),
+            "text",
+            "valid-token",
+        )
+        .await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let connect_response = connect_voice_session(&app, &created_channel_id).await;
+
+    assert_eq!(connect_response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    let payload = response_payload_json(connect_response).await;
+    assert_eq!(
+        payload["error_code"].as_str(),
+        Some("CHANNEL_KIND_MISMATCH")
+    );
+}
+
+#[tokio::test]
+async fn given_voice_channel_when_connect_text_session_then_status_is_422_with_kind_mismatch() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_voice_channel(&app, &created_server_id, fixture.channel.name()).await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let connect_response =
+        connect_channel_session_with_type(&app, &created_channel_id, "text").await;
+
+    assert_eq!(connect_response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    let payload = response_payload_json(connect_response).await;
+    assert_eq!(
+        payload["error_code"].as_str(),
+        Some("CHANNEL_KIND_MISMATCH")
+    );
 }

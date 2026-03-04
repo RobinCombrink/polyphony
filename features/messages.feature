@@ -65,3 +65,9 @@ Feature: Backend API channel messages
     Given an authenticated user exists
     When the user deletes a message in a channel that does not exist
     Then the channel is reported as not found
+
+  Scenario: Posting a message in a voice channel returns semantic mismatch
+    Given an authenticated user exists
+    And a voice channel exists in the user's server
+    When the user posts a message in that voice channel
+    Then the channel kind mismatch is reported

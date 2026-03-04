@@ -8,7 +8,8 @@ use sqlx::{
 use uuid::Uuid;
 
 use crate::{
-    ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
+    ChannelRepository, CreateMessageResult, MessageRepository, MutationResult, ServerRepository,
+    UserRepository,
 };
 
 #[cfg(target_family = "windows")]
@@ -63,27 +64,6 @@ impl PostgresRepository {
         Ok(row > 0)
     }
 
-    async fn channel_exists_by_kind(
-        &self,
-        channel_id: Uuid,
-        channel_type: ChannelType,
-    ) -> Result<bool, sqlx::Error> {
-        let channel_type_value = match channel_type {
-            ChannelType::Text => "text",
-            ChannelType::Voice => "voice",
-        };
-
-        let row = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(1) FROM channels WHERE id = $1 AND channel_type = $2",
-        )
-        .bind(channel_id)
-        .bind(channel_type_value)
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(row > 0)
-    }
-
     async fn is_user_member_of_server(
         &self,
         server_id: Uuid,
@@ -130,21 +110,25 @@ impl MessageRepository for PostgresRepository {
         channel_id: Uuid,
         author_user_id: Uuid,
         content: String,
-    ) -> Option<Message> {
-        let is_channel_member = self
+    ) -> CreateMessageResult {
+        let is_channel_member = match self
             .is_user_member_of_channel(channel_id, author_user_id)
             .await
-            .ok()??;
+        {
+            Ok(Some(value)) => value,
+            Ok(None) | Err(_) => return CreateMessageResult::NotFound,
+        };
+
         if !is_channel_member {
-            return None;
+            return CreateMessageResult::Forbidden;
         }
 
-        if !self
-            .channel_exists_by_kind(channel_id, ChannelType::Text)
-            .await
-            .ok()?
-        {
-            return None;
+        let Some(channel) = self.find_channel_by_id(channel_id).await else {
+            return CreateMessageResult::NotFound;
+        };
+
+        if channel.kind() != ChannelType::Text {
+            return CreateMessageResult::ChannelKindMismatch;
         }
 
         sqlx::query_as::<_, (Uuid, Uuid, Uuid, String)>(
@@ -164,6 +148,8 @@ impl MessageRepository for PostgresRepository {
             author_user_id,
             content,
         })
+        .map(CreateMessageResult::Created)
+        .unwrap_or(CreateMessageResult::NotFound)
     }
 
     async fn update_message(

@@ -4,7 +4,8 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
-    ChannelRepository, InMemoryStore, MessageRepository, MutationResult, ServerRepository,
+    ChannelRepository, CreateMessageResult, InMemoryStore, MessageRepository, MutationResult,
+    ServerRepository,
     UserRepository,
 };
 
@@ -28,7 +29,7 @@ impl MessageRepository for InMemoryRepository {
         channel_id: Uuid,
         author_user_id: Uuid,
         content: String,
-    ) -> Option<Message> {
+    ) -> CreateMessageResult {
         let mut store = self.store.write().await;
         store.create_message(channel_id, author_user_id, content)
     }

@@ -1,4 +1,4 @@
-use crate::dto::{CreateSessionRequest, VoiceConnectResponse};
+use crate::dto::{ApiErrorResponse, CreateSessionRequest, VoiceConnectResponse};
 use axum::{
     Json,
     extract::{Path, State},
@@ -19,6 +19,7 @@ use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser};
     responses(
         (status = 200, description = "LiveKit connection details returned", body = VoiceConnectResponse),
         (status = 403, description = "User is not a member of the channel server"),
+        (status = 422, description = "Requested session type does not match channel type", body = ApiErrorResponse),
         (status = 404, description = "Channel not found"),
         (status = 500, description = "Failed to create access token"),
         (status = 401, description = "Authentication failed")
@@ -60,7 +61,14 @@ where
 
     let channel_type = channel.kind();
     if channel_type != request.session_type {
-        return StatusCode::NOT_FOUND.into_response();
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(ApiErrorResponse::new(
+                "CHANNEL_KIND_MISMATCH",
+                "requested session type does not match channel type",
+            )),
+        )
+            .into_response();
     }
 
     let participant_instance_id = request

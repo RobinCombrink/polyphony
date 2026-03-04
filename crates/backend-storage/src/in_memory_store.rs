@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use backend_domain::{Channel, ChannelType, DisplayName, Membership, Message, Server, User};
 use uuid::Uuid;
 
-use crate::MutationResult;
+use crate::{CreateMessageResult, MutationResult};
 
 #[derive(Debug, Default)]
 pub(crate) struct InMemoryStore {
@@ -252,10 +252,13 @@ impl InMemoryStore {
         channel_id: Uuid,
         author_user_id: Uuid,
         content: String,
-    ) -> Option<Message> {
-        let channel_type = self.channels.get(&channel_id).map(Channel::kind);
-        if channel_type != Some(ChannelType::Text) {
-            return None;
+    ) -> CreateMessageResult {
+        let Some(channel_type) = self.channels.get(&channel_id).map(Channel::kind) else {
+            return CreateMessageResult::NotFound;
+        };
+
+        if channel_type != ChannelType::Text {
+            return CreateMessageResult::ChannelKindMismatch;
         }
 
         let message = Message {
@@ -270,7 +273,7 @@ impl InMemoryStore {
             .or_default()
             .push(message.clone());
 
-        Some(message)
+        CreateMessageResult::Created(message)
     }
 
     pub(crate) fn list_messages(&self, channel_id: Uuid) -> Vec<Message> {

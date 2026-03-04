@@ -4,6 +4,13 @@ use uuid::Uuid;
 
 use crate::MutationResult;
 
+pub enum CreateMessageResult {
+    Created(Message),
+    Forbidden,
+    ChannelKindMismatch,
+    NotFound,
+}
+
 #[async_trait]
 pub trait MessageRepository: Send + Sync {
     async fn create_message(
@@ -11,7 +18,7 @@ pub trait MessageRepository: Send + Sync {
         channel_id: Uuid,
         author_user_id: Uuid,
         content: String,
-    ) -> Option<Message>;
+    ) -> CreateMessageResult;
     async fn update_message(
         &self,
         channel_id: Uuid,

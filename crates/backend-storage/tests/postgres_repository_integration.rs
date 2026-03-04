@@ -1,6 +1,7 @@
 use backend_domain::ChannelType;
 use backend_storage::{
-    ChannelRepository, MessageRepository, PostgresRepository, ServerRepository, UserRepository,
+    ChannelRepository, CreateMessageResult, MessageRepository, PostgresRepository,
+    ServerRepository, UserRepository,
 };
 use sqlx::PgPool;
 use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
@@ -50,8 +51,16 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
 
     let message = repository
         .create_message(channel.id(), user.id, "hello from integration".to_owned())
-        .await
-        .expect("message to be created");
+        .await;
+
+    let message = match message {
+        CreateMessageResult::Created(created_message) => created_message,
+        CreateMessageResult::Forbidden => panic!("message creation should not be forbidden"),
+        CreateMessageResult::ChannelKindMismatch => {
+            panic!("text channel should accept message creation")
+        }
+        CreateMessageResult::NotFound => panic!("message creation should find text channel"),
+    };
 
     let listed_messages = repository.list_messages(channel.id()).await;
 

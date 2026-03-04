@@ -59,6 +59,53 @@ async fn given_existing_channel_when_create_message_then_message_is_listed_for_c
 }
 
 #[tokio::test]
+async fn given_voice_channel_when_create_message_then_status_is_422_with_kind_mismatch() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+
+    let state = seeded_state(&fixture.user.external_reference, "valid-token");
+    let app = build_app(state);
+
+    let create_server_payload =
+        response_payload_json(create_server(&app, &fixture.server.name).await).await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel_with_token(
+            &app,
+            &created_server_id,
+            fixture.channel.name(),
+            "voice",
+            "valid-token",
+        )
+        .await,
+    )
+    .await;
+
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let create_message_response =
+        create_message(&app, &created_channel_id, &fixture.message.content).await;
+
+    assert_eq!(
+        create_message_response.status(),
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+
+    let payload = response_payload_json(create_message_response).await;
+    assert_eq!(
+        payload["error_code"].as_str(),
+        Some("CHANNEL_KIND_MISMATCH")
+    );
+}
+
+#[tokio::test]
 async fn given_existing_message_when_update_message_then_updated_content_is_listed() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
