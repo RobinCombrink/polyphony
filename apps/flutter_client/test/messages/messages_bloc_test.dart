@@ -1,12 +1,67 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
 
 import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
 
+class _CountingProfileRepository extends FakeProfileRepository {
+  _CountingProfileRepository({
+    required super.userId,
+    super.displayNamesByUserId,
+  });
+
+  var getUserByIdCalls = 0;
+
+  @override
+  Future<Result<UserProfile>> getUserById({
+    required GetUserProfileByIdQuery query,
+  }) {
+    getUserByIdCalls += 1;
+    return super.getUserById(query: query);
+  }
+}
+
 void main() {
   final fixture = EntitySeeder().chatApiFixture();
+  late _CountingProfileRepository countingProfileRepository;
+
+  blocTest<MessagesBloc, MessagesState>(
+    "reuses author profiles between load and update",
+    build: () {
+      countingProfileRepository = _CountingProfileRepository(
+        userId: fixture.ownerUserId,
+        displayNamesByUserId: <String, String?>{
+          fixture.listedMessage.authorUserId: "Listed Author",
+        },
+      );
+
+      return MessagesBloc(
+        messageRepo: FakeMessageRepository(fixture: fixture),
+        profileRepo: countingProfileRepository,
+        textSessionRepo: FakeTextSessionRepository(fixture: fixture),
+        messageRuntimeService: FakeMessageRuntimeService(),
+      );
+    },
+    act: (bloc) => bloc
+      ..add(LoadMessagesRequested(channelId: fixture.listedChannel.id))
+      ..add(
+        UpdateMessageRequested(
+          channelId: fixture.listedChannel.id,
+          messageId: fixture.listedMessage.id,
+          messageContent: "edited",
+        ),
+      ),
+    verify: (bloc) {
+      expect(
+        countingProfileRepository.getUserByIdCalls,
+        1,
+      );
+    },
+  );
 
   blocTest<MessagesBloc, MessagesState>(
     "updates message and emits loaded state",

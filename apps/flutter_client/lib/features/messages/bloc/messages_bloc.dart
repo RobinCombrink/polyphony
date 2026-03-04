@@ -97,6 +97,11 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     }
 
     final currentState = _loadedStateOrNull(state);
+    final existingDisplayNamesByUserId = switch (currentState) {
+      MessagesLoadedDataState(:final authorDisplayNamesByUserId) =>
+        authorDisplayNamesByUserId,
+      _ => const <String, String?>{},
+    };
     emit(const MessagesLoadingState());
 
     if (currentState?.channelId != trimmedChannelId) {
@@ -128,8 +133,10 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     switch (listMessagesResult) {
       case Ok<Iterable<Message>>(:final value):
         final messages = value.toList();
-        final authorDisplayNamesByUserId =
-            await _loadAuthorDisplayNames(messages);
+        final authorDisplayNamesByUserId = await _loadAuthorDisplayNames(
+          messages,
+          existingDisplayNamesByUserId: existingDisplayNamesByUserId,
+        );
         emit(MessagesLoadedState(
           messages: messages,
           channelId: trimmedChannelId,
@@ -147,6 +154,11 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     final trimmedChannelId = event.channelId.trim();
     final trimmedMessageContent = event.messageContent.trim();
     final loadedState = _loadedStateOrNull(state);
+    final existingDisplayNamesByUserId = switch (loadedState) {
+      MessagesLoadedDataState(:final authorDisplayNamesByUserId) =>
+        authorDisplayNamesByUserId,
+      _ => const <String, String?>{},
+    };
     final currentMessages = loadedState?.messages ?? const <Message>[];
     final currentChannelId = loadedState?.channelId ?? "";
 
@@ -155,8 +167,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: currentMessages,
         channelId: currentChannelId,
-        authorDisplayNamesByUserId: loadedState?.authorDisplayNamesByUserId ??
-            const <String, String?>{},
+        authorDisplayNamesByUserId: existingDisplayNamesByUserId,
       ));
       return;
     }
@@ -166,8 +177,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         issue: MessagesValidationIssue.messageContentRequired,
         messages: currentMessages,
         channelId: trimmedChannelId,
-        authorDisplayNamesByUserId: loadedState?.authorDisplayNamesByUserId ??
-            const <String, String?>{},
+        authorDisplayNamesByUserId: existingDisplayNamesByUserId,
       ));
       return;
     }
@@ -194,8 +204,10 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     switch (createMessageResult) {
       case Ok<Message>(:final value):
         final messages = List<Message>.from(currentMessages)..add(value);
-        final authorDisplayNamesByUserId =
-            await _loadAuthorDisplayNames(messages);
+        final authorDisplayNamesByUserId = await _loadAuthorDisplayNames(
+          messages,
+          existingDisplayNamesByUserId: existingDisplayNamesByUserId,
+        );
         emit(MessagesLoadedState(
           messages: messages,
           channelId: trimmedChannelId,
@@ -258,8 +270,10 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
               (message) => message.id == value.id ? value : message,
             )
             .toList();
-        final authorDisplayNamesByUserId =
-            await _loadAuthorDisplayNames(messages);
+        final authorDisplayNamesByUserId = await _loadAuthorDisplayNames(
+          messages,
+          existingDisplayNamesByUserId: loadedState.authorDisplayNamesByUserId,
+        );
         emit(MessagesLoadedState(
           messages: messages,
           channelId: trimmedChannelId,
@@ -308,8 +322,10 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         final messages = loadedState.messages
             .where((message) => message.id != event.messageId)
             .toList();
-        final authorDisplayNamesByUserId =
-            await _loadAuthorDisplayNames(messages);
+        final authorDisplayNamesByUserId = await _loadAuthorDisplayNames(
+          messages,
+          existingDisplayNamesByUserId: loadedState.authorDisplayNamesByUserId,
+        );
         emit(MessagesLoadedState(
           messages: messages,
           channelId: trimmedChannelId,
@@ -344,7 +360,10 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         ),
       );
 
-    final authorDisplayNamesByUserId = await _loadAuthorDisplayNames(messages);
+    final authorDisplayNamesByUserId = await _loadAuthorDisplayNames(
+      messages,
+      existingDisplayNamesByUserId: loadedState.authorDisplayNamesByUserId,
+    );
     emit(MessagesLoadedState(
       messages: messages,
       channelId: loadedState.channelId,
@@ -360,15 +379,24 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
   }
 
   Future<Map<String, String?>> _loadAuthorDisplayNames(
-    List<Message> messages,
-  ) async {
+    List<Message> messages, {
+    Map<String, String?> existingDisplayNamesByUserId =
+        const <String, String?>{},
+  }) async {
     final subjects = messages
         .map((message) => message.authorUserId)
+        .where((userId) => userId.trim().isNotEmpty)
         .toSet()
         .toList(growable: false);
 
     final authorDisplayNamesByUserId = <String, String?>{};
     for (final userId in subjects) {
+      if (existingDisplayNamesByUserId.containsKey(userId)) {
+        authorDisplayNamesByUserId[userId] =
+            existingDisplayNamesByUserId[userId];
+        continue;
+      }
+
       final profileResult = await _profileRepo.getUserById(
         query: GetUserProfileByIdQuery(userId: userId),
       );
