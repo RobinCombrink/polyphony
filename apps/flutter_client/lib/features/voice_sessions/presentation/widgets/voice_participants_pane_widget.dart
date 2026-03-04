@@ -44,6 +44,10 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
             final isInitialLoading = voiceState is VoiceSessionsInitialState;
             final loadedData =
                 voiceState is VoiceSessionsLoadedDataState ? voiceState : null;
+            final lifecycleIssue =
+                loadedData is VoiceSessionsLifecycleIssueState
+                    ? loadedData.issue
+                    : null;
             final errorMessage = voiceState is VoiceSessionsExceptionState
                 ? voiceState.error.toString()
                 : null;
@@ -62,6 +66,13 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
                 child: Center(
                   child: Text("Select a voice channel to see participants"),
                 ),
+              );
+            }
+
+            if (lifecycleIssue != null) {
+              return _VoiceLifecycleIssueCard(
+                issue: lifecycleIssue,
+                channelId: selectedVoiceChannel.id,
               );
             }
 
@@ -109,6 +120,67 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _VoiceLifecycleIssueCard extends StatelessWidget {
+  const _VoiceLifecycleIssueCard({
+    required this.issue,
+    required this.channelId,
+  });
+
+  final VoiceSessionsLifecycleIssue issue;
+  final String channelId;
+
+  @override
+  Widget build(BuildContext context) {
+    final (title, body) = switch (issue) {
+      VoiceSessionsLifecycleIssue.reconnectRequired => (
+          "Voice connection lost",
+          "Reconnect to rejoin this voice channel.",
+        ),
+      VoiceSessionsLifecycleIssue.tokenExpired => (
+          "Session expired",
+          "Sign in again to continue voice participation.",
+        ),
+      VoiceSessionsLifecycleIssue.channelForbidden => (
+          "Channel unavailable",
+          "You no longer have access to this voice channel.",
+        ),
+    };
+
+    return Card(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                body,
+                textAlign: TextAlign.center,
+              ),
+              if (issue ==
+                  VoiceSessionsLifecycleIssue.reconnectRequired) ...<Widget>[
+                const SizedBox(height: 12),
+                FilledButton.tonalIcon(
+                  onPressed: () => context.read<VoiceSessionsBloc>().add(
+                        ConnectVoiceSessionRequested(channelId: channelId),
+                      ),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text("Reconnect"),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

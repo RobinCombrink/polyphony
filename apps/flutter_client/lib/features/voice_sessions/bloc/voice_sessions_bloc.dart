@@ -2,6 +2,7 @@ import "dart:async";
 
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
+import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
@@ -61,6 +62,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       _participantStatusUpdatesSubscription;
   StreamSubscription<Map<String, Object>>? _participantVideoTracksSubscription;
   var _speakingParticipantUserIds = const <String>{};
+  String? _lastConnectedChannelId;
 
   Future<void> _onVoiceSessionsEvent(
     VoiceSessionsEvent event,
@@ -70,6 +72,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       case ResetVoiceSessionsRequested():
         await _voiceRuntimeService.disconnect();
         _speakingParticipantUserIds = const <String>{};
+        _lastConnectedChannelId = null;
         emit(const VoiceSessionsInitialState());
       case LoadVoiceSessionsRequested():
         await _onLoadVoiceSessionsRequested(event, emit);
@@ -279,7 +282,17 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       }
     }
 
-    emit(const VoiceSessionsLoadingState());
+    emit(
+      VoiceSessionsLoadingState(
+        operation: _isReconnectAttempt(
+          loadedState: loadedState,
+          channelId: trimmedChannelId,
+        )
+            ? VoiceSessionsLoadingOperation.reconnecting
+            : VoiceSessionsLoadingOperation.connecting,
+        channelId: trimmedChannelId,
+      ),
+    );
 
     final connectVoiceSessionResult = await _voiceSessionRepo.createOne(
       command: ConnectVoiceSessionCommand(
@@ -322,6 +335,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                   const <VoiceParticipant>[];
             }
 
+            _lastConnectedChannelId = trimmedChannelId;
+
             emit(VoiceSessionsLoadedState(
               activeConnection: value,
               selectedChannelId: trimmedChannelId,
@@ -338,9 +353,27 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                   _voiceRuntimeService.isSelfScreenShareEnabled(),
             ));
           case Error<void>(:final error):
+            if (_emitLifecycleIssueState(
+              error: error,
+              channelId: trimmedChannelId,
+              loadedState: loadedState,
+              emit: emit,
+            )) {
+              return;
+            }
+
             emit(VoiceSessionsExceptionState(error: error));
         }
       case Error<VoiceConnectSession>(:final error):
+        if (_emitLifecycleIssueState(
+          error: error,
+          channelId: trimmedChannelId,
+          loadedState: loadedState,
+          emit: emit,
+        )) {
+          return;
+        }
+
         emit(VoiceSessionsExceptionState(error: error));
     }
   }
@@ -374,7 +407,12 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return;
     }
 
-    emit(const VoiceSessionsLoadingState());
+    emit(
+      VoiceSessionsLoadingState(
+        operation: VoiceSessionsLoadingOperation.disconnecting,
+        channelId: trimmedChannelId,
+      ),
+    );
 
     final runtimeDisconnectResult = await _voiceRuntimeService.disconnect();
 
@@ -395,6 +433,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       isSelfDeafened: false,
       isSelfScreenShareEnabled: false,
     ));
+
+    _lastConnectedChannelId = trimmedChannelId;
   }
 
   Future<void> _onSetSelfMutedRequested(
@@ -633,6 +673,82 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
     }
+  }
+
+  bool _isReconnectAttempt({
+    required VoiceSessionsLoadedDataState? loadedState,
+    required String channelId,
+  }) {
+    if (channelId.isEmpty) {
+      return false;
+    }
+
+    if (_lastConnectedChannelId == channelId) {
+      return true;
+    }
+
+    if (loadedState == null) {
+      return false;
+    }
+
+    final hasCachedParticipants =
+        (loadedState.participantsByChannelId[channelId] ??
+                const <VoiceParticipant>[])
+            .isNotEmpty;
+
+    return loadedState.selectedChannelId == channelId && hasCachedParticipants;
+  }
+
+  bool _emitLifecycleIssueState({
+    required Exception error,
+    required String channelId,
+    required VoiceSessionsLoadedDataState? loadedState,
+    required Emitter<VoiceSessionsState> emit,
+  }) {
+    final issue = _classifyLifecycleIssue(error);
+    if (issue == null) {
+      return false;
+    }
+
+    final participantsByChannelId =
+        _participantsByChannelIdFromState(loadedState);
+    final selectedParticipants = participantsByChannelId[channelId] ??
+        loadedState?.participants ??
+        const <VoiceParticipant>[];
+
+    emit(VoiceSessionsLifecycleIssueState(
+      issue: issue,
+      activeConnection: null,
+      selectedChannelId: channelId,
+      participants: selectedParticipants,
+      participantsByChannelId: participantsByChannelId,
+      participantVideoTracks: _participantVideoTracksFromState(loadedState),
+      isSelfMuted: loadedState?.isSelfMuted ?? false,
+      isSelfDeafened: loadedState?.isSelfDeafened ?? false,
+      isSelfScreenShareEnabled: loadedState?.isSelfScreenShareEnabled ?? false,
+    ));
+
+    return true;
+  }
+
+  VoiceSessionsLifecycleIssue? _classifyLifecycleIssue(Exception error) {
+    if (error is AuthenticationRequiredException) {
+      return VoiceSessionsLifecycleIssue.tokenExpired;
+    }
+
+    if (error is ApiRequestException) {
+      return switch (error.statusCode) {
+        401 => VoiceSessionsLifecycleIssue.tokenExpired,
+        403 => VoiceSessionsLifecycleIssue.channelForbidden,
+        _ => null,
+      };
+    }
+
+    if (error is RuntimeConnectionException) {
+      return VoiceSessionsLifecycleIssue.reconnectRequired;
+    }
+
+    return null;
   }
 
   VoiceSessionsLoadedDataState? _loadedStateOrNull(VoiceSessionsState state) {

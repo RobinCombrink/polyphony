@@ -2,6 +2,7 @@ import "dart:convert";
 
 import "package:http/http.dart" as http;
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
+import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
@@ -269,7 +270,7 @@ class PolyphonyApiClient implements ChatApi {
     final currentAuthState = _authenticationStateSource.currentAuthState;
 
     if (currentAuthState is! AuthenticationAuthenticatedState) {
-      throw StateError("Auth token is required.");
+      throw const AuthenticationRequiredException();
     }
 
     final bearerToken = currentAuthState.bearerToken;
@@ -303,8 +304,11 @@ class PolyphonyApiClient implements ChatApi {
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return Error<List<T>>(
-          Exception(
-              "Failed to $operation: ${response.statusCode} ${response.body}"),
+          _apiRequestException(
+            operation: operation,
+            statusCode: response.statusCode,
+            responseBody: response.body,
+          ),
         );
       }
 
@@ -329,8 +333,10 @@ class PolyphonyApiClient implements ChatApi {
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return Error<T>(
-          Exception(
-            "Failed to $operation: ${response.statusCode} ${response.body}",
+          _apiRequestException(
+            operation: operation,
+            statusCode: response.statusCode,
+            responseBody: response.body,
           ),
         );
       }
@@ -365,8 +371,10 @@ class PolyphonyApiClient implements ChatApi {
 
       if (response.statusCode != expectedStatusCode) {
         return Error<T>(
-          Exception(
-            "Failed to $operation: ${response.statusCode} ${response.body}",
+          _apiRequestException(
+            operation: operation,
+            statusCode: response.statusCode,
+            responseBody: response.body,
           ),
         );
       }
@@ -401,8 +409,10 @@ class PolyphonyApiClient implements ChatApi {
 
       if (response.statusCode != expectedStatusCode) {
         return Error<T>(
-          Exception(
-            "Failed to $operation: ${response.statusCode} ${response.body}",
+          _apiRequestException(
+            operation: operation,
+            statusCode: response.statusCode,
+            responseBody: response.body,
           ),
         );
       }
@@ -434,8 +444,10 @@ class PolyphonyApiClient implements ChatApi {
 
       if (response.statusCode != expectedStatusCode) {
         return Error<void>(
-          Exception(
-            "Failed to $operation: ${response.statusCode} ${response.body}",
+          _apiRequestException(
+            operation: operation,
+            statusCode: response.statusCode,
+            responseBody: response.body,
           ),
         );
       }
@@ -462,8 +474,10 @@ class PolyphonyApiClient implements ChatApi {
 
       if (response.statusCode != expectedStatusCode) {
         return Error<void>(
-          Exception(
-            "Failed to $operation: ${response.statusCode} ${response.body}",
+          _apiRequestException(
+            operation: operation,
+            statusCode: response.statusCode,
+            responseBody: response.body,
           ),
         );
       }
@@ -472,5 +486,17 @@ class PolyphonyApiClient implements ChatApi {
     } on Exception catch (error) {
       return Error<void>(error);
     }
+  }
+
+  ApiRequestException _apiRequestException({
+    required String operation,
+    required int statusCode,
+    required String responseBody,
+  }) {
+    return ApiRequestException(
+      operation: operation,
+      statusCode: statusCode,
+      responseBody: responseBody,
+    );
   }
 }

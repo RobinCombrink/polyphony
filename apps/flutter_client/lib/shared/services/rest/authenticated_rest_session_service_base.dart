@@ -1,5 +1,6 @@
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
+import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
 abstract base class AuthenticatedRestSessionServiceBase {
@@ -17,7 +18,7 @@ abstract base class AuthenticatedRestSessionServiceBase {
     if (_authenticationStateSource.currentAuthState
         is! AuthenticationAuthenticatedState) {
       return Future<Result<T>>.value(
-        Error<T>(Exception("Auth token is required.")),
+        Error<T>(const AuthenticationRequiredException()),
       );
     }
 

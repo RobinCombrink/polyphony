@@ -1,5 +1,6 @@
 import "dart:async";
 
+import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
@@ -233,14 +234,21 @@ class FakeMessageRepository implements MessageRepo {
 class FakeVoiceSessionRepository implements VoiceSessionRepo {
   FakeVoiceSessionRepository({
     required ChatApiFixture fixture,
+    this.connectError,
   }) : _connectedVoiceSession = fixture.connectedVoiceSession;
 
   final VoiceConnectSession _connectedVoiceSession;
+  final Exception? connectError;
 
   @override
   Future<Result<VoiceConnectSession>> createOne({
     required ConnectVoiceSessionCommand command,
   }) async {
+    final resolvedConnectError = connectError;
+    if (resolvedConnectError != null) {
+      return Error<VoiceConnectSession>(resolvedConnectError);
+    }
+
     return Ok<VoiceConnectSession>(
       VoiceConnectSession(
         livekitUrl: _connectedVoiceSession.livekitUrl,
@@ -329,7 +337,12 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
     required String accessToken,
   }) async {
     if (forceConnectError) {
-      return Error<void>(Exception("Failed to connect to livekit"));
+      return Error<void>(
+        RuntimeConnectionException(
+          operation: "connect",
+          cause: Exception("Failed to connect to livekit"),
+        ),
+      );
     }
 
     _isSelfMuted = false;
@@ -350,7 +363,12 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   @override
   Future<Result<void>> disconnect() async {
     if (forceDisconnectError) {
-      return Error<void>(Exception("Failed to disconnect from livekit"));
+      return Error<void>(
+        RuntimeConnectionException(
+          operation: "disconnect",
+          cause: Exception("Failed to disconnect from livekit"),
+        ),
+      );
     }
 
     _isSelfMuted = false;

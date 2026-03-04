@@ -52,22 +52,37 @@ class VoiceQuickActionsOverlayWidget extends StatelessWidget {
                 final isSelfDeafened = loadedData?.isSelfDeafened ?? false;
                 final isSelfScreenShareEnabled =
                     loadedData?.isSelfScreenShareEnabled ?? false;
+                final lifecycleIssue =
+                    loadedData is VoiceSessionsLifecycleIssueState
+                        ? loadedData.issue
+                        : null;
 
                 final connectedChannelId = activeVoiceConnection?.channelId;
                 final hasConnectedChannel =
                     connectedChannelId != null && connectedChannelId.isNotEmpty;
+                final loadingState =
+                    voiceState is VoiceSessionsLoadingState ? voiceState : null;
                 final isConnecting = !hasConnectedChannel &&
-                    voiceState is VoiceSessionsLoadingState &&
+                    loadingState?.operation ==
+                        VoiceSessionsLoadingOperation.connecting &&
                     selectedVoiceChannelId != null &&
                     selectedVoiceChannelId.isNotEmpty;
+                final isReconnecting = !hasConnectedChannel &&
+                    loadingState?.operation ==
+                        VoiceSessionsLoadingOperation.reconnecting;
 
-                if (!hasConnectedChannel && !isConnecting) {
+                if (!hasConnectedChannel &&
+                    !isConnecting &&
+                    !isReconnecting &&
+                    lifecycleIssue == null) {
                   return const SizedBox.shrink();
                 }
 
                 final contextualChannelId = hasConnectedChannel
                     ? connectedChannelId
-                    : selectedVoiceChannelId;
+                    : (loadingState?.channelId ??
+                        loadedData?.selectedChannelId ??
+                        selectedVoiceChannelId);
                 final contextualChannelName = voiceChannels
                     .where((channel) => channel.id == contextualChannelId)
                     .map((channel) => channel.name)
@@ -84,10 +99,21 @@ class VoiceQuickActionsOverlayWidget extends StatelessWidget {
                   left: 0,
                   bottom: 0,
                   child: _VoiceQuickActionsCard(
-                    channelId: connectedChannelId,
-                    connectionStatus: isConnecting
-                        ? _VoiceConnectionStatus.connecting
-                        : _VoiceConnectionStatus.connected,
+                    connectedChannelId: connectedChannelId,
+                    actionChannelId: contextualChannelId,
+                    connectionStatus: switch (lifecycleIssue) {
+                      VoiceSessionsLifecycleIssue.reconnectRequired =>
+                        _VoiceConnectionStatus.reconnectRequired,
+                      VoiceSessionsLifecycleIssue.tokenExpired =>
+                        _VoiceConnectionStatus.tokenExpired,
+                      VoiceSessionsLifecycleIssue.channelForbidden =>
+                        _VoiceConnectionStatus.channelForbidden,
+                      null => isReconnecting
+                          ? _VoiceConnectionStatus.reconnecting
+                          : (isConnecting
+                              ? _VoiceConnectionStatus.connecting
+                              : _VoiceConnectionStatus.connected),
+                    },
                     connectionLocationText: connectionLocationText,
                     isSelfMuted: isSelfMuted,
                     isSelfDeafened: isSelfDeafened,
@@ -105,12 +131,17 @@ class VoiceQuickActionsOverlayWidget extends StatelessWidget {
 
 enum _VoiceConnectionStatus {
   connecting,
+  reconnecting,
+  reconnectRequired,
+  tokenExpired,
+  channelForbidden,
   connected,
 }
 
 class _VoiceQuickActionsCard extends StatelessWidget {
   const _VoiceQuickActionsCard({
-    required this.channelId,
+    required this.connectedChannelId,
+    required this.actionChannelId,
     required this.connectionStatus,
     required this.connectionLocationText,
     required this.isSelfMuted,
@@ -118,7 +149,8 @@ class _VoiceQuickActionsCard extends StatelessWidget {
     required this.isSelfScreenShareEnabled,
   });
 
-  final String? channelId;
+  final String? connectedChannelId;
+  final String? actionChannelId;
   final _VoiceConnectionStatus connectionStatus;
   final String? connectionLocationText;
   final bool isSelfMuted;
@@ -181,12 +213,37 @@ class _VoiceQuickActionsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final controlsEnabled =
         connectionStatus == _VoiceConnectionStatus.connected &&
-            channelId != null &&
-            channelId!.isNotEmpty;
+            connectedChannelId != null &&
+            connectedChannelId!.isNotEmpty;
 
+    final reconnectEnabled =
+        connectionStatus == _VoiceConnectionStatus.reconnectRequired &&
+            actionChannelId != null &&
+            actionChannelId!.isNotEmpty;
+
+    final colorScheme = Theme.of(context).colorScheme;
     final (statusLabel, statusColor) = switch (connectionStatus) {
-      _VoiceConnectionStatus.connecting => ("Connecting", Colors.yellow),
-      _VoiceConnectionStatus.connected => ("Connected", Colors.green),
+      _VoiceConnectionStatus.connecting => (
+          "Connecting",
+          colorScheme.secondary
+        ),
+      _VoiceConnectionStatus.reconnecting => (
+          "Reconnecting",
+          colorScheme.secondary
+        ),
+      _VoiceConnectionStatus.reconnectRequired => (
+          "Reconnect needed",
+          colorScheme.error
+        ),
+      _VoiceConnectionStatus.tokenExpired => (
+          "Session expired",
+          colorScheme.error
+        ),
+      _VoiceConnectionStatus.channelForbidden => (
+          "Channel unavailable",
+          colorScheme.error
+        ),
+      _VoiceConnectionStatus.connected => ("Connected", colorScheme.primary),
     };
 
     return Card(
@@ -229,7 +286,7 @@ class _VoiceQuickActionsCard extends StatelessWidget {
                   IconButton(
                     onPressed: () => context.read<VoiceSessionsBloc>().add(
                           DisconnectVoiceSessionRequested(
-                              channelId: channelId!),
+                              channelId: connectedChannelId!),
                         ),
                     tooltip: "Disconnect voice",
                     icon: const Icon(Icons.call_end),
@@ -264,6 +321,15 @@ class _VoiceQuickActionsCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ] else if (reconnectEnabled) ...<Widget>[
+              const SizedBox(height: 4),
+              FilledButton.tonalIcon(
+                onPressed: () => context.read<VoiceSessionsBloc>().add(
+                      ConnectVoiceSessionRequested(channelId: actionChannelId!),
+                    ),
+                icon: const Icon(Icons.refresh),
+                label: const Text("Reconnect"),
               ),
             ],
           ],

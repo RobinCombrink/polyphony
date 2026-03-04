@@ -1,6 +1,7 @@
 import "dart:async";
 
 import "package:livekit_client/livekit_client.dart";
+import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_runtime_projection.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
@@ -99,7 +100,9 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       _emitSpeakingParticipantUserIds(room.activeSpeakers);
       return const Ok<void>(null);
     } on Exception catch (error) {
-      return Error<void>(error);
+      return Error<void>(
+        RuntimeConnectionException(operation: "connect", cause: error),
+      );
     }
   }
 
@@ -126,7 +129,9 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
 
       return const Ok<void>(null);
     } on Exception catch (error) {
-      return Error<void>(error);
+      return Error<void>(
+        RuntimeConnectionException(operation: "disconnect", cause: error),
+      );
     }
   }
 

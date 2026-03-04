@@ -4,6 +4,18 @@ enum VoiceSessionsValidationIssue {
   channelSelectionRequired,
 }
 
+enum VoiceSessionsLoadingOperation {
+  connecting,
+  reconnecting,
+  disconnecting,
+}
+
+enum VoiceSessionsLifecycleIssue {
+  reconnectRequired,
+  tokenExpired,
+  channelForbidden,
+}
+
 sealed class VoiceSessionsState {
   const VoiceSessionsState();
 }
@@ -13,7 +25,13 @@ final class VoiceSessionsInitialState extends VoiceSessionsState {
 }
 
 final class VoiceSessionsLoadingState extends VoiceSessionsState {
-  const VoiceSessionsLoadingState();
+  const VoiceSessionsLoadingState({
+    this.operation = VoiceSessionsLoadingOperation.connecting,
+    this.channelId,
+  });
+
+  final VoiceSessionsLoadingOperation operation;
+  final String? channelId;
 }
 
 sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
@@ -68,6 +86,23 @@ final class VoiceSessionsValidationFailedState
   });
 
   final VoiceSessionsValidationIssue issue;
+}
+
+final class VoiceSessionsLifecycleIssueState
+    extends VoiceSessionsLoadedDataState {
+  const VoiceSessionsLifecycleIssueState({
+    required this.issue,
+    required super.activeConnection,
+    required super.selectedChannelId,
+    required super.participants,
+    required super.participantsByChannelId,
+    required super.participantVideoTracks,
+    required super.isSelfMuted,
+    required super.isSelfDeafened,
+    required super.isSelfScreenShareEnabled,
+  });
+
+  final VoiceSessionsLifecycleIssue issue;
 }
 
 final class VoiceSessionsExceptionState extends VoiceSessionsState {

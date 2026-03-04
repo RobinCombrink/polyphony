@@ -1,6 +1,7 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 
@@ -236,6 +237,105 @@ void main() {
   );
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "connect runtime failure emits reconnect-required lifecycle state",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      voiceRuntimeService: FakeVoiceRuntimeService(forceConnectError: true),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+    ),
+    act: (bloc) => bloc
+      ..add(LoadVoiceSessionsRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      ))
+      ..add(ConnectVoiceSessionRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      )),
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>().having(
+        (state) => state.operation,
+        "loading operation",
+        VoiceSessionsLoadingOperation.connecting,
+      ),
+      isA<VoiceSessionsLifecycleIssueState>()
+          .having(
+            (state) => state.issue,
+            "lifecycle issue",
+            VoiceSessionsLifecycleIssue.reconnectRequired,
+          )
+          .having(
+            (state) => state.selectedChannelId,
+            "selected channel id",
+            fixture.listedVoiceChannel.id,
+          ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "connect API 401 failure emits token-expired lifecycle state",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(
+        fixture: fixture,
+        connectError: const ApiRequestException(
+          operation: "connect voice session",
+          statusCode: 401,
+          responseBody: "unauthorized",
+        ),
+      ),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+    ),
+    act: (bloc) => bloc
+      ..add(LoadVoiceSessionsRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      ))
+      ..add(ConnectVoiceSessionRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      )),
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLifecycleIssueState>().having(
+        (state) => state.issue,
+        "lifecycle issue",
+        VoiceSessionsLifecycleIssue.tokenExpired,
+      ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "connect API 403 failure emits forbidden-channel lifecycle state",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(
+        fixture: fixture,
+        connectError: const ApiRequestException(
+          operation: "connect voice session",
+          statusCode: 403,
+          responseBody: "forbidden",
+        ),
+      ),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+    ),
+    act: (bloc) => bloc
+      ..add(LoadVoiceSessionsRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      ))
+      ..add(ConnectVoiceSessionRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      )),
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>(),
+      isA<VoiceSessionsLifecycleIssueState>().having(
+        (state) => state.issue,
+        "lifecycle issue",
+        VoiceSessionsLifecycleIssue.channelForbidden,
+      ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "set self muted updates mute state",
     build: () => VoiceSessionsBloc(
       voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
@@ -293,6 +393,49 @@ void main() {
             "self participant unmuted",
             false,
           ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "reconnect after disconnect emits reconnecting loading operation",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+    ),
+    act: (bloc) => bloc
+      ..add(LoadVoiceSessionsRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      ))
+      ..add(ConnectVoiceSessionRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      ))
+      ..add(DisconnectVoiceSessionRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      ))
+      ..add(ConnectVoiceSessionRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      )),
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>().having(
+        (state) => state.operation,
+        "loading operation",
+        VoiceSessionsLoadingOperation.connecting,
+      ),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>().having(
+        (state) => state.operation,
+        "loading operation",
+        VoiceSessionsLoadingOperation.disconnecting,
+      ),
+      isA<VoiceSessionsLoadedState>(),
+      isA<VoiceSessionsLoadingState>().having(
+        (state) => state.operation,
+        "loading operation",
+        VoiceSessionsLoadingOperation.reconnecting,
+      ),
+      isA<VoiceSessionsLoadedState>(),
     ],
   );
 
