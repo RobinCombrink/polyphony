@@ -42,18 +42,21 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     };
 
     if (trimmedServerId.isEmpty) {
-      if (loadedState == null) {
-        emit(ServerMembersExceptionState(
-          error: Exception("Server must be selected before loading members."),
-        ));
-        return;
-      }
-
-      emit(ServerMembersValidationFailedState(
-        issue: ServerMembersValidationIssue.serverSelectionRequired,
-        serverId: loadedState.serverId,
-        members: loadedState.members,
-      ));
+      emit(
+        switch (state) {
+          final ServerMembersLoadedDataState loadedState =>
+            ServerMembersValidationFailedState(
+              issue: ServerMembersValidationIssue.serverSelectionRequired,
+              serverId: loadedState.serverId,
+              members: loadedState.members,
+            ),
+          _ => ServerMembersExceptionState(
+              error: Exception(
+                "Server must be selected before loading members.",
+              ),
+            ),
+        },
+      );
       return;
     }
 

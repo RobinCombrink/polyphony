@@ -55,21 +55,23 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     Emitter<ServersState> emit,
   ) async {
     final trimmedServerName = event.serverName.trim();
-    final loadedState = _loadedStateOrNull(state);
 
     if (trimmedServerName.isEmpty) {
-      if (loadedState == null) {
-        emit(ServersExceptionState(
-          error: Exception("Servers must be loaded before creating a server."),
-        ));
-        return;
-      }
-
-      emit(ServersValidationFailedState(
-        issue: ServersValidationIssue.serverNameRequired,
-        servers: loadedState.servers,
-        selectedServerId: loadedState.selectedServerId,
-      ));
+      emit(
+        switch (state) {
+          final ServersLoadedDataState loadedState =>
+            ServersValidationFailedState(
+              issue: ServersValidationIssue.serverNameRequired,
+              servers: loadedState.servers,
+              selectedServerId: loadedState.selectedServerId,
+            ),
+          _ => ServersExceptionState(
+              error: Exception(
+                "Servers must be loaded before creating a server.",
+              ),
+            ),
+        },
+      );
       return;
     }
 
@@ -110,7 +112,10 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     DeleteServerRequested event,
     Emitter<ServersState> emit,
   ) async {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final ServersLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(ServersExceptionState(
@@ -147,8 +152,9 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
             final servers = value.toList();
             final previousSelectedServerId = loadedState.selectedServerId;
             final selectedServerId = previousSelectedServerId != null &&
-                    servers
-                        .any((server) => server.id == previousSelectedServerId)
+                    servers.any(
+                      (server) => server.id == previousSelectedServerId,
+                    )
                 ? previousSelectedServerId
                 : null;
 
@@ -168,7 +174,11 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     SelectServerRequested event,
     Emitter<ServersState> emit,
   ) {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final ServersLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
+
     if (loadedState == null) {
       return;
     }
@@ -190,7 +200,10 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     AddServerMemberRequested event,
     Emitter<ServersState> emit,
   ) async {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final ServersLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(ServersExceptionState(

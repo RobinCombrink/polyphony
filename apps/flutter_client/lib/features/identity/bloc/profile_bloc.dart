@@ -41,14 +41,20 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     UpdateDisplayNameRequested event,
     Emitter<ProfileState> emit,
   ) async {
-    final loadedState = _loadedStateOrNull(state);
     final trimmedDisplayName = event.displayName.trim();
+    final loadedState = switch (state) {
+      final ProfileLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
-      emit(ProfileExceptionState(
-        error:
-            Exception("Profile must be loaded before updating display name."),
-      ));
+      emit(
+        ProfileExceptionState(
+          error: Exception(
+            "Profile must be loaded before updating display name.",
+          ),
+        ),
+      );
       return;
     }
 
@@ -78,12 +84,5 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       case Error(:final error):
         emit(ProfileExceptionState(error: error));
     }
-  }
-
-  ProfileLoadedDataState? _loadedStateOrNull(ProfileState profileState) {
-    return switch (profileState) {
-      ProfileLoadedDataState() => profileState,
-      _ => null,
-    };
   }
 }

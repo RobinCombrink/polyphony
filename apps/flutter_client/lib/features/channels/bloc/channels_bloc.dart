@@ -34,25 +34,25 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     Emitter<ChannelsState> emit,
   ) async {
     final trimmedServerId = event.serverId.trim();
-    final loadedState = _loadedStateOrNull(state);
 
     if (trimmedServerId.isEmpty) {
-      if (loadedState == null) {
-        emit(ChannelsExceptionState(
-          error: Exception("Channels must be loaded before validation."),
-        ));
-        return;
-      }
-
-      emit(ChannelsValidationFailedState(
-        issue: ChannelsValidationIssue.serverSelectionRequired,
-        textChannels: loadedState.textChannels,
-        voiceChannels: loadedState.voiceChannels,
-        serverId: loadedState.serverId,
-        selectedTextChannelId: loadedState.selectedTextChannelId,
-        selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
-        selectionMode: loadedState.selectionMode,
-      ));
+      emit(
+        switch (state) {
+          final ChannelsLoadedDataState loadedState =>
+            ChannelsValidationFailedState(
+              issue: ChannelsValidationIssue.serverSelectionRequired,
+              textChannels: loadedState.textChannels,
+              voiceChannels: loadedState.voiceChannels,
+              serverId: loadedState.serverId,
+              selectedTextChannelId: loadedState.selectedTextChannelId,
+              selectedVoiceChannelId: loadedState.selectedVoiceChannelId,
+              selectionMode: loadedState.selectionMode,
+            ),
+          _ => ChannelsExceptionState(
+              error: Exception("Channels must be loaded before validation."),
+            ),
+        },
+      );
       return;
     }
 
@@ -112,7 +112,10 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
   ) async {
     final trimmedServerId = event.serverId.trim();
     final trimmedChannelName = event.channelName.trim();
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final ChannelsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(ChannelsExceptionState(
@@ -217,7 +220,10 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     DeleteChannelRequested event,
     Emitter<ChannelsState> emit,
   ) async {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final ChannelsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(ChannelsExceptionState(
@@ -294,7 +300,11 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     SelectTextChannelRequested event,
     Emitter<ChannelsState> emit,
   ) {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final ChannelsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
+
     if (loadedState == null) {
       return;
     }
@@ -326,7 +336,11 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     SelectVoiceChannelRequested event,
     Emitter<ChannelsState> emit,
   ) {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final ChannelsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
+
     if (loadedState == null) {
       return;
     }
@@ -372,13 +386,6 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       ...state.textChannels,
       ...state.voiceChannels,
     ];
-  }
-
-  ChannelsLoadedDataState? _loadedStateOrNull(ChannelsState state) {
-    return switch (state) {
-      ChannelsLoadedDataState() => state,
-      _ => null,
-    };
   }
 
   (List<TextChannel>, List<VoiceChannel>) _partitionChannels(

@@ -77,22 +77,23 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     Emitter<MessagesState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
-    final loadedState = _loadedStateOrNull(state);
 
     if (trimmedChannelId.isEmpty) {
-      if (loadedState == null) {
-        emit(MessagesExceptionState(
-          error: Exception("Messages must be loaded before validation."),
-        ));
-        return;
-      }
-
-      emit(MessagesValidationFailedState(
-        issue: MessagesValidationIssue.channelSelectionRequired,
-        messages: loadedState.messages,
-        channelId: loadedState.channelId,
-        authorDisplayNamesByUserId: loadedState.authorDisplayNamesByUserId,
-      ));
+      emit(
+        switch (state) {
+          final MessagesLoadedDataState loadedState =>
+            MessagesValidationFailedState(
+              issue: MessagesValidationIssue.channelSelectionRequired,
+              messages: loadedState.messages,
+              channelId: loadedState.channelId,
+              authorDisplayNamesByUserId:
+                  loadedState.authorDisplayNamesByUserId,
+            ),
+          _ => MessagesExceptionState(
+              error: Exception("Messages must be loaded before validation."),
+            ),
+        },
+      );
       return;
     }
 
@@ -224,7 +225,10 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
   ) async {
     final trimmedChannelId = event.channelId.trim();
     final trimmedMessageContent = event.messageContent.trim();
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final MessagesLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(MessagesExceptionState(
@@ -289,7 +293,10 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     Emitter<MessagesState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final MessagesLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(MessagesExceptionState(
@@ -340,8 +347,16 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     RealtimeMessageReceived event,
     Emitter<MessagesState> emit,
   ) async {
-    final loadedState = _loadedStateOrNull(state);
-    if (loadedState == null || loadedState.channelId != event.channelId) {
+    final loadedState = switch (state) {
+      final MessagesLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
+
+    if (loadedState == null) {
+      return;
+    }
+
+    if (loadedState.channelId != event.channelId) {
       return;
     }
 

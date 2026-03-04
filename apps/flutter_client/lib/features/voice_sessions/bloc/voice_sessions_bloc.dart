@@ -105,27 +105,28 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     final loadedState = _loadedStateOrNull(state);
 
     if (trimmedChannelId.isEmpty) {
-      if (loadedState == null) {
-        emit(const VoiceSessionsExceptionState(
-          error: VoiceSessionPreconditionException(
-            operation: VoiceSessionOperation.load,
-            issue: VoiceSessionPreconditionIssue.loadedStateRequired,
-          ),
-        ));
-        return;
-      }
-
-      emit(VoiceSessionsValidationFailedState(
-        issue: VoiceSessionsValidationIssue.channelSelectionRequired,
-        activeConnection: loadedState.activeConnection,
-        selectedChannelId: loadedState.selectedChannelId,
-        participants: loadedState.participants,
-        participantsByChannelId: loadedState.participantsByChannelId,
-        participantVideoTracks: loadedState.participantVideoTracks,
-        isSelfMuted: loadedState.isSelfMuted,
-        isSelfDeafened: loadedState.isSelfDeafened,
-        isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
-      ));
+      emit(
+        switch (state) {
+          final VoiceSessionsLoadedDataState loadedState =>
+            VoiceSessionsValidationFailedState(
+              issue: VoiceSessionsValidationIssue.channelSelectionRequired,
+              activeConnection: loadedState.activeConnection,
+              selectedChannelId: loadedState.selectedChannelId,
+              participants: loadedState.participants,
+              participantsByChannelId: loadedState.participantsByChannelId,
+              participantVideoTracks: loadedState.participantVideoTracks,
+              isSelfMuted: loadedState.isSelfMuted,
+              isSelfDeafened: loadedState.isSelfDeafened,
+              isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+            ),
+          _ => const VoiceSessionsExceptionState(
+              error: VoiceSessionPreconditionException(
+                operation: VoiceSessionOperation.load,
+                issue: VoiceSessionPreconditionIssue.loadedStateRequired,
+              ),
+            ),
+        },
+      );
       return;
     }
 
@@ -219,8 +220,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     Emitter<VoiceSessionsState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
-    final loadedState = _loadedStateOrNull(state);
-    final previousConnectedChannelId = loadedState?.connectedChannelId;
+    final loadedState = switch (state) {
+      final VoiceSessionsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(const VoiceSessionsExceptionState(
@@ -231,6 +234,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       ));
       return;
     }
+    final previousConnectedChannelId = loadedState.connectedChannelId;
 
     if (trimmedChannelId.isEmpty) {
       emit(VoiceSessionsValidationFailedState(
@@ -389,7 +393,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     Emitter<VoiceSessionsState> emit,
   ) async {
     final trimmedChannelId = event.channelId.trim();
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final VoiceSessionsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(const VoiceSessionsExceptionState(
@@ -450,7 +457,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     SetSelfMutedRequested event,
     Emitter<VoiceSessionsState> emit,
   ) async {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final VoiceSessionsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(const VoiceSessionsExceptionState(
@@ -545,7 +555,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     SetSelfDeafenedRequested event,
     Emitter<VoiceSessionsState> emit,
   ) async {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final VoiceSessionsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(const VoiceSessionsExceptionState(
@@ -629,7 +642,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     SetSelfScreenShareEnabledRequested event,
     Emitter<VoiceSessionsState> emit,
   ) async {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final VoiceSessionsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
     if (loadedState == null) {
       emit(const VoiceSessionsExceptionState(
@@ -693,16 +709,14 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return true;
     }
 
-    if (loadedState == null) {
-      return false;
-    }
-
-    final hasCachedParticipants =
-        (loadedState.participantsByChannelId[channelId] ??
-                const <VoiceParticipant>[])
-            .isNotEmpty;
-
-    return loadedState.selectedChannelId == channelId && hasCachedParticipants;
+    return switch (loadedState) {
+      final VoiceSessionsLoadedDataState loadedState =>
+        loadedState.selectedChannelId == channelId &&
+            (loadedState.participantsByChannelId[channelId] ??
+                    const <VoiceParticipant>[])
+                .isNotEmpty,
+      _ => false,
+    };
   }
 
   bool _emitLifecycleIssueState({
@@ -767,26 +781,26 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
   Map<String, List<VoiceParticipant>> _participantsByChannelIdFromState(
     VoiceSessionsLoadedDataState? loadedState,
   ) {
-    if (loadedState == null) {
-      return <String, List<VoiceParticipant>>{};
-    }
-
-    return Map<String, List<VoiceParticipant>>.fromEntries(
-      loadedState.participantsByChannelId.entries.map(
-        (entry) =>
-            MapEntry(entry.key, List<VoiceParticipant>.from(entry.value)),
-      ),
-    );
+    return switch (loadedState) {
+      final VoiceSessionsLoadedDataState loadedState =>
+        Map<String, List<VoiceParticipant>>.fromEntries(
+          loadedState.participantsByChannelId.entries.map(
+            (entry) =>
+                MapEntry(entry.key, List<VoiceParticipant>.from(entry.value)),
+          ),
+        ),
+      _ => <String, List<VoiceParticipant>>{},
+    };
   }
 
   Map<String, Object> _participantVideoTracksFromState(
     VoiceSessionsLoadedDataState? loadedState,
   ) {
-    if (loadedState == null) {
-      return const <String, Object>{};
-    }
-
-    return Map<String, Object>.from(loadedState.participantVideoTracks);
+    return switch (loadedState) {
+      final VoiceSessionsLoadedDataState loadedState =>
+        Map<String, Object>.from(loadedState.participantVideoTracks),
+      _ => const <String, Object>{},
+    };
   }
 
   Future<Result<List<VoiceParticipant>>> _loadParticipantsForChannel({
@@ -901,10 +915,17 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
   ) async {
     final _ = event;
 
-    final loadedState = _loadedStateOrNull(state);
-    final activeConnection = loadedState?.activeConnection;
+    final loadedState = switch (state) {
+      final VoiceSessionsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
 
-    if (loadedState == null || activeConnection == null) {
+    if (loadedState == null) {
+      return;
+    }
+
+    final activeConnection = loadedState.activeConnection;
+    if (activeConnection == null) {
       return;
     }
 
@@ -946,7 +967,11 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     ParticipantVideoTracksUpdated event,
     Emitter<VoiceSessionsState> emit,
   ) {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final VoiceSessionsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
+
     if (loadedState == null) {
       return;
     }
@@ -969,7 +994,11 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     ParticipantStatusUpdated event,
     Emitter<VoiceSessionsState> emit,
   ) {
-    final loadedState = _loadedStateOrNull(state);
+    final loadedState = switch (state) {
+      final VoiceSessionsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
+
     if (loadedState == null) {
       return;
     }
