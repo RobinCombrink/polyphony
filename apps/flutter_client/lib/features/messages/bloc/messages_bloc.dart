@@ -353,6 +353,11 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     };
 
     if (loadedState == null) {
+      emit(MessagesExceptionState(
+        error: Exception(
+          "Messages must be loaded before handling realtime messages.",
+        ),
+      ));
       return;
     }
 

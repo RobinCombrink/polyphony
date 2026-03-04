@@ -65,4 +65,9 @@ final class VoiceSessionPreconditionException implements Exception {
 
   final VoiceSessionOperation operation;
   final VoiceSessionPreconditionIssue issue;
+
+  @override
+  String toString() {
+    return "Voice session precondition failed: operation=$operation issue=$issue";
+  }
 }
