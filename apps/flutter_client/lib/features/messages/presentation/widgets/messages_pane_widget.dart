@@ -6,6 +6,7 @@ import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dar
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_section_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/presentation/widgets/pane_placeholder_widget.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
@@ -92,13 +93,10 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
         );
 
         if (selectedTextChannel == null) {
-          return const Card(
-            child: Center(
-              child: Text(
-                "Select a text channel to view and send messages.",
-                textAlign: TextAlign.center,
-              ),
-            ),
+          return const PanePlaceholderWidget(
+            icon: Icons.chat_bubble_outline,
+            message: "Select a text channel to view and send messages.",
+            subtitle: "Pick a channel from the middle pane.",
           );
         }
 
@@ -119,7 +117,10 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
             return BlocBuilder<ProfileBloc, ProfileState>(
               builder: (context, profileState) {
                 if (profileState is! ProfileLoadedDataState) {
-                  return const SizedBox.shrink();
+                  return const PanePlaceholderWidget(
+                    icon: Icons.account_circle_outlined,
+                    message: "Loading your profile...",
+                  );
                 }
 
                 final currentUser = UserProfile(

@@ -7,6 +7,7 @@ import "package:polyphony_flutter_client/features/messages/presentation/widgets/
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/server_users_pane_widget.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_participants_pane_widget.dart";
+import "package:polyphony_flutter_client/shared/presentation/widgets/pane_placeholder_widget.dart";
 
 class HomeWorkspaceWidget extends StatelessWidget {
   const HomeWorkspaceWidget({
@@ -30,13 +31,10 @@ class HomeWorkspaceWidget extends StatelessWidget {
             ?.name;
 
         if (selectedServerId == null) {
-          return const Card(
-            child: Center(
-              child: Text(
-                "Select a server to view channels and messages.",
-                textAlign: TextAlign.center,
-              ),
-            ),
+          return const PanePlaceholderWidget(
+            icon: Icons.dns_outlined,
+            message: "Select a server to view channels and messages.",
+            subtitle: "Choose a server from the left to get started.",
           );
         }
 

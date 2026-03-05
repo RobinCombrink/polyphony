@@ -20,7 +20,7 @@ class SomethingWentWrongWidget extends StatelessWidget {
               const Icon(Icons.error_outline),
               const SizedBox(height: 8),
               const Text(
-                "Something wenet wrong",
+                "Something went wrong",
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
