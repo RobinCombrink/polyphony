@@ -7,6 +7,7 @@ import "package:desktop_multi_window/desktop_multi_window.dart";
 import "package:flutter/material.dart";
 import "package:livekit_client/livekit_client.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_stream_popout_channel.dart";
+import "package:polyphony_flutter_client/shared/presentation/theme/polyphony_theme.dart";
 
 class VoiceStreamPopoutWindowApp extends StatelessWidget {
   const VoiceStreamPopoutWindowApp({
@@ -21,6 +22,7 @@ class VoiceStreamPopoutWindowApp extends StatelessWidget {
     return MaterialApp(
       title: "Stream Popout",
       debugShowCheckedModeBanner: false,
+      theme: PolyphonyTheme.light(),
       home: _VoiceStreamPopoutWindowPage(
         arguments: arguments,
       ),

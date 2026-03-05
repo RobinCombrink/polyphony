@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/features/identity/presentation/widgets/settings_display_name_section_widget.dart";
+import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_appearance_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_developer_options_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_keybindings_section_widget.dart";
 
@@ -39,6 +40,8 @@ class _ChatBrowserSettingsPageWidgetState
             ),
             const SizedBox(height: 24),
             const SettingsKeybindingsSectionWidget(),
+            const SizedBox(height: 24),
+            const SettingsAppearanceSectionWidget(),
             const SizedBox(height: 24),
             SettingsDeveloperOptionsSectionWidget(
               bearerToken: widget.bearerToken,

@@ -89,6 +89,8 @@ final class KeybindingsPreferences {
 }
 
 abstract interface class PreferencesStore {
+  Future<bool> readDarkModeEnabled();
+  Future<void> writeDarkModeEnabled(bool enabled);
   Future<bool> readRememberEmailEnabled();
   Future<void> writeRememberEmailEnabled(bool enabled);
   Future<String?> readRememberedEmailAddress();
@@ -100,10 +102,12 @@ abstract interface class PreferencesStore {
 
 final class SharedPreferencesBackedPreferencesStore
     implements PreferencesStore {
+  static const _darkModeEnabledKey = "settings.dark_mode_enabled";
   static const _rememberEmailKey = "auth.remember_email";
   static const _rememberedEmailAddressKey = "auth.remembered_email_address";
   static const _keybindingsKey = "settings.keybindings";
   static const _allowList = <String>{
+    _darkModeEnabledKey,
     _rememberEmailKey,
     _rememberedEmailAddressKey,
     _keybindingsKey,
@@ -117,6 +121,18 @@ final class SharedPreferencesBackedPreferencesStore
         );
 
   final Future<SharedPreferencesWithCache> _sharedPreferencesWithCacheFuture;
+
+  @override
+  Future<bool> readDarkModeEnabled() async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    return sharedPreferences.getBool(_darkModeEnabledKey) ?? false;
+  }
+
+  @override
+  Future<void> writeDarkModeEnabled(bool enabled) async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    await sharedPreferences.setBool(_darkModeEnabledKey, enabled);
+  }
 
   @override
   Future<bool> readRememberEmailEnabled() async {
@@ -187,9 +203,20 @@ final class SharedPreferencesBackedPreferencesStore
 }
 
 final class InMemoryPreferencesStore implements PreferencesStore {
+  var _darkModeEnabled = false;
   var _rememberEmailEnabled = false;
   String? _rememberedEmailAddress;
   var _keybindingsPreferences = const KeybindingsPreferences.unset();
+
+  @override
+  Future<bool> readDarkModeEnabled() async {
+    return _darkModeEnabled;
+  }
+
+  @override
+  Future<void> writeDarkModeEnabled(bool enabled) async {
+    _darkModeEnabled = enabled;
+  }
 
   @override
   Future<bool> readRememberEmailEnabled() async {
@@ -231,6 +258,16 @@ final class InMemoryPreferencesStore implements PreferencesStore {
 
 final class WebPreferencesStore implements PreferencesStore {
   const WebPreferencesStore();
+
+  @override
+  Future<bool> readDarkModeEnabled() async {
+    return false;
+  }
+
+  @override
+  Future<void> writeDarkModeEnabled(bool enabled) async {
+    return;
+  }
 
   @override
   Future<bool> readRememberEmailEnabled() async {

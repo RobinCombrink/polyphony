@@ -4,12 +4,14 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:http/http.dart" as http;
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/features/authentication/presentation/authentication_gate_widget.dart";
+import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/auth/auth0_browser_token_provider.dart";
 import "package:polyphony_flutter_client/shared/auth/authentication_profile_service.dart";
 import "package:polyphony_flutter_client/shared/auth/authentication_session_service.dart";
 import "package:polyphony_flutter_client/shared/auth/refresh_token_store.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
+import "package:polyphony_flutter_client/shared/presentation/theme/polyphony_theme.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
@@ -93,10 +95,30 @@ class PolyphonyApp extends StatelessWidget {
         Provider<MessageRuntimeService>(
           create: (_) => LivekitMessageRuntimeService(),
         ),
+        BlocProvider<SettingsBloc>(
+          create: (context) => SettingsBloc(
+            preferencesStore: context.read<PreferencesStore>(),
+          )..add(const SettingsPreferencesRestoreRequested()),
+        ),
       ],
-      child: const MaterialApp(
-        title: "Polyphony Client",
-        home: AuthenticationGateWidget(),
+      child: BlocBuilder<SettingsBloc, SettingsState>(
+        builder: (context, settingsState) {
+          final themeMode = switch (settingsState) {
+            SettingsLoadedState(:final isDarkModeEnabled) =>
+              isDarkModeEnabled ? ThemeMode.dark : ThemeMode.light,
+            SettingsExceptionState(:final isDarkModeEnabled) =>
+              isDarkModeEnabled ? ThemeMode.dark : ThemeMode.light,
+            SettingsInitialState() => ThemeMode.system,
+          };
+
+          return MaterialApp(
+            title: "Polyphony",
+            theme: PolyphonyTheme.light(),
+            darkTheme: PolyphonyTheme.dark(),
+            themeMode: themeMode,
+            home: const AuthenticationGateWidget(),
+          );
+        },
       ),
     );
   }
