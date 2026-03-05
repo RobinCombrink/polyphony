@@ -245,6 +245,18 @@ class _VoiceQuickActionsCard extends StatelessWidget {
         ),
       _VoiceConnectionStatus.connected => ("Connected", colorScheme.primary),
     };
+    final statusDetailText = switch (connectionStatus) {
+      _VoiceConnectionStatus.connecting => "Joining voice channel...",
+      _VoiceConnectionStatus.reconnecting =>
+        "Trying to restore your voice connection.",
+      _VoiceConnectionStatus.reconnectRequired =>
+        "Connection dropped. Tap reconnect to rejoin.",
+      _VoiceConnectionStatus.tokenExpired =>
+        "Authentication expired. Sign in again to use voice.",
+      _VoiceConnectionStatus.channelForbidden =>
+        "You no longer have access to this channel.",
+      _VoiceConnectionStatus.connected => null,
+    };
 
     return Card(
       child: Padding(
@@ -275,6 +287,13 @@ class _VoiceQuickActionsCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 connectionLocationText!,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            if (statusDetailText != null) ...<Widget>[
+              const SizedBox(height: 2),
+              Text(
+                statusDetailText,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
