@@ -166,6 +166,21 @@ void main() {
   });
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "ignores participant refresh when voice sessions are not loaded yet",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+    ),
+    act: (bloc) => bloc.add(
+      RefreshVoiceParticipantsRequested(
+        channelIds: <String>[fixture.listedVoiceChannel.id],
+      ),
+    ),
+    expect: () => <Matcher>[],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
     "reuses participant profiles when refreshing connected channel",
     build: () {
       countingProfileRepository = _CountingProfileRepository(

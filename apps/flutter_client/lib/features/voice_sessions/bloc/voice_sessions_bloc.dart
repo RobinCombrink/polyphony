@@ -178,12 +178,6 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     }
 
     if (loadedState == null) {
-      emit(const VoiceSessionsExceptionState(
-        error: VoiceSessionPreconditionException(
-          operation: VoiceSessionOperation.refreshParticipants,
-          issue: VoiceSessionPreconditionIssue.loadedStateRequired,
-        ),
-      ));
       return;
     }
 
