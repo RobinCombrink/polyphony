@@ -31,13 +31,20 @@ Feature: Channel messages
     Given one authenticated owner user created a message
     And another authenticated user accesses the same channel
     When the other user updates the owner's message
-    Then the response status is 403
+    Then the update is forbidden
 
   Scenario: Deleting another user's message is forbidden
     Given one authenticated owner user created a message
     And another authenticated user accesses the same channel
     When the other user deletes the owner's message
-    Then the response status is 403
+    Then the delete is forbidden
+
+  Scenario: Non-member cannot list messages in another server's channel
+    Given a server owner exists
+    And a second authenticated user exists
+    And a channel exists in the owner's server
+    When the second user lists messages in that channel
+    Then listing messages is forbidden
 
   Scenario: Updating a missing message reports that it does not exist
     When the user updates a missing message id in an existing channel
@@ -54,3 +61,8 @@ Feature: Channel messages
   Scenario: Deleting a message in a missing channel reports that it does not exist
     When the user deletes a message in a missing channel
     Then the user is told the channel does not exist
+
+  Scenario: Posting a message in a voice channel is rejected
+    Given a voice channel exists for the authenticated user
+    When the user posts a message in that voice channel
+    Then the user is told that channel type is incompatible with messaging

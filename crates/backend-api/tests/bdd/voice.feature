@@ -22,3 +22,13 @@ Feature: Voice sessions
   Scenario: Connecting voice in a missing channel reports that it does not exist
     When the user connects voice in a missing channel
     Then the user is told the channel does not exist
+
+  Scenario: Connecting to voice in a text channel is rejected
+    Given a text channel exists for the authenticated user
+    When the user connects to voice for that text channel
+    Then the user is told that channel type is incompatible with voice
+
+  Scenario: Connecting to text session in a voice channel is rejected
+    Given a voice channel exists for the authenticated user
+    When the user connects to text session for that voice channel
+    Then the user is told that channel type is incompatible with text sessions
