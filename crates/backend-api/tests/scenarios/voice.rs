@@ -6,9 +6,10 @@ use uuid::Uuid;
 
 use super::common::{
     bdd_support::{
-        connect_channel_session_with_type, connect_voice_session, connect_voice_session_with_token,
-        create_channel_with_token, create_server, create_server_with_token, create_voice_channel,
-        response_payload_json, seeded_state, seeded_state_with_store,
+        add_server_member_with_token, connect_channel_session_with_type, connect_voice_session,
+        connect_voice_session_with_token, create_channel_with_token, create_server,
+        create_server_with_token, create_voice_channel, get_me_with_token, response_payload_json,
+        seeded_state, seeded_state_with_store,
     },
     entity_seeder::EntitySeeder,
 };
@@ -125,6 +126,87 @@ async fn given_non_member_channel_when_connecting_voice_then_access_is_forbidden
             .await;
 
     assert_eq!(connect_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn given_shared_voice_channel_when_member_connects_then_connection_details_are_returned() {
+    let entity_seeder = EntitySeeder;
+    let fixture = entity_seeder.chat_fixture();
+    let second_user = entity_seeder.user();
+
+    let shared_store = Arc::new(InMemoryRepository::new());
+
+    let owner_app = build_app(seeded_state_with_store(
+        &fixture.user.external_reference,
+        "owner-token",
+        Arc::clone(&shared_store),
+    ));
+
+    let second_user_app = build_app(seeded_state_with_store(
+        &second_user.external_reference,
+        "member-token",
+        shared_store,
+    ));
+
+    let create_server_payload = response_payload_json(
+        create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
+    )
+    .await;
+    let created_server_id = create_server_payload["id"]
+        .as_str()
+        .expect("created server id to be present")
+        .to_owned();
+
+    let create_channel_payload = response_payload_json(
+        create_channel_with_token(
+            &owner_app,
+            &created_server_id,
+            fixture.channel.name(),
+            "voice",
+            "owner-token",
+        )
+        .await,
+    )
+    .await;
+    let created_channel_id = create_channel_payload["id"]
+        .as_str()
+        .expect("created channel id to be present")
+        .to_owned();
+
+    let member_me_payload =
+        response_payload_json(get_me_with_token(&second_user_app, "member-token").await).await;
+    let member_user_id = member_me_payload["user_id"]
+        .as_str()
+        .expect("member user id to be present")
+        .to_owned();
+
+    let add_member_response = add_server_member_with_token(
+        &owner_app,
+        &created_server_id,
+        &member_user_id,
+        "owner-token",
+    )
+    .await;
+    assert_eq!(add_member_response.status(), StatusCode::CREATED);
+
+    let connect_response =
+        connect_voice_session_with_token(&second_user_app, &created_channel_id, "member-token")
+            .await;
+
+    assert_eq!(connect_response.status(), StatusCode::OK);
+
+    let payload = response_payload_json(connect_response).await;
+    assert_eq!(
+        payload["channel_id"].as_str(),
+        Some(created_channel_id.as_str())
+    );
+    assert!(
+        payload["access_token"]
+            .as_str()
+            .expect("access token to be present")
+            .len()
+            > 10
+    );
 }
 
 #[tokio::test]
