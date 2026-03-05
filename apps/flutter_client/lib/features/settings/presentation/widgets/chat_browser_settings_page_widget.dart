@@ -29,25 +29,44 @@ class _ChatBrowserSettingsPageWidgetState
       appBar: AppBar(
         title: const Text("Settings"),
       ),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            SettingsDisplayNameSectionWidget(
-              initialDisplayName: widget.initialDisplayName,
-              onSaveDisplayName: widget.onSaveDisplayName,
-            ),
-            const SizedBox(height: 24),
-            const SettingsKeybindingsSectionWidget(),
-            const SizedBox(height: 24),
-            const SettingsAppearanceSectionWidget(),
-            const SizedBox(height: 24),
-            SettingsDeveloperOptionsSectionWidget(
-              bearerToken: widget.bearerToken,
-            ),
-          ],
-        ),
+        children: <Widget>[
+          _SettingsSectionWidget(
+              child: SettingsDisplayNameSectionWidget(
+            initialDisplayName: widget.initialDisplayName,
+            onSaveDisplayName: widget.onSaveDisplayName,
+          )),
+          const SizedBox(height: 16),
+          const _SettingsSectionWidget(
+              child: SettingsKeybindingsSectionWidget()),
+          const SizedBox(height: 16),
+          const _SettingsSectionWidget(
+              child: SettingsAppearanceSectionWidget()),
+          const SizedBox(height: 16),
+          _SettingsSectionWidget(
+              child: SettingsDeveloperOptionsSectionWidget(
+            bearerToken: widget.bearerToken,
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsSectionWidget extends StatelessWidget {
+  const _SettingsSectionWidget({
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: child,
       ),
     );
   }
