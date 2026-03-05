@@ -1,4 +1,4 @@
-Feature: Backend API servers and channels
+Feature: Servers and channels
   As an authenticated user
   I want to create and manage servers and channels
   So that conversations can be organized by topic
@@ -38,10 +38,10 @@ Feature: Backend API servers and channels
     When the non-owner attempts to update the channel name
     Then the update is forbidden
 
-  Scenario: Updating a missing channel returns not found
+  Scenario: Updating a missing channel reports that it does not exist
     Given an authenticated user exists
     When the user updates a channel that does not exist
-    Then the channel is reported as not found
+    Then the user is told the channel does not exist
 
   Scenario: Server owner can add a server member
     Given an authenticated user exists
@@ -88,10 +88,10 @@ Feature: Backend API servers and channels
     When the second user deletes that server
     Then the delete is forbidden
 
-  Scenario: Deleting a missing server returns not found
+  Scenario: Deleting a missing server reports that it does not exist
     Given an authenticated user exists
     When the user deletes a server that does not exist
-    Then the server is reported as not found
+    Then the user is told the server does not exist
 
   Scenario: Server owner can delete a channel
     Given an authenticated user exists
@@ -108,7 +108,7 @@ Feature: Backend API servers and channels
     When the second user deletes that channel
     Then the delete is forbidden
 
-  Scenario: Deleting a missing channel returns not found
+  Scenario: Deleting a missing channel reports that it does not exist
     Given an authenticated user exists
     When the user deletes a channel that does not exist
-    Then the channel is reported as not found
+    Then the user is told the channel does not exist

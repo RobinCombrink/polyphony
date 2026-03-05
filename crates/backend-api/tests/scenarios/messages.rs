@@ -58,7 +58,7 @@ async fn given_existing_channel_when_create_message_then_message_is_listed_for_c
 }
 
 #[tokio::test]
-async fn given_voice_channel_when_create_message_then_status_is_422_with_kind_mismatch() {
+async fn given_voice_channel_when_creating_message_then_channel_type_is_incompatible() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -208,7 +208,7 @@ async fn given_existing_message_when_delete_message_then_message_is_removed_from
 }
 
 #[tokio::test]
-async fn given_message_owned_by_another_user_when_update_message_then_status_is_403() {
+async fn given_message_owned_by_another_user_when_updating_then_action_is_forbidden() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -281,7 +281,7 @@ async fn given_message_owned_by_another_user_when_update_message_then_status_is_
 }
 
 #[tokio::test]
-async fn given_message_owned_by_another_user_when_delete_message_then_status_is_403() {
+async fn given_message_owned_by_another_user_when_deleting_then_action_is_forbidden() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -353,7 +353,7 @@ async fn given_message_owned_by_another_user_when_delete_message_then_status_is_
 }
 
 #[tokio::test]
-async fn given_channel_owned_by_another_server_when_list_messages_then_status_is_403() {
+async fn given_non_member_channel_when_listing_messages_then_access_is_forbidden() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
     let other_user = entity_seeder.user();
@@ -406,7 +406,7 @@ async fn given_channel_owned_by_another_server_when_list_messages_then_status_is
 }
 
 #[tokio::test]
-async fn given_missing_message_when_update_message_then_status_is_404() {
+async fn given_missing_message_when_updating_then_reports_message_missing() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -441,7 +441,7 @@ async fn given_missing_message_when_update_message_then_status_is_404() {
 }
 
 #[tokio::test]
-async fn given_missing_channel_when_update_message_then_status_is_404() {
+async fn given_missing_channel_when_updating_message_then_reports_channel_missing() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -460,7 +460,7 @@ async fn given_missing_channel_when_update_message_then_status_is_404() {
 }
 
 #[tokio::test]
-async fn given_missing_message_when_delete_message_then_status_is_404() {
+async fn given_missing_message_when_deleting_then_reports_message_missing() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -494,7 +494,7 @@ async fn given_missing_message_when_delete_message_then_status_is_404() {
 }
 
 #[tokio::test]
-async fn given_missing_channel_when_delete_message_then_status_is_404() {
+async fn given_missing_channel_when_deleting_message_then_reports_channel_missing() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 

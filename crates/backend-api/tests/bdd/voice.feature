@@ -1,18 +1,15 @@
-Feature: Voice connect
-  Users request LiveKit credentials for direct client-to-LiveKit connection.
+Feature: Voice sessions
+  Users join voice channels to participate in conversations.
 
   Background:
-    Given an authenticated user with a valid bearer token
+    Given an authenticated user
 
-  Scenario: Connect voice session returns LiveKit credentials
+  Scenario: User can join voice in a valid voice channel
     Given the user created a server and channel
     When the user connects to channel voice
-    Then the response status is 200
-    And the payload channel_id equals the created channel id
-    And the payload participant_subject equals the authenticated user subject
-    And the payload livekit_url equals ws://127.0.0.1:7880
-    And the payload access_token is present
+    Then the voice connection succeeds
+    And connection details are returned for the selected channel and user
 
-  Scenario: Connecting voice in missing channel returns not found
+  Scenario: Connecting voice in a missing channel reports that it does not exist
     When the user connects voice in a missing channel
-    Then the response status is 404
+    Then the user is told the channel does not exist

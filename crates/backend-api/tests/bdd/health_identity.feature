@@ -1,21 +1,21 @@
 Feature: Health and identity
-  API health checks and authenticated identity lookup.
+  Service readiness and authenticated identity access.
 
-  Scenario: Health endpoint returns 200
+  Scenario: Service reports healthy when it is running
     Given the backend API is started
-    When a client requests GET /health
-    Then the response status is 200
+    When a client checks service health
+    Then the service health check succeeds
 
-  Scenario: Authenticated me endpoint returns no display name for first login
+  Scenario: First authenticated identity view has no display name yet
     Given a seeded user exists
-    And the user is authenticated with a valid bearer token
-    When the user requests GET /api/v1/me
-    Then the response status is 200
-    And the payload field user_id equals the seeded user subject
+    And the user is authenticated
+    When the user views their own identity
+    Then the identity request succeeds
+    And the identity belongs to the seeded user
 
   Scenario: Authenticated user updates display name
     Given a seeded user exists
-    And the user is authenticated with a valid bearer token
-    When the user requests PATCH /api/v1/me with a new display name
-    Then the response status is 200
-    And the payload field display_name equals the requested display name
+    And the user is authenticated
+    When the user updates their display name
+    Then the display name update succeeds
+    And the updated display name is shown in the identity

@@ -16,7 +16,7 @@ use super::common::{
 };
 
 #[tokio::test]
-async fn given_backend_started_when_health_requested_then_status_is_200() {
+async fn given_backend_started_when_health_is_checked_then_service_is_healthy() {
     let state = seeded_state("auth0|health-user", "health-token");
     let app = build_app(state);
 
@@ -34,7 +34,7 @@ async fn given_backend_started_when_health_requested_then_status_is_200() {
 }
 
 #[tokio::test]
-async fn given_seeded_user_when_authenticated_me_requested_then_identity_matches_seed() {
+async fn given_seeded_user_when_identity_is_viewed_then_identity_matches_seed() {
     let entity_seeder = EntitySeeder;
     let seeded_user = entity_seeder.user();
     let expected_subject = seeded_user.external_reference.clone();
@@ -128,7 +128,7 @@ async fn given_existing_user_when_lookup_by_id_then_returns_minimal_profile() {
 }
 
 #[tokio::test]
-async fn given_missing_user_when_lookup_by_id_then_returns_not_found() {
+async fn given_missing_user_when_lookup_by_id_then_reports_user_missing() {
     let state = seeded_state("auth0|lookup-user", "valid-token");
     let app = build_app(state);
 

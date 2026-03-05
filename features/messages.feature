@@ -1,4 +1,4 @@
-Feature: Backend API channel messages
+Feature: Channel messages
   As an authenticated user
   I want to create and manage messages in channels
   So that chat history stays accurate and moderated by ownership
@@ -44,30 +44,30 @@ Feature: Backend API channel messages
     When the second user lists messages in that channel
     Then listing messages is forbidden
 
-  Scenario: Updating a missing message returns not found
+  Scenario: Updating a missing message reports that it does not exist
     Given an authenticated user exists
     And a channel exists in the user's server
     When the user edits a message that does not exist in that channel
-    Then the message is reported as not found
+    Then the user is told the message does not exist
 
-  Scenario: Updating a message in a missing channel returns not found
+  Scenario: Updating a message in a missing channel reports that it does not exist
     Given an authenticated user exists
     When the user edits a message in a channel that does not exist
-    Then the channel is reported as not found
+    Then the user is told the channel does not exist
 
-  Scenario: Deleting a missing message returns not found
+  Scenario: Deleting a missing message reports that it does not exist
     Given an authenticated user exists
     And a channel exists in the user's server
     When the user deletes a message that does not exist in that channel
-    Then the message is reported as not found
+    Then the user is told the message does not exist
 
-  Scenario: Deleting a message in a missing channel returns not found
+  Scenario: Deleting a message in a missing channel reports that it does not exist
     Given an authenticated user exists
     When the user deletes a message in a channel that does not exist
-    Then the channel is reported as not found
+    Then the user is told the channel does not exist
 
-  Scenario: Posting a message in a voice channel returns semantic mismatch
+  Scenario: Posting a message in a voice channel is rejected
     Given an authenticated user exists
     And a voice channel exists in the user's server
     When the user posts a message in that voice channel
-    Then the channel kind mismatch is reported
+    Then the user is told that channel type is incompatible with messaging

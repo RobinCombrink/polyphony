@@ -1,6 +1,6 @@
 Feature: Service health and identity
   As a local developer
-  I want to verify service health and identity resolution
+  I want to verify service readiness and identity access
   So that I can trust local-first development before dev rollout
 
   Scenario: Service reports healthy

@@ -2,11 +2,11 @@ Feature: Servers and channels
   Authenticated users can create and list servers and channels.
 
   Background:
-    Given an authenticated user with a valid bearer token
+    Given an authenticated user
 
-  Scenario: Create server returns created status and id
+  Scenario: User can create a server
     When the user creates a server
-    Then the response status is 201
+    Then the server creation succeeds
     And the payload contains a server id
 
   Scenario: Created server is listed
@@ -16,10 +16,10 @@ Feature: Servers and channels
     And the response contains exactly 1 server
     And the listed server name matches the created server
 
-  Scenario: Create channel in existing server returns created status and id
+  Scenario: User can create a channel in an existing server
     Given the user created a server
     When the user creates a channel in that server
-    Then the response status is 201
+    Then the channel creation succeeds
     And the payload contains a channel id
     And the payload server_id matches the target server id
 
@@ -35,4 +35,4 @@ Feature: Servers and channels
     Given the owner created a server
     And a different authenticated member exists
     When the non-owner member adds a user to that server
-    Then the response status is 403
+    Then the add-member action is forbidden

@@ -14,7 +14,7 @@ use super::common::{
 };
 
 #[tokio::test]
-async fn given_existing_channel_when_connect_voice_session_then_returns_livekit_credentials() {
+async fn given_existing_voice_channel_when_connecting_then_connection_details_are_returned() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -62,7 +62,7 @@ async fn given_existing_channel_when_connect_voice_session_then_returns_livekit_
 }
 
 #[tokio::test]
-async fn given_missing_channel_when_connect_voice_session_then_status_is_404() {
+async fn given_missing_channel_when_connecting_voice_then_reports_channel_missing() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -76,7 +76,7 @@ async fn given_missing_channel_when_connect_voice_session_then_status_is_404() {
 }
 
 #[tokio::test]
-async fn given_voice_channel_owned_by_another_server_when_connect_then_status_is_403() {
+async fn given_non_member_channel_when_connecting_voice_then_access_is_forbidden() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
     let second_user = entity_seeder.user();
@@ -128,7 +128,7 @@ async fn given_voice_channel_owned_by_another_server_when_connect_then_status_is
 }
 
 #[tokio::test]
-async fn given_text_channel_when_connect_voice_session_then_status_is_422_with_kind_mismatch() {
+async fn given_text_channel_when_connecting_voice_then_channel_type_is_incompatible() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -170,7 +170,7 @@ async fn given_text_channel_when_connect_voice_session_then_status_is_422_with_k
 }
 
 #[tokio::test]
-async fn given_voice_channel_when_connect_text_session_then_status_is_422_with_kind_mismatch() {
+async fn given_voice_channel_when_connecting_text_session_then_channel_type_is_incompatible() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 

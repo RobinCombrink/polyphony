@@ -15,7 +15,7 @@ use super::common::{
 use backend_api::storage::InMemoryRepository;
 
 #[tokio::test]
-async fn given_authenticated_user_when_create_server_then_created_status_and_server_id_returned() {
+async fn given_authenticated_user_when_creating_server_then_server_id_is_returned() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -57,7 +57,7 @@ async fn given_existing_server_when_list_servers_then_seeded_server_is_in_respon
 }
 
 #[tokio::test]
-async fn given_existing_server_when_create_channel_then_created_status_and_channel_id_returned() {
+async fn given_existing_server_when_creating_channel_then_channel_id_is_returned() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -119,7 +119,7 @@ async fn given_existing_channel_when_list_channels_then_seeded_channel_is_in_res
 }
 
 #[tokio::test]
-async fn given_server_owned_by_another_user_when_list_channels_then_status_is_403() {
+async fn given_non_member_server_when_listing_channels_then_access_is_forbidden() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
     let second_user = entity_seeder.user();
@@ -260,7 +260,7 @@ async fn given_server_with_added_member_when_member_lists_servers_then_server_is
 }
 
 #[tokio::test]
-async fn given_non_owner_when_add_server_member_then_status_is_403() {
+async fn given_non_owner_when_adding_server_member_then_action_is_forbidden() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
     let existing_member = entity_seeder.user();
@@ -313,7 +313,7 @@ async fn given_non_owner_when_add_server_member_then_status_is_403() {
 }
 
 #[tokio::test]
-async fn given_server_owner_when_delete_server_then_status_is_204_and_server_removed() {
+async fn given_server_owner_when_deleting_server_then_server_is_removed() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -344,7 +344,7 @@ async fn given_server_owner_when_delete_server_then_status_is_204_and_server_rem
 }
 
 #[tokio::test]
-async fn given_non_owner_when_delete_server_then_status_is_403() {
+async fn given_non_owner_when_deleting_server_then_action_is_forbidden() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
     let member_user = entity_seeder.user();
@@ -391,7 +391,7 @@ async fn given_non_owner_when_delete_server_then_status_is_403() {
 }
 
 #[tokio::test]
-async fn given_missing_server_when_delete_server_then_status_is_404() {
+async fn given_missing_server_when_deleting_then_reports_server_missing() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -404,7 +404,7 @@ async fn given_missing_server_when_delete_server_then_status_is_404() {
 }
 
 #[tokio::test]
-async fn given_server_owner_when_delete_channel_then_status_is_204_and_channel_removed() {
+async fn given_server_owner_when_deleting_channel_then_channel_is_removed() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -442,7 +442,7 @@ async fn given_server_owner_when_delete_channel_then_status_is_204_and_channel_r
 }
 
 #[tokio::test]
-async fn given_server_owner_when_update_channel_name_then_status_is_204_and_channel_is_updated() {
+async fn given_server_owner_when_updating_channel_name_then_channel_is_updated() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -490,7 +490,7 @@ async fn given_server_owner_when_update_channel_name_then_status_is_204_and_chan
 }
 
 #[tokio::test]
-async fn given_non_owner_when_update_channel_name_then_status_is_403() {
+async fn given_non_owner_when_updating_channel_name_then_action_is_forbidden() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
     let member_user = entity_seeder.user();
@@ -553,7 +553,7 @@ async fn given_non_owner_when_update_channel_name_then_status_is_403() {
 }
 
 #[tokio::test]
-async fn given_missing_channel_when_update_channel_name_then_status_is_404() {
+async fn given_missing_channel_when_updating_name_then_reports_channel_missing() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
@@ -567,7 +567,7 @@ async fn given_missing_channel_when_update_channel_name_then_status_is_404() {
 }
 
 #[tokio::test]
-async fn given_non_owner_when_delete_channel_then_status_is_403() {
+async fn given_non_owner_when_deleting_channel_then_action_is_forbidden() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
     let member_user = entity_seeder.user();
@@ -629,7 +629,7 @@ async fn given_non_owner_when_delete_channel_then_status_is_403() {
 }
 
 #[tokio::test]
-async fn given_missing_channel_when_delete_channel_then_status_is_404() {
+async fn given_missing_channel_when_deleting_then_reports_channel_missing() {
     let entity_seeder = EntitySeeder;
     let fixture = entity_seeder.chat_fixture();
 
