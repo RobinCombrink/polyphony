@@ -177,9 +177,7 @@ void main() {
 
       return VoiceSessionsBloc(
         voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
-        voiceRuntimeService: FakeVoiceRuntimeService(
-          
-        ),
+        voiceRuntimeService: FakeVoiceRuntimeService(),
         profileRepo: countingProfileRepository,
       );
     },
