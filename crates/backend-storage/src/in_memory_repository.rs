@@ -5,8 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     ChannelRepository, CreateMessageResult, InMemoryStore, MessageRepository, MutationResult,
-    ServerRepository,
-    UserRepository,
+    ServerRepository, UserRepository,
 };
 
 #[derive(Debug, Default)]

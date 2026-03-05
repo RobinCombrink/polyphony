@@ -6,10 +6,9 @@ use super::common::{
     bdd_support::{
         add_server_member, add_server_member_with_token, create_channel, create_channel_with_token,
         create_server, create_server_with_token, delete_channel, delete_channel_with_token,
-        delete_server, delete_server_with_token, get_me_with_token, list_channels, list_servers,
-        list_channels_with_token, list_servers_with_token, response_payload_json, seeded_state,
-        seeded_state_with_store,
-        update_channel, update_channel_with_token,
+        delete_server, delete_server_with_token, get_me_with_token, list_channels,
+        list_channels_with_token, list_servers, list_servers_with_token, response_payload_json,
+        seeded_state, seeded_state_with_store, update_channel, update_channel_with_token,
     },
     entity_seeder::EntitySeeder,
 };
@@ -158,7 +157,8 @@ async fn given_server_owned_by_another_user_when_list_channels_then_status_is_40
         shared_store,
     ));
 
-    let response = list_channels_with_token(&second_user_app, &created_server_id, "member-token").await;
+    let response =
+        list_channels_with_token(&second_user_app, &created_server_id, "member-token").await;
 
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
