@@ -4,15 +4,10 @@ sealed class AuthenticationState {
   const AuthenticationState();
 }
 
-enum AuthenticationIssue {
-  tokenRequired,
-  signedOut,
-}
-
 final class AuthenticationUnauthenticatedState extends AuthenticationState {
-  const AuthenticationUnauthenticatedState({this.issue});
+  const AuthenticationUnauthenticatedState({this.error});
 
-  final AuthenticationIssue? issue;
+  final Exception? error;
 }
 
 final class AuthenticationAuthenticatingState extends AuthenticationState {
@@ -21,12 +16,18 @@ final class AuthenticationAuthenticatingState extends AuthenticationState {
 
 final class AuthenticationAuthenticatedState extends AuthenticationState {
   const AuthenticationAuthenticatedState({
+    required this.metadata,
+  });
+
+  final AuthenticationMetadata metadata;
+}
+
+final class AuthenticationMetadata {
+  const AuthenticationMetadata({
+    required this.userId,
     required this.bearerToken,
   });
 
+  final String userId;
   final String bearerToken;
-}
-
-abstract interface class AuthenticationStateSource {
-  AuthenticationState get currentAuthState;
 }

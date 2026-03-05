@@ -1,4 +1,3 @@
-import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
@@ -9,27 +8,15 @@ import "package:polyphony_flutter_client/shared/services/channel_service.dart";
 class RestChannelService implements ChannelService {
   const RestChannelService({
     required ChatApi chatApi,
-    required AuthenticationStateSource authenticationStateSource,
-  })  : _chatApi = chatApi,
-        _authenticationStateSource = authenticationStateSource;
+  }) : _chatApi = chatApi;
 
   final ChatApi _chatApi;
-  final AuthenticationStateSource _authenticationStateSource;
   final String _baseUrl = PolyphonyConfig.backendBaseUrl;
-
-  Result<T> _missingTokenError<T>() {
-    return Error<T>(Exception("Auth token is required."));
-  }
 
   @override
   Future<Result<List<ApiChannel>>> listChannels({
     required String serverId,
-  }) async {
-    if (_authenticationStateSource.currentAuthState
-        is! AuthenticationAuthenticatedState) {
-      return _missingTokenError();
-    }
-
+  }) {
     return _chatApi.listChannels(baseUrl: _baseUrl, serverId: serverId);
   }
 
@@ -38,12 +25,7 @@ class RestChannelService implements ChannelService {
     required String serverId,
     required String name,
     required ChannelType channelType,
-  }) async {
-    if (_authenticationStateSource.currentAuthState
-        is! AuthenticationAuthenticatedState) {
-      return _missingTokenError();
-    }
-
+  }) {
     return _chatApi.createChannel(
       baseUrl: _baseUrl,
       serverId: serverId,
@@ -55,12 +37,7 @@ class RestChannelService implements ChannelService {
   @override
   Future<Result<void>> deleteChannel({
     required String channelId,
-  }) async {
-    if (_authenticationStateSource.currentAuthState
-        is! AuthenticationAuthenticatedState) {
-      return _missingTokenError();
-    }
-
+  }) {
     return _chatApi.deleteChannel(
       baseUrl: _baseUrl,
       channelId: channelId,

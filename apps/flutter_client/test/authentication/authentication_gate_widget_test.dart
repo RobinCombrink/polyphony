@@ -1,14 +1,24 @@
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_test/flutter_test.dart";
+import "package:http/http.dart" as http;
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/features/authentication/presentation/authentication_gate_widget.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
+import "package:polyphony_flutter_client/shared/auth/authentication_profile_service.dart";
+import "package:polyphony_flutter_client/shared/auth/authentication_session_service.dart";
+import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:provider/provider.dart";
 
 class _RecordingAuthenticationBloc extends AuthenticationBloc {
+  _RecordingAuthenticationBloc()
+      : super(
+          profileService: _FakeAuthenticationProfileService(),
+          sessionService: _FakeAuthenticationSessionService(),
+        );
+
   final recordedEvents = <AuthenticationEvent>[];
 
   @override
@@ -17,21 +27,39 @@ class _RecordingAuthenticationBloc extends AuthenticationBloc {
   }
 }
 
-class _FakeAccessTokenProvider implements AccessTokenProvider {
-  const _FakeAccessTokenProvider({
-    required this.persistedTokenResult,
-  });
-
-  final Result<String?> persistedTokenResult;
+class _FakeAuthenticationProfileService extends AuthenticationProfileService {
+  _FakeAuthenticationProfileService() : super(httpClient: http.Client());
 
   @override
+  Future<Result<ApiMe>> getMe({required String bearerToken}) async {
+    return const Ok<ApiMe>(
+      ApiMe(
+        userId: "test-user-id",
+        displayName: null,
+        issuer: "test",
+        tokenDurationHours: 1,
+      ),
+    );
+  }
+}
+
+class _FakeAuthenticationSessionService extends AuthenticationSessionService {
+  _FakeAuthenticationSessionService()
+      : super(
+          accessTokenProvider: _NoopAccessTokenProvider(),
+          isWeb: false,
+        );
+}
+
+class _NoopAccessTokenProvider implements AccessTokenProvider {
+  @override
   Future<Result<String?>> getPersistedAccessToken() async {
-    return persistedTokenResult;
+    return const Ok<String?>(null);
   }
 
   @override
   Future<Result<String>> getAccessToken({String? loginHint}) async {
-    return Error<String>(Exception("Not used in this test."));
+    return Error<String>(Exception("Not used in test."));
   }
 
   @override
@@ -42,7 +70,7 @@ class _FakeAccessTokenProvider implements AccessTokenProvider {
 
 void main() {
   testWidgets(
-    "dispatches login from persisted token on native startup",
+    "dispatches restore intent on startup",
     (tester) async {
       final authenticationBloc = _RecordingAuthenticationBloc();
       addTearDown(authenticationBloc.close);
@@ -50,11 +78,6 @@ void main() {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
-            Provider<AccessTokenProvider>(
-              create: (_) => const _FakeAccessTokenProvider(
-                persistedTokenResult: Ok<String?>("persisted-access-token"),
-              ),
-            ),
             Provider<PreferencesStore>(
               create: (_) => InMemoryPreferencesStore(),
             ),
@@ -68,10 +91,10 @@ void main() {
 
       expect(authenticationBloc.recordedEvents, hasLength(1));
 
-      final loginEvent = authenticationBloc.recordedEvents.single
-          as AuthenticationLoginRequested;
-
-      expect(loginEvent.bearerToken, "persisted-access-token");
+      expect(
+        authenticationBloc.recordedEvents.single,
+        isA<AuthenticationSessionRestoreRequested>(),
+      );
     },
   );
 }

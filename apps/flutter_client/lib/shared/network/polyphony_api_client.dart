@@ -1,7 +1,6 @@
 import "dart:convert";
 
 import "package:http/http.dart" as http;
-import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
@@ -11,12 +10,9 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 class PolyphonyApiClient implements ChatApi {
   PolyphonyApiClient({
     required http.Client httpClient,
-    required AuthenticationStateSource authenticationStateSource,
-  })  : _httpClient = httpClient,
-        _authenticationStateSource = authenticationStateSource;
+  }) : _httpClient = httpClient;
 
   final http.Client _httpClient;
-  final AuthenticationStateSource _authenticationStateSource;
 
   @override
   Future<Result<List<ApiServer>>> listServers({required String baseUrl}) {
@@ -267,16 +263,7 @@ class PolyphonyApiClient implements ChatApi {
   }
 
   Map<String, String> _headers() {
-    final currentAuthState = _authenticationStateSource.currentAuthState;
-
-    if (currentAuthState is! AuthenticationAuthenticatedState) {
-      throw const AuthenticationRequiredException();
-    }
-
-    final bearerToken = currentAuthState.bearerToken;
-
     return <String, String>{
-      "Authorization": "Bearer $bearerToken",
       "Content-Type": "application/json",
     };
   }

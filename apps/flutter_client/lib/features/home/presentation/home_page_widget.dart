@@ -15,7 +15,6 @@ import "package:polyphony_flutter_client/features/settings/presentation/widgets/
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_keybindings_focus_widget.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_quick_actions_overlay_widget.dart";
-import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/top_right_error_toast.dart";
 
 class HomePageWidget extends StatefulWidget {
@@ -32,12 +31,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   var _keybindingsRefreshToken = 0;
   var _isDisplayNamePromptOpen = false;
 
-  Future<void> _signOut(BuildContext context) async {
-    await context.read<AccessTokenProvider>().clearPersistedSession();
-    if (!context.mounted) {
-      return;
-    }
-
+  void _signOut(BuildContext context) {
     context
         .read<AuthenticationBloc>()
         .add(const AuthenticationLogoutRequested());
@@ -94,7 +88,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   Widget build(BuildContext context) {
     final authenticationState = context.read<AuthenticationBloc>().state;
     final bearerToken = authenticationState is AuthenticationAuthenticatedState
-        ? authenticationState.bearerToken
+        ? authenticationState.metadata.bearerToken
         : "";
 
     return Scaffold(
@@ -137,7 +131,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
             icon: const Icon(Icons.refresh),
           ),
           IconButton(
-            onPressed: () => unawaited(_signOut(context)),
+            onPressed: () => _signOut(context),
             tooltip: "Sign out",
             icon: const Icon(Icons.logout),
           ),

@@ -6,39 +6,15 @@ import "package:polyphony_flutter_client/features/authentication/bloc/authentica
 import "package:polyphony_flutter_client/features/authentication/presentation/authentication_gate_widget.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/auth/auth0_browser_token_provider.dart";
+import "package:polyphony_flutter_client/shared/auth/authentication_profile_service.dart";
+import "package:polyphony_flutter_client/shared/auth/authentication_session_service.dart";
 import "package:polyphony_flutter_client/shared/auth/refresh_token_store.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
-import "package:polyphony_flutter_client/shared/network/chat_api.dart";
-import "package:polyphony_flutter_client/shared/network/polyphony_api_client.dart";
-import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
-import "package:polyphony_flutter_client/shared/repositories/channel_repository.dart";
-import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
-import "package:polyphony_flutter_client/shared/repositories/message_repository.dart";
-import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
-import "package:polyphony_flutter_client/shared/repositories/profile_repository.dart";
-import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
-import "package:polyphony_flutter_client/shared/repositories/server_repository.dart";
-import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
-import "package:polyphony_flutter_client/shared/repositories/text_session_repository.dart";
-import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
-import "package:polyphony_flutter_client/shared/repositories/voice_session_repository.dart";
-import "package:polyphony_flutter_client/shared/services/channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
-import "package:polyphony_flutter_client/shared/services/message_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
-import "package:polyphony_flutter_client/shared/services/profile_service.dart";
-import "package:polyphony_flutter_client/shared/services/rest/rest_channel_service.dart";
-import "package:polyphony_flutter_client/shared/services/rest/rest_message_service.dart";
-import "package:polyphony_flutter_client/shared/services/rest/rest_profile_service.dart";
-import "package:polyphony_flutter_client/shared/services/rest/rest_server_service.dart";
-import "package:polyphony_flutter_client/shared/services/rest/rest_text_session_service.dart";
-import "package:polyphony_flutter_client/shared/services/rest/rest_voice_session_service.dart";
-import "package:polyphony_flutter_client/shared/services/server_service.dart";
-import "package:polyphony_flutter_client/shared/services/text_session_service.dart";
-import "package:polyphony_flutter_client/shared/services/voice_session_service.dart";
 import "package:provider/provider.dart";
 
 class PolyphonyApp extends StatelessWidget {
@@ -58,7 +34,6 @@ class PolyphonyApp extends StatelessWidget {
   }
 
   AccessTokenProvider _createAccessTokenProvider(BuildContext context) {
-    final httpClient = context.read<http.Client>();
     final auth0ClientId = _auth0ClientIdForCurrentPlatform();
 
     if (kIsWeb) {
@@ -71,7 +46,7 @@ class PolyphonyApp extends StatelessWidget {
     }
 
     return Auth0NativeTokenProvider(
-      httpClient: httpClient,
+      httpClient: http.Client(),
       refreshTokenStore: context.read<RefreshTokenStore>(),
       domain: PolyphonyConfig.auth0Domain,
       clientId: auth0ClientId,
@@ -86,59 +61,30 @@ class PolyphonyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<http.Client>(create: (_) => http.Client()),
         Provider<RefreshTokenStore>(
           create: (_) => createRefreshTokenStore(),
         ),
         Provider<PreferencesStore>(
           create: (_) => preferencesStore ?? createPreferencesStore(),
         ),
-        BlocProvider<AuthenticationBloc>(
-          create: (_) => AuthenticationBloc(),
-        ),
         Provider<AccessTokenProvider>(
           create: _createAccessTokenProvider,
         ),
-        Provider<ChatApi>(
-          create: (context) => PolyphonyApiClient(
-            httpClient: context.read<http.Client>(),
-            authenticationStateSource: context.read<AuthenticationBloc>(),
+        Provider<AuthenticationSessionService>(
+          create: (context) => AuthenticationSessionService(
+            accessTokenProvider: context.read<AccessTokenProvider>(),
+            isWeb: kIsWeb,
           ),
         ),
-        Provider<ServerService>(
-          create: (context) => RestServerService(
-            chatApi: context.read<ChatApi>(),
-            authenticationStateSource: context.read<AuthenticationBloc>(),
+        Provider<AuthenticationProfileService>(
+          create: (_) => AuthenticationProfileService(
+            httpClient: http.Client(),
           ),
         ),
-        Provider<ChannelService>(
-          create: (context) => RestChannelService(
-            chatApi: context.read<ChatApi>(),
-            authenticationStateSource: context.read<AuthenticationBloc>(),
-          ),
-        ),
-        Provider<MessageService>(
-          create: (context) => RestMessageService(
-            chatApi: context.read<ChatApi>(),
-            authenticationStateSource: context.read<AuthenticationBloc>(),
-          ),
-        ),
-        Provider<ProfileService>(
-          create: (context) => RestProfileService(
-            chatApi: context.read<ChatApi>(),
-            authenticationStateSource: context.read<AuthenticationBloc>(),
-          ),
-        ),
-        Provider<VoiceSessionService>(
-          create: (context) => RestVoiceSessionService(
-            chatApi: context.read<ChatApi>(),
-            authenticationStateSource: context.read<AuthenticationBloc>(),
-          ),
-        ),
-        Provider<TextSessionService>(
-          create: (context) => RestTextSessionService(
-            chatApi: context.read<ChatApi>(),
-            authenticationStateSource: context.read<AuthenticationBloc>(),
+        BlocProvider<AuthenticationBloc>(
+          create: (context) => AuthenticationBloc(
+            profileService: context.read<AuthenticationProfileService>(),
+            sessionService: context.read<AuthenticationSessionService>(),
           ),
         ),
         Provider<MediaRuntimeService>(
@@ -146,32 +92,6 @@ class PolyphonyApp extends StatelessWidget {
         ),
         Provider<MessageRuntimeService>(
           create: (_) => LivekitMessageRuntimeService(),
-        ),
-        Provider<ServerRepo>(
-          create: (context) =>
-              ServerRepository(serverService: context.read<ServerService>()),
-        ),
-        Provider<ChannelRepo>(
-          create: (context) =>
-              ChannelRepository(channelService: context.read<ChannelService>()),
-        ),
-        Provider<MessageRepo>(
-          create: (context) =>
-              MessageRepository(messageService: context.read<MessageService>()),
-        ),
-        Provider<ProfileRepo>(
-          create: (context) =>
-              ProfileRepository(profileService: context.read<ProfileService>()),
-        ),
-        Provider<VoiceSessionRepo>(
-          create: (context) => VoiceSessionRepository(
-            voiceSessionService: context.read<VoiceSessionService>(),
-          ),
-        ),
-        Provider<TextSessionRepo>(
-          create: (context) => TextSessionRepository(
-            textSessionService: context.read<TextSessionService>(),
-          ),
         ),
       ],
       child: const MaterialApp(

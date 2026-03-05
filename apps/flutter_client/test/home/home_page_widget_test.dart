@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_test/flutter_test.dart";
+import "package:http/http.dart" as http;
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
@@ -9,6 +10,11 @@ import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.da
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
+import "package:polyphony_flutter_client/shared/auth/authentication_profile_service.dart";
+import "package:polyphony_flutter_client/shared/auth/authentication_session_service.dart";
+import "package:polyphony_flutter_client/shared/network/api_models.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:provider/provider.dart";
 
@@ -30,6 +36,50 @@ class _RecordingServerMembersBloc extends ServerMembersBloc {
   }
 }
 
+class _FakeAuthenticationProfileService extends AuthenticationProfileService {
+  _FakeAuthenticationProfileService({required this.userId})
+      : super(httpClient: http.Client());
+
+  final String userId;
+
+  @override
+  Future<Result<ApiMe>> getMe({required String bearerToken}) async {
+    return Ok<ApiMe>(
+      ApiMe(
+        userId: userId,
+        displayName: null,
+        issuer: "test",
+        tokenDurationHours: 1,
+      ),
+    );
+  }
+}
+
+class _FakeAuthenticationSessionService extends AuthenticationSessionService {
+  _FakeAuthenticationSessionService()
+      : super(
+          accessTokenProvider: _NoopAccessTokenProvider(),
+          isWeb: false,
+        );
+}
+
+class _NoopAccessTokenProvider implements AccessTokenProvider {
+  @override
+  Future<Result<String?>> getPersistedAccessToken() async {
+    return const Ok<String?>(null);
+  }
+
+  @override
+  Future<Result<String>> getAccessToken({String? loginHint}) async {
+    return Error<String>(Exception("Not used in test."));
+  }
+
+  @override
+  Future<Result<void>> clearPersistedSession() async {
+    return const Ok<void>(null);
+  }
+}
+
 void main() {
   testWidgets(
     "loads server users when selected server changes",
@@ -46,8 +96,12 @@ void main() {
       final voiceRuntimeService = FakeVoiceRuntimeService();
       final messageRuntimeService = FakeMessageRuntimeService();
 
-      final authenticationBloc = AuthenticationBloc()
-        ..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
+      final authenticationBloc = AuthenticationBloc(
+        profileService: _FakeAuthenticationProfileService(
+          userId: fixture.ownerUserId,
+        ),
+        sessionService: _FakeAuthenticationSessionService(),
+      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
       final serversBloc = ServersBloc(serverRepo: serverRepo);
       final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
       final messagesBloc = MessagesBloc(
