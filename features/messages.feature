@@ -27,42 +27,42 @@ Feature: Channel messages
     Scenario: Updating a missing message reports that it does not exist
       Given a channel exists in the user's server
       When the user edits a message that does not exist in that channel
-      Then the user is told the message does not exist
+      Then the action fails because the message does not exist
 
     Scenario: Updating a message in a missing channel reports that it does not exist
       When the user edits a message in a channel that does not exist
-      Then the user is told the channel does not exist
+      Then the action fails because the channel does not exist
 
     Scenario: Deleting a missing message reports that it does not exist
       Given a channel exists in the user's server
       When the user deletes a message that does not exist in that channel
-      Then the user is told the message does not exist
+      Then the action fails because the message does not exist
 
     Scenario: Deleting a message in a missing channel reports that it does not exist
       When the user deletes a message in a channel that does not exist
-      Then the user is told the channel does not exist
+      Then the action fails because the channel does not exist
 
     Scenario: Posting a message in a voice channel is rejected
       Given a voice channel exists in the user's server
       When the user posts a message in that voice channel
-      Then the user is told that channel type is incompatible with messaging
+      Then posting is denied because that channel does not support messaging
 
   Rule: Distinct named users enforce message ownership and membership
     Scenario: Authenticated user cannot edit another user's message
       Given a channel exists in a server shared with another user
       And another user already has a message in that channel
       When the authenticated user edits the other user's message
-      Then the edit is forbidden
+      Then the edit is denied
 
     Scenario: Authenticated user cannot delete another user's message
       Given a channel exists in a server shared with another user
       And another user already has a message in that channel
       When the authenticated user deletes the other user's message
-      Then the delete is forbidden
+      Then the delete is denied
 
     Scenario: Non-member cannot list messages in another server's channel
       Given a user named "Olivia" exists
       And a user named "Noah" exists
       And a channel exists in "Olivia"'s server
       When "Noah" lists messages in that channel
-      Then listing messages is forbidden
+      Then message listing is denied

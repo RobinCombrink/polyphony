@@ -3,14 +3,23 @@ Feature: Service health and identity
   I want to verify service readiness and identity access
   So that I can trust local-first development before dev rollout
 
-  Scenario: Service reports healthy
-    Given the backend service is running
-    When I check service health
-    Then the service is reported as healthy
-    And the service name is returned
+  Rule: Service remains healthy
+    Scenario: Service reports healthy
+      Given the backend service is running
+      When I check service health
+      Then the service is reported as healthy
+      And the service identity is visible
 
-  Scenario: Authenticated user can view identity details
-    Given an authenticated user exists
-    When the user views their own identity
-    Then identity details are returned
-    And the identity includes the user's external reference
+  Rule: Authenticated identity is readable
+    Background:
+      Given an authenticated user exists
+
+    Scenario: Authenticated user can view identity details
+      When the user views their own identity
+      Then identity details are returned
+      And the identity includes the user's external reference
+
+    Scenario: First identity view has no display name yet
+      When the user views their own identity
+      Then identity details are returned
+      And the identity has no display name yet

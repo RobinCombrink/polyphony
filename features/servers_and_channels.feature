@@ -34,11 +34,11 @@ Feature: Servers and channels
     Scenario: Non-owner cannot update a channel name
       Given a channel exists in a server owned by another user
       When the non-owner attempts to update the channel name
-      Then the update is forbidden
+      Then the update is denied
 
     Scenario: Updating a missing channel reports that it does not exist
       When the user updates a channel that does not exist
-      Then the user is told the channel does not exist
+      Then the action fails because the channel does not exist
 
     Scenario: Server owner can add a server member
       Given the user already owns a server
@@ -53,7 +53,7 @@ Feature: Servers and channels
 
     Scenario: Deleting a missing server reports that it does not exist
       When the user deletes a server that does not exist
-      Then the user is told the server does not exist
+      Then the action fails because the server does not exist
 
     Scenario: Server owner can delete a channel
       Given a channel exists in the user's server
@@ -63,7 +63,7 @@ Feature: Servers and channels
 
     Scenario: Deleting a missing channel reports that it does not exist
       When the user deletes a channel that does not exist
-      Then the user is told the channel does not exist
+      Then the action fails because the channel does not exist
 
   Rule: Distinct named users enforce membership and ownership rules
     Scenario: Added server member can list the shared server
@@ -80,7 +80,7 @@ Feature: Servers and channels
       And "Olivia" owns a server
       And a channel exists in "Olivia"'s server
       When "Noah" lists channels in that server
-      Then listing channels is forbidden
+      Then channel listing is denied
 
     Scenario: Non-owner cannot add a server member
       Given a user named "Olivia" exists
@@ -88,7 +88,7 @@ Feature: Servers and channels
       And "Olivia" owns a server
       And "Olivia" adds "Noah" to the server
       When "Noah" tries to add a different user to that server
-      Then the add-member action is forbidden
+      Then adding a member is denied
 
     Scenario: Non-owner cannot delete a server
       Given a user named "Olivia" exists
@@ -96,7 +96,7 @@ Feature: Servers and channels
       And "Olivia" owns a server
       And "Olivia" adds "Noah" to the server
       When "Noah" deletes that server
-      Then the delete is forbidden
+      Then the delete is denied
 
     Scenario: Non-owner cannot delete a channel
       Given a user named "Olivia" exists
@@ -104,4 +104,4 @@ Feature: Servers and channels
       And a channel exists in "Olivia"'s server
       And "Olivia" adds "Noah" to the server
       When "Noah" deletes that channel
-      Then the delete is forbidden
+      Then the delete is denied

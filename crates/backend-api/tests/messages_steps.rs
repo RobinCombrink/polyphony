@@ -535,33 +535,33 @@ async fn listing_messages_for_that_channel_does_not_include_the_deleted_message(
     );
 }
 
-#[then("the edit is forbidden")]
-async fn the_edit_is_forbidden(world: &mut MessagesWorld) {
+#[then("the edit is denied")]
+async fn the_edit_is_denied(world: &mut MessagesWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
 }
 
-#[then("the delete is forbidden")]
-async fn the_delete_is_forbidden(world: &mut MessagesWorld) {
+#[then("the delete is denied")]
+async fn the_delete_is_denied(world: &mut MessagesWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
 }
 
-#[then("listing messages is forbidden")]
-async fn listing_messages_is_forbidden(world: &mut MessagesWorld) {
+#[then("message listing is denied")]
+async fn message_listing_is_denied(world: &mut MessagesWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
 }
 
-#[then("the user is told the message does not exist")]
-async fn the_user_is_told_the_message_does_not_exist(world: &mut MessagesWorld) {
+#[then("the action fails because the message does not exist")]
+async fn the_action_fails_because_the_message_does_not_exist(world: &mut MessagesWorld) {
     assert_eq!(world.latest_status(), StatusCode::NOT_FOUND);
 }
 
-#[then("the user is told the channel does not exist")]
-async fn the_user_is_told_the_channel_does_not_exist(world: &mut MessagesWorld) {
+#[then("the action fails because the channel does not exist")]
+async fn the_action_fails_because_the_channel_does_not_exist(world: &mut MessagesWorld) {
     assert_eq!(world.latest_status(), StatusCode::NOT_FOUND);
 }
 
-#[then("the user is told that channel type is incompatible with messaging")]
-async fn the_user_is_told_that_channel_type_is_incompatible_with_messaging(
+#[then("posting is denied because that channel does not support messaging")]
+async fn posting_is_denied_because_that_channel_does_not_support_messaging(
     world: &mut MessagesWorld,
 ) {
     assert_eq!(world.latest_status(), StatusCode::UNPROCESSABLE_ENTITY);

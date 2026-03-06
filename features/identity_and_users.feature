@@ -24,4 +24,4 @@ Feature: Backend API identity and user lookup
 
   Scenario: Looking up a user with an invalid token returns unauthorized
     When identity lookup is attempted without valid authentication
-    Then the request is unauthorized
+    Then identity lookup access is denied

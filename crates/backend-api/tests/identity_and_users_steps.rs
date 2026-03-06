@@ -157,8 +157,8 @@ async fn identity_lookup_is_attempted_without_valid_authentication(world: &mut I
     world.latest_payload = None;
 }
 
-#[then("the request is unauthorized")]
-async fn the_request_is_unauthorized(world: &mut IdentityWorld) {
+#[then("identity lookup access is denied")]
+async fn identity_lookup_access_is_denied(world: &mut IdentityWorld) {
     assert_eq!(world.latest_status(), StatusCode::UNAUTHORIZED);
 }
 

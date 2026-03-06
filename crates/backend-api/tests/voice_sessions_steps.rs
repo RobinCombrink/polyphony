@@ -83,7 +83,10 @@ impl VoiceSessionsWorld {
             .second_name
             .as_ref()
             .expect("second user name to be set");
-        assert_eq!(second_name, name, "second user name mismatch in scenario step");
+        assert_eq!(
+            second_name, name,
+            "second user name mismatch in scenario step"
+        );
     }
 
     async fn ensure_owner_server(&mut self) {
@@ -357,8 +360,8 @@ async fn the_connection_succeeds(world: &mut VoiceSessionsWorld) {
     assert_eq!(world.latest_status(), StatusCode::OK);
 }
 
-#[then("connection details are returned")]
-async fn connection_details_are_returned(world: &mut VoiceSessionsWorld) {
+#[then("the participant can join that voice conversation")]
+async fn the_participant_can_join_that_voice_conversation(world: &mut VoiceSessionsWorld) {
     assert_eq!(
         payload_uuid(world.latest_payload_ref(), "channel_id"),
         *world.channel_id_ref()
@@ -381,20 +384,18 @@ async fn connection_details_are_returned(world: &mut VoiceSessionsWorld) {
     );
 }
 
-#[then("the user is told the channel does not exist")]
-async fn the_user_is_told_the_channel_does_not_exist(world: &mut VoiceSessionsWorld) {
+#[then("the action fails because the channel does not exist")]
+async fn the_action_fails_because_the_channel_does_not_exist(world: &mut VoiceSessionsWorld) {
     assert_eq!(world.latest_status(), StatusCode::NOT_FOUND);
 }
 
-#[then("voice connection is forbidden")]
-async fn voice_connection_is_forbidden(world: &mut VoiceSessionsWorld) {
+#[then("voice connection is denied")]
+async fn voice_connection_is_denied(world: &mut VoiceSessionsWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
 }
 
-#[then("the user is told that channel type is incompatible with voice")]
-async fn the_user_is_told_that_channel_type_is_incompatible_with_voice(
-    world: &mut VoiceSessionsWorld,
-) {
+#[then("voice connection is denied for that channel type")]
+async fn voice_connection_is_denied_for_that_channel_type(world: &mut VoiceSessionsWorld) {
     assert_eq!(world.latest_status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(
         world.latest_payload_ref()["error_code"].as_str(),
@@ -402,10 +403,8 @@ async fn the_user_is_told_that_channel_type_is_incompatible_with_voice(
     );
 }
 
-#[then("the user is told that channel type is incompatible with text sessions")]
-async fn the_user_is_told_that_channel_type_is_incompatible_with_text_sessions(
-    world: &mut VoiceSessionsWorld,
-) {
+#[then("text session connection is denied for that channel type")]
+async fn text_session_connection_is_denied_for_that_channel_type(world: &mut VoiceSessionsWorld) {
     assert_eq!(world.latest_status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(
         world.latest_payload_ref()["error_code"].as_str(),

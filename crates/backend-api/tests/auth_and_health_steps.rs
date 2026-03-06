@@ -68,8 +68,8 @@ async fn the_service_is_reported_as_healthy(world: &mut AuthAndHealthWorld) {
     assert_eq!(world.latest_payload_ref()["status"].as_str(), Some("ok"));
 }
 
-#[then("the service name is returned")]
-async fn the_service_name_is_returned(world: &mut AuthAndHealthWorld) {
+#[then("the service identity is visible")]
+async fn the_service_identity_is_visible(world: &mut AuthAndHealthWorld) {
     assert_eq!(
         world.latest_payload_ref()["service"].as_str(),
         Some("backend-api")
@@ -102,6 +102,11 @@ async fn the_identity_includes_the_users_external_reference(world: &mut AuthAndH
         world.latest_payload_ref()["external_reference"].as_str(),
         Some(EXTERNAL_REFERENCE)
     );
+}
+
+#[then("the identity has no display name yet")]
+async fn the_identity_has_no_display_name_yet(world: &mut AuthAndHealthWorld) {
+    assert!(world.latest_payload_ref()["display_name"].is_null());
 }
 
 #[tokio::test]

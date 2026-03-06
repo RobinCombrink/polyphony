@@ -616,13 +616,13 @@ async fn listing_channels_in_that_server_includes_the_updated_name(
     }));
 }
 
-#[then("the update is forbidden")]
-async fn the_update_is_forbidden(world: &mut ServersAndChannelsWorld) {
+#[then("the update is denied")]
+async fn the_update_is_denied(world: &mut ServersAndChannelsWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
 }
 
-#[then("the user is told the channel does not exist")]
-async fn the_user_is_told_the_channel_does_not_exist(world: &mut ServersAndChannelsWorld) {
+#[then("the action fails because the channel does not exist")]
+async fn the_action_fails_because_the_channel_does_not_exist(world: &mut ServersAndChannelsWorld) {
     assert_eq!(world.latest_status(), StatusCode::NOT_FOUND);
 }
 
@@ -650,13 +650,13 @@ async fn the_shared_server_is_included_in_their_server_list(world: &mut ServersA
     );
 }
 
-#[then("listing channels is forbidden")]
-async fn listing_channels_is_forbidden(world: &mut ServersAndChannelsWorld) {
+#[then("channel listing is denied")]
+async fn channel_listing_is_denied(world: &mut ServersAndChannelsWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
 }
 
-#[then("the add-member action is forbidden")]
-async fn the_add_member_action_is_forbidden(world: &mut ServersAndChannelsWorld) {
+#[then("adding a member is denied")]
+async fn adding_a_member_is_denied(world: &mut ServersAndChannelsWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
 }
 
@@ -677,13 +677,13 @@ async fn listing_servers_for_that_user_returns_no_servers(world: &mut ServersAnd
     );
 }
 
-#[then("the delete is forbidden")]
-async fn the_delete_is_forbidden(world: &mut ServersAndChannelsWorld) {
+#[then("the delete is denied")]
+async fn the_delete_is_denied(world: &mut ServersAndChannelsWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
 }
 
-#[then("the user is told the server does not exist")]
-async fn the_user_is_told_the_server_does_not_exist(world: &mut ServersAndChannelsWorld) {
+#[then("the action fails because the server does not exist")]
+async fn the_action_fails_because_the_server_does_not_exist(world: &mut ServersAndChannelsWorld) {
     assert_eq!(world.latest_status(), StatusCode::NOT_FOUND);
 }
 
