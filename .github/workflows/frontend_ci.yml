@@ -19,7 +19,7 @@ concurrency:
 jobs:
   flutter-analyze:
     name: Flutter analyze
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
       run:
@@ -41,7 +41,7 @@ jobs:
 
   flutter-format:
     name: Flutter format check
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
       run:
@@ -63,7 +63,7 @@ jobs:
 
   flutter-tests:
     name: Flutter tests
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
       run:
