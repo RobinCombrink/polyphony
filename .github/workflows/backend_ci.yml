@@ -48,6 +48,11 @@ jobs:
       - name: Unit and acceptance tests
         run: cargo test --workspace --all-targets
 
+      - name: Postgres-backed cucumber acceptance tests
+        env:
+          BDD_STORE: postgres
+        run: cargo test -p backend-api --tests
+
       - name: Prepare dist directory
         run: mkdir -p dist
 
