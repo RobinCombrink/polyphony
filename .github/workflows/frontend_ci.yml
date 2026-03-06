@@ -17,8 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  flutter-frontend:
-    name: Flutter frontend CI
+  flutter-analyze:
+    name: Flutter analyze
     runs-on: windows-latest
     timeout-minutes: 20
     defaults:
@@ -39,11 +39,72 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
+  flutter-format:
+    name: Flutter format check
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/flutter_client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
       - name: Format check
         run: dart format --output=none --set-exit-if-changed lib test
 
+  flutter-tests:
+    name: Flutter tests
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/flutter_client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
       - name: Tests
         run: flutter test
+
+  flutter-build:
+    name: Flutter Windows build artifact
+    runs-on: windows-latest
+    timeout-minutes: 20
+    needs:
+      - flutter-analyze
+      - flutter-format
+      - flutter-tests
+    defaults:
+      run:
+        working-directory: apps/flutter_client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
 
       - name: Build Windows executable
         run: flutter build windows --release
@@ -61,7 +122,7 @@ jobs:
     name: Create GitHub release
     runs-on: ubuntu-latest
     needs:
-      - flutter-frontend
+      - flutter-build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
