@@ -86,6 +86,16 @@ cargo install cargo-watch systemfd
 systemfd --no-pid -s http::3000 -- cargo watch -x run
 ```
 
+## Git Hooks
+Enable repository-managed Git hooks so `pre-push` runs the same checks as CI:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The pre-push hook runs backend Rust checks, Postgres-backed cucumber acceptance tests,
+backend Docker image build, and frontend Flutter checks/build.
+
 ## OpenAPI Frontend
 - Swagger UI: `http://127.0.0.1:5067/openapi`
 - OpenAPI JSON: `http://127.0.0.1:5067/api-docs/openapi.json`

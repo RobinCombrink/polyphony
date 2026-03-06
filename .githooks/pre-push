@@ -1,0 +1,60 @@
+#!/usr/bin/env sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+upstream_ref="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+
+if [ -n "$upstream_ref" ]; then
+  base_ref="$(git merge-base HEAD "$upstream_ref")"
+  changed_files="$(git diff --name-only "$base_ref...HEAD")"
+elif git show-ref --verify --quiet refs/remotes/origin/main; then
+  base_ref="$(git merge-base HEAD origin/main)"
+  changed_files="$(git diff --name-only "$base_ref...HEAD")"
+else
+  changed_files="$(git diff-tree --no-commit-id --name-only -r HEAD)"
+fi
+
+rust_changed=false
+flutter_changed=false
+
+if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.toml|Cargo\.lock|crates/)'; then
+  rust_changed=true
+fi
+
+if printf '%s\n' "$changed_files" | grep -Eq '^apps/flutter_client/'; then
+  flutter_changed=true
+fi
+
+if [ "$rust_changed" = false ] && [ "$flutter_changed" = false ]; then
+  echo "[pre-push] No Rust workspace or Flutter app changes detected; skipping CI checks."
+  exit 0
+fi
+
+if [ "$rust_changed" = true ]; then
+  echo "[pre-push] Running backend checks (fmt, clippy, build, tests)"
+  cargo fmt --all -- --check
+  cargo clippy --workspace --all-targets -- -D warnings
+  cargo build --workspace --all-targets
+  cargo test --workspace --all-targets
+
+  echo "[pre-push] Running Postgres-backed cucumber acceptance tests"
+  export BDD_STORE=postgres
+  cargo test -p backend-api --tests
+else
+  echo "[pre-push] No Rust workspace changes detected; skipping backend checks."
+fi
+
+if [ "$flutter_changed" = true ]; then
+  echo "[pre-push] Running frontend checks (pub get, analyze, format, test, build)"
+  cd apps/flutter_client
+  flutter pub get
+  flutter analyze
+  dart format --output=none --set-exit-if-changed lib test
+  flutter test
+else
+  echo "[pre-push] No Flutter app changes detected; skipping frontend checks."
+fi
+
+echo "[pre-push] All CI-equivalent checks passed."
