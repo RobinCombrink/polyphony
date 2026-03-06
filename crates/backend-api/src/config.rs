@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, str::FromStr};
 
 use crate::auth::Auth0Config;
 
@@ -77,7 +77,7 @@ impl HttpRequestLoggingConfig {
 
         let level = std::env::var("BACKEND_API_HTTP_REQUEST_LOGGING_LEVEL")
             .ok()
-            .and_then(HttpRequestLogLevel::from_str)
+            .and_then(|value| HttpRequestLogLevel::from_str(&value).ok())
             .unwrap_or(default_config.level);
 
         Self { enabled, level }
@@ -93,18 +93,22 @@ pub enum HttpRequestLogLevel {
     Error,
 }
 
-impl HttpRequestLogLevel {
-    pub fn from_str(value: String) -> Option<Self> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "trace" => Some(Self::Trace),
-            "debug" => Some(Self::Debug),
-            "info" => Some(Self::Info),
-            "warn" | "warning" => Some(Self::Warn),
-            "error" => Some(Self::Error),
-            _ => None,
+impl FromStr for HttpRequestLogLevel {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "trace" => Ok(Self::Trace),
+            "debug" => Ok(Self::Debug),
+            "info" => Ok(Self::Info),
+            "warn" | "warning" => Ok(Self::Warn),
+            "error" => Ok(Self::Error),
+            _ => Err(()),
         }
     }
+}
 
+impl HttpRequestLogLevel {
     pub fn as_tracing_level(self) -> tracing::Level {
         match self {
             Self::Trace => tracing::Level::TRACE,
