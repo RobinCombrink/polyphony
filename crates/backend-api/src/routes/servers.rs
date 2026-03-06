@@ -5,16 +5,21 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::{Channel, Membership, Server};
-use backend_storage::{ChannelRepository, MutationResult, ServerRepository};
+use backend_storage::{
+    ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
+};
 use uuid::Uuid;
 
 use crate::{
-    ApiState, RepositoryProfile,
-    auth::AuthenticatedUser,
+    ApiState,
+    auth::{AuthenticatedUser, TokenVerifier},
     dto::{
         AddServerMemberRequest, CreateChannelRequest, CreateServerRequest, UpdateChannelRequest,
     },
 };
+
+type AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier> =
+    ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>;
 
 #[utoipa::path(
     post,
@@ -27,13 +32,17 @@ use crate::{
     security(("bearer_auth" = [])),
     tag = "backend-api"
 )]
-pub(crate) async fn create_server<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn create_server<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
     Json(request): Json<CreateServerRequest>,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let created_server = state
         .server_repository
@@ -53,12 +62,16 @@ where
     security(("bearer_auth" = [])),
     tag = "backend-api"
 )]
-pub(crate) async fn list_servers<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn list_servers<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let servers = state
         .server_repository
@@ -80,13 +93,17 @@ where
     params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
-pub(crate) async fn list_server_members<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn list_server_members<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
     Path(server_id): Path<Uuid>,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let _ = authenticated_user;
 
@@ -112,14 +129,18 @@ where
     params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
-pub(crate) async fn add_server_member<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn add_server_member<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
     Path(server_id): Path<Uuid>,
     Json(request): Json<AddServerMemberRequest>,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let mutation_result = state
         .server_repository
@@ -154,13 +175,17 @@ where
     params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
-pub(crate) async fn delete_server<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn delete_server<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
     Path(server_id): Path<Uuid>,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let mutation_result = state
         .server_repository
@@ -188,14 +213,18 @@ where
     params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
-pub(crate) async fn create_channel<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn create_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
     Path(server_id): Path<Uuid>,
     Json(request): Json<CreateChannelRequest>,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let _ = authenticated_user;
 
@@ -224,14 +253,18 @@ where
     params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
-pub(crate) async fn update_channel<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn update_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
     Json(request): Json<UpdateChannelRequest>,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let mutation_result = state
         .channel_repository
@@ -259,13 +292,17 @@ where
     params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
-pub(crate) async fn delete_channel<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn delete_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let mutation_result = state
         .channel_repository
@@ -293,13 +330,17 @@ where
     params(("server_id" = Uuid, Path, description = "Server id")),
     tag = "backend-api"
 )]
-pub(crate) async fn list_channels<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn list_channels<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
     Path(server_id): Path<Uuid>,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let is_server_member = match state
         .server_repository

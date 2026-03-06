@@ -8,10 +8,9 @@ mod routes;
 pub use backend_domain as domain;
 pub use backend_storage as storage;
 
-use std::marker::PhantomData;
 use std::{net::SocketAddr, sync::Arc};
 
-use auth::{AuthState, JwksTokenVerifier, TokenVerifier};
+use auth::{AuthState, JwksTokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
 use backend_storage::{
@@ -37,59 +36,39 @@ use tower_http::trace::{
 use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
-pub trait RepositoryProfile {
-    type UserRepo: UserRepository;
-    type ServerRepo: ServerRepository;
-    type ChannelRepo: ChannelRepository;
-    type MessageRepo: MessageRepository;
-}
+use crate::auth::TokenVerifier;
 
-pub struct SplitRepositories<UserRepo, ServerRepo, ChannelRepo, MessageRepo>(
-    PhantomData<(UserRepo, ServerRepo, ChannelRepo, MessageRepo)>,
-)
-where
-    UserRepo: UserRepository,
-    ServerRepo: ServerRepository,
-    ChannelRepo: ChannelRepository,
-    MessageRepo: MessageRepository;
-
-impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo> RepositoryProfile
-    for SplitRepositories<UserRepo, ServerRepo, ChannelRepo, MessageRepo>
+pub struct ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>
 where
     UserRepo: UserRepository,
     ServerRepo: ServerRepository,
     ChannelRepo: ChannelRepository,
     MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
-    type UserRepo = UserRepo;
-    type ServerRepo = ServerRepo;
-    type ChannelRepo = ChannelRepo;
-    type MessageRepo = MessageRepo;
-}
-
-pub struct ApiState<Repos>
-where
-    Repos: RepositoryProfile,
-{
-    pub auth_state: Arc<AuthState>,
-    pub user_repository: Arc<Repos::UserRepo>,
-    pub server_repository: Arc<Repos::ServerRepo>,
-    pub channel_repository: Arc<Repos::ChannelRepo>,
-    pub message_repository: Arc<Repos::MessageRepo>,
+    pub auth_state: Arc<AuthState<Verifier>>,
+    pub user_repository: Arc<UserRepo>,
+    pub server_repository: Arc<ServerRepo>,
+    pub channel_repository: Arc<ChannelRepo>,
+    pub message_repository: Arc<MessageRepo>,
     pub livekit_config: Arc<config::LiveKitConfig>,
-    _profile: PhantomData<Repos>,
 }
 
-impl<Repos> ApiState<Repos>
+impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>
+    ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     pub fn new(
-        auth_state: Arc<AuthState>,
-        user_repository: Arc<Repos::UserRepo>,
-        server_repository: Arc<Repos::ServerRepo>,
-        channel_repository: Arc<Repos::ChannelRepo>,
-        message_repository: Arc<Repos::MessageRepo>,
+        auth_state: Arc<AuthState<Verifier>>,
+        user_repository: Arc<UserRepo>,
+        server_repository: Arc<ServerRepo>,
+        channel_repository: Arc<ChannelRepo>,
+        message_repository: Arc<MessageRepo>,
         livekit_config: Arc<config::LiveKitConfig>,
     ) -> Self {
         Self {
@@ -99,14 +78,18 @@ where
             channel_repository,
             message_repository,
             livekit_config,
-            _profile: PhantomData,
         }
     }
 }
 
-impl<Repos> Clone for ApiState<Repos>
+impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier> Clone
+    for ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     fn clone(&self) -> Self {
         Self {
@@ -116,18 +99,17 @@ where
             channel_repository: self.channel_repository.clone(),
             message_repository: self.message_repository.clone(),
             livekit_config: self.livekit_config.clone(),
-            _profile: PhantomData,
         }
     }
 }
 
-pub type DefaultRepositories = SplitRepositories<
+pub type DefaultApiState = ApiState<
     PostgresRepository,
     PostgresRepository,
     PostgresRepository,
     PostgresRepository,
+    JwksTokenVerifier,
 >;
-pub type DefaultApiState = ApiState<DefaultRepositories>;
 
 pub fn default_bind_address() -> SocketAddr {
     config::BackendApiConfig::from_environment().bind_address
@@ -136,7 +118,7 @@ pub fn default_bind_address() -> SocketAddr {
 pub async fn default_api_state() -> DefaultApiState {
     let backend_config = config::BackendApiConfig::from_environment();
     let auth_config = backend_config.auth0;
-    let token_verifier: Arc<dyn TokenVerifier> = Arc::new(
+    let token_verifier = Arc::new(
         JwksTokenVerifier::new(auth_config.clone())
             .await
             .expect("jwt authorizer initialization to succeed"),
@@ -169,13 +151,15 @@ pub async fn default_api_state() -> DefaultApiState {
     )
 }
 
-pub fn build_app<Repos>(state: ApiState<Repos>) -> Router
+pub fn build_app<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    state: ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>,
+) -> Router
 where
-    Repos: RepositoryProfile + Send + Sync + 'static,
-    Repos::UserRepo: 'static,
-    Repos::ServerRepo: 'static,
-    Repos::ChannelRepo: 'static,
-    Repos::MessageRepo: 'static,
+    UserRepo: UserRepository + Send + Sync + 'static,
+    ServerRepo: ServerRepository + Send + Sync + 'static,
+    ChannelRepo: ChannelRepository + Send + Sync + 'static,
+    MessageRepo: MessageRepository + Send + Sync + 'static,
+    Verifier: auth::TokenVerifier + Send + Sync + 'static,
 {
     let backend_config = config::BackendApiConfig::from_environment();
 

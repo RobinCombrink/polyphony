@@ -14,13 +14,19 @@ use url::Url;
 use uuid::Uuid;
 
 #[derive(Clone)]
-pub struct AuthState {
+pub struct AuthState<Verifier>
+where
+    Verifier: TokenVerifier,
+{
     pub config: Auth0Config,
-    pub token_verifier: Arc<dyn TokenVerifier>,
+    pub token_verifier: Arc<Verifier>,
 }
 
-impl AuthState {
-    pub fn new(config: Auth0Config, token_verifier: Arc<dyn TokenVerifier>) -> Self {
+impl<Verifier> AuthState<Verifier>
+where
+    Verifier: TokenVerifier,
+{
+    pub fn new(config: Auth0Config, token_verifier: Arc<Verifier>) -> Self {
         Self {
             config,
             token_verifier,
@@ -28,11 +34,19 @@ impl AuthState {
     }
 }
 
-impl<Repos> FromRef<crate::ApiState<Repos>> for Arc<AuthState>
+impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>
+    FromRef<crate::ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>
+    for Arc<AuthState<Verifier>>
 where
-    Repos: crate::RepositoryProfile,
+    UserRepo: backend_storage::UserRepository,
+    ServerRepo: backend_storage::ServerRepository,
+    ChannelRepo: backend_storage::ChannelRepository,
+    MessageRepo: backend_storage::MessageRepository,
+    Verifier: TokenVerifier,
 {
-    fn from_ref(input: &crate::ApiState<Repos>) -> Self {
+    fn from_ref(
+        input: &crate::ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>,
+    ) -> Self {
         input.auth_state.clone()
     }
 }
@@ -152,15 +166,21 @@ impl IntoResponse for AuthError {
     }
 }
 
-impl<Repos> FromRequestParts<crate::ApiState<Repos>> for AuthenticatedUser
+impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>
+    FromRequestParts<crate::ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>
+    for AuthenticatedUser
 where
-    Repos: crate::RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: backend_storage::ServerRepository,
+    ChannelRepo: backend_storage::ChannelRepository,
+    MessageRepo: backend_storage::MessageRepository,
+    Verifier: TokenVerifier,
 {
     type Rejection = AuthError;
 
     fn from_request_parts(
         parts: &mut Parts,
-        state: &crate::ApiState<Repos>,
+        state: &crate::ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>,
     ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
         let auth_state = state.auth_state.clone();
         let user_repository = state.user_repository.clone();

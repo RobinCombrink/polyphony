@@ -1,4 +1,7 @@
-use crate::dto::{ApiErrorResponse, CreateSessionRequest, VoiceConnectResponse};
+use crate::{
+    auth::TokenVerifier,
+    dto::{ApiErrorResponse, CreateSessionRequest, VoiceConnectResponse},
+};
 use axum::{
     Json,
     extract::{Path, State},
@@ -6,11 +9,11 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::Channel;
-use backend_storage::ChannelRepository;
+use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
 use livekit_api::access_token::{AccessToken, VideoGrants};
 use uuid::Uuid;
 
-use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser};
+use crate::{ApiState, auth::AuthenticatedUser};
 
 #[utoipa::path(
     post,
@@ -28,14 +31,18 @@ use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser};
     params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
-pub(crate) async fn create_session<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn create_session<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
     Json(request): Json<CreateSessionRequest>,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let is_channel_member = match state
         .channel_repository

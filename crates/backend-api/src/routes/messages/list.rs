@@ -5,10 +5,13 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::Message;
-use backend_storage::{ChannelRepository, MessageRepository};
+use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
 use uuid::Uuid;
 
-use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser};
+use crate::{
+    ApiState,
+    auth::{AuthenticatedUser, TokenVerifier},
+};
 
 #[utoipa::path(
     get,
@@ -23,13 +26,17 @@ use crate::{ApiState, RepositoryProfile, auth::AuthenticatedUser};
     params(("channel_id" = Uuid, Path, description = "Channel id")),
     tag = "backend-api"
 )]
-pub(crate) async fn list_messages<Repos>(
-    State(state): State<ApiState<Repos>>,
+pub(crate) async fn list_messages<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
     Path(channel_id): Path<Uuid>,
 ) -> impl IntoResponse
 where
-    Repos: RepositoryProfile,
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
 {
     let is_channel_member = match state
         .channel_repository
