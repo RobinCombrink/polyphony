@@ -1,6 +1,6 @@
 {
-    "name": "polyphony_flutter_client",
-    "short_name": "polyphony_flutter_client",
+    "name": "Polyphony",
+    "short_name": "Polyphony",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
