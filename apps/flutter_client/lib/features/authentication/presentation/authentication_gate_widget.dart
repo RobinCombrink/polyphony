@@ -177,8 +177,7 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
             ),
           AuthenticationUnauthenticatedState(:final error) when kIsWeb =>
             _WebAuthenticatingView(signInError: error?.toString()),
-          AuthenticationUnauthenticatedState(:final error) =>
-            _NativeSignInView(
+          AuthenticationUnauthenticatedState(:final error) => _NativeSignInView(
               isSigningIn: false,
               signInError: error?.toString(),
               emailAddressController: _emailAddressController,
