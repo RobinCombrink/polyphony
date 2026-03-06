@@ -109,7 +109,8 @@ impl PostgresRepository {
             return Ok(None);
         };
 
-        self.is_user_member_of_server(server_id.into(), user_id).await
+        self.is_user_member_of_server(server_id.into(), user_id)
+            .await
     }
 }
 

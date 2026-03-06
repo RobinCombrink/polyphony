@@ -8,7 +8,10 @@ use backend_storage::{
     ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
 };
 
-use crate::{ApiState, auth::{AuthenticatedUser, TokenVerifier}};
+use crate::{
+    ApiState,
+    auth::{AuthenticatedUser, TokenVerifier},
+};
 
 #[utoipa::path(
     delete,

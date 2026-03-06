@@ -1,6 +1,6 @@
+use backend_domain::{ExternalReference, UserId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use backend_domain::{ExternalReference, UserId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct MeResponse {

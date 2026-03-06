@@ -4,9 +4,10 @@ use std::sync::LazyLock;
 
 use axum::http::StatusCode;
 use common::bdd_support::{
-    UserId, prime_feature_test_store, SharedTestStore, default_shared_store, fresh_shared_store,
-    get_me_with_token, get_user_by_id_with_token, patch_me_display_name_with_token,
-    payload_user_id, response_payload_json, seeded_app_with_store, shutdown_feature_test_store,
+    SharedTestStore, UserId, default_shared_store, fresh_shared_store, get_me_with_token,
+    get_user_by_id_with_token, patch_me_display_name_with_token, payload_user_id,
+    prime_feature_test_store, response_payload_json, seeded_app_with_store,
+    shutdown_feature_test_store,
 };
 use cucumber::{World as _, given, then, when};
 use serde_json::Value;

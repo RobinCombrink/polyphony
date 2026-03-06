@@ -37,7 +37,9 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
         .expect("postgres pool to connect");
 
     let user = repository
-        .get_or_create_user_by_external_reference(&ExternalReference::from("auth0|integration-user"))
+        .get_or_create_user_by_external_reference(&ExternalReference::from(
+            "auth0|integration-user",
+        ))
         .await;
 
     let server = repository
