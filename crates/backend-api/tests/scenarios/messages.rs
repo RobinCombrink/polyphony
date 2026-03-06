@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use axum::http::StatusCode;
 use backend_api::{build_app, storage::InMemoryRepository};
+use uuid::Uuid;
 
 use super::common::{
     bdd_support::{
         create_channel, create_channel_with_token, create_message, create_message_with_token,
         create_server, create_server_with_token, delete_message, delete_message_with_token,
-        list_messages, list_messages_with_token, response_payload_json, seeded_state,
+        list_messages, list_messages_with_token, payload_uuid, response_payload_json, seeded_state,
         seeded_state_with_store, update_message, update_message_with_token,
     },
     entity_seeder::EntitySeeder,
@@ -23,20 +24,14 @@ async fn given_existing_channel_when_create_message_then_message_is_listed_for_c
 
     let create_server_payload =
         response_payload_json(create_server(&app, &fixture.server.name).await).await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
 
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let create_message_response =
         create_message(&app, &created_channel_id, &fixture.message.content).await;
@@ -67,10 +62,7 @@ async fn given_voice_channel_when_creating_message_then_channel_type_is_incompat
 
     let create_server_payload =
         response_payload_json(create_server(&app, &fixture.server.name).await).await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel_with_token(
@@ -84,10 +76,7 @@ async fn given_voice_channel_when_creating_message_then_channel_type_is_incompat
     )
     .await;
 
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let create_message_response =
         create_message(&app, &created_channel_id, &fixture.message.content).await;
@@ -114,28 +103,19 @@ async fn given_existing_message_when_update_message_then_updated_content_is_list
 
     let create_server_payload =
         response_payload_json(create_server(&app, &fixture.server.name).await).await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let create_message_payload = response_payload_json(
         create_message(&app, &created_channel_id, &fixture.message.content).await,
     )
     .await;
-    let created_message_id = create_message_payload["id"]
-        .as_str()
-        .expect("created message id to be present")
-        .to_owned();
+    let created_message_id = payload_uuid(&create_message_payload, "id");
 
     let update_response = update_message(
         &app,
@@ -171,28 +151,19 @@ async fn given_existing_message_when_delete_message_then_message_is_removed_from
 
     let create_server_payload =
         response_payload_json(create_server(&app, &fixture.server.name).await).await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let create_message_payload = response_payload_json(
         create_message(&app, &created_channel_id, &fixture.message.content).await,
     )
     .await;
-    let created_message_id = create_message_payload["id"]
-        .as_str()
-        .expect("created message id to be present")
-        .to_owned();
+    let created_message_id = payload_uuid(&create_message_payload, "id");
 
     let delete_response = delete_message(&app, &created_channel_id, &created_message_id).await;
     assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);
@@ -226,10 +197,7 @@ async fn given_message_owned_by_another_user_when_updating_then_action_is_forbid
         create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
     )
     .await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel_with_token(
@@ -242,10 +210,7 @@ async fn given_message_owned_by_another_user_when_updating_then_action_is_forbid
         .await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let create_message_payload = response_payload_json(
         create_message_with_token(
@@ -257,10 +222,7 @@ async fn given_message_owned_by_another_user_when_updating_then_action_is_forbid
         .await,
     )
     .await;
-    let created_message_id = create_message_payload["id"]
-        .as_str()
-        .expect("created message id to be present")
-        .to_owned();
+    let created_message_id = payload_uuid(&create_message_payload, "id");
 
     let other_user_app = build_app(seeded_state_with_store(
         other_subject,
@@ -299,10 +261,7 @@ async fn given_message_owned_by_another_user_when_deleting_then_action_is_forbid
         create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
     )
     .await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel_with_token(
@@ -315,10 +274,7 @@ async fn given_message_owned_by_another_user_when_deleting_then_action_is_forbid
         .await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let create_message_payload = response_payload_json(
         create_message_with_token(
@@ -330,10 +286,7 @@ async fn given_message_owned_by_another_user_when_deleting_then_action_is_forbid
         .await,
     )
     .await;
-    let created_message_id = create_message_payload["id"]
-        .as_str()
-        .expect("created message id to be present")
-        .to_owned();
+    let created_message_id = payload_uuid(&create_message_payload, "id");
 
     let other_user_app = build_app(seeded_state_with_store(
         other_subject,
@@ -372,10 +325,7 @@ async fn given_non_member_channel_when_listing_messages_then_access_is_forbidden
         create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
     )
     .await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel_with_token(
@@ -388,10 +338,7 @@ async fn given_non_member_channel_when_listing_messages_then_access_is_forbidden
         .await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let other_user_app = build_app(seeded_state_with_store(
         &other_subject,
@@ -415,24 +362,19 @@ async fn given_missing_message_when_updating_then_reports_message_missing() {
 
     let create_server_payload =
         response_payload_json(create_server(&app, &fixture.server.name).await).await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
+    let missing_message_id = Uuid::new_v4();
     let response = update_message(
         &app,
         &created_channel_id,
-        "00000000-0000-0000-0000-000000000001",
+        &missing_message_id,
         "attempted update",
     )
     .await;
@@ -448,10 +390,12 @@ async fn given_missing_channel_when_updating_message_then_reports_channel_missin
     let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
+    let missing_channel_id = Uuid::new_v4();
+    let missing_message_id = Uuid::new_v4();
     let response = update_message(
         &app,
-        "00000000-0000-0000-0000-000000000001",
-        "00000000-0000-0000-0000-000000000001",
+        &missing_channel_id,
+        &missing_message_id,
         "attempted update",
     )
     .await;
@@ -469,26 +413,16 @@ async fn given_missing_message_when_deleting_then_reports_message_missing() {
 
     let create_server_payload =
         response_payload_json(create_server(&app, &fixture.server.name).await).await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
-    let response = delete_message(
-        &app,
-        &created_channel_id,
-        "00000000-0000-0000-0000-000000000001",
-    )
-    .await;
+    let missing_message_id = Uuid::new_v4();
+    let response = delete_message(&app, &created_channel_id, &missing_message_id).await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
@@ -501,12 +435,9 @@ async fn given_missing_channel_when_deleting_message_then_reports_channel_missin
     let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
-    let response = delete_message(
-        &app,
-        "00000000-0000-0000-0000-000000000001",
-        "00000000-0000-0000-0000-000000000001",
-    )
-    .await;
+    let missing_channel_id = Uuid::new_v4();
+    let missing_message_id = Uuid::new_v4();
+    let response = delete_message(&app, &missing_channel_id, &missing_message_id).await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

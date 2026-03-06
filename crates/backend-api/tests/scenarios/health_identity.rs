@@ -1,3 +1,10 @@
+use super::common::{
+    bdd_support::{
+        get_me_with_token, get_user_by_id_with_token, patch_me_display_name_with_token,
+        payload_uuid, response_payload_json, seeded_state,
+    },
+    entity_seeder::EntitySeeder,
+};
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -6,14 +13,6 @@ use backend_api::build_app;
 use serde_json::Value;
 use tower::ServiceExt;
 use uuid::Uuid;
-
-use super::common::{
-    bdd_support::{
-        get_me_with_token, get_user_by_id_with_token, patch_me_display_name_with_token,
-        response_payload_json, seeded_state,
-    },
-    entity_seeder::EntitySeeder,
-};
 
 #[tokio::test]
 async fn given_backend_started_when_health_is_checked_then_service_is_healthy() {
@@ -112,16 +111,13 @@ async fn given_existing_user_when_lookup_by_id_then_returns_minimal_profile() {
     assert_eq!(update_response.status(), StatusCode::OK);
 
     let me_payload = response_payload_json(get_me_with_token(&app, "valid-token").await).await;
-    let user_id = me_payload["user_id"]
-        .as_str()
-        .expect("user id to be present")
-        .to_owned();
+    let user_id = payload_uuid(&me_payload, "user_id");
 
     let response = get_user_by_id_with_token(&app, &user_id, "valid-token").await;
     assert_eq!(response.status(), StatusCode::OK);
 
     let payload = response_payload_json(response).await;
-    assert_eq!(payload["id"].as_str(), Some(user_id.as_str()));
+    assert_eq!(payload_uuid(&payload, "id"), user_id);
     assert_eq!(payload["display_name"].as_str(), Some("Lookup Name"));
     assert!(payload.get("issuer").is_none());
     assert!(payload.get("token_duration_hours").is_none());
@@ -132,9 +128,9 @@ async fn given_missing_user_when_lookup_by_id_then_reports_user_missing() {
     let state = seeded_state("auth0|lookup-user", "valid-token");
     let app = build_app(state);
 
-    let response =
-        get_user_by_id_with_token(&app, "00000000-0000-0000-0000-000000000001", "valid-token")
-            .await;
+    let missing_user_id = Uuid::new_v4();
+
+    let response = get_user_by_id_with_token(&app, &missing_user_id, "valid-token").await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
@@ -144,9 +140,9 @@ async fn given_invalid_token_when_lookup_by_id_then_returns_unauthorized() {
     let state = seeded_state("auth0|lookup-user", "valid-token");
     let app = build_app(state);
 
-    let response =
-        get_user_by_id_with_token(&app, "00000000-0000-0000-0000-000000000001", "wrong-token")
-            .await;
+    let missing_user_id = Uuid::new_v4();
+
+    let response = get_user_by_id_with_token(&app, &missing_user_id, "wrong-token").await;
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }

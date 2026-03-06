@@ -10,6 +10,7 @@ use super::common::{
         connect_voice_session_with_token, create_channel_with_token, create_server,
         create_server_with_token, create_voice_channel, get_me_with_token, response_payload_json,
         seeded_state, seeded_state_with_store,
+        payload_uuid,
     },
     entity_seeder::EntitySeeder,
 };
@@ -24,19 +25,13 @@ async fn given_existing_voice_channel_when_connecting_then_connection_details_ar
 
     let create_server_payload =
         response_payload_json(create_server(&app, &fixture.server.name).await).await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_voice_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let connect_response = connect_voice_session(&app, &created_channel_id).await;
 
@@ -44,10 +39,7 @@ async fn given_existing_voice_channel_when_connecting_then_connection_details_ar
 
     let payload = response_payload_json(connect_response).await;
 
-    assert_eq!(
-        payload["channel_id"].as_str(),
-        Some(created_channel_id.as_str())
-    );
+    assert_eq!(payload_uuid(&payload, "channel_id"), created_channel_id);
     let participant_user_id = payload["participant_user_id"]
         .as_str()
         .expect("participant user id to be present");
@@ -70,8 +62,8 @@ async fn given_missing_channel_when_connecting_voice_then_reports_channel_missin
     let state = seeded_state(&fixture.user.external_reference, "valid-token");
     let app = build_app(state);
 
-    let connect_response =
-        connect_voice_session(&app, "00000000-0000-0000-0000-000000000001").await;
+    let missing_channel_id = Uuid::new_v4();
+    let connect_response = connect_voice_session(&app, &missing_channel_id).await;
 
     assert_eq!(connect_response.status(), StatusCode::NOT_FOUND);
 }
@@ -94,10 +86,7 @@ async fn given_non_member_channel_when_connecting_voice_then_access_is_forbidden
         create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
     )
     .await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel_with_token(
@@ -110,10 +99,7 @@ async fn given_non_member_channel_when_connecting_voice_then_access_is_forbidden
         .await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let second_user_app = build_app(seeded_state_with_store(
         &second_user.external_reference,
@@ -152,10 +138,7 @@ async fn given_shared_voice_channel_when_member_connects_then_connection_details
         create_server_with_token(&owner_app, &fixture.server.name, "owner-token").await,
     )
     .await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel_with_token(
@@ -168,17 +151,11 @@ async fn given_shared_voice_channel_when_member_connects_then_connection_details
         .await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let member_me_payload =
         response_payload_json(get_me_with_token(&second_user_app, "member-token").await).await;
-    let member_user_id = member_me_payload["user_id"]
-        .as_str()
-        .expect("member user id to be present")
-        .to_owned();
+    let member_user_id = payload_uuid(&member_me_payload, "user_id");
 
     let add_member_response = add_server_member_with_token(
         &owner_app,
@@ -196,10 +173,7 @@ async fn given_shared_voice_channel_when_member_connects_then_connection_details
     assert_eq!(connect_response.status(), StatusCode::OK);
 
     let payload = response_payload_json(connect_response).await;
-    assert_eq!(
-        payload["channel_id"].as_str(),
-        Some(created_channel_id.as_str())
-    );
+    assert_eq!(payload_uuid(&payload, "channel_id"), created_channel_id);
     assert!(
         payload["access_token"]
             .as_str()
@@ -219,10 +193,7 @@ async fn given_text_channel_when_connecting_voice_then_channel_type_is_incompati
 
     let create_server_payload =
         response_payload_json(create_server(&app, &fixture.server.name).await).await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_channel_with_token(
@@ -235,10 +206,7 @@ async fn given_text_channel_when_connecting_voice_then_channel_type_is_incompati
         .await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let connect_response = connect_voice_session(&app, &created_channel_id).await;
 
@@ -261,19 +229,13 @@ async fn given_voice_channel_when_connecting_text_session_then_channel_type_is_i
 
     let create_server_payload =
         response_payload_json(create_server(&app, &fixture.server.name).await).await;
-    let created_server_id = create_server_payload["id"]
-        .as_str()
-        .expect("created server id to be present")
-        .to_owned();
+    let created_server_id = payload_uuid(&create_server_payload, "id");
 
     let create_channel_payload = response_payload_json(
         create_voice_channel(&app, &created_server_id, fixture.channel.name()).await,
     )
     .await;
-    let created_channel_id = create_channel_payload["id"]
-        .as_str()
-        .expect("created channel id to be present")
-        .to_owned();
+    let created_channel_id = payload_uuid(&create_channel_payload, "id");
 
     let connect_response =
         connect_channel_session_with_type(&app, &created_channel_id, "text").await;

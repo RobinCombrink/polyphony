@@ -18,6 +18,11 @@ use tower::ServiceExt;
 use url::Url;
 use uuid::Uuid;
 
+pub(crate) fn payload_uuid(payload: &Value, key: &str) -> Uuid {
+    Uuid::parse_str(payload[key].as_str().expect("uuid field to be present"))
+        .expect("payload uuid to be valid")
+}
+
 struct TestTokenVerifier {
     expected_token: String,
     external_reference: String,
@@ -70,7 +75,7 @@ pub(crate) async fn create_server_with_token(
 
 pub(crate) async fn create_channel(
     app: &axum::Router,
-    server_id: &str,
+    server_id: &Uuid,
     channel_name: &str,
 ) -> axum::response::Response {
     create_channel_with_token(app, server_id, channel_name, "text", "valid-token").await
@@ -78,7 +83,7 @@ pub(crate) async fn create_channel(
 
 pub(crate) async fn create_voice_channel(
     app: &axum::Router,
-    server_id: &str,
+    server_id: &Uuid,
     channel_name: &str,
 ) -> axum::response::Response {
     create_channel_with_token(app, server_id, channel_name, "voice", "valid-token").await
@@ -86,7 +91,7 @@ pub(crate) async fn create_voice_channel(
 
 pub(crate) async fn create_channel_with_token(
     app: &axum::Router,
-    server_id: &str,
+    server_id: &Uuid,
     channel_name: &str,
     channel_type: &str,
     bearer_token: &str,
@@ -110,14 +115,14 @@ pub(crate) async fn create_channel_with_token(
 
 pub(crate) async fn delete_channel(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
 ) -> axum::response::Response {
     delete_channel_with_token(app, channel_id, "valid-token").await
 }
 
 pub(crate) async fn update_channel(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
     channel_name: &str,
 ) -> axum::response::Response {
     update_channel_with_token(app, channel_id, channel_name, "valid-token").await
@@ -125,7 +130,7 @@ pub(crate) async fn update_channel(
 
 pub(crate) async fn update_channel_with_token(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
     channel_name: &str,
     bearer_token: &str,
 ) -> axum::response::Response {
@@ -147,7 +152,7 @@ pub(crate) async fn update_channel_with_token(
 
 pub(crate) async fn delete_channel_with_token(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
@@ -165,16 +170,16 @@ pub(crate) async fn delete_channel_with_token(
 
 pub(crate) async fn add_server_member(
     app: &axum::Router,
-    server_id: &str,
-    user_id: &str,
+    server_id: &Uuid,
+    user_id: &Uuid,
 ) -> axum::response::Response {
     add_server_member_with_token(app, server_id, user_id, "valid-token").await
 }
 
 pub(crate) async fn add_server_member_with_token(
     app: &axum::Router,
-    server_id: &str,
-    user_id: &str,
+    server_id: &Uuid,
+    user_id: &Uuid,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
@@ -193,13 +198,16 @@ pub(crate) async fn add_server_member_with_token(
         .expect("add server member response from app")
 }
 
-pub(crate) async fn delete_server(app: &axum::Router, server_id: &str) -> axum::response::Response {
+pub(crate) async fn delete_server(
+    app: &axum::Router,
+    server_id: &Uuid,
+) -> axum::response::Response {
     delete_server_with_token(app, server_id, "valid-token").await
 }
 
 pub(crate) async fn delete_server_with_token(
     app: &axum::Router,
-    server_id: &str,
+    server_id: &Uuid,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
@@ -217,7 +225,7 @@ pub(crate) async fn delete_server_with_token(
 
 pub(crate) async fn create_message(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
     content: &str,
 ) -> axum::response::Response {
     create_message_with_token(app, channel_id, content, "valid-token").await
@@ -225,7 +233,7 @@ pub(crate) async fn create_message(
 
 pub(crate) async fn create_message_with_token(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
     content: &str,
     bearer_token: &str,
 ) -> axum::response::Response {
@@ -247,8 +255,8 @@ pub(crate) async fn create_message_with_token(
 
 pub(crate) async fn update_message(
     app: &axum::Router,
-    channel_id: &str,
-    message_id: &str,
+    channel_id: &Uuid,
+    message_id: &Uuid,
     content: &str,
 ) -> axum::response::Response {
     update_message_with_token(app, channel_id, message_id, content, "valid-token").await
@@ -256,8 +264,8 @@ pub(crate) async fn update_message(
 
 pub(crate) async fn update_message_with_token(
     app: &axum::Router,
-    channel_id: &str,
-    message_id: &str,
+    channel_id: &Uuid,
+    message_id: &Uuid,
     content: &str,
     bearer_token: &str,
 ) -> axum::response::Response {
@@ -281,16 +289,16 @@ pub(crate) async fn update_message_with_token(
 
 pub(crate) async fn delete_message(
     app: &axum::Router,
-    channel_id: &str,
-    message_id: &str,
+    channel_id: &Uuid,
+    message_id: &Uuid,
 ) -> axum::response::Response {
     delete_message_with_token(app, channel_id, message_id, "valid-token").await
 }
 
 pub(crate) async fn delete_message_with_token(
     app: &axum::Router,
-    channel_id: &str,
-    message_id: &str,
+    channel_id: &Uuid,
+    message_id: &Uuid,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
@@ -310,14 +318,14 @@ pub(crate) async fn delete_message_with_token(
 
 pub(crate) async fn list_messages(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
 ) -> axum::response::Response {
     list_messages_with_token(app, channel_id, "valid-token").await
 }
 
 pub(crate) async fn list_messages_with_token(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
@@ -352,13 +360,16 @@ pub(crate) async fn list_servers_with_token(
         .expect("list servers response from app")
 }
 
-pub(crate) async fn list_channels(app: &axum::Router, server_id: &str) -> axum::response::Response {
+pub(crate) async fn list_channels(
+    app: &axum::Router,
+    server_id: &Uuid,
+) -> axum::response::Response {
     list_channels_with_token(app, server_id, "valid-token").await
 }
 
 pub(crate) async fn list_channels_with_token(
     app: &axum::Router,
-    server_id: &str,
+    server_id: &Uuid,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
@@ -375,14 +386,14 @@ pub(crate) async fn list_channels_with_token(
 
 pub(crate) async fn connect_voice_session(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
 ) -> axum::response::Response {
     connect_voice_session_with_token(app, channel_id, "valid-token").await
 }
 
 pub(crate) async fn connect_voice_session_with_token(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
     bearer_token: &str,
 ) -> axum::response::Response {
     connect_channel_session_with_type_and_token(app, channel_id, "voice", bearer_token).await
@@ -390,7 +401,7 @@ pub(crate) async fn connect_voice_session_with_token(
 
 pub(crate) async fn connect_channel_session_with_type(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
     session_type: &str,
 ) -> axum::response::Response {
     connect_channel_session_with_type_and_token(app, channel_id, session_type, "valid-token").await
@@ -398,7 +409,7 @@ pub(crate) async fn connect_channel_session_with_type(
 
 pub(crate) async fn connect_channel_session_with_type_and_token(
     app: &axum::Router,
-    channel_id: &str,
+    channel_id: &Uuid,
     session_type: &str,
     bearer_token: &str,
 ) -> axum::response::Response {
@@ -436,7 +447,7 @@ pub(crate) async fn get_me_with_token(
 
 pub(crate) async fn get_user_by_id_with_token(
     app: &axum::Router,
-    user_id: &str,
+    user_id: &Uuid,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
