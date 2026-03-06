@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::ops::Deref;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -8,23 +9,214 @@ use axum::{
     http::{Request, header},
 };
 use backend_api::{
-    ApiState, SplitRepositories,
+    ApiState,
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
-    storage::InMemoryRepository,
+    storage::{InMemoryRepository, PostgresRepository},
 };
+use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
 use serde_json::Value;
+use testcontainers_modules::{
+    postgres::Postgres,
+    testcontainers::{ContainerAsync, runners::AsyncRunner},
+};
 use tower::ServiceExt;
 use url::Url;
 use uuid::Uuid;
+
+#[derive(Debug)]
+pub(crate) struct PostgresTestEnv {
+    _container: ContainerAsync<Postgres>,
+    repository: Arc<PostgresRepository>,
+}
+
+static FEATURE_POSTGRES_TEST_ENV: tokio::sync::Mutex<Option<Arc<PostgresTestEnv>>> =
+    tokio::sync::Mutex::const_new(None);
+
+#[derive(Debug)]
+pub(crate) enum TestStore {
+    InMemory(Arc<InMemoryRepository>),
+    Postgres(Arc<PostgresTestEnv>),
+}
+
+pub(crate) type SharedTestStore = Arc<TestStore>;
+
+pub(crate) fn default_shared_store() -> SharedTestStore {
+    Arc::new(TestStore::InMemory(Arc::new(InMemoryRepository::new())))
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub(crate) struct ExternalReference(String);
+
+impl From<String> for ExternalReference {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl ExternalReference {
+    pub(crate) fn from_actor_name(name: &str) -> Self {
+        Self(format!("auth0|{}-{}", name.to_lowercase(), Uuid::new_v4()))
+    }
+
+    pub(crate) fn from_string(value: String) -> Self {
+        Self(value)
+    }
+
+    pub(crate) fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub(crate) struct UserId(Uuid);
+
+impl UserId {
+    pub(crate) fn as_uuid(&self) -> &Uuid {
+        &self.0
+    }
+}
+
+impl Deref for UserId {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Uuid> for UserId {
+    fn from(value: Uuid) -> Self {
+        Self(value)
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub(crate) struct ServerId(Uuid);
+
+impl ServerId {
+    pub(crate) fn as_uuid(&self) -> &Uuid {
+        &self.0
+    }
+}
+
+impl Deref for ServerId {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Uuid> for ServerId {
+    fn from(value: Uuid) -> Self {
+        Self(value)
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub(crate) struct ChannelId(Uuid);
+
+impl ChannelId {
+    pub(crate) fn as_uuid(&self) -> &Uuid {
+        &self.0
+    }
+}
+
+impl Deref for ChannelId {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Uuid> for ChannelId {
+    fn from(value: Uuid) -> Self {
+        Self(value)
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub(crate) struct MessageId(Uuid);
+
+impl MessageId {
+    pub(crate) fn as_uuid(&self) -> &Uuid {
+        &self.0
+    }
+}
+
+impl Deref for MessageId {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Uuid> for MessageId {
+    fn from(value: Uuid) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct Actor {
+    pub(crate) name: String,
+    pub(crate) token: String,
+    pub(crate) external_reference: ExternalReference,
+    pub(crate) user_id: UserId,
+    pub(crate) app: axum::Router,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum TestStoreMode {
+    InMemory,
+    Postgres,
+}
+
+impl TestStoreMode {
+    fn from_environment() -> Self {
+        let mode = std::env::var("BDD_STORE")
+            .unwrap_or_else(|_| "in-memory".to_owned())
+            .to_lowercase();
+
+        match mode.as_str() {
+            "postgres" | "sql" | "postgresql" => Self::Postgres,
+            _ => Self::InMemory,
+        }
+    }
+}
 
 pub(crate) fn payload_uuid(payload: &Value, key: &str) -> Uuid {
     Uuid::parse_str(payload[key].as_str().expect("uuid field to be present"))
         .expect("payload uuid to be valid")
 }
 
+pub(crate) fn payload_user_id(payload: &Value, key: &str) -> UserId {
+    payload_uuid(payload, key).into()
+}
+
+pub(crate) fn payload_server_id(payload: &Value, key: &str) -> ServerId {
+    payload_uuid(payload, key).into()
+}
+
+pub(crate) fn payload_channel_id(payload: &Value, key: &str) -> ChannelId {
+    payload_uuid(payload, key).into()
+}
+
+pub(crate) fn payload_message_id(payload: &Value, key: &str) -> MessageId {
+    payload_uuid(payload, key).into()
+}
+
 struct TestTokenVerifier {
     expected_token: String,
+    user_id: UserId,
     external_reference: String,
 }
 
@@ -36,7 +228,7 @@ impl TokenVerifier for TestTokenVerifier {
     ) -> Result<AuthenticatedUser, backend_api::auth::AuthError> {
         if bearer_token == self.expected_token {
             return Ok(AuthenticatedUser {
-                user_id: Uuid::nil(),
+                user_id: *self.user_id,
                 external_reference: self.external_reference.clone(),
             });
         }
@@ -492,36 +684,15 @@ pub(crate) async fn response_payload_json(response: axum::response::Response) ->
     .expect("valid json payload")
 }
 
-pub(crate) fn seeded_state(
+fn seeded_state_with_store<Repo>(
     external_reference: &str,
     token: &str,
-) -> ApiState<
-    SplitRepositories<
-        InMemoryRepository,
-        InMemoryRepository,
-        InMemoryRepository,
-        InMemoryRepository,
-    >,
-> {
-    seeded_state_with_store(
-        external_reference,
-        token,
-        Arc::new(InMemoryRepository::new()),
-    )
-}
-
-pub(crate) fn seeded_state_with_store(
-    external_reference: &str,
-    token: &str,
-    repository: Arc<InMemoryRepository>,
-) -> ApiState<
-    SplitRepositories<
-        InMemoryRepository,
-        InMemoryRepository,
-        InMemoryRepository,
-        InMemoryRepository,
-    >,
-> {
+    user_id: UserId,
+    repository: Arc<Repo>,
+) -> ApiState<Repo, Repo, Repo, Repo, TestTokenVerifier>
+where
+    Repo: UserRepository + ServerRepository + ChannelRepository + MessageRepository,
+{
     let auth_config = Auth0Config {
         issuer: Url::parse("https://example-dev.us.auth0.com/").expect("valid issuer url"),
         audience: "polyphony-api".to_owned(),
@@ -530,6 +701,7 @@ pub(crate) fn seeded_state_with_store(
 
     let token_verifier = Arc::new(TestTokenVerifier {
         expected_token: token.to_owned(),
+        user_id,
         external_reference: external_reference.to_owned(),
     });
 
@@ -546,4 +718,116 @@ pub(crate) fn seeded_state_with_store(
         message_store,
         Arc::new(LiveKitConfig::default()),
     )
+}
+
+pub(crate) fn seeded_app_with_store(
+    external_reference: &str,
+    token: &str,
+    repository: SharedTestStore,
+) -> axum::Router {
+    let user_id = UserId::from(Uuid::new_v4());
+
+    match repository.as_ref() {
+        TestStore::InMemory(store) => backend_api::build_app(seeded_state_with_store(
+            external_reference,
+            token,
+            user_id,
+            Arc::clone(store),
+        )),
+        TestStore::Postgres(store) => backend_api::build_app(seeded_state_with_store(
+            external_reference,
+            token,
+            user_id,
+            Arc::clone(&store.repository),
+        )),
+    }
+}
+
+pub(crate) async fn create_actor(name: &str, token: &str, repository: SharedTestStore) -> Actor {
+    let external_reference = ExternalReference::from_actor_name(name);
+    let app = seeded_app_with_store(external_reference.as_str(), token, repository);
+    let me_payload = response_payload_json(get_me_with_token(&app, token).await).await;
+
+    Actor {
+        name: name.to_owned(),
+        token: token.to_owned(),
+        external_reference,
+        user_id: payload_user_id(&me_payload, "user_id"),
+        app,
+    }
+}
+
+pub(crate) async fn seeded_app(external_reference: &str, token: &str) -> axum::Router {
+    seeded_app_with_store(external_reference, token, fresh_shared_store().await)
+}
+
+pub(crate) async fn fresh_shared_store() -> SharedTestStore {
+    match TestStoreMode::from_environment() {
+        TestStoreMode::InMemory => {
+            Arc::new(TestStore::InMemory(Arc::new(InMemoryRepository::new())))
+        }
+        TestStoreMode::Postgres => Arc::new(TestStore::Postgres(feature_postgres_test_env().await)),
+    }
+}
+
+pub(crate) async fn prime_feature_test_store() {
+    if TestStoreMode::from_environment() == TestStoreMode::Postgres {
+        let _ = feature_postgres_test_env().await;
+    }
+}
+
+pub(crate) async fn shutdown_feature_test_store() {
+    let mut guard = FEATURE_POSTGRES_TEST_ENV.lock().await;
+    *guard = None;
+}
+
+async fn feature_postgres_test_env() -> Arc<PostgresTestEnv> {
+    {
+        let guard = FEATURE_POSTGRES_TEST_ENV.lock().await;
+        if let Some(env) = guard.as_ref() {
+            return Arc::clone(env);
+        }
+    }
+
+    let env = Arc::new(postgres_test_env().await);
+    let mut guard = FEATURE_POSTGRES_TEST_ENV.lock().await;
+    match guard.as_ref() {
+        Some(existing) => Arc::clone(existing),
+        None => {
+            *guard = Some(Arc::clone(&env));
+            env
+        }
+    }
+}
+
+async fn postgres_test_env() -> PostgresTestEnv {
+    const POLYPHONY: &str = "polyphony";
+    const POSTGRES: &str = "postgres";
+    let container = Postgres::default()
+        .with_db_name(POLYPHONY)
+        .with_user(POSTGRES)
+        .with_password(POSTGRES)
+        .start()
+        .await
+        .expect("postgres container to start");
+    let host = container
+        .get_host()
+        .await
+        .expect("postgres host")
+        .to_string();
+    let port = container
+        .get_host_port_ipv4(5432)
+        .await
+        .expect("postgres mapped port");
+
+    let repository = Arc::new(
+        PostgresRepository::connect(&host, port, POLYPHONY, POSTGRES, POSTGRES, 5)
+            .await
+            .expect("postgres repository initialization to succeed"),
+    );
+
+    PostgresTestEnv {
+        _container: container,
+        repository,
+    }
 }

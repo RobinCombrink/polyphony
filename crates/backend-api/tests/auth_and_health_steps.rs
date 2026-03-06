@@ -4,8 +4,11 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use backend_api::build_app;
-use common::bdd_support::{get_me_with_token, response_payload_json, seeded_state};
+use common::bdd_support::{
+    SharedTestStore, default_shared_store, fresh_shared_store, get_me_with_token,
+    prime_feature_test_store, response_payload_json, seeded_app_with_store,
+    shutdown_feature_test_store,
+};
 use cucumber::{World as _, given, then, when};
 use serde_json::Value;
 use tower::ServiceExt;
@@ -14,16 +17,28 @@ const FEATURE_PATH: &str = "../../features/auth_and_health.feature";
 const VALID_TOKEN: &str = "valid-token";
 const EXTERNAL_REFERENCE: &str = "auth0|health-identity-user";
 
-#[derive(Debug, Default, cucumber::World)]
+#[derive(Debug, cucumber::World)]
 struct AuthAndHealthWorld {
-    app: Option<axum::Router>,
+    app: axum::Router,
+    shared_store: SharedTestStore,
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
 }
 
+impl Default for AuthAndHealthWorld {
+    fn default() -> Self {
+        Self {
+            app: axum::Router::new(),
+            shared_store: default_shared_store(),
+            latest_status: None,
+            latest_payload: None,
+        }
+    }
+}
+
 impl AuthAndHealthWorld {
     fn app_ref(&self) -> &axum::Router {
-        self.app.as_ref().expect("app to be initialized")
+        &self.app
     }
 
     fn latest_status(&self) -> StatusCode {
@@ -39,7 +54,9 @@ impl AuthAndHealthWorld {
 
 #[given("the backend service is running")]
 async fn the_backend_service_is_running(world: &mut AuthAndHealthWorld) {
-    world.app = Some(build_app(seeded_state(EXTERNAL_REFERENCE, VALID_TOKEN)));
+    let shared = fresh_shared_store().await;
+    world.app = seeded_app_with_store(EXTERNAL_REFERENCE, VALID_TOKEN, shared.clone());
+    world.shared_store = shared;
     world.latest_status = None;
     world.latest_payload = None;
 }
@@ -78,7 +95,9 @@ async fn the_service_identity_is_visible(world: &mut AuthAndHealthWorld) {
 
 #[given("an authenticated user exists")]
 async fn an_authenticated_user_exists(world: &mut AuthAndHealthWorld) {
-    world.app = Some(build_app(seeded_state(EXTERNAL_REFERENCE, VALID_TOKEN)));
+    let shared = fresh_shared_store().await;
+    world.app = seeded_app_with_store(EXTERNAL_REFERENCE, VALID_TOKEN, shared.clone());
+    world.shared_store = shared;
     world.latest_status = None;
     world.latest_payload = None;
 }
@@ -111,7 +130,9 @@ async fn the_identity_has_no_display_name_yet(world: &mut AuthAndHealthWorld) {
 
 #[tokio::test]
 async fn auth_and_health_feature() {
+    prime_feature_test_store().await;
     AuthAndHealthWorld::cucumber()
         .run_and_exit(FEATURE_PATH)
         .await;
+    shutdown_feature_test_store().await;
 }

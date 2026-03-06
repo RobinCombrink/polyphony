@@ -3,10 +3,11 @@ mod common;
 use std::sync::LazyLock;
 
 use axum::http::StatusCode;
-use backend_api::build_app;
 use common::bdd_support::{
+    prime_feature_test_store,
+    SharedTestStore, default_shared_store, fresh_shared_store,
     get_me_with_token, get_user_by_id_with_token, patch_me_display_name_with_token,
-    response_payload_json, seeded_state,
+    response_payload_json, seeded_app_with_store, shutdown_feature_test_store,
 };
 use cucumber::{World as _, given, then, when};
 use serde_json::Value;
@@ -18,17 +19,30 @@ const EXTERNAL_REFERENCE: &str = "auth0|bdd-user";
 const UPDATED_DISPLAY_NAME: &str = "Polyphony User";
 static MISSING_USER_ID: LazyLock<Uuid> = LazyLock::new(Uuid::new_v4);
 
-#[derive(Debug, Default, cucumber::World)]
+#[derive(Debug, cucumber::World)]
 struct IdentityWorld {
-    app: Option<axum::Router>,
+    app: axum::Router,
+    shared_store: SharedTestStore,
     user_id: Option<Uuid>,
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
 }
 
+impl Default for IdentityWorld {
+    fn default() -> Self {
+        Self {
+            app: axum::Router::new(),
+            shared_store: default_shared_store(),
+            user_id: None,
+            latest_status: None,
+            latest_payload: None,
+        }
+    }
+}
+
 impl IdentityWorld {
     fn app_ref(&self) -> &axum::Router {
-        self.app.as_ref().expect("app to be initialized")
+        &self.app
     }
 
     fn latest_status(&self) -> StatusCode {
@@ -48,8 +62,9 @@ impl IdentityWorld {
 
 #[given("an authenticated user exists")]
 async fn an_authenticated_user_exists(world: &mut IdentityWorld) {
-    let state = seeded_state(EXTERNAL_REFERENCE, VALID_TOKEN);
-    world.app = Some(build_app(state));
+    let shared = fresh_shared_store().await;
+    world.app = seeded_app_with_store(EXTERNAL_REFERENCE, VALID_TOKEN, shared.clone());
+    world.shared_store = shared;
     world.user_id = None;
     world.latest_status = None;
     world.latest_payload = None;
@@ -164,7 +179,9 @@ async fn identity_lookup_access_is_denied(world: &mut IdentityWorld) {
 
 #[tokio::test]
 async fn identity_and_users_feature() {
+    prime_feature_test_store().await;
     IdentityWorld::cucumber()
         .run_and_exit("../../features/identity_and_users.feature")
         .await;
+    shutdown_feature_test_store().await;
 }

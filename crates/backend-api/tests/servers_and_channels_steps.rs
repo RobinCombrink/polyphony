@@ -1,16 +1,19 @@
 mod common;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use axum::http::StatusCode;
-use backend_api::{build_app, storage::InMemoryRepository};
 use common::{
     bdd_support::{
-        add_server_member, add_server_member_with_token, create_channel, create_channel_with_token,
-        create_server, create_server_with_token, delete_channel, delete_channel_with_token,
-        delete_server, delete_server_with_token, list_channels, list_channels_with_token,
-        list_servers, list_servers_with_token, payload_uuid, response_payload_json, seeded_state,
-        seeded_state_with_store, update_channel, update_channel_with_token,
+        Actor, ChannelId, ServerId, SharedTestStore, UserId, add_server_member,
+        add_server_member_with_token, create_actor, create_channel, create_channel_with_token,
+        create_server, create_server_with_token, default_shared_store, delete_channel,
+        delete_channel_with_token, delete_server, delete_server_with_token, fresh_shared_store,
+        list_channels, list_channels_with_token, list_servers, list_servers_with_token,
+        payload_channel_id, payload_server_id, payload_user_id, prime_feature_test_store,
+        response_payload_json, seeded_app_with_store, shutdown_feature_test_store, update_channel,
+        update_channel_with_token,
     },
     entity_seeder::EntitySeeder,
 };
@@ -20,40 +23,70 @@ use uuid::Uuid;
 
 const FEATURE_PATH: &str = "../../features/servers_and_channels.feature";
 
-#[derive(Debug, Default, cucumber::World)]
+#[derive(Debug, cucumber::World)]
 struct ServersAndChannelsWorld {
-    owner_app: Option<axum::Router>,
-    second_app: Option<axum::Router>,
-    shared_store: Option<Arc<InMemoryRepository>>,
-    server_id: Option<Uuid>,
-    channel_id: Option<Uuid>,
-    second_user_id: Option<Uuid>,
+    actors: HashMap<String, Actor>,
+    shared_store: SharedTestStore,
+    owner_name: Option<String>,
+    second_name: Option<String>,
+    server_id: Option<ServerId>,
+    channel_id: Option<ChannelId>,
+    second_user_id: Option<UserId>,
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
     updated_channel_name: Option<String>,
     owner_token: String,
-    owner_name: Option<String>,
-    second_name: Option<String>,
+}
+
+impl Default for ServersAndChannelsWorld {
+    fn default() -> Self {
+        Self {
+            actors: HashMap::new(),
+            shared_store: default_shared_store(),
+            owner_name: None,
+            second_name: None,
+            server_id: None,
+            channel_id: None,
+            second_user_id: None,
+            latest_status: None,
+            latest_payload: None,
+            updated_channel_name: None,
+            owner_token: String::new(),
+        }
+    }
 }
 
 impl ServersAndChannelsWorld {
-    fn owner_app_ref(&self) -> &axum::Router {
-        self.owner_app
+    fn actor_ref(&self, name: &str) -> &Actor {
+        self.actors.get(name).expect("actor to be initialized")
+    }
+
+    fn owner_actor_ref(&self) -> &Actor {
+        let owner_name = self.owner_name.as_ref().expect("owner name to be set");
+        self.actor_ref(owner_name)
+    }
+
+    fn second_actor_ref(&self) -> &Actor {
+        let second_name = self
+            .second_name
             .as_ref()
-            .expect("owner app to be initialized")
+            .expect("second user name to be set");
+        self.actor_ref(second_name)
+    }
+
+    fn owner_app_ref(&self) -> &axum::Router {
+        &self.owner_actor_ref().app
     }
 
     fn second_app_ref(&self) -> &axum::Router {
-        self.second_app
-            .as_ref()
-            .expect("second app to be initialized")
+        &self.second_actor_ref().app
     }
 
-    fn server_id_ref(&self) -> &Uuid {
+    fn server_id_ref(&self) -> &ServerId {
         self.server_id.as_ref().expect("server id to be set")
     }
 
-    fn channel_id_ref(&self) -> &Uuid {
+    fn channel_id_ref(&self) -> &ChannelId {
         self.channel_id.as_ref().expect("channel id to be set")
     }
 
@@ -67,26 +100,18 @@ impl ServersAndChannelsWorld {
             .expect("latest payload to be set")
     }
 
-    fn owner_token(&self) -> &str {
-        if self.owner_token.is_empty() {
-            return "valid-token";
-        }
-
-        self.owner_token.as_str()
-    }
-
     fn assert_owner_name(&self, name: &str) {
-        let owner_name = self.owner_name.as_ref().expect("owner name to be set");
-        assert_eq!(owner_name, name, "owner name mismatch in scenario step");
+        assert_eq!(
+            self.owner_name.as_deref(),
+            Some(name),
+            "owner name mismatch in scenario step"
+        );
     }
 
     fn assert_second_name(&self, name: &str) {
-        let second_name = self
-            .second_name
-            .as_ref()
-            .expect("second user name to be set");
         assert_eq!(
-            second_name, name,
+            self.second_name.as_deref(),
+            Some(name),
             "second user name mismatch in scenario step"
         );
     }
@@ -96,16 +121,13 @@ impl ServersAndChannelsWorld {
             return;
         }
 
-        let fixture = EntitySeeder::default().chat_fixture();
-        let response = create_server_with_token(
-            self.owner_app_ref(),
-            &fixture.server.name,
-            self.owner_token(),
-        )
-        .await;
+        let fixture = EntitySeeder.chat_fixture();
+        let owner = self.owner_actor_ref();
+        let response =
+            create_server_with_token(&owner.app, &fixture.server.name, owner.token.as_str()).await;
         assert_eq!(response.status(), StatusCode::CREATED);
         let payload = response_payload_json(response).await;
-        self.server_id = Some(payload_uuid(&payload, "id"));
+        self.server_id = Some(payload_server_id(&payload, "id"));
     }
 
     async fn ensure_owner_channel(&mut self) {
@@ -114,30 +136,32 @@ impl ServersAndChannelsWorld {
             return;
         }
 
-        let fixture = EntitySeeder::default().chat_fixture();
+        let fixture = EntitySeeder.chat_fixture();
+        let owner = self.owner_actor_ref();
         let response = create_channel_with_token(
-            self.owner_app_ref(),
-            self.server_id_ref(),
+            &owner.app,
+            self.server_id_ref().as_uuid(),
             fixture.channel.name(),
             "text",
-            self.owner_token(),
+            owner.token.as_str(),
         )
         .await;
         assert_eq!(response.status(), StatusCode::CREATED);
         let payload = response_payload_json(response).await;
-        self.channel_id = Some(payload_uuid(&payload, "id"));
+        self.channel_id = Some(payload_channel_id(&payload, "id"));
     }
 }
 
 #[given("an authenticated user exists")]
 async fn an_authenticated_user_exists(world: &mut ServersAndChannelsWorld) {
-    let fixture = EntitySeeder::default().chat_fixture();
-    world.owner_app = Some(build_app(seeded_state(
-        &fixture.user.external_reference,
-        "valid-token",
-    )));
-    world.second_app = None;
-    world.shared_store = None;
+    let shared = fresh_shared_store().await;
+    let actor = create_actor("Authenticated User", "valid-token", Arc::clone(&shared)).await;
+
+    world.actors.clear();
+    world.actors.insert(actor.name.clone(), actor);
+    world.shared_store = shared;
+    world.owner_name = Some("Authenticated User".to_owned());
+    world.second_name = None;
     world.server_id = None;
     world.channel_id = None;
     world.second_user_id = None;
@@ -145,24 +169,20 @@ async fn an_authenticated_user_exists(world: &mut ServersAndChannelsWorld) {
     world.latest_payload = None;
     world.updated_channel_name = None;
     world.owner_token = "valid-token".to_owned();
-    world.owner_name = None;
-    world.second_name = None;
 }
 
 #[given(regex = r#"^a user named "([^"]+)" exists$"#)]
 async fn a_user_named_exists(world: &mut ServersAndChannelsWorld, name: String) {
-    if world.owner_app.is_none() {
-        let shared = Arc::new(InMemoryRepository::new());
-        let subject = format!("auth0|{}", name.to_lowercase());
-        world.owner_app = Some(build_app(seeded_state_with_store(
-            &subject,
-            "owner-token",
-            Arc::clone(&shared),
-        )));
-        world.shared_store = Some(shared);
+    if world.owner_name.is_none() {
+        let shared = fresh_shared_store().await;
+        let actor = create_actor(&name, "owner-token", Arc::clone(&shared)).await;
+
+        world.actors.clear();
+        world.actors.insert(name.clone(), actor);
+        world.shared_store = shared;
         world.owner_token = "owner-token".to_owned();
         world.owner_name = Some(name);
-        world.second_app = None;
+        world.second_name = None;
         world.server_id = None;
         world.channel_id = None;
         world.second_user_id = None;
@@ -172,19 +192,11 @@ async fn a_user_named_exists(world: &mut ServersAndChannelsWorld, name: String) 
         return;
     }
 
-    if world.second_app.is_none() {
-        let shared = world
-            .shared_store
-            .as_ref()
-            .expect("shared store to be initialized")
-            .clone();
-        let subject = format!("auth0|{}", name.to_lowercase());
-        let second_app = build_app(seeded_state_with_store(&subject, "member-token", shared));
-        let me_response = common::bdd_support::get_me_with_token(&second_app, "member-token").await;
-        let me_payload = response_payload_json(me_response).await;
-
-        world.second_user_id = Some(payload_uuid(&me_payload, "user_id"));
-        world.second_app = Some(second_app);
+    if world.second_name.is_none() {
+        let shared = world.shared_store.clone();
+        let second_actor = create_actor(&name, "member-token", shared).await;
+        world.second_user_id = Some(second_actor.user_id);
+        world.actors.insert(name.clone(), second_actor);
         world.second_name = Some(name);
         world.latest_status = None;
         world.latest_payload = None;
@@ -229,15 +241,12 @@ async fn a_channel_exists_in_the_users_server(world: &mut ServersAndChannelsWorl
 
 #[given("a server owner exists")]
 async fn a_server_owner_exists(world: &mut ServersAndChannelsWorld) {
-    let fixture = EntitySeeder::default().chat_fixture();
-    let shared = Arc::new(InMemoryRepository::new());
-    world.owner_app = Some(build_app(seeded_state_with_store(
-        &fixture.user.external_reference,
-        "owner-token",
-        Arc::clone(&shared),
-    )));
-    world.shared_store = Some(shared);
-    world.second_app = None;
+    let shared = fresh_shared_store().await;
+    let owner_actor = create_actor("Owner", "owner-token", Arc::clone(&shared)).await;
+
+    world.actors.clear();
+    world.actors.insert("Owner".to_owned(), owner_actor);
+    world.shared_store = shared;
     world.server_id = None;
     world.channel_id = None;
     world.second_user_id = None;
@@ -251,25 +260,11 @@ async fn a_server_owner_exists(world: &mut ServersAndChannelsWorld) {
 
 #[given("a second authenticated user exists")]
 async fn a_second_authenticated_user_exists(world: &mut ServersAndChannelsWorld) {
-    let shared = world
-        .shared_store
-        .as_ref()
-        .expect("shared store to be initialized")
-        .clone();
-    let second_user = EntitySeeder::default().user();
+    let shared = world.shared_store.clone();
+    let second_actor = create_actor("Member", "member-token", shared).await;
 
-    let second_app = build_app(seeded_state_with_store(
-        &second_user.external_reference,
-        "member-token",
-        shared,
-    ));
-
-    // materialize user and capture their actual id used by API membership checks
-    let me_response = common::bdd_support::get_me_with_token(&second_app, "member-token").await;
-    let me_payload = response_payload_json(me_response).await;
-
-    world.second_user_id = Some(payload_uuid(&me_payload, "user_id"));
-    world.second_app = Some(second_app);
+    world.second_user_id = Some(second_actor.user_id);
+    world.actors.insert("Member".to_owned(), second_actor);
     world.second_name = Some("Member".to_owned());
 }
 
@@ -290,7 +285,7 @@ async fn the_first_user_adds_the_second_user_as_a_member(world: &mut ServersAndC
     let response = add_server_member_with_token(
         world.owner_app_ref(),
         world.server_id_ref(),
-        second_user_id,
+        second_user_id.as_uuid(),
         "owner-token",
     )
     .await;
@@ -305,31 +300,20 @@ async fn a_channel_exists_in_the_owners_server(world: &mut ServersAndChannelsWor
 #[given("a channel exists in a server owned by another user")]
 async fn a_channel_exists_in_a_server_owned_by_another_user(world: &mut ServersAndChannelsWorld) {
     // Rebuild into an explicit owner/non-owner setup.
-    let shared = Arc::new(InMemoryRepository::new());
-    let owner_user = EntitySeeder::default().user();
-    let non_owner_user = EntitySeeder::default().user();
-
-    let owner_app = build_app(seeded_state_with_store(
-        &owner_user.external_reference,
-        "owner-token",
-        Arc::clone(&shared),
-    ));
-    let non_owner_app = build_app(seeded_state_with_store(
-        &non_owner_user.external_reference,
-        "member-token",
-        shared,
-    ));
+    let shared = fresh_shared_store().await;
+    let owner_actor = create_actor("Owner", "owner-token", Arc::clone(&shared)).await;
+    let non_owner_actor = create_actor("Member", "member-token", Arc::clone(&shared)).await;
 
     let server_payload = response_payload_json(
-        create_server_with_token(&owner_app, "owner-server", "owner-token").await,
+        create_server_with_token(&owner_actor.app, "owner-server", "owner-token").await,
     )
     .await;
-    let server_id = payload_uuid(&server_payload, "id");
+    let server_id = payload_server_id(&server_payload, "id");
 
     let channel_payload = response_payload_json(
         create_channel_with_token(
-            &owner_app,
-            &server_id,
+            &owner_actor.app,
+            server_id.as_uuid(),
             "owner-channel",
             "text",
             "owner-token",
@@ -338,11 +322,14 @@ async fn a_channel_exists_in_a_server_owned_by_another_user(world: &mut ServersA
     )
     .await;
 
-    world.owner_app = Some(owner_app);
-    world.second_app = Some(non_owner_app);
-    world.shared_store = None;
+    world.actors.clear();
+    world.actors.insert("Owner".to_owned(), owner_actor);
+    world.actors.insert("Member".to_owned(), non_owner_actor);
+    world.shared_store = shared;
+    world.owner_name = Some("Owner".to_owned());
+    world.second_name = Some("Member".to_owned());
     world.server_id = Some(server_id);
-    world.channel_id = Some(payload_uuid(&channel_payload, "id"));
+    world.channel_id = Some(payload_channel_id(&channel_payload, "id"));
     world.latest_status = None;
     world.latest_payload = None;
     world.updated_channel_name = None;
@@ -353,7 +340,7 @@ async fn the_user_creates_a_server(world: &mut ServersAndChannelsWorld) {
     let response = create_server(world.owner_app_ref(), "bdd-server").await;
     world.latest_status = Some(response.status());
     world.latest_payload = Some(response_payload_json(response).await);
-    world.server_id = Some(payload_uuid(world.latest_payload_ref(), "id"));
+    world.server_id = Some(payload_server_id(world.latest_payload_ref(), "id"));
 }
 
 #[when("the user lists their servers")]
@@ -376,7 +363,7 @@ async fn the_user_creates_a_channel_in_that_server(world: &mut ServersAndChannel
         create_channel(world.owner_app_ref(), world.server_id_ref(), "bdd-channel").await;
     world.latest_status = Some(response.status());
     world.latest_payload = Some(response_payload_json(response).await);
-    world.channel_id = Some(payload_uuid(world.latest_payload_ref(), "id"));
+    world.channel_id = Some(payload_channel_id(world.latest_payload_ref(), "id"));
 }
 
 #[when("the user lists channels in that server")]
@@ -427,9 +414,20 @@ async fn the_user_updates_a_channel_that_does_not_exist(world: &mut ServersAndCh
 #[when("the server owner adds another user as a member")]
 async fn the_server_owner_adds_another_user_as_a_member(world: &mut ServersAndChannelsWorld) {
     world.ensure_owner_server().await;
-    let extra_user = EntitySeeder::default().user();
-    let response =
-        add_server_member(world.owner_app_ref(), world.server_id_ref(), &extra_user.id).await;
+    let shared = world.shared_store.clone();
+    let extra_user = EntitySeeder.user();
+    let extra_app = seeded_app_with_store(&extra_user.external_reference, "extra-token", shared);
+    let extra_user_response =
+        common::bdd_support::get_me_with_token(&extra_app, "extra-token").await;
+    let extra_user_payload = response_payload_json(extra_user_response).await;
+    let extra_user_id = payload_user_id(&extra_user_payload, "user_id");
+
+    let response = add_server_member(
+        world.owner_app_ref(),
+        world.server_id_ref(),
+        extra_user_id.as_uuid(),
+    )
+    .await;
     world.latest_status = Some(response.status());
     world.latest_payload = Some(response_payload_json(response).await);
 }
@@ -466,7 +464,7 @@ async fn named_user_lists_channels_in_that_server(
 async fn the_second_user_tries_to_add_a_different_user_to_that_server(
     world: &mut ServersAndChannelsWorld,
 ) {
-    let extra_user = EntitySeeder::default().user();
+    let extra_user = EntitySeeder.user();
     let response = add_server_member_with_token(
         world.second_app_ref(),
         world.server_id_ref(),
@@ -569,7 +567,7 @@ async fn the_owned_server_is_included_in_the_server_list(world: &mut ServersAndC
     assert!(
         servers
             .iter()
-            .any(|server| payload_uuid(server, "id") == *world.server_id_ref())
+            .any(|server| payload_server_id(server, "id") == *world.server_id_ref())
     );
 }
 
@@ -577,7 +575,7 @@ async fn the_owned_server_is_included_in_the_server_list(world: &mut ServersAndC
 async fn the_server_channel_is_created_successfully(world: &mut ServersAndChannelsWorld) {
     assert_eq!(world.latest_status(), StatusCode::CREATED);
     assert_eq!(
-        payload_uuid(world.latest_payload_ref(), "server_id"),
+        payload_server_id(world.latest_payload_ref(), "server_id"),
         *world.server_id_ref()
     );
 }
@@ -592,7 +590,7 @@ async fn the_channel_is_included_in_the_channel_list(world: &mut ServersAndChann
     assert!(
         channels
             .iter()
-            .any(|channel| payload_uuid(channel, "id") == *world.channel_id_ref())
+            .any(|channel| payload_channel_id(channel, "id") == *world.channel_id_ref())
     );
 }
 
@@ -611,7 +609,7 @@ async fn listing_channels_in_that_server_includes_the_updated_name(
         .expect("updated channel name to be set");
 
     assert!(channels.iter().any(|channel| {
-        payload_uuid(channel, "id") == *world.channel_id_ref()
+        payload_channel_id(channel, "id") == *world.channel_id_ref()
             && channel["name"].as_str() == Some(updated_name.as_str())
     }));
 }
@@ -630,7 +628,7 @@ async fn the_action_fails_because_the_channel_does_not_exist(world: &mut Servers
 async fn the_server_membership_is_created_successfully(world: &mut ServersAndChannelsWorld) {
     assert_eq!(world.latest_status(), StatusCode::CREATED);
     assert_eq!(
-        payload_uuid(world.latest_payload_ref(), "server_id"),
+        payload_server_id(world.latest_payload_ref(), "server_id"),
         *world.server_id_ref()
     );
     assert!(world.latest_payload_ref()["user_id"].as_str().is_some());
@@ -646,7 +644,7 @@ async fn the_shared_server_is_included_in_their_server_list(world: &mut ServersA
     assert!(
         servers
             .iter()
-            .any(|server| payload_uuid(server, "id") == *world.server_id_ref())
+            .any(|server| payload_server_id(server, "id") == *world.server_id_ref())
     );
 }
 
@@ -669,11 +667,13 @@ async fn the_delete_succeeds(world: &mut ServersAndChannelsWorld) {
 async fn listing_servers_for_that_user_returns_no_servers(world: &mut ServersAndChannelsWorld) {
     let list_response = list_servers(world.owner_app_ref()).await;
     let list_payload = response_payload_json(list_response).await;
+    let servers = list_payload
+        .as_array()
+        .expect("server list payload to be array");
     assert!(
-        list_payload
-            .as_array()
-            .expect("server list payload to be array")
-            .is_empty()
+        !servers
+            .iter()
+            .any(|server| payload_server_id(server, "id") == *world.server_id_ref())
     );
 }
 
@@ -701,7 +701,9 @@ async fn listing_channels_in_that_server_returns_no_channels(world: &mut Servers
 
 #[tokio::test]
 async fn servers_and_channels_feature() {
+    prime_feature_test_store().await;
     ServersAndChannelsWorld::cucumber()
         .run_and_exit(FEATURE_PATH)
         .await;
+    shutdown_feature_test_store().await;
 }

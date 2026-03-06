@@ -3,13 +3,15 @@ mod common;
 use std::sync::Arc;
 
 use axum::http::StatusCode;
-use backend_api::{build_app, storage::InMemoryRepository};
 use common::{
     bdd_support::{
-        add_server_member_with_token, connect_channel_session_with_type, connect_voice_session,
-        connect_voice_session_with_token, create_channel_with_token, create_server_with_token,
-        create_voice_channel, get_me_with_token, payload_uuid, response_payload_json, seeded_state,
-        seeded_state_with_store,
+        prime_feature_test_store,
+        SharedTestStore, add_server_member_with_token, connect_channel_session_with_type,
+        connect_voice_session, connect_voice_session_with_token, create_channel_with_token,
+        create_server_with_token, create_voice_channel, default_shared_store,
+        fresh_shared_store, get_me_with_token, payload_uuid, response_payload_json,
+        seeded_app_with_store,
+        shutdown_feature_test_store,
     },
     entity_seeder::EntitySeeder,
 };
@@ -19,11 +21,11 @@ use uuid::Uuid;
 
 const FEATURE_PATH: &str = "../../features/voice_sessions.feature";
 
-#[derive(Debug, Default, cucumber::World)]
+#[derive(Debug, cucumber::World)]
 struct VoiceSessionsWorld {
-    owner_app: Option<axum::Router>,
+    owner_app: axum::Router,
     second_app: Option<axum::Router>,
-    shared_store: Option<Arc<InMemoryRepository>>,
+    shared_store: SharedTestStore,
     server_id: Option<Uuid>,
     channel_id: Option<Uuid>,
     second_user_id: Option<Uuid>,
@@ -34,11 +36,27 @@ struct VoiceSessionsWorld {
     second_name: Option<String>,
 }
 
+impl Default for VoiceSessionsWorld {
+    fn default() -> Self {
+        Self {
+            owner_app: axum::Router::new(),
+            second_app: None,
+            shared_store: default_shared_store(),
+            server_id: None,
+            channel_id: None,
+            second_user_id: None,
+            latest_status: None,
+            latest_payload: None,
+            owner_token: String::new(),
+            owner_name: None,
+            second_name: None,
+        }
+    }
+}
+
 impl VoiceSessionsWorld {
     fn owner_app_ref(&self) -> &axum::Router {
-        self.owner_app
-            .as_ref()
-            .expect("owner app to be initialized")
+        &self.owner_app
     }
 
     fn second_app_ref(&self) -> &axum::Router {
@@ -74,17 +92,17 @@ impl VoiceSessionsWorld {
     }
 
     fn assert_owner_name(&self, name: &str) {
-        let owner_name = self.owner_name.as_ref().expect("owner name to be set");
-        assert_eq!(owner_name, name, "owner name mismatch in scenario step");
+        assert_eq!(
+            self.owner_name.as_deref(),
+            Some(name),
+            "owner name mismatch in scenario step"
+        );
     }
 
     fn assert_second_name(&self, name: &str) {
-        let second_name = self
-            .second_name
-            .as_ref()
-            .expect("second user name to be set");
         assert_eq!(
-            second_name, name,
+            self.second_name.as_deref(),
+            Some(name),
             "second user name mismatch in scenario step"
         );
     }
@@ -94,7 +112,7 @@ impl VoiceSessionsWorld {
             return;
         }
 
-        let fixture = EntitySeeder::default().chat_fixture();
+        let fixture = EntitySeeder.chat_fixture();
         let response = create_server_with_token(
             self.owner_app_ref(),
             &fixture.server.name,
@@ -109,13 +127,17 @@ impl VoiceSessionsWorld {
 
 #[given("an authenticated user exists")]
 async fn an_authenticated_user_exists(world: &mut VoiceSessionsWorld) {
-    let fixture = EntitySeeder::default().chat_fixture();
-    world.owner_app = Some(build_app(seeded_state(
-        &fixture.user.external_reference,
-        "valid-token",
-    )));
+    let fixture = EntitySeeder.chat_fixture();
+    let shared = fresh_shared_store().await;
+    world.owner_app =
+        seeded_app_with_store(
+            &fixture.user.external_reference,
+            "valid-token",
+            Arc::clone(&shared),
+        )
+        ;
     world.second_app = None;
-    world.shared_store = None;
+    world.shared_store = shared;
     world.server_id = None;
     world.channel_id = None;
     world.second_user_id = None;
@@ -128,15 +150,15 @@ async fn an_authenticated_user_exists(world: &mut VoiceSessionsWorld) {
 
 #[given(regex = r#"^a user named "([^"]+)" exists$"#)]
 async fn a_user_named_exists(world: &mut VoiceSessionsWorld, name: String) {
-    if world.owner_app.is_none() {
-        let shared = Arc::new(InMemoryRepository::new());
+    if world.owner_name.is_none() {
+        let shared = fresh_shared_store().await;
         let subject = format!("auth0|{}", name.to_lowercase());
-        world.owner_app = Some(build_app(seeded_state_with_store(
+        world.owner_app = seeded_app_with_store(
             &subject,
             "owner-token",
             Arc::clone(&shared),
-        )));
-        world.shared_store = Some(shared);
+        );
+        world.shared_store = shared;
         world.second_app = None;
         world.server_id = None;
         world.channel_id = None;
@@ -150,13 +172,9 @@ async fn a_user_named_exists(world: &mut VoiceSessionsWorld, name: String) {
     }
 
     if world.second_app.is_none() {
-        let shared = world
-            .shared_store
-            .as_ref()
-            .expect("shared store to be initialized")
-            .clone();
+        let shared = world.shared_store.clone();
         let subject = format!("auth0|{}", name.to_lowercase());
-        let second_app = build_app(seeded_state_with_store(&subject, "member-token", shared));
+        let second_app = seeded_app_with_store(&subject, "member-token", shared);
 
         let me_payload =
             response_payload_json(get_me_with_token(&second_app, "member-token").await).await;
@@ -194,7 +212,7 @@ async fn named_user_adds_named_user_to_the_server(
 #[given("a voice channel exists in the user's server")]
 async fn a_voice_channel_exists_in_the_users_server(world: &mut VoiceSessionsWorld) {
     world.ensure_owner_server().await;
-    let fixture = EntitySeeder::default().chat_fixture();
+    let fixture = EntitySeeder.chat_fixture();
     let payload = response_payload_json(
         create_voice_channel(
             world.owner_app_ref(),
@@ -209,14 +227,14 @@ async fn a_voice_channel_exists_in_the_users_server(world: &mut VoiceSessionsWor
 
 #[given("a server owner exists")]
 async fn a_server_owner_exists(world: &mut VoiceSessionsWorld) {
-    let fixture = EntitySeeder::default().chat_fixture();
-    let shared = Arc::new(InMemoryRepository::new());
-    world.owner_app = Some(build_app(seeded_state_with_store(
+    let fixture = EntitySeeder.chat_fixture();
+    let shared = fresh_shared_store().await;
+    world.owner_app = seeded_app_with_store(
         &fixture.user.external_reference,
         "owner-token",
         Arc::clone(&shared),
-    )));
-    world.shared_store = Some(shared);
+    );
+    world.shared_store = shared;
     world.second_app = None;
     world.server_id = None;
     world.channel_id = None;
@@ -230,17 +248,10 @@ async fn a_server_owner_exists(world: &mut VoiceSessionsWorld) {
 
 #[given("a second authenticated user exists")]
 async fn a_second_authenticated_user_exists(world: &mut VoiceSessionsWorld) {
-    let shared = world
-        .shared_store
-        .as_ref()
-        .expect("shared store to be initialized")
-        .clone();
-    let second_user = EntitySeeder::default().user();
-    let second_app = build_app(seeded_state_with_store(
-        &second_user.external_reference,
-        "member-token",
-        shared,
-    ));
+    let shared = world.shared_store.clone();
+    let second_user = EntitySeeder.user();
+    let second_app =
+        seeded_app_with_store(&second_user.external_reference, "member-token", shared);
 
     let me_payload =
         response_payload_json(get_me_with_token(&second_app, "member-token").await).await;
@@ -414,7 +425,9 @@ async fn text_session_connection_is_denied_for_that_channel_type(world: &mut Voi
 
 #[tokio::test]
 async fn voice_sessions_feature() {
+    prime_feature_test_store().await;
     VoiceSessionsWorld::cucumber()
         .run_and_exit(FEATURE_PATH)
         .await;
+    shutdown_feature_test_store().await;
 }

@@ -3,13 +3,13 @@ mod common;
 use std::sync::Arc;
 
 use axum::http::StatusCode;
-use backend_api::{build_app, storage::InMemoryRepository};
 use common::{
     bdd_support::{
-        create_channel_with_token, create_message, create_message_with_token,
-        create_server_with_token, delete_message, delete_message_with_token, list_messages,
-        list_messages_with_token, payload_uuid, response_payload_json, seeded_state,
-        seeded_state_with_store, update_message, update_message_with_token,
+        SharedTestStore, create_channel_with_token, create_message, create_message_with_token,
+        create_server_with_token, default_shared_store, delete_message, delete_message_with_token,
+        fresh_shared_store, list_messages, list_messages_with_token, payload_uuid,
+        prime_feature_test_store, response_payload_json, seeded_app_with_store,
+        shutdown_feature_test_store, update_message, update_message_with_token,
     },
     entity_seeder::EntitySeeder,
 };
@@ -19,11 +19,11 @@ use uuid::Uuid;
 
 const FEATURE_PATH: &str = "../../features/messages.feature";
 
-#[derive(Debug, Default, cucumber::World)]
+#[derive(Debug, cucumber::World)]
 struct MessagesWorld {
-    owner_app: Option<axum::Router>,
+    owner_app: axum::Router,
     second_app: Option<axum::Router>,
-    shared_store: Option<Arc<InMemoryRepository>>,
+    shared_store: SharedTestStore,
     server_id: Option<Uuid>,
     channel_id: Option<Uuid>,
     message_id: Option<Uuid>,
@@ -34,11 +34,27 @@ struct MessagesWorld {
     second_name: Option<String>,
 }
 
+impl Default for MessagesWorld {
+    fn default() -> Self {
+        Self {
+            owner_app: axum::Router::new(),
+            second_app: None,
+            shared_store: default_shared_store(),
+            server_id: None,
+            channel_id: None,
+            message_id: None,
+            latest_status: None,
+            latest_payload: None,
+            owner_token: String::new(),
+            owner_name: None,
+            second_name: None,
+        }
+    }
+}
+
 impl MessagesWorld {
     fn owner_app_ref(&self) -> &axum::Router {
-        self.owner_app
-            .as_ref()
-            .expect("owner app to be initialized")
+        &self.owner_app
     }
 
     fn second_app_ref(&self) -> &axum::Router {
@@ -78,17 +94,17 @@ impl MessagesWorld {
     }
 
     fn assert_owner_name(&self, name: &str) {
-        let owner_name = self.owner_name.as_ref().expect("owner name to be set");
-        assert_eq!(owner_name, name, "owner name mismatch in scenario step");
+        assert_eq!(
+            self.owner_name.as_deref(),
+            Some(name),
+            "owner name mismatch in scenario step"
+        );
     }
 
     fn assert_second_name(&self, name: &str) {
-        let second_name = self
-            .second_name
-            .as_ref()
-            .expect("second user name to be set");
         assert_eq!(
-            second_name, name,
+            self.second_name.as_deref(),
+            Some(name),
             "second user name mismatch in scenario step"
         );
     }
@@ -98,7 +114,7 @@ impl MessagesWorld {
             return;
         }
 
-        let fixture = EntitySeeder::default().chat_fixture();
+        let fixture = EntitySeeder.chat_fixture();
         let response = create_server_with_token(
             self.owner_app_ref(),
             &fixture.server.name,
@@ -116,7 +132,7 @@ impl MessagesWorld {
             return;
         }
 
-        let fixture = EntitySeeder::default().chat_fixture();
+        let fixture = EntitySeeder.chat_fixture();
         let response = create_channel_with_token(
             self.owner_app_ref(),
             self.server_id_ref(),
@@ -136,7 +152,7 @@ impl MessagesWorld {
             return;
         }
 
-        let fixture = EntitySeeder::default().chat_fixture();
+        let fixture = EntitySeeder.chat_fixture();
         let payload = response_payload_json(
             create_message(
                 self.owner_app_ref(),
@@ -152,13 +168,15 @@ impl MessagesWorld {
 
 #[given("an authenticated user exists")]
 async fn an_authenticated_user_exists(world: &mut MessagesWorld) {
-    let fixture = EntitySeeder::default().chat_fixture();
-    world.owner_app = Some(build_app(seeded_state(
+    let fixture = EntitySeeder.chat_fixture();
+    let shared = fresh_shared_store().await;
+    world.owner_app = seeded_app_with_store(
         &fixture.user.external_reference,
         "valid-token",
-    )));
+        Arc::clone(&shared),
+    );
     world.second_app = None;
-    world.shared_store = None;
+    world.shared_store = shared;
     world.server_id = None;
     world.channel_id = None;
     world.message_id = None;
@@ -171,15 +189,11 @@ async fn an_authenticated_user_exists(world: &mut MessagesWorld) {
 
 #[given(regex = r#"^a user named "([^"]+)" exists$"#)]
 async fn a_user_named_exists(world: &mut MessagesWorld, name: String) {
-    if world.owner_app.is_none() {
-        let shared = Arc::new(InMemoryRepository::new());
+    if world.owner_name.is_none() {
+        let shared = fresh_shared_store().await;
         let subject = format!("auth0|{}", name.to_lowercase());
-        world.owner_app = Some(build_app(seeded_state_with_store(
-            &subject,
-            "owner-token",
-            Arc::clone(&shared),
-        )));
-        world.shared_store = Some(shared);
+        world.owner_app = seeded_app_with_store(&subject, "owner-token", Arc::clone(&shared));
+        world.shared_store = shared;
         world.second_app = None;
         world.server_id = None;
         world.channel_id = None;
@@ -193,17 +207,9 @@ async fn a_user_named_exists(world: &mut MessagesWorld, name: String) {
     }
 
     if world.second_app.is_none() {
-        let shared = world
-            .shared_store
-            .as_ref()
-            .expect("shared store to be initialized")
-            .clone();
+        let shared = world.shared_store.clone();
         let subject = format!("auth0|{}", name.to_lowercase());
-        world.second_app = Some(build_app(seeded_state_with_store(
-            &subject,
-            "member-token",
-            shared,
-        )));
+        world.second_app = Some(seeded_app_with_store(&subject, "member-token", shared));
         world.second_name = Some(name);
         world.latest_status = None;
         world.latest_payload = None;
@@ -231,20 +237,20 @@ async fn the_user_already_has_a_message_in_that_channel(world: &mut MessagesWorl
 
 #[given("a channel exists in a server shared with another user")]
 async fn a_channel_exists_in_a_server_shared_with_another_user(world: &mut MessagesWorld) {
-    let shared = Arc::new(InMemoryRepository::new());
-    let owner_user = EntitySeeder::default().user();
-    let other_user = EntitySeeder::default().user();
+    let shared = fresh_shared_store().await;
+    let owner_user = EntitySeeder.user();
+    let other_user = EntitySeeder.user();
 
-    let owner_app = build_app(seeded_state_with_store(
+    let owner_app = seeded_app_with_store(
         &owner_user.external_reference,
         "owner-token",
         Arc::clone(&shared),
-    ));
-    let other_app = build_app(seeded_state_with_store(
+    );
+    let other_app = seeded_app_with_store(
         &other_user.external_reference,
         "other-token",
-        shared,
-    ));
+        Arc::clone(&shared),
+    );
 
     let server_payload = response_payload_json(
         create_server_with_token(&owner_app, "shared-server", "owner-token").await,
@@ -264,8 +270,9 @@ async fn a_channel_exists_in_a_server_shared_with_another_user(world: &mut Messa
     )
     .await;
 
-    world.owner_app = Some(owner_app);
+    world.owner_app = owner_app;
     world.second_app = Some(other_app);
+    world.shared_store = shared;
     world.server_id = Some(server_id);
     world.channel_id = Some(payload_uuid(&channel_payload, "id"));
     world.message_id = None;
@@ -291,14 +298,14 @@ async fn another_user_already_has_a_message_in_that_channel(world: &mut Messages
 
 #[given("a server owner exists")]
 async fn a_server_owner_exists(world: &mut MessagesWorld) {
-    let fixture = EntitySeeder::default().chat_fixture();
-    let shared = Arc::new(InMemoryRepository::new());
-    world.owner_app = Some(build_app(seeded_state_with_store(
+    let fixture = EntitySeeder.chat_fixture();
+    let shared = fresh_shared_store().await;
+    world.owner_app = seeded_app_with_store(
         &fixture.user.external_reference,
         "owner-token",
         Arc::clone(&shared),
-    )));
-    world.shared_store = Some(shared);
+    );
+    world.shared_store = shared;
     world.second_app = None;
     world.server_id = None;
     world.channel_id = None;
@@ -312,17 +319,13 @@ async fn a_server_owner_exists(world: &mut MessagesWorld) {
 
 #[given("a second authenticated user exists")]
 async fn a_second_authenticated_user_exists(world: &mut MessagesWorld) {
-    let shared = world
-        .shared_store
-        .as_ref()
-        .expect("shared store to be initialized")
-        .clone();
-    let second_user = EntitySeeder::default().user();
-    world.second_app = Some(build_app(seeded_state_with_store(
+    let shared = world.shared_store.clone();
+    let second_user = EntitySeeder.user();
+    world.second_app = Some(seeded_app_with_store(
         &second_user.external_reference,
         "member-token",
         shared,
-    )));
+    ));
     world.second_name = Some("Member".to_owned());
 }
 
@@ -573,5 +576,7 @@ async fn posting_is_denied_because_that_channel_does_not_support_messaging(
 
 #[tokio::test]
 async fn messages_feature() {
+    prime_feature_test_store().await;
     MessagesWorld::cucumber().run_and_exit(FEATURE_PATH).await;
+    shutdown_feature_test_store().await;
 }
