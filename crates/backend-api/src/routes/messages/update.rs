@@ -4,11 +4,10 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_domain::Message;
+use backend_domain::{ChannelId, Message, MessageId};
 use backend_storage::{
     ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
 };
-use uuid::Uuid;
 
 use crate::{
     ApiState,
@@ -28,15 +27,15 @@ use crate::{
     ),
     security(("bearer_auth" = [])),
     params(
-        ("channel_id" = Uuid, Path, description = "Channel id"),
-        ("message_id" = Uuid, Path, description = "Message id")
+        ("channel_id" = ChannelId, Path, description = "Channel id"),
+        ("message_id" = MessageId, Path, description = "Message id")
     ),
     tag = "backend-api"
 )]
 pub(crate) async fn update_message<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
-    Path((channel_id, message_id)): Path<(Uuid, Uuid)>,
+    Path((channel_id, message_id)): Path<(ChannelId, MessageId)>,
     Json(request): Json<UpdateMessageRequest>,
 ) -> impl IntoResponse
 where

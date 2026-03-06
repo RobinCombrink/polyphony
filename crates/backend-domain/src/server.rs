@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
+
+use crate::{ServerId, UserId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct Server {
-    pub id: Uuid,
+    pub id: ServerId,
     pub name: String,
-    pub owner_user_id: Uuid,
+    pub owner_user_id: UserId,
 }

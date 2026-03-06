@@ -4,11 +4,10 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_domain::{Channel, Membership, Server};
+use backend_domain::{Channel, ChannelId, Membership, Server, ServerId};
 use backend_storage::{
     ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
 };
-use uuid::Uuid;
 
 use crate::{
     ApiState,
@@ -90,13 +89,13 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("server_id" = Uuid, Path, description = "Server id")),
+    params(("server_id" = ServerId, Path, description = "Server id")),
     tag = "backend-api"
 )]
 pub(crate) async fn list_server_members<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
-    Path(server_id): Path<Uuid>,
+    Path(server_id): Path<ServerId>,
 ) -> impl IntoResponse
 where
     UserRepo: UserRepository,
@@ -126,13 +125,13 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("server_id" = Uuid, Path, description = "Server id")),
+    params(("server_id" = ServerId, Path, description = "Server id")),
     tag = "backend-api"
 )]
 pub(crate) async fn add_server_member<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
-    Path(server_id): Path<Uuid>,
+    Path(server_id): Path<ServerId>,
     Json(request): Json<AddServerMemberRequest>,
 ) -> impl IntoResponse
 where
@@ -172,13 +171,13 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("server_id" = Uuid, Path, description = "Server id")),
+    params(("server_id" = ServerId, Path, description = "Server id")),
     tag = "backend-api"
 )]
 pub(crate) async fn delete_server<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
-    Path(server_id): Path<Uuid>,
+    Path(server_id): Path<ServerId>,
 ) -> impl IntoResponse
 where
     UserRepo: UserRepository,
@@ -210,13 +209,13 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("server_id" = Uuid, Path, description = "Server id")),
+    params(("server_id" = ServerId, Path, description = "Server id")),
     tag = "backend-api"
 )]
 pub(crate) async fn create_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
-    Path(server_id): Path<Uuid>,
+    Path(server_id): Path<ServerId>,
     Json(request): Json<CreateChannelRequest>,
 ) -> impl IntoResponse
 where
@@ -250,13 +249,13 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("channel_id" = Uuid, Path, description = "Channel id")),
+    params(("channel_id" = ChannelId, Path, description = "Channel id")),
     tag = "backend-api"
 )]
 pub(crate) async fn update_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<Uuid>,
+    Path(channel_id): Path<ChannelId>,
     Json(request): Json<UpdateChannelRequest>,
 ) -> impl IntoResponse
 where
@@ -289,13 +288,13 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("channel_id" = Uuid, Path, description = "Channel id")),
+    params(("channel_id" = ChannelId, Path, description = "Channel id")),
     tag = "backend-api"
 )]
 pub(crate) async fn delete_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<Uuid>,
+    Path(channel_id): Path<ChannelId>,
 ) -> impl IntoResponse
 where
     UserRepo: UserRepository,
@@ -327,13 +326,13 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("server_id" = Uuid, Path, description = "Server id")),
+    params(("server_id" = ServerId, Path, description = "Server id")),
     tag = "backend-api"
 )]
 pub(crate) async fn list_channels<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
-    Path(server_id): Path<Uuid>,
+    Path(server_id): Path<ServerId>,
 ) -> impl IntoResponse
 where
     UserRepo: UserRepository,

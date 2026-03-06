@@ -4,10 +4,9 @@ use std::sync::LazyLock;
 
 use axum::http::StatusCode;
 use common::bdd_support::{
-    prime_feature_test_store,
-    SharedTestStore, default_shared_store, fresh_shared_store,
+    UserId, prime_feature_test_store, SharedTestStore, default_shared_store, fresh_shared_store,
     get_me_with_token, get_user_by_id_with_token, patch_me_display_name_with_token,
-    response_payload_json, seeded_app_with_store, shutdown_feature_test_store,
+    payload_user_id, response_payload_json, seeded_app_with_store, shutdown_feature_test_store,
 };
 use cucumber::{World as _, given, then, when};
 use serde_json::Value;
@@ -17,13 +16,13 @@ const VALID_TOKEN: &str = "valid-token";
 const INVALID_TOKEN: &str = "wrong-token";
 const EXTERNAL_REFERENCE: &str = "auth0|bdd-user";
 const UPDATED_DISPLAY_NAME: &str = "Polyphony User";
-static MISSING_USER_ID: LazyLock<Uuid> = LazyLock::new(Uuid::new_v4);
+static MISSING_USER_ID: LazyLock<UserId> = LazyLock::new(|| Uuid::new_v4().into());
 
 #[derive(Debug, cucumber::World)]
 struct IdentityWorld {
     app: axum::Router,
     shared_store: SharedTestStore,
-    user_id: Option<Uuid>,
+    user_id: Option<UserId>,
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
 }
@@ -55,7 +54,7 @@ impl IdentityWorld {
             .expect("latest payload to be set")
     }
 
-    fn user_id_ref(&self) -> &Uuid {
+    fn user_id_ref(&self) -> &UserId {
         self.user_id.as_ref().expect("user id to be set")
     }
 }
@@ -112,14 +111,7 @@ async fn the_authenticated_user_has_an_updated_display_name(world: &mut Identity
     assert_eq!(me_response.status(), StatusCode::OK);
 
     let me_payload = response_payload_json(me_response).await;
-    world.user_id = Some(
-        Uuid::parse_str(
-            me_payload["user_id"]
-                .as_str()
-                .expect("user id in identity payload"),
-        )
-        .expect("identity payload user_id to be a valid uuid"),
-    );
+    world.user_id = Some(payload_user_id(&me_payload, "user_id"));
 }
 
 #[when("I look up that user by id")]
@@ -139,12 +131,7 @@ async fn the_lookup_succeeds(world: &mut IdentityWorld) {
 #[then("the result includes the user id and display name")]
 async fn the_result_includes_the_user_id_and_display_name(world: &mut IdentityWorld) {
     let payload = world.latest_payload_ref();
-    let response_user_id = Uuid::parse_str(
-        payload["id"]
-            .as_str()
-            .expect("lookup response to include user id"),
-    )
-    .expect("lookup response user id to be a valid uuid");
+    let response_user_id = payload_user_id(payload, "id");
 
     assert_eq!(response_user_id, *world.user_id_ref());
     assert_eq!(payload["display_name"].as_str(), Some(UPDATED_DISPLAY_NAME));

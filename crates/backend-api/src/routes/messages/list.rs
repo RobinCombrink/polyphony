@@ -4,9 +4,9 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use backend_domain::ChannelId;
 use backend_domain::Message;
 use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
-use uuid::Uuid;
 
 use crate::{
     ApiState,
@@ -23,13 +23,13 @@ use crate::{
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("channel_id" = Uuid, Path, description = "Channel id")),
+    params(("channel_id" = ChannelId, Path, description = "Channel id")),
     tag = "backend-api"
 )]
 pub(crate) async fn list_messages<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<Uuid>,
+    Path(channel_id): Path<ChannelId>,
 ) -> impl IntoResponse
 where
     UserRepo: UserRepository,

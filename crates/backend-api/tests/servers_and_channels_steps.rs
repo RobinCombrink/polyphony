@@ -140,7 +140,7 @@ impl ServersAndChannelsWorld {
         let owner = self.owner_actor_ref();
         let response = create_channel_with_token(
             &owner.app,
-            self.server_id_ref().as_uuid(),
+            self.server_id_ref(),
             fixture.channel.name(),
             "text",
             owner.token.as_str(),
@@ -285,7 +285,7 @@ async fn the_first_user_adds_the_second_user_as_a_member(world: &mut ServersAndC
     let response = add_server_member_with_token(
         world.owner_app_ref(),
         world.server_id_ref(),
-        second_user_id.as_uuid(),
+        second_user_id,
         "owner-token",
     )
     .await;
@@ -313,7 +313,7 @@ async fn a_channel_exists_in_a_server_owned_by_another_user(world: &mut ServersA
     let channel_payload = response_payload_json(
         create_channel_with_token(
             &owner_actor.app,
-            server_id.as_uuid(),
+            &server_id,
             "owner-channel",
             "text",
             "owner-token",
@@ -400,7 +400,7 @@ async fn the_non_owner_attempts_to_update_the_channel_name(world: &mut ServersAn
 
 #[when("the user updates a channel that does not exist")]
 async fn the_user_updates_a_channel_that_does_not_exist(world: &mut ServersAndChannelsWorld) {
-    let missing_channel_id = Uuid::new_v4();
+    let missing_channel_id = Uuid::new_v4().into();
     let response = update_channel(
         world.owner_app_ref(),
         &missing_channel_id,
@@ -422,12 +422,8 @@ async fn the_server_owner_adds_another_user_as_a_member(world: &mut ServersAndCh
     let extra_user_payload = response_payload_json(extra_user_response).await;
     let extra_user_id = payload_user_id(&extra_user_payload, "user_id");
 
-    let response = add_server_member(
-        world.owner_app_ref(),
-        world.server_id_ref(),
-        extra_user_id.as_uuid(),
-    )
-    .await;
+    let response =
+        add_server_member(world.owner_app_ref(), world.server_id_ref(), &extra_user_id).await;
     world.latest_status = Some(response.status());
     world.latest_payload = Some(response_payload_json(response).await);
 }
@@ -512,7 +508,7 @@ async fn named_user_deletes_that_server(world: &mut ServersAndChannelsWorld, nam
 
 #[when("the user deletes a server that does not exist")]
 async fn the_user_deletes_a_server_that_does_not_exist(world: &mut ServersAndChannelsWorld) {
-    let missing_server_id = Uuid::new_v4();
+    let missing_server_id: ServerId = Uuid::new_v4().into();
     let response = delete_server(world.owner_app_ref(), &missing_server_id).await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;
@@ -545,7 +541,7 @@ async fn named_user_deletes_that_channel(world: &mut ServersAndChannelsWorld, na
 
 #[when("the user deletes a channel that does not exist")]
 async fn the_user_deletes_a_channel_that_does_not_exist(world: &mut ServersAndChannelsWorld) {
-    let missing_channel_id = Uuid::new_v4();
+    let missing_channel_id: ChannelId = Uuid::new_v4().into();
     let response = delete_channel(world.owner_app_ref(), &missing_channel_id).await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;

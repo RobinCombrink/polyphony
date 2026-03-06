@@ -8,10 +8,9 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_domain::Channel;
+use backend_domain::{Channel, ChannelId};
 use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
 use livekit_api::access_token::{AccessToken, VideoGrants};
-use uuid::Uuid;
 
 use crate::{ApiState, auth::AuthenticatedUser};
 
@@ -28,13 +27,13 @@ use crate::{ApiState, auth::AuthenticatedUser};
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    params(("channel_id" = Uuid, Path, description = "Channel id")),
+    params(("channel_id" = ChannelId, Path, description = "Channel id")),
     tag = "backend-api"
 )]
 pub(crate) async fn create_session<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
-    Path(channel_id): Path<Uuid>,
+    Path(channel_id): Path<ChannelId>,
     Json(request): Json<CreateSessionRequest>,
 ) -> impl IntoResponse
 where

@@ -5,11 +5,12 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use common::{
     bdd_support::{
-        SharedTestStore, create_channel_with_token, create_message, create_message_with_token,
-        create_server_with_token, default_shared_store, delete_message, delete_message_with_token,
-        fresh_shared_store, list_messages, list_messages_with_token, payload_uuid,
-        prime_feature_test_store, response_payload_json, seeded_app_with_store,
-        shutdown_feature_test_store, update_message, update_message_with_token,
+        ChannelId, MessageId, ServerId, SharedTestStore, create_channel_with_token, create_message,
+        create_message_with_token, create_server_with_token, default_shared_store, delete_message,
+        delete_message_with_token, fresh_shared_store, list_messages, list_messages_with_token,
+        payload_channel_id, payload_message_id, payload_server_id, prime_feature_test_store,
+        response_payload_json, seeded_app_with_store, shutdown_feature_test_store, update_message,
+        update_message_with_token,
     },
     entity_seeder::EntitySeeder,
 };
@@ -24,9 +25,9 @@ struct MessagesWorld {
     owner_app: axum::Router,
     second_app: Option<axum::Router>,
     shared_store: SharedTestStore,
-    server_id: Option<Uuid>,
-    channel_id: Option<Uuid>,
-    message_id: Option<Uuid>,
+    server_id: Option<ServerId>,
+    channel_id: Option<ChannelId>,
+    message_id: Option<MessageId>,
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
     owner_token: String,
@@ -63,15 +64,15 @@ impl MessagesWorld {
             .expect("second app to be initialized")
     }
 
-    fn server_id_ref(&self) -> &Uuid {
+    fn server_id_ref(&self) -> &ServerId {
         self.server_id.as_ref().expect("server id to be set")
     }
 
-    fn channel_id_ref(&self) -> &Uuid {
+    fn channel_id_ref(&self) -> &ChannelId {
         self.channel_id.as_ref().expect("channel id to be set")
     }
 
-    fn message_id_ref(&self) -> &Uuid {
+    fn message_id_ref(&self) -> &MessageId {
         self.message_id.as_ref().expect("message id to be set")
     }
 
@@ -123,7 +124,7 @@ impl MessagesWorld {
         .await;
         assert_eq!(response.status(), StatusCode::CREATED);
         let payload = response_payload_json(response).await;
-        self.server_id = Some(payload_uuid(&payload, "id"));
+        self.server_id = Some(payload_server_id(&payload, "id"));
     }
 
     async fn ensure_owner_channel(&mut self) {
@@ -143,7 +144,7 @@ impl MessagesWorld {
         .await;
         assert_eq!(response.status(), StatusCode::CREATED);
         let payload = response_payload_json(response).await;
-        self.channel_id = Some(payload_uuid(&payload, "id"));
+        self.channel_id = Some(payload_channel_id(&payload, "id"));
     }
 
     async fn ensure_owner_message(&mut self) {
@@ -162,7 +163,7 @@ impl MessagesWorld {
             .await,
         )
         .await;
-        self.message_id = Some(payload_uuid(&payload, "id"));
+        self.message_id = Some(payload_message_id(&payload, "id"));
     }
 }
 
@@ -256,7 +257,7 @@ async fn a_channel_exists_in_a_server_shared_with_another_user(world: &mut Messa
         create_server_with_token(&owner_app, "shared-server", "owner-token").await,
     )
     .await;
-    let server_id = payload_uuid(&server_payload, "id");
+    let server_id = payload_server_id(&server_payload, "id");
 
     let channel_payload = response_payload_json(
         create_channel_with_token(
@@ -274,7 +275,7 @@ async fn a_channel_exists_in_a_server_shared_with_another_user(world: &mut Messa
     world.second_app = Some(other_app);
     world.shared_store = shared;
     world.server_id = Some(server_id);
-    world.channel_id = Some(payload_uuid(&channel_payload, "id"));
+    world.channel_id = Some(payload_channel_id(&channel_payload, "id"));
     world.message_id = None;
     world.latest_status = None;
     world.latest_payload = None;
@@ -293,7 +294,7 @@ async fn another_user_already_has_a_message_in_that_channel(world: &mut Messages
         .await,
     )
     .await;
-    world.message_id = Some(payload_uuid(&payload, "id"));
+    world.message_id = Some(payload_message_id(&payload, "id"));
 }
 
 #[given("a server owner exists")]
@@ -348,7 +349,7 @@ async fn a_voice_channel_exists_in_the_users_server(world: &mut MessagesWorld) {
         .await,
     )
     .await;
-    world.channel_id = Some(payload_uuid(&payload, "id"));
+    world.channel_id = Some(payload_channel_id(&payload, "id"));
 }
 
 #[when("the user posts a message in that channel")]
@@ -357,7 +358,7 @@ async fn the_user_posts_a_message_in_that_channel(world: &mut MessagesWorld) {
         create_message(world.owner_app_ref(), world.channel_id_ref(), "new message").await;
     world.latest_status = Some(response.status());
     world.latest_payload = Some(response_payload_json(response).await);
-    world.message_id = Some(payload_uuid(world.latest_payload_ref(), "id"));
+    world.message_id = Some(payload_message_id(world.latest_payload_ref(), "id"));
 }
 
 #[when("the user edits that message")]
@@ -432,7 +433,7 @@ async fn named_user_lists_messages_in_that_channel(world: &mut MessagesWorld, na
 
 #[when("the user edits a message that does not exist in that channel")]
 async fn the_user_edits_a_message_that_does_not_exist_in_that_channel(world: &mut MessagesWorld) {
-    let missing_message_id = Uuid::new_v4();
+    let missing_message_id: MessageId = Uuid::new_v4().into();
     let response = update_message(
         world.owner_app_ref(),
         world.channel_id_ref(),
@@ -446,8 +447,8 @@ async fn the_user_edits_a_message_that_does_not_exist_in_that_channel(world: &mu
 
 #[when("the user edits a message in a channel that does not exist")]
 async fn the_user_edits_a_message_in_a_channel_that_does_not_exist(world: &mut MessagesWorld) {
-    let missing_channel_id = Uuid::new_v4();
-    let missing_message_id = Uuid::new_v4();
+    let missing_channel_id: ChannelId = Uuid::new_v4().into();
+    let missing_message_id: MessageId = Uuid::new_v4().into();
     let response = update_message(
         world.owner_app_ref(),
         &missing_channel_id,
@@ -461,7 +462,7 @@ async fn the_user_edits_a_message_in_a_channel_that_does_not_exist(world: &mut M
 
 #[when("the user deletes a message that does not exist in that channel")]
 async fn the_user_deletes_a_message_that_does_not_exist_in_that_channel(world: &mut MessagesWorld) {
-    let missing_message_id = Uuid::new_v4();
+    let missing_message_id: MessageId = Uuid::new_v4().into();
     let response = delete_message(
         world.owner_app_ref(),
         world.channel_id_ref(),
@@ -474,8 +475,8 @@ async fn the_user_deletes_a_message_that_does_not_exist_in_that_channel(world: &
 
 #[when("the user deletes a message in a channel that does not exist")]
 async fn the_user_deletes_a_message_in_a_channel_that_does_not_exist(world: &mut MessagesWorld) {
-    let missing_channel_id = Uuid::new_v4();
-    let missing_message_id = Uuid::new_v4();
+    let missing_channel_id: ChannelId = Uuid::new_v4().into();
+    let missing_message_id: MessageId = Uuid::new_v4().into();
     let response = delete_message(
         world.owner_app_ref(),
         &missing_channel_id,
@@ -507,7 +508,7 @@ async fn listing_messages_for_that_channel_includes_the_new_message(world: &mut 
     assert!(
         messages
             .iter()
-            .any(|message| payload_uuid(message, "id") == *world.message_id_ref())
+            .any(|message| payload_message_id(message, "id") == *world.message_id_ref())
     );
 }
 
@@ -518,7 +519,7 @@ async fn listing_messages_for_that_channel_returns_the_updated_content(world: &m
             .await;
     let messages = payload.as_array().expect("messages payload to be array");
     assert!(messages.iter().any(|message| {
-        payload_uuid(message, "id") == *world.message_id_ref()
+        payload_message_id(message, "id") == *world.message_id_ref()
             && message["content"].as_str() == Some("updated message")
     }));
 }
@@ -534,7 +535,7 @@ async fn listing_messages_for_that_channel_does_not_include_the_deleted_message(
     assert!(
         !messages
             .iter()
-            .any(|message| payload_uuid(message, "id") == *world.message_id_ref())
+            .any(|message| payload_message_id(message, "id") == *world.message_id_ref())
     );
 }
 

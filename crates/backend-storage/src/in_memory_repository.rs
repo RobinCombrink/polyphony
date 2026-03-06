@@ -1,7 +1,9 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, ChannelType, Membership, Message, Server, User};
+use backend_domain::{
+    Channel, ChannelId, ChannelType, ExternalReference, Membership, Message, MessageId, Server,
+    ServerId, User, UserId,
+};
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 use crate::{
     ChannelRepository, CreateMessageResult, InMemoryStore, MessageRepository, MutationResult,
@@ -25,8 +27,8 @@ impl InMemoryRepository {
 impl MessageRepository for InMemoryRepository {
     async fn create_message(
         &self,
-        channel_id: Uuid,
-        author_user_id: Uuid,
+        channel_id: ChannelId,
+        author_user_id: UserId,
         content: String,
     ) -> CreateMessageResult {
         let mut store = self.store.write().await;
@@ -35,9 +37,9 @@ impl MessageRepository for InMemoryRepository {
 
     async fn update_message(
         &self,
-        channel_id: Uuid,
-        message_id: Uuid,
-        author_user_id: Uuid,
+        channel_id: ChannelId,
+        message_id: MessageId,
+        author_user_id: UserId,
         content: String,
     ) -> MutationResult {
         let mut store = self.store.write().await;
@@ -46,15 +48,15 @@ impl MessageRepository for InMemoryRepository {
 
     async fn delete_message(
         &self,
-        channel_id: Uuid,
-        message_id: Uuid,
-        author_user_id: Uuid,
+        channel_id: ChannelId,
+        message_id: MessageId,
+        author_user_id: UserId,
     ) -> MutationResult {
         let mut store = self.store.write().await;
         store.delete_message(channel_id, message_id, author_user_id)
     }
 
-    async fn list_messages(&self, channel_id: Uuid) -> Vec<Message> {
+    async fn list_messages(&self, channel_id: ChannelId) -> Vec<Message> {
         let store = self.store.read().await;
         store.list_messages(channel_id)
     }
@@ -62,22 +64,28 @@ impl MessageRepository for InMemoryRepository {
 
 #[async_trait]
 impl UserRepository for InMemoryRepository {
-    async fn find_user_by_id(&self, user_id: Uuid) -> Option<User> {
+    async fn find_user_by_id(&self, user_id: UserId) -> Option<User> {
         let store = self.store.read().await;
         store.find_user_by_id(user_id)
     }
 
-    async fn find_user_by_external_reference(&self, external_reference: &str) -> Option<User> {
+    async fn find_user_by_external_reference(
+        &self,
+        external_reference: &ExternalReference,
+    ) -> Option<User> {
         let store = self.store.read().await;
         store.find_user_by_external_reference(external_reference)
     }
 
-    async fn get_or_create_user_by_external_reference(&self, external_reference: &str) -> User {
+    async fn get_or_create_user_by_external_reference(
+        &self,
+        external_reference: &ExternalReference,
+    ) -> User {
         let mut store = self.store.write().await;
         store.get_or_create_user_by_external_reference(external_reference)
     }
 
-    async fn set_user_display_name(&self, user_id: Uuid, display_name: String) -> Option<User> {
+    async fn set_user_display_name(&self, user_id: UserId, display_name: String) -> Option<User> {
         let mut store = self.store.write().await;
         store.set_user_display_name(user_id, display_name)
     }
@@ -85,12 +93,12 @@ impl UserRepository for InMemoryRepository {
 
 #[async_trait]
 impl ServerRepository for InMemoryRepository {
-    async fn create_server(&self, name: String, owner_user_id: Uuid) -> Server {
+    async fn create_server(&self, name: String, owner_user_id: UserId) -> Server {
         let mut store = self.store.write().await;
         store.create_server(name, owner_user_id)
     }
 
-    async fn list_servers_for_user(&self, user_id: Uuid) -> Vec<Server> {
+    async fn list_servers_for_user(&self, user_id: UserId) -> Vec<Server> {
         let store = self.store.read().await;
         store
             .servers
@@ -105,27 +113,27 @@ impl ServerRepository for InMemoryRepository {
             .collect::<Vec<_>>()
     }
 
-    async fn is_server_member(&self, server_id: Uuid, user_id: Uuid) -> Option<bool> {
+    async fn is_server_member(&self, server_id: ServerId, user_id: UserId) -> Option<bool> {
         let store = self.store.read().await;
         store.is_server_member(server_id, user_id)
     }
 
     async fn add_server_member(
         &self,
-        server_id: Uuid,
-        actor_user_id: Uuid,
-        user_id: Uuid,
+        server_id: ServerId,
+        actor_user_id: UserId,
+        user_id: UserId,
     ) -> MutationResult {
         let mut store = self.store.write().await;
         store.add_server_member(server_id, actor_user_id, user_id)
     }
 
-    async fn delete_server(&self, server_id: Uuid, actor_user_id: Uuid) -> MutationResult {
+    async fn delete_server(&self, server_id: ServerId, actor_user_id: UserId) -> MutationResult {
         let mut store = self.store.write().await;
         store.delete_server(server_id, actor_user_id)
     }
 
-    async fn list_server_members(&self, server_id: Uuid) -> Option<Vec<Membership>> {
+    async fn list_server_members(&self, server_id: ServerId) -> Option<Vec<Membership>> {
         let store = self.store.read().await;
         store.list_server_members(server_id)
     }
@@ -135,7 +143,7 @@ impl ServerRepository for InMemoryRepository {
 impl ChannelRepository for InMemoryRepository {
     async fn create_channel(
         &self,
-        server_id: Uuid,
+        server_id: ServerId,
         name: String,
         channel_type: ChannelType,
     ) -> Option<Channel> {
@@ -145,20 +153,20 @@ impl ChannelRepository for InMemoryRepository {
 
     async fn update_channel_name(
         &self,
-        channel_id: Uuid,
-        actor_user_id: Uuid,
+        channel_id: ChannelId,
+        actor_user_id: UserId,
         name: String,
     ) -> MutationResult {
         let mut store = self.store.write().await;
         store.update_channel_name(channel_id, actor_user_id, name)
     }
 
-    async fn delete_channel(&self, channel_id: Uuid, actor_user_id: Uuid) -> MutationResult {
+    async fn delete_channel(&self, channel_id: ChannelId, actor_user_id: UserId) -> MutationResult {
         let mut store = self.store.write().await;
         store.delete_channel(channel_id, actor_user_id)
     }
 
-    async fn list_channels_for_server(&self, server_id: Uuid) -> Option<Vec<Channel>> {
+    async fn list_channels_for_server(&self, server_id: ServerId) -> Option<Vec<Channel>> {
         let store = self.store.read().await;
 
         if !store.servers.contains_key(&server_id) {
@@ -175,12 +183,12 @@ impl ChannelRepository for InMemoryRepository {
         Some(channels)
     }
 
-    async fn find_channel_by_id(&self, channel_id: Uuid) -> Option<Channel> {
+    async fn find_channel_by_id(&self, channel_id: ChannelId) -> Option<Channel> {
         let store = self.store.read().await;
         store.channels.get(&channel_id).cloned()
     }
 
-    async fn is_channel_member(&self, channel_id: Uuid, user_id: Uuid) -> Option<bool> {
+    async fn is_channel_member(&self, channel_id: ChannelId, user_id: UserId) -> Option<bool> {
         let store = self.store.read().await;
         store.is_channel_member(channel_id, user_id)
     }

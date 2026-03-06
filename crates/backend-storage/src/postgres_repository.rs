@@ -1,5 +1,8 @@
 use async_trait::async_trait;
-use backend_domain::{Channel, ChannelType, DisplayName, Membership, Message, Server, User};
+use backend_domain::{
+    Channel, ChannelId, ChannelType, DisplayName, ExternalReference, Membership, Message,
+    MessageId, Server, ServerId, User, UserId,
+};
 use sqlx::migrate::Migrator;
 use sqlx::{
     PgPool,
@@ -55,7 +58,9 @@ impl PostgresRepository {
         Ok(())
     }
 
-    async fn server_exists(&self, server_id: Uuid) -> Result<bool, sqlx::Error> {
+    async fn server_exists(&self, server_id: ServerId) -> Result<bool, sqlx::Error> {
+        let server_id = Uuid::from(server_id);
+
         let row = sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM servers WHERE id = $1")
             .bind(server_id)
             .fetch_one(&self.pool)
@@ -66,9 +71,12 @@ impl PostgresRepository {
 
     async fn is_user_member_of_server(
         &self,
-        server_id: Uuid,
-        user_id: Uuid,
+        server_id: ServerId,
+        user_id: UserId,
     ) -> Result<Option<bool>, sqlx::Error> {
+        let server_id_uuid = Uuid::from(server_id);
+        let user_id_uuid = Uuid::from(user_id);
+
         if !self.server_exists(server_id).await? {
             return Ok(None);
         }
@@ -76,8 +84,8 @@ impl PostgresRepository {
         let row = sqlx::query_scalar::<_, i64>(
             "SELECT COUNT(1) FROM server_members WHERE server_id = $1 AND user_id = $2",
         )
-        .bind(server_id)
-        .bind(user_id)
+        .bind(server_id_uuid)
+        .bind(user_id_uuid)
         .fetch_one(&self.pool)
         .await?;
 
@@ -86,9 +94,11 @@ impl PostgresRepository {
 
     async fn is_user_member_of_channel(
         &self,
-        channel_id: Uuid,
-        user_id: Uuid,
+        channel_id: ChannelId,
+        user_id: UserId,
     ) -> Result<Option<bool>, sqlx::Error> {
+        let channel_id = Uuid::from(channel_id);
+
         let server_id =
             sqlx::query_scalar::<_, Uuid>("SELECT server_id FROM channels WHERE id = $1")
                 .bind(channel_id)
@@ -99,7 +109,7 @@ impl PostgresRepository {
             return Ok(None);
         };
 
-        self.is_user_member_of_server(server_id, user_id).await
+        self.is_user_member_of_server(server_id.into(), user_id).await
     }
 }
 
@@ -107,8 +117,8 @@ impl PostgresRepository {
 impl MessageRepository for PostgresRepository {
     async fn create_message(
         &self,
-        channel_id: Uuid,
-        author_user_id: Uuid,
+        channel_id: ChannelId,
+        author_user_id: UserId,
         content: String,
     ) -> CreateMessageResult {
         let is_channel_member = match self
@@ -131,6 +141,9 @@ impl MessageRepository for PostgresRepository {
             return CreateMessageResult::ChannelKindMismatch;
         }
 
+        let channel_id = Uuid::from(channel_id);
+        let author_user_id = Uuid::from(author_user_id);
+
         sqlx::query_as::<_, (Uuid, Uuid, Uuid, String)>(
             "INSERT INTO messages (id, channel_id, author_user_id, content)
             VALUES (gen_random_uuid(), $1, $2, $3)
@@ -143,9 +156,9 @@ impl MessageRepository for PostgresRepository {
         .await
         .ok()
         .map(|(id, channel_id, author_user_id, content)| Message {
-            id,
-            channel_id,
-            author_user_id,
+            id: id.into(),
+            channel_id: channel_id.into(),
+            author_user_id: author_user_id.into(),
             content,
         })
         .map(CreateMessageResult::Created)
@@ -154,11 +167,15 @@ impl MessageRepository for PostgresRepository {
 
     async fn update_message(
         &self,
-        channel_id: Uuid,
-        message_id: Uuid,
-        author_user_id: Uuid,
+        channel_id: ChannelId,
+        message_id: MessageId,
+        author_user_id: UserId,
         content: String,
     ) -> MutationResult {
+        let channel_id = Uuid::from(channel_id);
+        let message_id = Uuid::from(message_id);
+        let author_user_id = Uuid::from(author_user_id);
+
         let existing_author = sqlx::query_scalar::<_, Uuid>(
             "SELECT author_user_id FROM messages WHERE channel_id = $1 AND id = $2",
         )
@@ -197,10 +214,14 @@ impl MessageRepository for PostgresRepository {
 
     async fn delete_message(
         &self,
-        channel_id: Uuid,
-        message_id: Uuid,
-        author_user_id: Uuid,
+        channel_id: ChannelId,
+        message_id: MessageId,
+        author_user_id: UserId,
     ) -> MutationResult {
+        let channel_id = Uuid::from(channel_id);
+        let message_id = Uuid::from(message_id);
+        let author_user_id = Uuid::from(author_user_id);
+
         let existing_author = sqlx::query_scalar::<_, Uuid>(
             "SELECT author_user_id FROM messages WHERE channel_id = $1 AND id = $2",
         )
@@ -235,7 +256,9 @@ impl MessageRepository for PostgresRepository {
         }
     }
 
-    async fn list_messages(&self, channel_id: Uuid) -> Vec<Message> {
+    async fn list_messages(&self, channel_id: ChannelId) -> Vec<Message> {
+        let channel_id = Uuid::from(channel_id);
+
         sqlx::query_as::<_, (Uuid, Uuid, Uuid, String)>(
             "SELECT id, channel_id, author_user_id, content
              FROM messages
@@ -248,9 +271,9 @@ impl MessageRepository for PostgresRepository {
         .unwrap_or_default()
         .into_iter()
         .map(|(id, channel_id, author_user_id, content)| Message {
-            id,
-            channel_id,
-            author_user_id,
+            id: id.into(),
+            channel_id: channel_id.into(),
+            author_user_id: author_user_id.into(),
             content,
         })
         .collect()
@@ -259,7 +282,9 @@ impl MessageRepository for PostgresRepository {
 
 #[async_trait]
 impl UserRepository for PostgresRepository {
-    async fn find_user_by_id(&self, user_id: Uuid) -> Option<User> {
+    async fn find_user_by_id(&self, user_id: UserId) -> Option<User> {
+        let user_id = Uuid::from(user_id);
+
         sqlx::query_as::<_, (Uuid, String, Option<String>)>(
             "SELECT id, external_reference, display_name
              FROM users
@@ -271,56 +296,64 @@ impl UserRepository for PostgresRepository {
         .ok()
         .flatten()
         .map(|(id, external_reference, display_name)| User {
-            id,
-            external_reference,
+            id: id.into(),
+            external_reference: external_reference.into(),
             display_name: display_name.map(DisplayName::new),
         })
     }
 
-    async fn find_user_by_external_reference(&self, external_reference: &str) -> Option<User> {
+    async fn find_user_by_external_reference(
+        &self,
+        external_reference: &ExternalReference,
+    ) -> Option<User> {
         sqlx::query_as::<_, (Uuid, String, Option<String>)>(
             "SELECT id, external_reference, display_name
              FROM users
              WHERE external_reference = $1",
         )
-        .bind(external_reference)
+        .bind(external_reference.as_str())
         .fetch_optional(&self.pool)
         .await
         .ok()
         .flatten()
         .map(|(id, external_reference, display_name)| User {
-            id,
-            external_reference,
+            id: id.into(),
+            external_reference: external_reference.into(),
             display_name: display_name.map(DisplayName::new),
         })
     }
 
-    async fn get_or_create_user_by_external_reference(&self, external_reference: &str) -> User {
+    async fn get_or_create_user_by_external_reference(
+        &self,
+        external_reference: &ExternalReference,
+    ) -> User {
         let _ = sqlx::query(
             "INSERT INTO users (id, external_reference, display_name)
              VALUES (gen_random_uuid(), $1, NULL)
              ON CONFLICT (external_reference) DO NOTHING",
         )
-        .bind(external_reference)
+        .bind(external_reference.as_str())
         .execute(&self.pool)
         .await;
 
         self.find_user_by_external_reference(external_reference)
             .await
             .unwrap_or(User {
-                id: Uuid::new_v4(),
-                external_reference: external_reference.to_owned(),
+                id: Uuid::new_v4().into(),
+                external_reference: external_reference.clone(),
                 display_name: None,
             })
     }
 
-    async fn set_user_display_name(&self, user_id: Uuid, display_name: String) -> Option<User> {
+    async fn set_user_display_name(&self, user_id: UserId, display_name: String) -> Option<User> {
+        let user_id_uuid = Uuid::from(user_id);
+
         let _ = sqlx::query(
             "UPDATE users
              SET display_name = $2
              WHERE id = $1",
         )
-        .bind(user_id)
+        .bind(user_id_uuid)
         .bind(display_name)
         .execute(&self.pool)
         .await;
@@ -331,7 +364,9 @@ impl UserRepository for PostgresRepository {
 
 #[async_trait]
 impl ServerRepository for PostgresRepository {
-    async fn create_server(&self, name: String, owner_user_id: Uuid) -> Server {
+    async fn create_server(&self, name: String, owner_user_id: UserId) -> Server {
+        let owner_user_id = Uuid::from(owner_user_id);
+
         let (server_id, owner_user_id_created) = sqlx::query_as::<_, (Uuid, Uuid)>(
             "WITH inserted AS (
                 INSERT INTO servers (id, name, owner_user_id)
@@ -351,13 +386,15 @@ impl ServerRepository for PostgresRepository {
         .expect("create server in postgres to succeed");
 
         Server {
-            id: server_id,
+            id: server_id.into(),
             name,
-            owner_user_id: owner_user_id_created,
+            owner_user_id: owner_user_id_created.into(),
         }
     }
 
-    async fn list_servers_for_user(&self, user_id: Uuid) -> Vec<Server> {
+    async fn list_servers_for_user(&self, user_id: UserId) -> Vec<Server> {
+        let user_id = Uuid::from(user_id);
+
         sqlx::query_as::<_, (Uuid, String, Uuid)>(
             "SELECT s.id, s.name, s.owner_user_id
              FROM servers s
@@ -371,14 +408,14 @@ impl ServerRepository for PostgresRepository {
         .unwrap_or_default()
         .into_iter()
         .map(|(id, name, owner_user_id)| Server {
-            id,
+            id: id.into(),
             name,
-            owner_user_id,
+            owner_user_id: owner_user_id.into(),
         })
         .collect()
     }
 
-    async fn is_server_member(&self, server_id: Uuid, user_id: Uuid) -> Option<bool> {
+    async fn is_server_member(&self, server_id: ServerId, user_id: UserId) -> Option<bool> {
         self.is_user_member_of_server(server_id, user_id)
             .await
             .ok()?
@@ -386,10 +423,14 @@ impl ServerRepository for PostgresRepository {
 
     async fn add_server_member(
         &self,
-        server_id: Uuid,
-        actor_user_id: Uuid,
-        user_id: Uuid,
+        server_id: ServerId,
+        actor_user_id: UserId,
+        user_id: UserId,
     ) -> MutationResult {
+        let server_id = Uuid::from(server_id);
+        let actor_user_id = Uuid::from(actor_user_id);
+        let user_id = Uuid::from(user_id);
+
         let owner_user_id =
             sqlx::query_scalar::<_, Uuid>("SELECT owner_user_id FROM servers WHERE id = $1")
                 .bind(server_id)
@@ -425,7 +466,10 @@ impl ServerRepository for PostgresRepository {
         }
     }
 
-    async fn delete_server(&self, server_id: Uuid, actor_user_id: Uuid) -> MutationResult {
+    async fn delete_server(&self, server_id: ServerId, actor_user_id: UserId) -> MutationResult {
+        let server_id = Uuid::from(server_id);
+        let actor_user_id = Uuid::from(actor_user_id);
+
         let owner_user_id =
             sqlx::query_scalar::<_, Uuid>("SELECT owner_user_id FROM servers WHERE id = $1")
                 .bind(server_id)
@@ -457,10 +501,12 @@ impl ServerRepository for PostgresRepository {
         }
     }
 
-    async fn list_server_members(&self, server_id: Uuid) -> Option<Vec<Membership>> {
+    async fn list_server_members(&self, server_id: ServerId) -> Option<Vec<Membership>> {
         if !self.server_exists(server_id).await.ok()? {
             return None;
         }
+
+        let server_id = Uuid::from(server_id);
 
         let members = sqlx::query_as::<_, (Uuid, Uuid)>(
             "SELECT server_id, user_id
@@ -473,7 +519,10 @@ impl ServerRepository for PostgresRepository {
         .await
         .ok()?
         .into_iter()
-        .map(|(server_id, user_id)| Membership { user_id, server_id })
+        .map(|(server_id, user_id)| Membership {
+            user_id: user_id.into(),
+            server_id: server_id.into(),
+        })
         .collect();
 
         Some(members)
@@ -484,13 +533,15 @@ impl ServerRepository for PostgresRepository {
 impl ChannelRepository for PostgresRepository {
     async fn create_channel(
         &self,
-        server_id: Uuid,
+        server_id: ServerId,
         name: String,
         channel_type: ChannelType,
     ) -> Option<Channel> {
         if !self.server_exists(server_id).await.ok()? {
             return None;
         }
+
+        let server_id = Uuid::from(server_id);
 
         let channel_type_value = match channel_type {
             ChannelType::Text => "text",
@@ -510,8 +561,8 @@ impl ChannelRepository for PostgresRepository {
         .ok()
         .and_then(
             |(id, server_id, name, channel_type)| match channel_type.as_str() {
-                "text" => Some(Channel::new_text(id, server_id, name)),
-                "voice" => Some(Channel::new_voice(id, server_id, name)),
+                "text" => Some(Channel::new_text(id.into(), server_id.into(), name)),
+                "voice" => Some(Channel::new_voice(id.into(), server_id.into(), name)),
                 _ => None,
             },
         )
@@ -519,10 +570,13 @@ impl ChannelRepository for PostgresRepository {
 
     async fn update_channel_name(
         &self,
-        channel_id: Uuid,
-        actor_user_id: Uuid,
+        channel_id: ChannelId,
+        actor_user_id: UserId,
         name: String,
     ) -> MutationResult {
+        let channel_id = Uuid::from(channel_id);
+        let actor_user_id = Uuid::from(actor_user_id);
+
         let owner_user_id = sqlx::query_scalar::<_, Uuid>(
             "SELECT s.owner_user_id
              FROM channels c
@@ -559,7 +613,10 @@ impl ChannelRepository for PostgresRepository {
         }
     }
 
-    async fn delete_channel(&self, channel_id: Uuid, actor_user_id: Uuid) -> MutationResult {
+    async fn delete_channel(&self, channel_id: ChannelId, actor_user_id: UserId) -> MutationResult {
+        let channel_id = Uuid::from(channel_id);
+        let actor_user_id = Uuid::from(actor_user_id);
+
         let owner_user_id = sqlx::query_scalar::<_, Uuid>(
             "SELECT s.owner_user_id
              FROM channels c
@@ -595,10 +652,12 @@ impl ChannelRepository for PostgresRepository {
         }
     }
 
-    async fn list_channels_for_server(&self, server_id: Uuid) -> Option<Vec<Channel>> {
+    async fn list_channels_for_server(&self, server_id: ServerId) -> Option<Vec<Channel>> {
         if !self.server_exists(server_id).await.ok()? {
             return None;
         }
+
+        let server_id = Uuid::from(server_id);
 
         let channels = sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
             "SELECT id, server_id, name, channel_type
@@ -613,8 +672,8 @@ impl ChannelRepository for PostgresRepository {
         .into_iter()
         .filter_map(
             |(id, server_id, name, channel_type)| match channel_type.as_str() {
-                "text" => Some(Channel::new_text(id, server_id, name)),
-                "voice" => Some(Channel::new_voice(id, server_id, name)),
+                "text" => Some(Channel::new_text(id.into(), server_id.into(), name)),
+                "voice" => Some(Channel::new_voice(id.into(), server_id.into(), name)),
                 _ => None,
             },
         )
@@ -623,7 +682,9 @@ impl ChannelRepository for PostgresRepository {
         Some(channels)
     }
 
-    async fn find_channel_by_id(&self, channel_id: Uuid) -> Option<Channel> {
+    async fn find_channel_by_id(&self, channel_id: ChannelId) -> Option<Channel> {
+        let channel_id = Uuid::from(channel_id);
+
         sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
             "SELECT id, server_id, name, channel_type
              FROM channels
@@ -635,14 +696,14 @@ impl ChannelRepository for PostgresRepository {
         .ok()?
         .and_then(
             |(id, server_id, name, channel_type)| match channel_type.as_str() {
-                "text" => Some(Channel::new_text(id, server_id, name)),
-                "voice" => Some(Channel::new_voice(id, server_id, name)),
+                "text" => Some(Channel::new_text(id.into(), server_id.into(), name)),
+                "voice" => Some(Channel::new_voice(id.into(), server_id.into(), name)),
                 _ => None,
             },
         )
     }
 
-    async fn is_channel_member(&self, channel_id: Uuid, user_id: Uuid) -> Option<bool> {
+    async fn is_channel_member(&self, channel_id: ChannelId, user_id: UserId) -> Option<bool> {
         self.is_user_member_of_channel(channel_id, user_id)
             .await
             .ok()?

@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
-use backend_api::domain::{Channel, DisplayName, Message, Server, User};
+use backend_api::domain::{
+    Channel, ChannelId, DisplayName, ExternalReference, Message, Server, ServerId, User, UserId,
+};
 use rand::{Rng as _, distr::Alphanumeric};
 use uuid::Uuid;
 
@@ -39,13 +41,13 @@ impl EntitySeeder {
             .to_lowercase();
 
         User {
-            id: Uuid::new_v4(),
-            external_reference: format!("auth0|user_{random_segment}"),
+            id: Uuid::new_v4().into(),
+            external_reference: ExternalReference::from(format!("auth0|user_{random_segment}")),
             display_name: Some(DisplayName::new(format!("User-{random_segment}"))),
         }
     }
 
-    pub fn server(&self, owner_user_id: Uuid) -> Server {
+    pub fn server(&self, owner_user_id: UserId) -> Server {
         let random_segment = rand::rng()
             .sample_iter(Alphanumeric)
             .take(8)
@@ -54,13 +56,13 @@ impl EntitySeeder {
             .to_lowercase();
 
         Server {
-            id: Uuid::new_v4(),
+            id: Uuid::new_v4().into(),
             name: format!("Server-{random_segment}"),
             owner_user_id,
         }
     }
 
-    pub fn text_channel(&self, server_id: Uuid) -> Channel {
+    pub fn text_channel(&self, server_id: ServerId) -> Channel {
         let random_segment = rand::rng()
             .sample_iter(Alphanumeric)
             .take(8)
@@ -69,13 +71,13 @@ impl EntitySeeder {
             .to_lowercase();
 
         Channel::new_text(
-            Uuid::new_v4(),
+            Uuid::new_v4().into(),
             server_id,
             format!("Channel-{random_segment}"),
         )
     }
 
-    pub fn voice_channel(&self, server_id: Uuid) -> Channel {
+    pub fn voice_channel(&self, server_id: ServerId) -> Channel {
         let random_segment = rand::rng()
             .sample_iter(Alphanumeric)
             .take(8)
@@ -84,13 +86,13 @@ impl EntitySeeder {
             .to_lowercase();
 
         Channel::new_voice(
-            Uuid::new_v4(),
+            Uuid::new_v4().into(),
             server_id,
             format!("Voice-Channel-{random_segment}"),
         )
     }
 
-    pub fn message(&self, channel_id: Uuid, author_user_id: Uuid) -> Message {
+    pub fn message(&self, channel_id: ChannelId, author_user_id: UserId) -> Message {
         let random_segment = rand::rng()
             .sample_iter(Alphanumeric)
             .take(8)
@@ -99,7 +101,7 @@ impl EntitySeeder {
             .to_lowercase();
 
         Message {
-            id: Uuid::new_v4(),
+            id: Uuid::new_v4().into(),
             channel_id,
             author_user_id,
             content: format!("Message-{random_segment}"),

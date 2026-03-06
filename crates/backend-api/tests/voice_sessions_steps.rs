@@ -5,13 +5,12 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use common::{
     bdd_support::{
-        prime_feature_test_store,
-        SharedTestStore, add_server_member_with_token, connect_channel_session_with_type,
-        connect_voice_session, connect_voice_session_with_token, create_channel_with_token,
-        create_server_with_token, create_voice_channel, default_shared_store,
-        fresh_shared_store, get_me_with_token, payload_uuid, response_payload_json,
-        seeded_app_with_store,
-        shutdown_feature_test_store,
+        ChannelId, ServerId, SharedTestStore, UserId, add_server_member_with_token,
+        connect_channel_session_with_type, connect_voice_session, connect_voice_session_with_token,
+        create_channel_with_token, create_server_with_token, create_voice_channel,
+        default_shared_store, fresh_shared_store, get_me_with_token, payload_channel_id,
+        payload_server_id, payload_user_id, prime_feature_test_store, response_payload_json,
+        seeded_app_with_store, shutdown_feature_test_store,
     },
     entity_seeder::EntitySeeder,
 };
@@ -26,9 +25,9 @@ struct VoiceSessionsWorld {
     owner_app: axum::Router,
     second_app: Option<axum::Router>,
     shared_store: SharedTestStore,
-    server_id: Option<Uuid>,
-    channel_id: Option<Uuid>,
-    second_user_id: Option<Uuid>,
+    server_id: Option<ServerId>,
+    channel_id: Option<ChannelId>,
+    second_user_id: Option<UserId>,
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
     owner_token: String,
@@ -65,11 +64,11 @@ impl VoiceSessionsWorld {
             .expect("second app to be initialized")
     }
 
-    fn server_id_ref(&self) -> &Uuid {
+    fn server_id_ref(&self) -> &ServerId {
         self.server_id.as_ref().expect("server id to be set")
     }
 
-    fn channel_id_ref(&self) -> &Uuid {
+    fn channel_id_ref(&self) -> &ChannelId {
         self.channel_id.as_ref().expect("channel id to be set")
     }
 
@@ -121,7 +120,7 @@ impl VoiceSessionsWorld {
         .await;
         assert_eq!(response.status(), StatusCode::CREATED);
         let payload = response_payload_json(response).await;
-        self.server_id = Some(payload_uuid(&payload, "id"));
+        self.server_id = Some(payload_server_id(&payload, "id"));
     }
 }
 
@@ -129,13 +128,11 @@ impl VoiceSessionsWorld {
 async fn an_authenticated_user_exists(world: &mut VoiceSessionsWorld) {
     let fixture = EntitySeeder.chat_fixture();
     let shared = fresh_shared_store().await;
-    world.owner_app =
-        seeded_app_with_store(
-            &fixture.user.external_reference,
-            "valid-token",
-            Arc::clone(&shared),
-        )
-        ;
+    world.owner_app = seeded_app_with_store(
+        &fixture.user.external_reference,
+        "valid-token",
+        Arc::clone(&shared),
+    );
     world.second_app = None;
     world.shared_store = shared;
     world.server_id = None;
@@ -153,11 +150,7 @@ async fn a_user_named_exists(world: &mut VoiceSessionsWorld, name: String) {
     if world.owner_name.is_none() {
         let shared = fresh_shared_store().await;
         let subject = format!("auth0|{}", name.to_lowercase());
-        world.owner_app = seeded_app_with_store(
-            &subject,
-            "owner-token",
-            Arc::clone(&shared),
-        );
+        world.owner_app = seeded_app_with_store(&subject, "owner-token", Arc::clone(&shared));
         world.shared_store = shared;
         world.second_app = None;
         world.server_id = None;
@@ -178,7 +171,7 @@ async fn a_user_named_exists(world: &mut VoiceSessionsWorld, name: String) {
 
         let me_payload =
             response_payload_json(get_me_with_token(&second_app, "member-token").await).await;
-        world.second_user_id = Some(payload_uuid(&me_payload, "user_id"));
+        world.second_user_id = Some(payload_user_id(&me_payload, "user_id"));
         world.second_app = Some(second_app);
         world.second_name = Some(name);
         world.latest_status = None;
@@ -222,7 +215,7 @@ async fn a_voice_channel_exists_in_the_users_server(world: &mut VoiceSessionsWor
         .await,
     )
     .await;
-    world.channel_id = Some(payload_uuid(&payload, "id"));
+    world.channel_id = Some(payload_channel_id(&payload, "id"));
 }
 
 #[given("a server owner exists")]
@@ -250,12 +243,11 @@ async fn a_server_owner_exists(world: &mut VoiceSessionsWorld) {
 async fn a_second_authenticated_user_exists(world: &mut VoiceSessionsWorld) {
     let shared = world.shared_store.clone();
     let second_user = EntitySeeder.user();
-    let second_app =
-        seeded_app_with_store(&second_user.external_reference, "member-token", shared);
+    let second_app = seeded_app_with_store(&second_user.external_reference, "member-token", shared);
 
     let me_payload =
         response_payload_json(get_me_with_token(&second_app, "member-token").await).await;
-    world.second_user_id = Some(payload_uuid(&me_payload, "user_id"));
+    world.second_user_id = Some(payload_user_id(&me_payload, "user_id"));
     world.second_app = Some(second_app);
     world.second_name = Some("Member".to_owned());
 }
@@ -274,7 +266,7 @@ async fn a_voice_channel_exists_in_the_owners_server(world: &mut VoiceSessionsWo
         .await,
     )
     .await;
-    world.channel_id = Some(payload_uuid(&payload, "id"));
+    world.channel_id = Some(payload_channel_id(&payload, "id"));
 }
 
 #[given("the first user adds the second user as a member")]
@@ -307,7 +299,7 @@ async fn a_text_channel_exists_in_the_users_server(world: &mut VoiceSessionsWorl
         .await,
     )
     .await;
-    world.channel_id = Some(payload_uuid(&payload, "id"));
+    world.channel_id = Some(payload_channel_id(&payload, "id"));
 }
 
 #[when("I connect to voice for that channel")]
@@ -319,7 +311,7 @@ async fn i_connect_to_voice_for_that_channel(world: &mut VoiceSessionsWorld) {
 
 #[when("I connect to voice for a missing channel")]
 async fn i_connect_to_voice_for_a_missing_channel(world: &mut VoiceSessionsWorld) {
-    let missing_channel_id = Uuid::new_v4();
+    let missing_channel_id: ChannelId = Uuid::new_v4().into();
     let response = connect_voice_session(world.owner_app_ref(), &missing_channel_id).await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;
@@ -374,7 +366,7 @@ async fn the_connection_succeeds(world: &mut VoiceSessionsWorld) {
 #[then("the participant can join that voice conversation")]
 async fn the_participant_can_join_that_voice_conversation(world: &mut VoiceSessionsWorld) {
     assert_eq!(
-        payload_uuid(world.latest_payload_ref(), "channel_id"),
+        payload_channel_id(world.latest_payload_ref(), "channel_id"),
         *world.channel_id_ref()
     );
     assert!(

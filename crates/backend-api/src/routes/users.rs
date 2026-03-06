@@ -4,8 +4,8 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use backend_domain::UserId;
 use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
-use uuid::Uuid;
 
 use crate::{
     ApiState,
@@ -17,7 +17,7 @@ use crate::{
     get,
     path = "/api/v1/users/{user_id}",
     params(
-        ("user_id" = Uuid, Path, description = "User identifier")
+        ("user_id" = UserId, Path, description = "User identifier")
     ),
     responses(
         (status = 200, description = "User profile by id", body = UserLookupResponse),
@@ -30,7 +30,7 @@ use crate::{
 pub(crate) async fn get_user_by_id<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     _authenticated_user: AuthenticatedUser,
-    Path(user_id): Path<Uuid>,
+    Path(user_id): Path<UserId>,
 ) -> impl IntoResponse
 where
     UserRepo: UserRepository,

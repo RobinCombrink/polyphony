@@ -5,6 +5,7 @@ use axum::{
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
+use backend_domain::{ExternalReference, UserId};
 use backend_storage::UserRepository;
 use http::header::AUTHORIZATION;
 use jwt_authorizer::{Authorizer, JwtAuthorizer, Validation};
@@ -95,8 +96,8 @@ impl Auth0Config {
 
 #[derive(Clone, Debug)]
 pub struct AuthenticatedUser {
-    pub user_id: Uuid,
-    pub external_reference: String,
+    pub user_id: UserId,
+    pub external_reference: ExternalReference,
 }
 
 #[async_trait::async_trait]
@@ -138,8 +139,8 @@ impl TokenVerifier for JwksTokenVerifier {
             .map_err(|error| AuthError::InvalidToken(error.to_string()))?;
 
         let authenticated_user = AuthenticatedUser {
-            user_id: Uuid::nil(),
-            external_reference: token_data.claims.sub,
+            user_id: Uuid::nil().into(),
+            external_reference: token_data.claims.sub.into(),
         };
 
         Ok(authenticated_user)
