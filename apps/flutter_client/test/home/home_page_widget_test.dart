@@ -167,4 +167,86 @@ void main() {
       expect(loadEvents.single.serverId, fixture.listedServer.id);
     },
   );
+
+  testWidgets(
+    "renders without overflow on compact viewport",
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final fixture = EntitySeeder().chatApiFixture();
+      final serverRepo = FakeServerRepository(fixture: fixture);
+      final channelRepo = FakeChannelRepository(fixture: fixture);
+      final messageRepo = FakeMessageRepository(fixture: fixture);
+      final profileRepo = FakeProfileRepository(
+        userId: fixture.ownerUserId,
+      );
+      final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
+      final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
+      final voiceRuntimeService = FakeVoiceRuntimeService();
+      final messageRuntimeService = FakeMessageRuntimeService();
+
+      final authenticationBloc = AuthenticationBloc(
+        profileService: _FakeAuthenticationProfileService(
+          userId: fixture.ownerUserId,
+        ),
+        sessionService: _FakeAuthenticationSessionService(),
+      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
+      final serversBloc = ServersBloc(serverRepo: serverRepo);
+      final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
+      final messagesBloc = MessagesBloc(
+        messageRepo: messageRepo,
+        profileRepo: profileRepo,
+        textSessionRepo: textSessionRepo,
+        messageRuntimeService: messageRuntimeService,
+      );
+      final profileBloc = ProfileBloc(profileRepo: profileRepo);
+      final serverMembersBloc = _RecordingServerMembersBloc(
+        serverRepo: serverRepo,
+        profileRepo: profileRepo,
+      );
+      final voiceSessionsBloc = VoiceSessionsBloc(
+        voiceSessionRepo: voiceSessionRepo,
+        voiceRuntimeService: voiceRuntimeService,
+        profileRepo: profileRepo,
+      );
+
+      addTearDown(authenticationBloc.close);
+      addTearDown(serversBloc.close);
+      addTearDown(channelsBloc.close);
+      addTearDown(messagesBloc.close);
+      addTearDown(profileBloc.close);
+      addTearDown(serverMembersBloc.close);
+      addTearDown(voiceSessionsBloc.close);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<PreferencesStore>(
+              create: (_) => InMemoryPreferencesStore(),
+            ),
+          ],
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
+              BlocProvider<ServersBloc>.value(value: serversBloc),
+              BlocProvider<ChannelsBloc>.value(value: channelsBloc),
+              BlocProvider<MessagesBloc>.value(value: messagesBloc),
+              BlocProvider<ProfileBloc>.value(value: profileBloc),
+              BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
+              BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
+            ],
+            child: const MaterialApp(home: HomePageWidget()),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(HomePageWidget), findsOneWidget);
+    },
+  );
 }

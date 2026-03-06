@@ -19,6 +19,24 @@ class HomeWorkspaceWidget extends StatelessWidget {
   final TextEditingController createChannelController;
   final TextEditingController createMessageController;
 
+  Widget _buildPrimaryPane() {
+    return BlocBuilder<ChannelsBloc, ChannelsState>(
+      builder: (context, channelsState) {
+        final selectionMode = switch (channelsState) {
+          ChannelsLoadedDataState(:final selectionMode) => selectionMode,
+          _ => ChannelSelectionMode.text,
+        };
+
+        return switch (selectionMode) {
+          ChannelSelectionMode.voice => const VoiceParticipantsPaneWidget(),
+          ChannelSelectionMode.text => MessagesPaneWidget(
+              createController: createMessageController,
+            ),
+        };
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ServersBloc, ServersState>(
@@ -38,41 +56,55 @@ class HomeWorkspaceWidget extends StatelessWidget {
           );
         }
 
-        return Row(
-          children: <Widget>[
-            SizedBox(
-              width: 360,
-              child: ChannelsPaneWidget(
-                createController: createChannelController,
-                serverName: selectedServerName,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: BlocBuilder<ChannelsBloc, ChannelsState>(
-                builder: (context, channelsState) {
-                  final selectionMode = switch (channelsState) {
-                    ChannelsLoadedDataState(:final selectionMode) =>
-                      selectionMode,
-                    _ => ChannelSelectionMode.text,
-                  };
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 1100;
 
-                  return switch (selectionMode) {
-                    ChannelSelectionMode.voice =>
-                      const VoiceParticipantsPaneWidget(),
-                    ChannelSelectionMode.text => MessagesPaneWidget(
-                        createController: createMessageController,
-                      ),
-                  };
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            const SizedBox(
-              width: 280,
-              child: ServerUsersPaneWidget(),
-            ),
-          ],
+            if (isCompact) {
+              return Column(
+                children: <Widget>[
+                  Flexible(
+                    flex: 3,
+                    child: ChannelsPaneWidget(
+                      createController: createChannelController,
+                      serverName: selectedServerName,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Flexible(
+                    flex: 5,
+                    child: _buildPrimaryPane(),
+                  ),
+                  const SizedBox(height: 12),
+                  const Flexible(
+                    flex: 2,
+                    child: ServerUsersPaneWidget(),
+                  ),
+                ],
+              );
+            }
+
+            return Row(
+              children: <Widget>[
+                SizedBox(
+                  width: 360,
+                  child: ChannelsPaneWidget(
+                    createController: createChannelController,
+                    serverName: selectedServerName,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildPrimaryPane(),
+                ),
+                const SizedBox(width: 12),
+                const SizedBox(
+                  width: 280,
+                  child: ServerUsersPaneWidget(),
+                ),
+              ],
+            );
+          },
         );
       },
     );
