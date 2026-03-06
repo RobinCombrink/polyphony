@@ -30,6 +30,8 @@ struct MessagesWorld {
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
     owner_token: String,
+    owner_name: Option<String>,
+    second_name: Option<String>,
 }
 
 impl MessagesWorld {
@@ -73,6 +75,22 @@ impl MessagesWorld {
         }
 
         self.owner_token.as_str()
+    }
+
+    fn assert_owner_name(&self, name: &str) {
+        let owner_name = self.owner_name.as_ref().expect("owner name to be set");
+        assert_eq!(owner_name, name, "owner name mismatch in scenario step");
+    }
+
+    fn assert_second_name(&self, name: &str) {
+        let second_name = self
+            .second_name
+            .as_ref()
+            .expect("second user name to be set");
+        assert_eq!(
+            second_name, name,
+            "second user name mismatch in scenario step"
+        );
     }
 
     async fn ensure_owner_server(&mut self) {
@@ -147,6 +165,58 @@ async fn an_authenticated_user_exists(world: &mut MessagesWorld) {
     world.latest_status = None;
     world.latest_payload = None;
     world.owner_token = "valid-token".to_owned();
+    world.owner_name = None;
+    world.second_name = None;
+}
+
+#[given(regex = r#"^a user named "([^"]+)" exists$"#)]
+async fn a_user_named_exists(world: &mut MessagesWorld, name: String) {
+    if world.owner_app.is_none() {
+        let shared = Arc::new(InMemoryRepository::new());
+        let subject = format!("auth0|{}", name.to_lowercase());
+        world.owner_app = Some(build_app(seeded_state_with_store(
+            &subject,
+            "owner-token",
+            Arc::clone(&shared),
+        )));
+        world.shared_store = Some(shared);
+        world.second_app = None;
+        world.server_id = None;
+        world.channel_id = None;
+        world.message_id = None;
+        world.latest_status = None;
+        world.latest_payload = None;
+        world.owner_token = "owner-token".to_owned();
+        world.owner_name = Some(name);
+        world.second_name = None;
+        return;
+    }
+
+    if world.second_app.is_none() {
+        let shared = world
+            .shared_store
+            .as_ref()
+            .expect("shared store to be initialized")
+            .clone();
+        let subject = format!("auth0|{}", name.to_lowercase());
+        world.second_app = Some(build_app(seeded_state_with_store(
+            &subject,
+            "member-token",
+            shared,
+        )));
+        world.second_name = Some(name);
+        world.latest_status = None;
+        world.latest_payload = None;
+        return;
+    }
+
+    world.assert_owner_name(&name);
+}
+
+#[given(regex = r#"^a channel exists in "([^"]+)"'s server$"#)]
+async fn a_channel_exists_in_named_users_server(world: &mut MessagesWorld, name: String) {
+    world.assert_owner_name(&name);
+    world.ensure_owner_channel().await;
 }
 
 #[given("a channel exists in the user's server")]
@@ -236,6 +306,8 @@ async fn a_server_owner_exists(world: &mut MessagesWorld) {
     world.latest_status = None;
     world.latest_payload = None;
     world.owner_token = "owner-token".to_owned();
+    world.owner_name = Some("Owner".to_owned());
+    world.second_name = None;
 }
 
 #[given("a second authenticated user exists")]
@@ -251,6 +323,7 @@ async fn a_second_authenticated_user_exists(world: &mut MessagesWorld) {
         "member-token",
         shared,
     )));
+    world.second_name = Some("Member".to_owned());
 }
 
 #[given("a channel exists in the owner's server")]
@@ -346,6 +419,12 @@ async fn the_second_user_lists_messages_in_that_channel(world: &mut MessagesWorl
     .await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;
+}
+
+#[when(regex = r#"^"([^"]+)" lists messages in that channel$"#)]
+async fn named_user_lists_messages_in_that_channel(world: &mut MessagesWorld, name: String) {
+    world.assert_second_name(&name);
+    the_second_user_lists_messages_in_that_channel(world).await;
 }
 
 #[when("the user edits a message that does not exist in that channel")]

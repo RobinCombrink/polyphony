@@ -30,6 +30,8 @@ struct VoiceSessionsWorld {
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
     owner_token: String,
+    owner_name: Option<String>,
+    second_name: Option<String>,
 }
 
 impl VoiceSessionsWorld {
@@ -71,6 +73,19 @@ impl VoiceSessionsWorld {
         self.owner_token.as_str()
     }
 
+    fn assert_owner_name(&self, name: &str) {
+        let owner_name = self.owner_name.as_ref().expect("owner name to be set");
+        assert_eq!(owner_name, name, "owner name mismatch in scenario step");
+    }
+
+    fn assert_second_name(&self, name: &str) {
+        let second_name = self
+            .second_name
+            .as_ref()
+            .expect("second user name to be set");
+        assert_eq!(second_name, name, "second user name mismatch in scenario step");
+    }
+
     async fn ensure_owner_server(&mut self) {
         if self.server_id.is_some() {
             return;
@@ -104,6 +119,73 @@ async fn an_authenticated_user_exists(world: &mut VoiceSessionsWorld) {
     world.latest_status = None;
     world.latest_payload = None;
     world.owner_token = "valid-token".to_owned();
+    world.owner_name = None;
+    world.second_name = None;
+}
+
+#[given(regex = r#"^a user named "([^"]+)" exists$"#)]
+async fn a_user_named_exists(world: &mut VoiceSessionsWorld, name: String) {
+    if world.owner_app.is_none() {
+        let shared = Arc::new(InMemoryRepository::new());
+        let subject = format!("auth0|{}", name.to_lowercase());
+        world.owner_app = Some(build_app(seeded_state_with_store(
+            &subject,
+            "owner-token",
+            Arc::clone(&shared),
+        )));
+        world.shared_store = Some(shared);
+        world.second_app = None;
+        world.server_id = None;
+        world.channel_id = None;
+        world.second_user_id = None;
+        world.latest_status = None;
+        world.latest_payload = None;
+        world.owner_token = "owner-token".to_owned();
+        world.owner_name = Some(name);
+        world.second_name = None;
+        return;
+    }
+
+    if world.second_app.is_none() {
+        let shared = world
+            .shared_store
+            .as_ref()
+            .expect("shared store to be initialized")
+            .clone();
+        let subject = format!("auth0|{}", name.to_lowercase());
+        let second_app = build_app(seeded_state_with_store(&subject, "member-token", shared));
+
+        let me_payload =
+            response_payload_json(get_me_with_token(&second_app, "member-token").await).await;
+        world.second_user_id = Some(payload_uuid(&me_payload, "user_id"));
+        world.second_app = Some(second_app);
+        world.second_name = Some(name);
+        world.latest_status = None;
+        world.latest_payload = None;
+        return;
+    }
+
+    world.assert_owner_name(&name);
+}
+
+#[given(regex = r#"^a voice channel exists in "([^"]+)"'s server$"#)]
+async fn a_voice_channel_exists_in_named_users_server(
+    world: &mut VoiceSessionsWorld,
+    name: String,
+) {
+    world.assert_owner_name(&name);
+    a_voice_channel_exists_in_the_owners_server(world).await;
+}
+
+#[given(regex = r#"^"([^"]+)" adds "([^"]+)" to the server$"#)]
+async fn named_user_adds_named_user_to_the_server(
+    world: &mut VoiceSessionsWorld,
+    owner_name: String,
+    member_name: String,
+) {
+    world.assert_owner_name(&owner_name);
+    world.assert_second_name(&member_name);
+    the_first_user_adds_the_second_user_as_a_member(world).await;
 }
 
 #[given("a voice channel exists in the user's server")]
@@ -139,6 +221,8 @@ async fn a_server_owner_exists(world: &mut VoiceSessionsWorld) {
     world.latest_status = None;
     world.latest_payload = None;
     world.owner_token = "owner-token".to_owned();
+    world.owner_name = Some("Owner".to_owned());
+    world.second_name = None;
 }
 
 #[given("a second authenticated user exists")]
@@ -159,6 +243,7 @@ async fn a_second_authenticated_user_exists(world: &mut VoiceSessionsWorld) {
         response_payload_json(get_me_with_token(&second_app, "member-token").await).await;
     world.second_user_id = Some(payload_uuid(&me_payload, "user_id"));
     world.second_app = Some(second_app);
+    world.second_name = Some("Member".to_owned());
 }
 
 #[given("a voice channel exists in the owner's server")]
@@ -240,6 +325,15 @@ async fn the_second_user_connects_to_voice_for_that_channel(world: &mut VoiceSes
     } else {
         world.latest_payload = None;
     }
+}
+
+#[when(regex = r#"^"([^"]+)" connects to voice for that channel$"#)]
+async fn named_user_connects_to_voice_for_that_channel(
+    world: &mut VoiceSessionsWorld,
+    name: String,
+) {
+    world.assert_second_name(&name);
+    the_second_user_connects_to_voice_for_that_channel(world).await;
 }
 
 #[when("I connect to voice for that text channel")]

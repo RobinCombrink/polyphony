@@ -32,6 +32,8 @@ struct ServersAndChannelsWorld {
     latest_payload: Option<Value>,
     updated_channel_name: Option<String>,
     owner_token: String,
+    owner_name: Option<String>,
+    second_name: Option<String>,
 }
 
 impl ServersAndChannelsWorld {
@@ -71,6 +73,22 @@ impl ServersAndChannelsWorld {
         }
 
         self.owner_token.as_str()
+    }
+
+    fn assert_owner_name(&self, name: &str) {
+        let owner_name = self.owner_name.as_ref().expect("owner name to be set");
+        assert_eq!(owner_name, name, "owner name mismatch in scenario step");
+    }
+
+    fn assert_second_name(&self, name: &str) {
+        let second_name = self
+            .second_name
+            .as_ref()
+            .expect("second user name to be set");
+        assert_eq!(
+            second_name, name,
+            "second user name mismatch in scenario step"
+        );
     }
 
     async fn ensure_owner_server(&mut self) {
@@ -127,6 +145,76 @@ async fn an_authenticated_user_exists(world: &mut ServersAndChannelsWorld) {
     world.latest_payload = None;
     world.updated_channel_name = None;
     world.owner_token = "valid-token".to_owned();
+    world.owner_name = None;
+    world.second_name = None;
+}
+
+#[given(regex = r#"^a user named "([^"]+)" exists$"#)]
+async fn a_user_named_exists(world: &mut ServersAndChannelsWorld, name: String) {
+    if world.owner_app.is_none() {
+        let shared = Arc::new(InMemoryRepository::new());
+        let subject = format!("auth0|{}", name.to_lowercase());
+        world.owner_app = Some(build_app(seeded_state_with_store(
+            &subject,
+            "owner-token",
+            Arc::clone(&shared),
+        )));
+        world.shared_store = Some(shared);
+        world.owner_token = "owner-token".to_owned();
+        world.owner_name = Some(name);
+        world.second_app = None;
+        world.server_id = None;
+        world.channel_id = None;
+        world.second_user_id = None;
+        world.latest_status = None;
+        world.latest_payload = None;
+        world.updated_channel_name = None;
+        return;
+    }
+
+    if world.second_app.is_none() {
+        let shared = world
+            .shared_store
+            .as_ref()
+            .expect("shared store to be initialized")
+            .clone();
+        let subject = format!("auth0|{}", name.to_lowercase());
+        let second_app = build_app(seeded_state_with_store(&subject, "member-token", shared));
+        let me_response = common::bdd_support::get_me_with_token(&second_app, "member-token").await;
+        let me_payload = response_payload_json(me_response).await;
+
+        world.second_user_id = Some(payload_uuid(&me_payload, "user_id"));
+        world.second_app = Some(second_app);
+        world.second_name = Some(name);
+        world.latest_status = None;
+        world.latest_payload = None;
+        return;
+    }
+
+    world.assert_owner_name(&name);
+}
+
+#[given(regex = r#"^"([^"]+)" owns a server$"#)]
+async fn named_user_owns_a_server(world: &mut ServersAndChannelsWorld, name: String) {
+    world.assert_owner_name(&name);
+    world.ensure_owner_server().await;
+}
+
+#[given(regex = r#"^a channel exists in "([^"]+)"'s server$"#)]
+async fn a_channel_exists_in_named_users_server(world: &mut ServersAndChannelsWorld, name: String) {
+    world.assert_owner_name(&name);
+    world.ensure_owner_channel().await;
+}
+
+#[given(regex = r#"^"([^"]+)" adds "([^"]+)" to the server$"#)]
+async fn named_user_adds_named_user_to_the_server(
+    world: &mut ServersAndChannelsWorld,
+    owner_name: String,
+    member_name: String,
+) {
+    world.assert_owner_name(&owner_name);
+    world.assert_second_name(&member_name);
+    the_first_user_adds_the_second_user_as_a_member(world).await;
 }
 
 #[given("the user already owns a server")]
@@ -157,6 +245,8 @@ async fn a_server_owner_exists(world: &mut ServersAndChannelsWorld) {
     world.latest_payload = None;
     world.updated_channel_name = None;
     world.owner_token = "owner-token".to_owned();
+    world.owner_name = Some("Owner".to_owned());
+    world.second_name = None;
 }
 
 #[given("a second authenticated user exists")]
@@ -180,6 +270,7 @@ async fn a_second_authenticated_user_exists(world: &mut ServersAndChannelsWorld)
 
     world.second_user_id = Some(payload_uuid(&me_payload, "user_id"));
     world.second_app = Some(second_app);
+    world.second_name = Some("Member".to_owned());
 }
 
 #[given("the owner already has a server")]
@@ -272,6 +363,12 @@ async fn the_user_lists_their_servers(world: &mut ServersAndChannelsWorld) {
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
+#[when(regex = r#"^"([^"]+)" lists their servers$"#)]
+async fn named_user_lists_their_servers(world: &mut ServersAndChannelsWorld, name: String) {
+    world.assert_second_name(&name);
+    the_second_user_lists_their_servers(world).await;
+}
+
 #[when("the user creates a channel in that server")]
 async fn the_user_creates_a_channel_in_that_server(world: &mut ServersAndChannelsWorld) {
     world.ensure_owner_server().await;
@@ -356,6 +453,15 @@ async fn the_second_user_lists_channels_in_that_server(world: &mut ServersAndCha
     world.latest_payload = None;
 }
 
+#[when(regex = r#"^"([^"]+)" lists channels in that server$"#)]
+async fn named_user_lists_channels_in_that_server(
+    world: &mut ServersAndChannelsWorld,
+    name: String,
+) {
+    world.assert_second_name(&name);
+    the_second_user_lists_channels_in_that_server(world).await;
+}
+
 #[when("the second user tries to add a different user to that server")]
 async fn the_second_user_tries_to_add_a_different_user_to_that_server(
     world: &mut ServersAndChannelsWorld,
@@ -370,6 +476,15 @@ async fn the_second_user_tries_to_add_a_different_user_to_that_server(
     .await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;
+}
+
+#[when(regex = r#"^"([^"]+)" tries to add a different user to that server$"#)]
+async fn named_user_tries_to_add_a_different_user_to_that_server(
+    world: &mut ServersAndChannelsWorld,
+    name: String,
+) {
+    world.assert_second_name(&name);
+    the_second_user_tries_to_add_a_different_user_to_that_server(world).await;
 }
 
 #[when("the server owner deletes that server")]
@@ -389,6 +504,12 @@ async fn the_second_user_deletes_that_server(world: &mut ServersAndChannelsWorld
     .await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;
+}
+
+#[when(regex = r#"^"([^"]+)" deletes that server$"#)]
+async fn named_user_deletes_that_server(world: &mut ServersAndChannelsWorld, name: String) {
+    world.assert_second_name(&name);
+    the_second_user_deletes_that_server(world).await;
 }
 
 #[when("the user deletes a server that does not exist")]
@@ -416,6 +537,12 @@ async fn the_second_user_deletes_that_channel(world: &mut ServersAndChannelsWorl
     .await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;
+}
+
+#[when(regex = r#"^"([^"]+)" deletes that channel$"#)]
+async fn named_user_deletes_that_channel(world: &mut ServersAndChannelsWorld, name: String) {
+    world.assert_second_name(&name);
+    the_second_user_deletes_that_channel(world).await;
 }
 
 #[when("the user deletes a channel that does not exist")]
