@@ -97,3 +97,12 @@ Feature: Notifications
       And "Olivia" posts a message in channel "engineering"
       Then unread count increments for "Noah" in channel "engineering"
       And "Noah" sees total unread notification count of 1
+
+    Scenario: Preference APIs reflect global, server, and channel mute state
+      Given "Noah" has globally muted notifications
+      And "Noah" has muted that server
+      And "Noah" has temporarily muted channel "engineering" for 30 minutes
+      Then "Noah" sees global notification preference muted is true
+      And "Noah" sees server notification preference muted is true
+      And "Noah" sees channel "engineering" notification preference muted is true
+      And "Noah" sees channel "engineering" mute expiry timestamp is present

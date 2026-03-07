@@ -644,6 +644,149 @@ pub(crate) async fn mark_channel_notifications_read_with_token(
         .expect("mark channel notifications read response from app")
 }
 
+pub(crate) async fn update_global_notification_preference_with_token(
+    app: &axum::Router,
+    muted: bool,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications/preferences/global")
+                .method("PATCH")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "muted": muted }).to_string(),
+                ))
+                .expect("update global notification preference request to be valid"),
+        )
+        .await
+        .expect("update global notification preference response from app")
+}
+
+pub(crate) async fn global_notification_preference_with_token(
+    app: &axum::Router,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications/preferences/global")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("global notification preference request to be valid"),
+        )
+        .await
+        .expect("global notification preference response from app")
+}
+
+pub(crate) async fn update_server_notification_preference_with_token(
+    app: &axum::Router,
+    server_id: &ServerId,
+    muted: bool,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/servers/{server_id}/notifications/preferences"
+                ))
+                .method("PATCH")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "muted": muted }).to_string(),
+                ))
+                .expect("update server notification preference request to be valid"),
+        )
+        .await
+        .expect("update server notification preference response from app")
+}
+
+pub(crate) async fn server_notification_preference_with_token(
+    app: &axum::Router,
+    server_id: &ServerId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/servers/{server_id}/notifications/preferences"
+                ))
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("server notification preference request to be valid"),
+        )
+        .await
+        .expect("server notification preference response from app")
+}
+
+pub(crate) async fn mute_channel_notifications_with_token(
+    app: &axum::Router,
+    channel_id: &ChannelId,
+    duration_minutes: u32,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/channels/{channel_id}/notifications/preferences/mute"
+                ))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "duration_minutes": duration_minutes }).to_string(),
+                ))
+                .expect("mute channel notifications request to be valid"),
+        )
+        .await
+        .expect("mute channel notifications response from app")
+}
+
+pub(crate) async fn channel_notification_preference_with_token(
+    app: &axum::Router,
+    channel_id: &ChannelId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/channels/{channel_id}/notifications/preferences"
+                ))
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("channel notification preference request to be valid"),
+        )
+        .await
+        .expect("channel notification preference response from app")
+}
+
+pub(crate) async fn unmute_channel_notifications_with_token(
+    app: &axum::Router,
+    channel_id: &ChannelId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/channels/{channel_id}/notifications/preferences/unmute"
+                ))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("unmute channel notifications request to be valid"),
+        )
+        .await
+        .expect("unmute channel notifications response from app")
+}
+
 pub(crate) fn seeded_app_with_store_and_notification_hub(
     external_reference: impl AsRef<str>,
     token: &str,

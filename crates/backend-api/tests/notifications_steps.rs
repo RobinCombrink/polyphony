@@ -9,13 +9,15 @@ use axum::http::StatusCode;
 use backend_api::notification_hub::NotificationHub;
 use common::bdd_support::{
     Actor, ChannelId, MessageId, ServerId, SharedTestStore, add_server_member_with_token,
-    create_actor_with_notification_hub, create_channel_with_token, create_message_with_token,
-    create_server_with_token, expire_channel_mute_for_user,
-    mark_channel_notifications_read_with_token, outbox_count_for_message_recipient,
+    channel_notification_preference_with_token, create_actor_with_notification_hub,
+    create_channel_with_token, create_message_with_token, create_server_with_token,
+    global_notification_preference_with_token, mark_channel_notifications_read_with_token,
+    mute_channel_notifications_with_token, outbox_count_for_message_recipient,
     outbox_total_count_for_recipient, payload_channel_id, payload_message_id, payload_server_id,
-    prime_feature_test_store, response_payload_json, set_channel_temporarily_muted_for_user,
-    set_globally_muted_for_user, set_server_muted_for_user, shutdown_feature_test_store,
-    unread_count_for_channel, unread_notifications_count_with_token,
+    prime_feature_test_store, response_payload_json, server_notification_preference_with_token,
+    shutdown_feature_test_store, unmute_channel_notifications_with_token, unread_count_for_channel,
+    unread_notifications_count_with_token, update_global_notification_preference_with_token,
+    update_server_notification_preference_with_token,
 };
 use cucumber::{World as _, given, then, when};
 use futures_util::StreamExt;
@@ -271,13 +273,14 @@ async fn named_user_adds_named_user_to_the_server(
 #[given(regex = r#"^"([^"]+)" has muted that server$"#)]
 async fn named_user_has_muted_that_server(world: &mut NotificationsWorld, actor_name: String) {
     let actor = world.actor_ref(&actor_name);
-    set_server_muted_for_user(
-        &world.shared_store,
-        actor.user_id,
-        *world.server_id_ref(),
+    let response = update_server_notification_preference_with_token(
+        &actor.app,
+        world.server_id_ref(),
         true,
+        &actor.token,
     )
     .await;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
 #[given(regex = r#"^"([^"]+)" has globally muted notifications$"#)]
@@ -286,7 +289,9 @@ async fn named_user_has_globally_muted_notifications(
     actor_name: String,
 ) {
     let actor = world.actor_ref(&actor_name);
-    set_globally_muted_for_user(&world.shared_store, actor.user_id, true).await;
+    let response =
+        update_global_notification_preference_with_token(&actor.app, true, &actor.token).await;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
 #[given(regex = r#"^"([^"]+)" has temporarily muted channel "([^"]+)" for ([0-9]+) minutes$"#)]
@@ -298,13 +303,14 @@ async fn named_user_has_temporarily_muted_named_channel_for_minutes(
 ) {
     let actor = world.actor_ref(&actor_name);
     let channel_id = *world.channel_id_by_name_ref(&channel_name);
-    set_channel_temporarily_muted_for_user(
-        &world.shared_store,
-        actor.user_id,
-        channel_id,
+    let response = mute_channel_notifications_with_token(
+        &actor.app,
+        &channel_id,
         duration_minutes,
+        &actor.token,
     )
     .await;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
 #[given(regex = r#"^"([^"]+)" is connected to notifications websocket$"#)]
@@ -387,7 +393,9 @@ async fn temporary_mute_expires_for_named_user_in_named_channel(
 ) {
     let actor = world.actor_ref(&actor_name);
     let channel_id = *world.channel_id_by_name_ref(&channel_name);
-    expire_channel_mute_for_user(&world.shared_store, actor.user_id, channel_id).await;
+    let response =
+        unmute_channel_notifications_with_token(&actor.app, &channel_id, &actor.token).await;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
 #[when(regex = r#"^"([^"]+)" globally unmutes notifications$"#)]
@@ -396,7 +404,9 @@ async fn named_user_globally_unmutes_notifications(
     actor_name: String,
 ) {
     let actor = world.actor_ref(&actor_name);
-    set_globally_muted_for_user(&world.shared_store, actor.user_id, false).await;
+    let response =
+        update_global_notification_preference_with_token(&actor.app, false, &actor.token).await;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
 #[then(regex = r#"^unread count increments for "([^"]+)" in that channel$"#)]
@@ -521,6 +531,84 @@ async fn named_user_sees_total_unread_notification_count_of(
     assert_eq!(total_unread_count, expected_total);
 }
 
+#[then(regex = r#"^"([^"]+)" sees global notification preference muted is (true|false)$"#)]
+async fn named_user_sees_global_notification_preference_muted_is(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    expected_muted: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let response = global_notification_preference_with_token(&actor.app, &actor.token).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = response_payload_json(response).await;
+    let muted = payload["muted"].as_bool().expect("muted to be present");
+
+    assert_eq!(muted, parse_bool(&expected_muted));
+}
+
+#[then(regex = r#"^"([^"]+)" sees server notification preference muted is (true|false)$"#)]
+async fn named_user_sees_server_notification_preference_muted_is(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    expected_muted: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let response =
+        server_notification_preference_with_token(&actor.app, world.server_id_ref(), &actor.token)
+            .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = response_payload_json(response).await;
+    let muted = payload["muted"].as_bool().expect("muted to be present");
+
+    assert_eq!(muted, parse_bool(&expected_muted));
+}
+
+#[then(
+    regex = r#"^"([^"]+)" sees channel "([^"]+)" notification preference muted is (true|false)$"#
+)]
+async fn named_user_sees_named_channel_notification_preference_muted_is(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+    expected_muted: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let response =
+        channel_notification_preference_with_token(&actor.app, &channel_id, &actor.token).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = response_payload_json(response).await;
+    let muted = payload["muted"].as_bool().expect("muted to be present");
+
+    assert_eq!(muted, parse_bool(&expected_muted));
+}
+
+#[then(regex = r#"^"([^"]+)" sees channel "([^"]+)" mute expiry timestamp is (present|absent)$"#)]
+async fn named_user_sees_named_channel_mute_expiry_timestamp_is(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+    expected_presence: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let response =
+        channel_notification_preference_with_token(&actor.app, &channel_id, &actor.token).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = response_payload_json(response).await;
+    let mute_expiry = payload["muted_until_epoch_seconds"].as_u64();
+
+    match expected_presence.as_str() {
+        "present" => assert!(mute_expiry.is_some(), "expected mute expiry to be present"),
+        "absent" => assert!(mute_expiry.is_none(), "expected mute expiry to be absent"),
+        _ => panic!("expected presence to be either present or absent"),
+    }
+}
+
 #[then(regex = r#"^"([^"]+)" receives a message-created websocket notification for that channel$"#)]
 async fn named_user_receives_message_created_websocket_notification_for_that_channel(
     world: &mut NotificationsWorld,
@@ -631,6 +719,14 @@ async fn named_user_posts_a_message_in_given_channel(
     } else {
         world.latest_message_id = None;
         world.latest_payload = None;
+    }
+}
+
+fn parse_bool(value: &str) -> bool {
+    match value {
+        "true" => true,
+        "false" => false,
+        _ => panic!("expected boolean string"),
     }
 }
 

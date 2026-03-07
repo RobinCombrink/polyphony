@@ -419,23 +419,42 @@ impl InMemoryStore {
             .insert((user_id, channel_id), SystemTime::UNIX_EPOCH);
     }
 
-    fn is_server_muted_for_user(&self, user_id: UserId, server_id: ServerId) -> bool {
+    pub(crate) fn is_server_muted_for_user(&self, user_id: UserId, server_id: ServerId) -> bool {
         self.server_mute_by_user_server
             .get(&(user_id, server_id))
             .copied()
             .unwrap_or(false)
     }
 
-    fn is_globally_muted_for_user(&self, user_id: UserId) -> bool {
+    pub(crate) fn is_globally_muted_for_user(&self, user_id: UserId) -> bool {
         self.global_mute_by_user
             .get(&user_id)
             .copied()
             .unwrap_or(false)
     }
 
-    fn is_channel_muted_for_user(&self, user_id: UserId, channel_id: ChannelId) -> bool {
+    pub(crate) fn is_channel_muted_for_user(&self, user_id: UserId, channel_id: ChannelId) -> bool {
         self.channel_mute_until_by_user_channel
             .get(&(user_id, channel_id))
             .is_some_and(|muted_until| *muted_until > SystemTime::now())
+    }
+
+    pub(crate) fn channel_mute_expires_at_epoch_seconds(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Option<u64> {
+        let muted_until = self
+            .channel_mute_until_by_user_channel
+            .get(&(user_id, channel_id))?;
+
+        if *muted_until <= SystemTime::now() {
+            return None;
+        }
+
+        muted_until
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .ok()
+            .map(|duration| duration.as_secs())
     }
 }

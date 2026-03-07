@@ -25,7 +25,11 @@ use routes::{
     me::{me, update_me},
     messages::{create_message, delete_message, list_messages, update_message},
     notifications::{
-        mark_channel_notifications_read, unread_notifications_count, websocket_notifications,
+        channel_notification_preference, global_notification_preference,
+        mark_channel_notifications_read, mute_channel_notifications,
+        server_notification_preference, unmute_channel_notifications, unread_notifications_count,
+        update_global_notification_preference, update_server_notification_preference,
+        websocket_notifications,
     },
     servers::{
         add_server_member, create_channel, create_server, delete_channel, delete_server,
@@ -233,8 +237,28 @@ where
             post(mark_channel_notifications_read),
         )
         .route(
+            "/api/v1/channels/{channel_id}/notifications/preferences",
+            get(channel_notification_preference),
+        )
+        .route(
+            "/api/v1/channels/{channel_id}/notifications/preferences/mute",
+            post(mute_channel_notifications),
+        )
+        .route(
+            "/api/v1/channels/{channel_id}/notifications/preferences/unmute",
+            post(unmute_channel_notifications),
+        )
+        .route(
             "/api/v1/notifications/unread-count",
             get(unread_notifications_count),
+        )
+        .route(
+            "/api/v1/notifications/preferences/global",
+            get(global_notification_preference).patch(update_global_notification_preference),
+        )
+        .route(
+            "/api/v1/servers/{server_id}/notifications/preferences",
+            get(server_notification_preference).patch(update_server_notification_preference),
         )
         .route("/api/v1/notifications/ws", get(websocket_notifications))
         .merge(

@@ -227,6 +227,25 @@ impl NotificationRepository for InMemoryRepository {
             .remove(&(user_id, channel_id));
     }
 
+    async fn is_globally_muted_for_user(&self, user_id: UserId) -> bool {
+        let store = self.store.read().await;
+        store.is_globally_muted_for_user(user_id)
+    }
+
+    async fn is_server_muted_for_user(&self, user_id: UserId, server_id: ServerId) -> bool {
+        let store = self.store.read().await;
+        store.is_server_muted_for_user(user_id, server_id)
+    }
+
+    async fn channel_mute_expires_at_epoch_seconds(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Option<u64> {
+        let store = self.store.read().await;
+        store.channel_mute_expires_at_epoch_seconds(user_id, channel_id)
+    }
+
     async fn set_globally_muted_for_user(&self, user_id: UserId, muted: bool) {
         let mut store = self.store.write().await;
         store.set_globally_muted_for_user(user_id, muted);

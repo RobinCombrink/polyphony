@@ -500,6 +500,57 @@ impl NotificationRepository for PostgresRepository {
         .await;
     }
 
+    async fn is_globally_muted_for_user(&self, user_id: UserId) -> bool {
+        sqlx::query_scalar::<_, bool>(
+            "SELECT COALESCE(muted, FALSE)
+             FROM notification_user_preferences
+             WHERE user_id = $1",
+        )
+        .bind(Uuid::from(user_id))
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or(false)
+    }
+
+    async fn is_server_muted_for_user(&self, user_id: UserId, server_id: ServerId) -> bool {
+        sqlx::query_scalar::<_, bool>(
+            "SELECT COALESCE(muted, FALSE)
+             FROM notification_server_preferences
+             WHERE user_id = $1
+               AND server_id = $2",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(server_id))
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or(false)
+    }
+
+    async fn channel_mute_expires_at_epoch_seconds(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Option<u64> {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT FLOOR(EXTRACT(EPOCH FROM muted_until))::BIGINT
+             FROM notification_channel_mutes
+             WHERE user_id = $1
+               AND channel_id = $2
+               AND muted_until > NOW()",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(channel_id))
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|value| u64::try_from(value).ok())
+    }
+
     async fn set_globally_muted_for_user(&self, user_id: UserId, muted: bool) {
         let _ = sqlx::query(
             "INSERT INTO notification_user_preferences (
