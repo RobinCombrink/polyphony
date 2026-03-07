@@ -1,7 +1,6 @@
 using Pulumi;
 using Pulumi.Auth0;
-using System.Collections.Generic;
-using System.Linq;
+using Pulumi.Auth0.Inputs;
 
 return await Deployment.RunAsync(() =>
 {
@@ -53,6 +52,7 @@ return await Deployment.RunAsync(() =>
         EnforcePolicies = false,
         SkipConsentForVerifiableFirstPartyClients = true,
         TokenLifetime = 3600,
+        AllowOfflineAccess = true,
     });
 
     var databaseConnection = new Connection("polyphony-database", new ConnectionArgs
@@ -78,7 +78,7 @@ return await Deployment.RunAsync(() =>
         {
             "authorization_code",
         },
-        ResourceServerIdentifier = "https://app.polyphony.com",
+        ResourceServerIdentifier = appResourceServer.Identifier,
     });
 
     var nativeClient = new Client("polyphony-native", new ClientArgs
@@ -90,12 +90,21 @@ return await Deployment.RunAsync(() =>
         IsFirstParty = true,
         Callbacks = flutterNativeRedirectUris.ToArray(),
         AllowedLogoutUrls = flutterNativeRedirectUris.ToArray(),
+        RefreshToken = new ClientRefreshTokenArgs
+        {
+            RotationType = "rotating",
+            ExpirationType = "expiring",
+            InfiniteTokenLifetime = false,
+            TokenLifetime = 60 * 60 * 24 * 30 * 3, // 90 days
+            IdleTokenLifetime = 60 * 60 * 24 * 30, // 30 days
+            Leeway = 60, // 1 minute
+        },
         GrantTypes = new[]
         {
             "authorization_code",
             "refresh_token",
         },
-        ResourceServerIdentifier = "https://app.polyphony.com",
+        ResourceServerIdentifier = appResourceServer.Identifier,
     });
 
     var apiMachineClient = new Client("polyphony-api-service", new ClientArgs
@@ -130,7 +139,7 @@ return await Deployment.RunAsync(() =>
     var webClientGrant = new ClientGrant("polyphony-web-client-grant", new ClientGrantArgs
     {
         ClientId = webClient.ClientId,
-        Audience = apiResourceServer.Identifier,
+        Audience = appResourceServer.Identifier,
         AllowAllScopes = false,
         Scopes = [],
     });
@@ -138,7 +147,7 @@ return await Deployment.RunAsync(() =>
     var nativeClientGrant = new ClientGrant("polyphony-native-client-grant", new ClientGrantArgs
     {
         ClientId = nativeClient.ClientId,
-        Audience = apiResourceServer.Identifier,
+        Audience = appResourceServer.Identifier,
         AllowAllScopes = false,
         Scopes = [],
     });
