@@ -11,8 +11,10 @@ use backend_api::{
     ApiState,
     auth::{Auth0Config, AuthState, AuthenticatedUser, TokenVerifier},
     config::LiveKitConfig,
+    notification_hub::NotificationHub,
     storage::{InMemoryRepository, PostgresRepository},
 };
+use backend_storage::NotificationRepository;
 use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
 use serde_json::Value;
 use testcontainers_modules::{
@@ -573,6 +575,7 @@ fn seeded_state_with_store<Repo>(
     token: &str,
     user_id: UserId,
     repository: Arc<Repo>,
+    notification_hub: Arc<NotificationHub>,
 ) -> ApiState<Repo, Repo, Repo, Repo, TestTokenVerifier>
 where
     Repo: UserRepository + ServerRepository + ChannelRepository + MessageRepository,
@@ -590,20 +593,24 @@ where
     let channel_store = repository.clone();
     let message_store = repository;
 
-    ApiState::new(
+    let mut state = ApiState::new(
         Arc::new(AuthState::new(auth_config, token_verifier)),
         user_store,
         server_store,
         channel_store,
         message_store,
         Arc::new(LiveKitConfig::default()),
-    )
+    );
+
+    state.notification_hub = notification_hub;
+    state
 }
 
-pub(crate) fn seeded_app_with_store(
+pub(crate) fn seeded_app_with_store_and_notification_hub(
     external_reference: impl AsRef<str>,
     token: &str,
     repository: SharedTestStore,
+    notification_hub: Arc<NotificationHub>,
 ) -> axum::Router {
     let user_id: UserId = Uuid::new_v4().into();
     let external_reference = ExternalReference::from(external_reference.as_ref());
@@ -614,13 +621,52 @@ pub(crate) fn seeded_app_with_store(
             token,
             user_id,
             Arc::clone(store),
+            Arc::clone(&notification_hub),
         )),
         TestStore::Postgres(store) => backend_api::build_app(seeded_state_with_store(
             &external_reference,
             token,
             user_id,
             Arc::clone(&store.repository),
+            Arc::clone(&notification_hub),
         )),
+    }
+}
+
+pub(crate) fn seeded_app_with_store(
+    external_reference: impl AsRef<str>,
+    token: &str,
+    repository: SharedTestStore,
+) -> axum::Router {
+    seeded_app_with_store_and_notification_hub(
+        external_reference,
+        token,
+        repository,
+        Arc::new(NotificationHub::default()),
+    )
+}
+
+pub(crate) async fn create_actor_with_notification_hub(
+    name: &str,
+    token: &str,
+    repository: SharedTestStore,
+    notification_hub: Arc<NotificationHub>,
+) -> Actor {
+    let external_reference = external_reference_for_actor(name);
+    let app = seeded_app_with_store_and_notification_hub(
+        &external_reference,
+        token,
+        repository,
+        notification_hub,
+    );
+    let me_payload = response_payload_json(get_me_with_token(&app, token).await).await;
+
+    Actor {
+        name: name.to_owned(),
+        token: token.to_owned(),
+        external_reference,
+        user_id: payload_user_id(&me_payload, "user_id"),
+        app,
     }
 }
 
@@ -660,6 +706,61 @@ pub(crate) async fn prime_feature_test_store() {
 pub(crate) async fn shutdown_feature_test_store() {
     let mut guard = FEATURE_POSTGRES_TEST_ENV.lock().await;
     *guard = None;
+}
+
+pub(crate) async fn unread_count_for_channel(
+    repository: &SharedTestStore,
+    user_id: UserId,
+    channel_id: ChannelId,
+) -> u64 {
+    match repository.as_ref() {
+        TestStore::InMemory(store) => store.unread_count_for_channel(user_id, channel_id).await,
+        TestStore::Postgres(store) => {
+            store
+                .repository
+                .unread_count_for_channel(user_id, channel_id)
+                .await
+        }
+    }
+}
+
+pub(crate) async fn outbox_count_for_message_recipient(
+    repository: &SharedTestStore,
+    message_id: MessageId,
+    recipient_user_id: UserId,
+) -> u64 {
+    match repository.as_ref() {
+        TestStore::InMemory(store) => {
+            store
+                .outbox_count_for_message_recipient(message_id, recipient_user_id)
+                .await
+        }
+        TestStore::Postgres(store) => {
+            store
+                .repository
+                .outbox_count_for_message_recipient(message_id, recipient_user_id)
+                .await
+        }
+    }
+}
+
+pub(crate) async fn outbox_total_count_for_recipient(
+    repository: &SharedTestStore,
+    recipient_user_id: UserId,
+) -> u64 {
+    match repository.as_ref() {
+        TestStore::InMemory(store) => {
+            store
+                .outbox_total_count_for_recipient(recipient_user_id)
+                .await
+        }
+        TestStore::Postgres(store) => {
+            store
+                .repository
+                .outbox_total_count_for_recipient(recipient_user_id)
+                .await
+        }
+    }
 }
 
 async fn feature_postgres_test_env() -> Arc<PostgresTestEnv> {

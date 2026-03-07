@@ -6,6 +6,7 @@ use axum::{
 };
 use backend_domain::ChannelId;
 use backend_domain::Message;
+use backend_domain::NotificationEventType;
 use backend_storage::{
     ChannelRepository, CreateMessageResult, MessageRepository, ServerRepository, UserRepository,
 };
@@ -72,7 +73,7 @@ where
                 state.notification_hub.publish(NotificationEnvelope {
                     recipient_user_id,
                     event: NotificationEvent {
-                        event_type: "message_created".to_owned(),
+                        event_type: NotificationEventType::MessageCreated,
                         channel_id: message.channel_id,
                         message_id: message.id,
                     },

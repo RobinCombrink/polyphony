@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use backend_domain::{
     Channel, ChannelId, ChannelType, DisplayName, ExternalReference, Membership, Message,
-    MessageId, Server, ServerId, User, UserId,
+    MessageId, NotificationEventType, Server, ServerId, User, UserId,
 };
 use sqlx::migrate::Migrator;
 use sqlx::{
@@ -11,8 +11,8 @@ use sqlx::{
 use uuid::Uuid;
 
 use crate::{
-    ChannelRepository, CreateMessageResult, MessageRepository, MutationResult, ServerRepository,
-    UserRepository,
+    ChannelRepository, CreateMessageResult, MessageRepository, MutationResult,
+    NotificationRepository, ServerRepository, UserRepository,
 };
 
 #[cfg(target_family = "windows")]
@@ -180,8 +180,10 @@ impl MessageRepository for PostgresRepository {
         .await
         .unwrap_or_default();
 
+        let event_type = NotificationEventType::MessageCreated;
+
         let payload = serde_json::json!({
-            "event_type": "message_created",
+            "event_type": event_type.as_str(),
             "message_id": message_id,
             "channel_id": message_channel_id,
             "author_user_id": message_author_user_id,
@@ -198,9 +200,10 @@ impl MessageRepository for PostgresRepository {
                     author_user_id,
                     payload
                  )
-                 VALUES (gen_random_uuid(), 'message_created', $1, $2, $3, $4, $5)
+                 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
                  ON CONFLICT (event_type, message_id, recipient_user_id) DO NOTHING",
             )
+            .bind(String::from(event_type))
             .bind(message_id)
             .bind(message_channel_id)
             .bind(recipient_user_id)
@@ -438,6 +441,59 @@ impl UserRepository for PostgresRepository {
         .await;
 
         self.find_user_by_id(user_id).await
+    }
+}
+
+#[async_trait]
+impl NotificationRepository for PostgresRepository {
+    async fn unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> u64 {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT unread_count
+             FROM notification_unread_counts
+             WHERE user_id = $1 AND channel_id = $2",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(channel_id))
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|value| u64::try_from(value).ok())
+        .unwrap_or(0)
+    }
+
+    async fn outbox_count_for_message_recipient(
+        &self,
+        message_id: MessageId,
+        recipient_user_id: UserId,
+    ) -> u64 {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM notification_outbox
+             WHERE message_id = $1
+               AND recipient_user_id = $2",
+        )
+        .bind(Uuid::from(message_id))
+        .bind(Uuid::from(recipient_user_id))
+        .fetch_one(&self.pool)
+        .await
+        .ok()
+        .and_then(|value| u64::try_from(value).ok())
+        .unwrap_or(0)
+    }
+
+    async fn outbox_total_count_for_recipient(&self, recipient_user_id: UserId) -> u64 {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM notification_outbox
+             WHERE recipient_user_id = $1",
+        )
+        .bind(Uuid::from(recipient_user_id))
+        .fetch_one(&self.pool)
+        .await
+        .ok()
+        .and_then(|value| u64::try_from(value).ok())
+        .unwrap_or(0)
     }
 }
 

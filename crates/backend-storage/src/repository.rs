@@ -17,6 +17,17 @@ pub enum CreateMessageResult {
 }
 
 #[async_trait]
+pub trait NotificationRepository: Send + Sync {
+    async fn unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> u64;
+    async fn outbox_count_for_message_recipient(
+        &self,
+        message_id: MessageId,
+        recipient_user_id: UserId,
+    ) -> u64;
+    async fn outbox_total_count_for_recipient(&self, recipient_user_id: UserId) -> u64;
+}
+
+#[async_trait]
 pub trait MessageRepository: Send + Sync {
     async fn create_message(
         &self,

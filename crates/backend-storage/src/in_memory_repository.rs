@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     ChannelRepository, CreateMessageResult, InMemoryStore, MessageRepository, MutationResult,
-    ServerRepository, UserRepository,
+    NotificationRepository, ServerRepository, UserRepository,
 };
 
 #[derive(Debug, Default)]
@@ -191,5 +191,47 @@ impl ChannelRepository for InMemoryRepository {
     async fn is_channel_member(&self, channel_id: ChannelId, user_id: UserId) -> Option<bool> {
         let store = self.store.read().await;
         store.is_channel_member(channel_id, user_id)
+    }
+}
+
+#[async_trait]
+impl NotificationRepository for InMemoryRepository {
+    async fn unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> u64 {
+        let store = self.store.read().await;
+        store
+            .unread_counts_by_user_channel
+            .get(&(user_id, channel_id))
+            .copied()
+            .unwrap_or(0)
+    }
+
+    async fn outbox_count_for_message_recipient(
+        &self,
+        message_id: MessageId,
+        recipient_user_id: UserId,
+    ) -> u64 {
+        let store = self.store.read().await;
+        let count = store
+            .notification_outbox
+            .iter()
+            .filter(|(stored_message_id, _, stored_recipient_user_id, _)| {
+                *stored_message_id == message_id && *stored_recipient_user_id == recipient_user_id
+            })
+            .count();
+
+        u64::try_from(count).unwrap_or(0)
+    }
+
+    async fn outbox_total_count_for_recipient(&self, recipient_user_id: UserId) -> u64 {
+        let store = self.store.read().await;
+        let count = store
+            .notification_outbox
+            .iter()
+            .filter(|(_, _, stored_recipient_user_id, _)| {
+                *stored_recipient_user_id == recipient_user_id
+            })
+            .count();
+
+        u64::try_from(count).unwrap_or(0)
     }
 }
