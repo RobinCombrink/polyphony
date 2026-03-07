@@ -145,25 +145,103 @@ impl MessageRepository for PostgresRepository {
         let channel_id = Uuid::from(channel_id);
         let author_user_id = Uuid::from(author_user_id);
 
-        sqlx::query_as::<_, (Uuid, Uuid, Uuid, String)>(
+        let mut transaction = match self.pool.begin().await {
+            Ok(value) => value,
+            Err(_) => return CreateMessageResult::NotFound,
+        };
+
+        let created_message = sqlx::query_as::<_, (Uuid, Uuid, Uuid, String)>(
             "INSERT INTO messages (id, channel_id, author_user_id, content)
-            VALUES (gen_random_uuid(), $1, $2, $3)
-            RETURNING id, channel_id, author_user_id, content",
+             VALUES (gen_random_uuid(), $1, $2, $3)
+             RETURNING id, channel_id, author_user_id, content",
         )
         .bind(channel_id)
         .bind(author_user_id)
         .bind(content)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *transaction)
+        .await;
+
+        let (message_id, message_channel_id, message_author_user_id, message_content) =
+            match created_message {
+                Ok(value) => value,
+                Err(_) => return CreateMessageResult::NotFound,
+            };
+
+        let notified_user_ids = sqlx::query_scalar::<_, Uuid>(
+            "SELECT sm.user_id
+             FROM server_members sm
+             INNER JOIN channels c ON c.server_id = sm.server_id
+             WHERE c.id = $1
+               AND sm.user_id != $2",
+        )
+        .bind(channel_id)
+        .bind(author_user_id)
+        .fetch_all(&mut *transaction)
         .await
-        .ok()
-        .map(|(id, channel_id, author_user_id, content)| Message {
-            id: id.into(),
-            channel_id: channel_id.into(),
-            author_user_id: author_user_id.into(),
-            content,
-        })
-        .map(CreateMessageResult::Created)
-        .unwrap_or(CreateMessageResult::NotFound)
+        .unwrap_or_default();
+
+        let payload = serde_json::json!({
+            "event_type": "message_created",
+            "message_id": message_id,
+            "channel_id": message_channel_id,
+            "author_user_id": message_author_user_id,
+        });
+
+        for recipient_user_id in &notified_user_ids {
+            let _ = sqlx::query(
+                "INSERT INTO notification_outbox (
+                    id,
+                    event_type,
+                    message_id,
+                    channel_id,
+                    recipient_user_id,
+                    author_user_id,
+                    payload
+                 )
+                 VALUES (gen_random_uuid(), 'message_created', $1, $2, $3, $4, $5)
+                 ON CONFLICT (event_type, message_id, recipient_user_id) DO NOTHING",
+            )
+            .bind(message_id)
+            .bind(message_channel_id)
+            .bind(recipient_user_id)
+            .bind(message_author_user_id)
+            .bind(payload.clone())
+            .execute(&mut *transaction)
+            .await;
+
+            let _ = sqlx::query(
+                "INSERT INTO notification_unread_counts (
+                    user_id,
+                    channel_id,
+                    unread_count
+                 )
+                 VALUES ($1, $2, 1)
+                 ON CONFLICT (user_id, channel_id)
+                 DO UPDATE SET unread_count = notification_unread_counts.unread_count + 1,
+                               updated_at = NOW()",
+            )
+            .bind(recipient_user_id)
+            .bind(message_channel_id)
+            .execute(&mut *transaction)
+            .await;
+        }
+
+        if transaction.commit().await.is_err() {
+            return CreateMessageResult::NotFound;
+        }
+
+        CreateMessageResult::Created {
+            message: Message {
+                id: message_id.into(),
+                channel_id: message_channel_id.into(),
+                author_user_id: message_author_user_id.into(),
+                content: message_content,
+            },
+            notified_user_ids: notified_user_ids
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>(),
+        }
     }
 
     async fn update_message(

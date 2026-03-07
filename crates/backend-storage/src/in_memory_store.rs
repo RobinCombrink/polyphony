@@ -16,6 +16,8 @@ pub(crate) struct InMemoryStore {
     pub(crate) server_members_by_id: HashMap<ServerId, Vec<UserId>>,
     pub(crate) channels: HashMap<ChannelId, Channel>,
     pub(crate) messages_by_channel: HashMap<ChannelId, Vec<Message>>,
+    pub(crate) notification_outbox: Vec<(MessageId, ChannelId, UserId, UserId)>,
+    pub(crate) unread_counts_by_user_channel: HashMap<(UserId, ChannelId), u64>,
 }
 
 impl InMemoryStore {
@@ -263,12 +265,22 @@ impl InMemoryStore {
         author_user_id: UserId,
         content: String,
     ) -> CreateMessageResult {
-        let Some(channel_type) = self.channels.get(&channel_id).map(Channel::kind) else {
+        let Some(channel) = self.channels.get(&channel_id).cloned() else {
             return CreateMessageResult::NotFound;
         };
 
+        let channel_type = channel.kind();
+
         if channel_type != ChannelType::Text {
             return CreateMessageResult::ChannelKindMismatch;
+        }
+
+        let is_channel_member = self
+            .is_channel_member(channel_id, author_user_id)
+            .unwrap_or(false);
+
+        if !is_channel_member {
+            return CreateMessageResult::Forbidden;
         }
 
         let message = Message {
@@ -283,7 +295,31 @@ impl InMemoryStore {
             .or_default()
             .push(message.clone());
 
-        CreateMessageResult::Created(message)
+        let server_id = channel.server_id();
+        let notified_user_ids = self
+            .server_members_by_id
+            .get(&server_id)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|user_id| *user_id != author_user_id)
+            .collect::<Vec<_>>();
+
+        for recipient_user_id in &notified_user_ids {
+            self.notification_outbox
+                .push((message.id, channel_id, *recipient_user_id, author_user_id));
+
+            let unread_count = self
+                .unread_counts_by_user_channel
+                .entry((*recipient_user_id, channel_id))
+                .or_insert(0);
+            *unread_count += 1;
+        }
+
+        CreateMessageResult::Created {
+            message,
+            notified_user_ids,
+        }
     }
 
     pub(crate) fn list_messages(&self, channel_id: ChannelId) -> Vec<Message> {

@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0"
 async-trait = "0.1"
-axum = "0.8"
+axum = { version = "0.8", features = ["ws"] }
 backend-domain = { path = "../backend-domain" }
 backend-storage = { path = "../backend-storage" }
 http = "1.3"

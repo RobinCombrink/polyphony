@@ -42,9 +42,20 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
         ))
         .await;
 
+    let member_user = repository
+        .get_or_create_user_by_external_reference(&ExternalReference::from(
+            "auth0|integration-member",
+        ))
+        .await;
+
     let server = repository
         .create_server("Integration Server".to_owned(), user.id)
         .await;
+
+    let membership_result = repository
+        .add_server_member(server.id, user.id, member_user.id)
+        .await;
+    assert_eq!(membership_result, backend_storage::MutationResult::Updated);
 
     let channel = repository
         .create_channel(server.id, "general".to_owned(), ChannelType::Text)
@@ -56,7 +67,10 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
         .await;
 
     let message = match message {
-        CreateMessageResult::Created(created_message) => created_message,
+        CreateMessageResult::Created {
+            message: created_message,
+            ..
+        } => created_message,
         CreateMessageResult::Forbidden => panic!("message creation should not be forbidden"),
         CreateMessageResult::ChannelKindMismatch => {
             panic!("text channel should accept message creation")
@@ -69,6 +83,15 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
     assert_eq!(listed_messages.len(), 1);
     assert_eq!(listed_messages[0].id, message.id);
     assert_eq!(listed_messages[0].author_user_id, user.id);
+
+    assert_notification_outbox_and_unread_counts(
+        &pool,
+        message.id,
+        channel.id(),
+        user.id,
+        member_user.id,
+    )
+    .await;
 
     let _voice_channel = repository
         .create_channel(server.id, "voice".to_owned(), ChannelType::Voice)
@@ -129,4 +152,44 @@ async fn assert_inserted_rows_have_date_created(pool: &PgPool) {
             "found rows without date_created in {table_name}"
         );
     }
+}
+
+async fn assert_notification_outbox_and_unread_counts(
+    pool: &PgPool,
+    message_id: backend_domain::MessageId,
+    channel_id: backend_domain::ChannelId,
+    author_user_id: backend_domain::UserId,
+    recipient_user_id: backend_domain::UserId,
+) {
+    let outbox_rows = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(1)
+         FROM notification_outbox
+         WHERE event_type = 'message_created'
+           AND message_id = $1
+           AND channel_id = $2
+           AND recipient_user_id = $3
+           AND author_user_id = $4",
+    )
+    .bind(uuid::Uuid::from(message_id))
+    .bind(uuid::Uuid::from(channel_id))
+    .bind(uuid::Uuid::from(recipient_user_id))
+    .bind(uuid::Uuid::from(author_user_id))
+    .fetch_one(pool)
+    .await
+    .expect("notification outbox query to succeed");
+
+    assert_eq!(outbox_rows, 1, "expected one outbox row for recipient");
+
+    let unread_count = sqlx::query_scalar::<_, i64>(
+        "SELECT unread_count
+         FROM notification_unread_counts
+         WHERE user_id = $1 AND channel_id = $2",
+    )
+    .bind(uuid::Uuid::from(recipient_user_id))
+    .bind(uuid::Uuid::from(channel_id))
+    .fetch_one(pool)
+    .await
+    .expect("unread counter query to succeed");
+
+    assert_eq!(unread_count, 1, "expected unread count increment");
 }

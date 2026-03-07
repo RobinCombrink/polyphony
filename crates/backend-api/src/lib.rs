@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod config;
 pub mod dto;
+pub mod notification_hub;
 pub mod observability;
 mod openapi;
 mod routes;
@@ -22,6 +23,7 @@ use routes::{
     health::health,
     me::{me, update_me},
     messages::{create_message, delete_message, list_messages, update_message},
+    notifications::websocket_notifications,
     servers::{
         add_server_member, create_channel, create_server, delete_channel, delete_server,
         list_channels, list_server_members, list_servers, update_channel,
@@ -37,6 +39,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::auth::TokenVerifier;
+use crate::notification_hub::NotificationHub;
 
 pub struct ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>
 where
@@ -52,6 +55,7 @@ where
     pub channel_repository: Arc<ChannelRepo>,
     pub message_repository: Arc<MessageRepo>,
     pub livekit_config: Arc<config::LiveKitConfig>,
+    pub notification_hub: Arc<NotificationHub>,
 }
 
 impl<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>
@@ -78,6 +82,7 @@ where
             channel_repository,
             message_repository,
             livekit_config,
+            notification_hub: Arc::new(NotificationHub::default()),
         }
     }
 }
@@ -99,6 +104,7 @@ where
             channel_repository: self.channel_repository.clone(),
             message_repository: self.message_repository.clone(),
             livekit_config: self.livekit_config.clone(),
+            notification_hub: self.notification_hub.clone(),
         }
     }
 }
@@ -219,6 +225,7 @@ where
             "/api/v1/channels/{channel_id}/session",
             post(create_session),
         )
+        .route("/api/v1/notifications/ws", get(websocket_notifications))
         .merge(
             SwaggerUi::new("/openapi")
                 .url("/api-docs/openapi.json", ApiDocumentation::openapi())

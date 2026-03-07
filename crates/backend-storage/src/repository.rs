@@ -7,7 +7,10 @@ use backend_domain::{
 use crate::MutationResult;
 
 pub enum CreateMessageResult {
-    Created(Message),
+    Created {
+        message: Message,
+        notified_user_ids: Vec<UserId>,
+    },
     Forbidden,
     ChannelKindMismatch,
     NotFound,

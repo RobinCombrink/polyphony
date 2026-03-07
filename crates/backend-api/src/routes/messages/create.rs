@@ -14,6 +14,7 @@ use crate::{
     ApiState,
     auth::{AuthenticatedUser, TokenVerifier},
     dto::{ApiErrorResponse, CreateMessageRequest},
+    notification_hub::{NotificationEnvelope, NotificationEvent},
 };
 
 #[utoipa::path(
@@ -63,7 +64,21 @@ where
         .await;
 
     match created_message {
-        CreateMessageResult::Created(message) => {
+        CreateMessageResult::Created {
+            message,
+            notified_user_ids,
+        } => {
+            for recipient_user_id in notified_user_ids {
+                state.notification_hub.publish(NotificationEnvelope {
+                    recipient_user_id,
+                    event: NotificationEvent {
+                        event_type: "message_created".to_owned(),
+                        channel_id: message.channel_id,
+                        message_id: message.id,
+                    },
+                });
+            }
+
             (StatusCode::CREATED, Json(message)).into_response()
         }
         CreateMessageResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
