@@ -54,6 +54,7 @@ abstract interface class ChatApi {
     required String baseUrl,
     required String channelId,
     required String content,
+    String? mentionedUserId,
   });
 
   Future<Result<ApiMessage>> updateMessage({
@@ -92,5 +93,57 @@ abstract interface class ChatApi {
   Future<Result<ApiUserLookup>> getUserById({
     required String baseUrl,
     required String userId,
+  });
+
+  Future<Result<ApiNotificationUnreadCount>> getUnreadNotificationCount({
+    required String baseUrl,
+  });
+
+  Future<Result<ApiNotificationGlobalPreference>>
+      getGlobalNotificationPreference({
+    required String baseUrl,
+  });
+
+  Future<Result<void>> updateGlobalNotificationPreference({
+    required String baseUrl,
+    ApiNotificationMuteState? muteState,
+    ApiNotificationCategoryPreference? notificationCategory,
+    ApiNotificationCategoryPreference? channelDefaultCategory,
+  });
+
+  Future<Result<ApiNotificationServerPreference>>
+      getServerNotificationPreference({
+    required String baseUrl,
+    required String serverId,
+  });
+
+  Future<Result<void>> updateServerNotificationPreference({
+    required String baseUrl,
+    required String serverId,
+    ApiNotificationMuteState? muteState,
+    ApiNotificationCategoryPreference? notificationCategory,
+  });
+
+  Future<Result<ApiNotificationChannelPreference>>
+      getChannelNotificationPreference({
+    required String baseUrl,
+    required String channelId,
+  });
+
+  Future<Result<void>> updateChannelNotificationPreference({
+    required String baseUrl,
+    required String channelId,
+    required ApiNotificationCategoryPreference notificationCategory,
+  });
+
+  Future<Result<void>> muteChannelNotifications({
+    required String baseUrl,
+    required String channelId,
+    required int durationMinutes,
+  });
+
+  Future<Result<void>> unmuteChannelNotifications({
+    required String baseUrl,
+    required String channelId,
   });
 }

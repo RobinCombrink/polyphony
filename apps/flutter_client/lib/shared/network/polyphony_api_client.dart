@@ -144,12 +144,19 @@ class PolyphonyApiClient implements ChatApi {
     required String baseUrl,
     required String channelId,
     required String content,
+    String? mentionedUserId,
   }) {
+    final trimmedMentionedUserId = mentionedUserId?.trim();
+
     return _performPostRequest<ApiMessage>(
       baseUrl: baseUrl,
       endpoint: "/api/v1/channels/$channelId/messages",
       operation: "create message",
-      body: <String, dynamic>{"content": content},
+      body: <String, dynamic>{
+        "content": content,
+        if (trimmedMentionedUserId != null && trimmedMentionedUserId.isNotEmpty)
+          "mentioned_user_id": trimmedMentionedUserId,
+      },
       expectedStatusCode: 201,
       decodeItem: ApiMessage.fromJson,
     );
@@ -259,6 +266,147 @@ class PolyphonyApiClient implements ChatApi {
       endpoint: "/api/v1/users/$userId",
       operation: "get user by id",
       decodeItem: ApiUserLookup.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<ApiNotificationUnreadCount>> getUnreadNotificationCount({
+    required String baseUrl,
+  }) {
+    return _performGetRequest<ApiNotificationUnreadCount>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/notifications/unread-count",
+      operation: "get unread notification count",
+      decodeItem: ApiNotificationUnreadCount.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<ApiNotificationGlobalPreference>>
+      getGlobalNotificationPreference({
+    required String baseUrl,
+  }) {
+    return _performGetRequest<ApiNotificationGlobalPreference>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/notifications/preferences/global",
+      operation: "get global notification preference",
+      decodeItem: ApiNotificationGlobalPreference.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<void>> updateGlobalNotificationPreference({
+    required String baseUrl,
+    ApiNotificationMuteState? muteState,
+    ApiNotificationCategoryPreference? notificationCategory,
+    ApiNotificationCategoryPreference? channelDefaultCategory,
+  }) {
+    return _performPatchRequestWithoutResponseBody(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/notifications/preferences/global",
+      operation: "update global notification preference",
+      body: <String, dynamic>{
+        if (muteState != null) "mute_state": muteState.apiValue,
+        if (notificationCategory != null)
+          "notification_category": notificationCategory.apiValue,
+        if (channelDefaultCategory != null)
+          "channel_default_category": channelDefaultCategory.apiValue,
+      },
+      expectedStatusCode: 204,
+    );
+  }
+
+  @override
+  Future<Result<ApiNotificationServerPreference>>
+      getServerNotificationPreference({
+    required String baseUrl,
+    required String serverId,
+  }) {
+    return _performGetRequest<ApiNotificationServerPreference>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/servers/$serverId/notifications/preferences",
+      operation: "get server notification preference",
+      decodeItem: ApiNotificationServerPreference.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<void>> updateServerNotificationPreference({
+    required String baseUrl,
+    required String serverId,
+    ApiNotificationMuteState? muteState,
+    ApiNotificationCategoryPreference? notificationCategory,
+  }) {
+    return _performPatchRequestWithoutResponseBody(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/servers/$serverId/notifications/preferences",
+      operation: "update server notification preference",
+      body: <String, dynamic>{
+        if (muteState != null) "mute_state": muteState.apiValue,
+        if (notificationCategory != null)
+          "notification_category": notificationCategory.apiValue,
+      },
+      expectedStatusCode: 204,
+    );
+  }
+
+  @override
+  Future<Result<ApiNotificationChannelPreference>>
+      getChannelNotificationPreference({
+    required String baseUrl,
+    required String channelId,
+  }) {
+    return _performGetRequest<ApiNotificationChannelPreference>(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/notifications/preferences",
+      operation: "get channel notification preference",
+      decodeItem: ApiNotificationChannelPreference.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<void>> updateChannelNotificationPreference({
+    required String baseUrl,
+    required String channelId,
+    required ApiNotificationCategoryPreference notificationCategory,
+  }) {
+    return _performPatchRequestWithoutResponseBody(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/notifications/preferences",
+      operation: "update channel notification preference",
+      body: <String, dynamic>{
+        "notification_category": notificationCategory.apiValue,
+      },
+      expectedStatusCode: 204,
+    );
+  }
+
+  @override
+  Future<Result<void>> muteChannelNotifications({
+    required String baseUrl,
+    required String channelId,
+    required int durationMinutes,
+  }) {
+    return _performPostRequestWithoutResponseBody(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/notifications/preferences/mute",
+      operation: "mute channel notifications",
+      body: <String, dynamic>{"duration_minutes": durationMinutes},
+      expectedStatusCode: 204,
+    );
+  }
+
+  @override
+  Future<Result<void>> unmuteChannelNotifications({
+    required String baseUrl,
+    required String channelId,
+  }) {
+    return _performPostRequestWithoutResponseBody(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/notifications/preferences/unmute",
+      operation: "unmute channel notifications",
+      body: const <String, dynamic>{},
+      expectedStatusCode: 204,
     );
   }
 
@@ -414,6 +562,36 @@ class PolyphonyApiClient implements ChatApi {
       return Ok<T>(decodeItem(Map<String, dynamic>.from(decoded)));
     } on Exception catch (error) {
       return Error<T>(error);
+    }
+  }
+
+  Future<Result<void>> _performPatchRequestWithoutResponseBody({
+    required String baseUrl,
+    required String endpoint,
+    required String operation,
+    required Map<String, dynamic> body,
+    required int expectedStatusCode,
+  }) async {
+    try {
+      final response = await _httpClient.patch(
+        Uri.parse("$baseUrl$endpoint"),
+        headers: _headers(),
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode != expectedStatusCode) {
+        return Error<void>(
+          _apiRequestException(
+            operation: operation,
+            statusCode: response.statusCode,
+            responseBody: response.body,
+          ),
+        );
+      }
+
+      return const Ok<void>(null);
+    } on Exception catch (error) {
+      return Error<void>(error);
     }
   }
 

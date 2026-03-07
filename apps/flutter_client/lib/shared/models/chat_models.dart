@@ -106,12 +106,33 @@ class Message {
   final String content;
 
   factory Message.fromJson(Map<String, dynamic> json) {
+    final payload = _messagePayload(json);
+
     return Message(
-      id: json["id"] as String,
-      channelId: json["channel_id"] as String,
-      authorUserId: json["author_user_id"] as String,
-      content: json["content"] as String,
+      id: _requiredString(payload, "id"),
+      channelId: _requiredString(payload, "channel_id"),
+      authorUserId: _requiredString(payload, "author_user_id"),
+      content: _requiredString(payload, "content"),
     );
+  }
+
+  static Map<String, dynamic> _messagePayload(Map<String, dynamic> json) {
+    final details = json["details"];
+    final common = details is Map<dynamic, dynamic> ? details["common"] : null;
+
+    return switch (common) {
+      Map<dynamic, dynamic>() => Map<String, dynamic>.from(common),
+      _ => throw const FormatException("Invalid message payload"),
+    };
+  }
+
+  static String _requiredString(Map<String, dynamic> json, String key) {
+    final rawValue = json[key];
+    if (rawValue is! String) {
+      throw const FormatException("Invalid message payload");
+    }
+
+    return rawValue;
   }
 }
 

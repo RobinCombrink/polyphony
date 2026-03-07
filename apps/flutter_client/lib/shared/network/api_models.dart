@@ -74,12 +74,33 @@ class ApiMessage {
   final String content;
 
   factory ApiMessage.fromJson(Map<String, dynamic> json) {
+    final payload = _messagePayload(json);
+
     return ApiMessage(
-      id: json["id"] as String,
-      channelId: json["channel_id"] as String,
-      authorUserId: json["author_user_id"] as String,
-      content: json["content"] as String,
+      id: _requiredString(payload, "id"),
+      channelId: _requiredString(payload, "channel_id"),
+      authorUserId: _requiredString(payload, "author_user_id"),
+      content: _requiredString(payload, "content"),
     );
+  }
+
+  static Map<String, dynamic> _messagePayload(Map<String, dynamic> json) {
+    final details = json["details"];
+    final common = details is Map<dynamic, dynamic> ? details["common"] : null;
+
+    return switch (common) {
+      Map<dynamic, dynamic>() => Map<String, dynamic>.from(common),
+      _ => throw const FormatException("Invalid message payload"),
+    };
+  }
+
+  static String _requiredString(Map<String, dynamic> json, String key) {
+    final rawValue = json[key];
+    if (rawValue is! String) {
+      throw const FormatException("Invalid message payload");
+    }
+
+    return rawValue;
   }
 }
 
@@ -162,6 +183,141 @@ class ApiUserLookup {
     return ApiUserLookup(
       id: json["id"] as String,
       displayName: json["display_name"] as String?,
+    );
+  }
+}
+
+class ApiNotificationUnreadCount {
+  const ApiNotificationUnreadCount({
+    required this.totalUnreadCount,
+  });
+
+  final int totalUnreadCount;
+
+  factory ApiNotificationUnreadCount.fromJson(Map<String, dynamic> json) {
+    final unreadValue = json["total_unread_count"];
+    final totalUnreadCount = switch (unreadValue) {
+      int() => unreadValue,
+      _ => 0,
+    };
+
+    return ApiNotificationUnreadCount(
+      totalUnreadCount: totalUnreadCount,
+    );
+  }
+}
+
+enum ApiNotificationMuteState {
+  unmuted,
+  muted;
+
+  static ApiNotificationMuteState fromApiValue(String value) {
+    return switch (value) {
+      "muted" => ApiNotificationMuteState.muted,
+      _ => ApiNotificationMuteState.unmuted,
+    };
+  }
+
+  String get apiValue {
+    return switch (this) {
+      ApiNotificationMuteState.unmuted => "unmuted",
+      ApiNotificationMuteState.muted => "muted",
+    };
+  }
+}
+
+enum ApiNotificationCategoryPreference {
+  allMessages,
+  onlyMentions,
+  none;
+
+  static ApiNotificationCategoryPreference fromApiValue(String value) {
+    return switch (value) {
+      "all_messages" => ApiNotificationCategoryPreference.allMessages,
+      "none" => ApiNotificationCategoryPreference.none,
+      _ => ApiNotificationCategoryPreference.onlyMentions,
+    };
+  }
+
+  String get apiValue {
+    return switch (this) {
+      ApiNotificationCategoryPreference.allMessages => "all_messages",
+      ApiNotificationCategoryPreference.onlyMentions => "only_mentions",
+      ApiNotificationCategoryPreference.none => "none",
+    };
+  }
+}
+
+class ApiNotificationGlobalPreference {
+  const ApiNotificationGlobalPreference({
+    required this.muteState,
+    required this.notificationCategory,
+    required this.channelDefaultCategory,
+  });
+
+  final ApiNotificationMuteState muteState;
+  final ApiNotificationCategoryPreference notificationCategory;
+  final ApiNotificationCategoryPreference channelDefaultCategory;
+
+  factory ApiNotificationGlobalPreference.fromJson(Map<String, dynamic> json) {
+    return ApiNotificationGlobalPreference(
+      muteState: ApiNotificationMuteState.fromApiValue(
+        json["mute_state"] as String? ?? "unmuted",
+      ),
+      notificationCategory: ApiNotificationCategoryPreference.fromApiValue(
+        json["notification_category"] as String? ?? "only_mentions",
+      ),
+      channelDefaultCategory: ApiNotificationCategoryPreference.fromApiValue(
+        json["channel_default_category"] as String? ?? "only_mentions",
+      ),
+    );
+  }
+}
+
+class ApiNotificationServerPreference {
+  const ApiNotificationServerPreference({
+    required this.muteState,
+    required this.notificationCategory,
+  });
+
+  final ApiNotificationMuteState muteState;
+  final ApiNotificationCategoryPreference notificationCategory;
+
+  factory ApiNotificationServerPreference.fromJson(Map<String, dynamic> json) {
+    return ApiNotificationServerPreference(
+      muteState: ApiNotificationMuteState.fromApiValue(
+        json["mute_state"] as String? ?? "unmuted",
+      ),
+      notificationCategory: ApiNotificationCategoryPreference.fromApiValue(
+        json["notification_category"] as String? ?? "only_mentions",
+      ),
+    );
+  }
+}
+
+class ApiNotificationChannelPreference {
+  const ApiNotificationChannelPreference({
+    required this.muteState,
+    required this.mutedUntilEpochSeconds,
+    required this.notificationCategory,
+    required this.inheritedFromGlobalDefault,
+  });
+
+  final ApiNotificationMuteState muteState;
+  final int? mutedUntilEpochSeconds;
+  final ApiNotificationCategoryPreference notificationCategory;
+  final bool inheritedFromGlobalDefault;
+
+  factory ApiNotificationChannelPreference.fromJson(Map<String, dynamic> json) {
+    return ApiNotificationChannelPreference(
+      muteState: ApiNotificationMuteState.fromApiValue(
+        json["mute_state"] as String? ?? "unmuted",
+      ),
+      mutedUntilEpochSeconds: json["muted_until_epoch_seconds"] as int?,
+      notificationCategory: ApiNotificationCategoryPreference.fromApiValue(
+        json["notification_category"] as String? ?? "only_mentions",
+      ),
+      inheritedFromGlobalDefault: json["inherited_from_global_default"] == true,
     );
   }
 }

@@ -9,6 +9,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
@@ -19,6 +20,8 @@ import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repository.dart";
+import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/notification_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
@@ -31,10 +34,12 @@ import "package:polyphony_flutter_client/shared/services/channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_service.dart";
+import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_message_service.dart";
+import "package:polyphony_flutter_client/shared/services/rest/rest_notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_profile_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_server_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_text_session_service.dart";
@@ -240,6 +245,11 @@ final class _AuthenticatedShell extends StatelessWidget {
             chatApi: context.read<ChatApi>(),
           ),
         ),
+        Provider<NotificationService>(
+          create: (context) => RestNotificationService(
+            chatApi: context.read<ChatApi>(),
+          ),
+        ),
         Provider<ProfileService>(
           create: (context) => RestProfileService(
             chatApi: context.read<ChatApi>(),
@@ -268,6 +278,11 @@ final class _AuthenticatedShell extends StatelessWidget {
         Provider<MessageRepo>(
           create: (context) => MessageRepository(
             messageService: context.read<MessageService>(),
+          ),
+        ),
+        Provider<NotificationRepo>(
+          create: (context) => NotificationRepository(
+            notificationService: context.read<NotificationService>(),
           ),
         ),
         Provider<ProfileRepo>(
@@ -303,6 +318,11 @@ final class _AuthenticatedShell extends StatelessWidget {
               textSessionRepo: context.read<TextSessionRepo>(),
               messageRuntimeService: context.read<MessageRuntimeService>(),
             ),
+          ),
+          BlocProvider<NotificationUnreadCountBloc>(
+            create: (context) => NotificationUnreadCountBloc(
+              notificationRepo: context.read<NotificationRepo>(),
+            )..add(const LoadNotificationUnreadCountRequested()),
           ),
           BlocProvider<ProfileBloc>(
             create: (context) =>

@@ -3,9 +3,9 @@ import "package:flutter/material.dart";
 class PolyphonyTheme {
   const PolyphonyTheme._();
 
-  static const _brandPrimary = Color(0xFF155EEF);
-  static const _brandSecondary = Color(0xFF0E9384);
-  static const _brandAccent = Color(0xFFF79009);
+  static const _brandPrimary = Color.fromARGB(255, 21, 255, 0);
+  static const _brandSecondary = Color.fromARGB(255, 0, 0, 0);
+  static const _brandAccent = Color.fromARGB(255, 255, 0, 255);
   static const _brandError = Color(0xFFD92D20);
 
   static ThemeData light() {
@@ -35,6 +35,7 @@ class PolyphonyTheme {
       tertiary: _brandAccent,
       surface: Colors.black,
       error: _brandError,
+      dynamicSchemeVariant: DynamicSchemeVariant.fidelity,
     );
 
     final base = ThemeData(
@@ -44,7 +45,7 @@ class PolyphonyTheme {
     );
 
     return _baseTheme(base, colorScheme).copyWith(
-      scaffoldBackgroundColor: const Color(0xFF0B1220),
+      scaffoldBackgroundColor: _brandSecondary,
     );
   }
 

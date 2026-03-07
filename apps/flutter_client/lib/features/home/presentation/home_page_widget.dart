@@ -8,6 +8,7 @@ import "package:polyphony_flutter_client/features/home/presentation/widgets/home
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/identity/presentation/widgets/display_name_banner_widget.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/servers_pane_widget.dart";
@@ -82,6 +83,9 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     context.read<ServersBloc>().add(
           const LoadServersRequested(),
         );
+    context.read<NotificationUnreadCountBloc>().add(
+          const LoadNotificationUnreadCountRequested(),
+        );
   }
 
   @override
@@ -95,6 +99,15 @@ class _HomePageWidgetState extends State<HomePageWidget> {
       appBar: AppBar(
         title: const Text("Polyphony"),
         actions: <Widget>[
+          BlocBuilder<NotificationUnreadCountBloc,
+              NotificationUnreadCountState>(
+            builder: (context, notificationState) {
+              return _UnreadNotificationCountIconButton(
+                totalUnreadCount: notificationState.totalUnreadCountOrZero(),
+                onPressed: () => _loadInitialData(context),
+              );
+            },
+          ),
           IconButton(
             onPressed: () async {
               final currentProfileState = context.read<ProfileBloc>().state;
@@ -213,8 +226,15 @@ class _HomePageWidgetState extends State<HomePageWidget> {
               },
             ),
             BlocListener<MessagesBloc, MessagesState>(
-              listenWhen: (_, current) => current is MessagesExceptionState,
+              listenWhen: (_, current) {
+                return current is MessagesExceptionState ||
+                    current is MessagesLoadedDataState;
+              },
               listener: (context, state) {
+                context.read<NotificationUnreadCountBloc>().add(
+                      const LoadNotificationUnreadCountRequested(),
+                    );
+
                 if (state is! MessagesExceptionState) {
                   return;
                 }
@@ -344,5 +364,58 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     }
 
     _requestUpdateDisplayName(context, result);
+  }
+}
+
+class _UnreadNotificationCountIconButton extends StatelessWidget {
+  const _UnreadNotificationCountIconButton({
+    required this.totalUnreadCount,
+    required this.onPressed,
+  });
+
+  final int totalUnreadCount;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final semanticCount = switch (totalUnreadCount) {
+      < 0 => 0,
+      > 999 => 999,
+      _ => totalUnreadCount,
+    };
+
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: <Widget>[
+        IconButton(
+          onPressed: onPressed,
+          tooltip: "Refresh notifications",
+          icon: const Icon(Icons.notifications_outlined),
+        ),
+        if (totalUnreadCount > 0)
+          Positioned(
+            top: 8,
+            right: 6,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.error,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                semanticCount > 99 ? "99+" : "$semanticCount",
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onError,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
