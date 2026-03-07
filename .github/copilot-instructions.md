@@ -11,6 +11,41 @@ These rules apply everywhere unless a language-specific rule below overrides imp
 - BDD scenarios should describe behaviour and outcomes, not implementation mechanics.
 - When updating BDD tests, update feature files first, then implement step definitions.
 
+## Project Architecture Layout
+
+Use this repository layout and naming when creating or updating code.
+
+- Root-level architecture:
+- `apps/flutter_client/`: Flutter client application.
+- `crates/backend-api/`: Rust HTTP/API crate (routes, DTOs, runtime wiring).
+- `crates/backend-domain/`: Rust domain model crate (entities, ids, domain rules).
+- `crates/backend-storage/`: Rust persistence crate (repository implementations, in-memory + postgres).
+- `features/`: BDD feature files that describe expected product behaviour.
+
+- Flutter client layout (`apps/flutter_client/lib`):
+- `app/`: app shell/bootstrap (for example `polyphony_app_widget.dart`).
+- `features/<feature_name>/`: feature-owned code (authentication, channels, messages, notifications, etc.).
+- `shared/`: cross-feature building blocks (auth, models, network, repositories, result, services, presentation).
+
+- Feature layout conventions:
+- Keep feature code under `features/<feature_name>/` with subfolders like `bloc/` and `presentation/` as needed.
+- BLoC should use three files by default:
+- `<feature>_bloc.dart`
+- `<feature>_event.dart`
+- `<feature>_state.dart`
+- Keep one public BLoC per concern; use separate BLoCs when a feature has distinct concerns (for example `servers_bloc` and `server_members_bloc`).
+- Single-file BLoCs are acceptable only for very small/read-only concerns; when logic grows, split into bloc/event/state files.
+
+- Rust crate layout conventions:
+- `backend-api/src/`: entrypoints and transport layer (`main.rs`, `lib.rs`, `routes/`, `dto/`, auth/config/observability).
+- `backend-domain/src/`: pure domain types and invariants (`ids.rs`, entity/value-object modules).
+- `backend-storage/src/`: repository contracts and implementations (`repository.rs`, `postgres_repository.rs`, `in_memory_repository.rs`).
+
+- Test and behaviour layout:
+- Keep BDD behaviour in `features/*.feature`.
+- Keep Rust tests in each crate's `tests/` directory and unit tests near source modules.
+- Keep Flutter tests in `apps/flutter_client/test/` mirroring feature structure.
+
 ## Rust-Specific Rules
 
 - Always run `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` after every Rust change.
