@@ -4,9 +4,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_domain::ChannelId;
-use backend_domain::Message;
-use backend_domain::NotificationEventType;
+use backend_domain::{ChannelId, Message, NotificationEventType};
 use backend_storage::{
     ChannelRepository, CreateMessageResult, MessageRepository, ServerRepository, UserRepository,
 };
@@ -61,7 +59,12 @@ where
 
     let created_message = state
         .message_repository
-        .create_message(channel_id, authenticated_user.user_id, request.content)
+        .create_message(
+            channel_id,
+            authenticated_user.user_id,
+            request.content,
+            request.mentioned_user_id,
+        )
         .await;
 
     match created_message {
@@ -69,13 +72,19 @@ where
             message,
             notified_user_ids,
         } => {
+            let event_type = if message.is_mentioned() {
+                NotificationEventType::Mentioned
+            } else {
+                NotificationEventType::UnreadMessage
+            };
+
             for recipient_user_id in notified_user_ids {
                 state.notification_hub.publish(NotificationEnvelope {
                     recipient_user_id,
                     event: NotificationEvent {
-                        event_type: NotificationEventType::MessageCreated,
-                        channel_id: message.channel_id,
-                        message_id: message.id,
+                        event_type,
+                        channel_id: message.channel_id(),
+                        message_id: message.id(),
                     },
                 });
             }

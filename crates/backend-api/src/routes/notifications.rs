@@ -7,7 +7,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_domain::{ChannelId, ServerId};
+use backend_domain::{ChannelId, NotificationMuteState, ServerId};
 use backend_storage::{
     ChannelRepository, MessageRepository, NotificationRepository, ServerRepository, UserRepository,
 };
@@ -18,8 +18,8 @@ use crate::{
     dto::{
         ApiErrorResponse, MuteChannelNotificationsRequest, NotificationChannelPreferenceResponse,
         NotificationGlobalPreferenceResponse, NotificationServerPreferenceResponse,
-        NotificationUnreadCountResponse, UpdateNotificationGlobalPreferenceRequest,
-        UpdateNotificationServerPreferenceRequest,
+        NotificationUnreadCountResponse, UpdateNotificationChannelPreferenceRequest,
+        UpdateNotificationGlobalPreferenceRequest, UpdateNotificationServerPreferenceRequest,
     },
 };
 
@@ -50,14 +50,26 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let muted = state
+    let mute_state = state
         .message_repository
-        .is_globally_muted_for_user(authenticated_user.user_id)
+        .global_mute_state_for_user(authenticated_user.user_id)
+        .await;
+    let notification_category = state
+        .message_repository
+        .global_notification_category_for_user(authenticated_user.user_id)
+        .await;
+    let channel_default_category = state
+        .message_repository
+        .global_channel_default_notification_category_for_user(authenticated_user.user_id)
         .await;
 
     (
         StatusCode::OK,
-        Json(NotificationGlobalPreferenceResponse { muted }),
+        Json(NotificationGlobalPreferenceResponse {
+            mute_state,
+            notification_category,
+            channel_default_category,
+        }),
     )
 }
 
@@ -105,14 +117,27 @@ where
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    let muted = state
+    let global_category = state
         .message_repository
-        .is_server_muted_for_user(authenticated_user.user_id, server_id)
+        .global_notification_category_for_user(authenticated_user.user_id)
+        .await;
+
+    let notification_category = state
+        .message_repository
+        .server_notification_category_for_user(authenticated_user.user_id, server_id)
+        .await
+        .unwrap_or(global_category);
+    let mute_state = state
+        .message_repository
+        .server_mute_state_for_user(authenticated_user.user_id, server_id)
         .await;
 
     (
         StatusCode::OK,
-        Json(NotificationServerPreferenceResponse { muted }),
+        Json(NotificationServerPreferenceResponse {
+            mute_state,
+            notification_category,
+        }),
     )
         .into_response()
 }
@@ -163,14 +188,31 @@ where
 
     let muted_until_epoch_seconds = state
         .message_repository
-        .channel_mute_expires_at_epoch_seconds(authenticated_user.user_id, channel_id)
+        .channel_temporary_mute_expires_at_epoch_seconds(authenticated_user.user_id, channel_id)
         .await;
+
+    let channel_category = state
+        .message_repository
+        .channel_notification_category_for_user(authenticated_user.user_id, channel_id)
+        .await;
+    let global_channel_default = state
+        .message_repository
+        .global_channel_default_notification_category_for_user(authenticated_user.user_id)
+        .await;
+    let notification_category = channel_category.unwrap_or(global_channel_default);
+    let mute_state = if muted_until_epoch_seconds.is_some() {
+        NotificationMuteState::Muted
+    } else {
+        NotificationMuteState::Unmuted
+    };
 
     (
         StatusCode::OK,
         Json(NotificationChannelPreferenceResponse {
-            muted: muted_until_epoch_seconds.is_some(),
+            mute_state,
             muted_until_epoch_seconds,
+            notification_category,
+            inherited_from_global_default: channel_category.is_none(),
         }),
     )
         .into_response()
@@ -205,10 +247,32 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    state
-        .message_repository
-        .set_globally_muted_for_user(authenticated_user.user_id, request.muted)
-        .await;
+    if let Some(notification_category) = request.notification_category {
+        state
+            .message_repository
+            .set_global_notification_category_for_user(
+                authenticated_user.user_id,
+                notification_category,
+            )
+            .await;
+    }
+
+    if let Some(mute_state) = request.mute_state {
+        state
+            .message_repository
+            .set_global_mute_state_for_user(authenticated_user.user_id, mute_state)
+            .await;
+    }
+
+    if let Some(channel_default_category) = request.channel_default_category {
+        state
+            .message_repository
+            .set_global_channel_default_notification_category_for_user(
+                authenticated_user.user_id,
+                channel_default_category,
+            )
+            .await;
+    }
 
     StatusCode::NO_CONTENT
 }
@@ -259,10 +323,23 @@ where
         return StatusCode::FORBIDDEN;
     }
 
-    state
-        .message_repository
-        .set_server_muted_for_user(authenticated_user.user_id, server_id, request.muted)
-        .await;
+    if let Some(notification_category) = request.notification_category {
+        state
+            .message_repository
+            .set_server_notification_category_for_user(
+                authenticated_user.user_id,
+                server_id,
+                notification_category,
+            )
+            .await;
+    }
+
+    if let Some(mute_state) = request.mute_state {
+        state
+            .message_repository
+            .set_server_mute_state_for_user(authenticated_user.user_id, server_id, mute_state)
+            .await;
+    }
 
     StatusCode::NO_CONTENT
 }
@@ -327,7 +404,7 @@ where
 
     state
         .message_repository
-        .set_channel_temporarily_muted_for_user(
+        .set_channel_temporary_mute_for_user(
             authenticated_user.user_id,
             channel_id,
             request.duration_minutes,
@@ -335,6 +412,64 @@ where
         .await;
 
     StatusCode::NO_CONTENT.into_response()
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/channels/{channel_id}/notifications/preferences",
+    request_body = UpdateNotificationChannelPreferenceRequest,
+    responses(
+        (status = 204, description = "Channel category preference updated"),
+        (status = 403, description = "User is not a member of the channel server"),
+        (status = 404, description = "Channel not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("channel_id" = ChannelId, Path, description = "Channel id")),
+    tag = "backend-api"
+)]
+pub(crate) async fn update_channel_notification_preference<
+    UserRepo,
+    ServerRepo,
+    ChannelRepo,
+    MessageRepo,
+    Verifier,
+>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
+    authenticated_user: AuthenticatedUser,
+    Path(channel_id): Path<ChannelId>,
+    Json(request): Json<UpdateNotificationChannelPreferenceRequest>,
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository + Send + Sync + 'static,
+    ServerRepo: ServerRepository + Send + Sync + 'static,
+    ChannelRepo: ChannelRepository + Send + Sync + 'static,
+    MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
+    Verifier: TokenVerifier + Send + Sync + 'static,
+{
+    let is_channel_member = match state
+        .channel_repository
+        .is_channel_member(channel_id, authenticated_user.user_id)
+        .await
+    {
+        Some(value) => value,
+        None => return StatusCode::NOT_FOUND,
+    };
+
+    if !is_channel_member {
+        return StatusCode::FORBIDDEN;
+    }
+
+    state
+        .message_repository
+        .set_channel_notification_category_for_user(
+            authenticated_user.user_id,
+            channel_id,
+            request.notification_category,
+        )
+        .await;
+
+    StatusCode::NO_CONTENT
 }
 
 #[utoipa::path(
@@ -383,7 +518,7 @@ where
 
     state
         .message_repository
-        .expire_channel_mute_for_user(authenticated_user.user_id, channel_id)
+        .clear_channel_temporary_mute_for_user(authenticated_user.user_id, channel_id)
         .await;
 
     StatusCode::NO_CONTENT

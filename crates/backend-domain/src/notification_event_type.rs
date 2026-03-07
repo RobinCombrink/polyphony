@@ -6,13 +6,15 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NotificationEventType {
-    MessageCreated,
+    UnreadMessage,
+    Mentioned,
 }
 
 impl NotificationEventType {
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::MessageCreated => "message_created",
+            Self::UnreadMessage => "unread_message",
+            Self::Mentioned => "mentioned",
         }
     }
 }
@@ -37,7 +39,8 @@ impl FromStr for NotificationEventType {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.trim().to_ascii_lowercase().as_str() {
-            "message_created" => Ok(Self::MessageCreated),
+            "unread_message" => Ok(Self::UnreadMessage),
+            "mentioned" => Ok(Self::Mentioned),
             _ => Err(ParseNotificationEventTypeError),
         }
     }

@@ -121,7 +121,7 @@ Feature: Notifications
       Given "Noah" has globally muted notifications
       And "Noah" has muted server "Test"
       And "Noah" has temporarily muted channel "engineering" for 30 minutes
-      Then "Noah" sees global notification preference muted is true
-      And "Noah" sees server notification preference muted is true
-      And "Noah" sees channel "engineering" notification preference muted is true
+      Then "Noah" sees global notification preference mute state is muted
+      And "Noah" sees server notification preference mute state is muted
+      And "Noah" sees channel "engineering" notification preference mute state is muted
       And "Noah" sees channel "engineering" mute expiry timestamp is present

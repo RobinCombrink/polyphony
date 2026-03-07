@@ -62,7 +62,7 @@ where
                 .list_messages(channel_id)
                 .await
                 .into_iter()
-                .find(|message| message.id == message_id);
+                .find(|message| message.id() == message_id);
 
             match updated_message {
                 Some(message) => (StatusCode::OK, Json(message)).into_response(),

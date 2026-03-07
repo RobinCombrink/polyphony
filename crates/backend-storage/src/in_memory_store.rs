@@ -3,7 +3,8 @@ use std::time::{Duration, SystemTime};
 
 use backend_domain::{
     Channel, ChannelId, ChannelType, DisplayName, ExternalReference, Membership, Message,
-    MessageId, Server, ServerId, User, UserId,
+    MessageId, NotificationCategoryPreference, NotificationEventType, NotificationMuteState,
+    Server, ServerId, User, UserId,
 };
 use uuid::Uuid;
 
@@ -17,10 +18,19 @@ pub(crate) struct InMemoryStore {
     pub(crate) server_members_by_id: HashMap<ServerId, Vec<UserId>>,
     pub(crate) channels: HashMap<ChannelId, Channel>,
     pub(crate) messages_by_channel: HashMap<ChannelId, Vec<Message>>,
-    pub(crate) notification_outbox: Vec<(MessageId, ChannelId, UserId, UserId)>,
+    pub(crate) notification_outbox:
+        Vec<(MessageId, ChannelId, UserId, UserId, NotificationEventType)>,
     pub(crate) unread_counts_by_user_channel: HashMap<(UserId, ChannelId), u64>,
-    pub(crate) global_mute_by_user: HashMap<UserId, bool>,
-    pub(crate) server_mute_by_user_server: HashMap<(UserId, ServerId), bool>,
+    pub(crate) global_notification_category_by_user:
+        HashMap<UserId, NotificationCategoryPreference>,
+    pub(crate) global_mute_state_by_user: HashMap<UserId, NotificationMuteState>,
+    pub(crate) global_channel_default_category_by_user:
+        HashMap<UserId, NotificationCategoryPreference>,
+    pub(crate) server_notification_category_by_user_server:
+        HashMap<(UserId, ServerId), NotificationCategoryPreference>,
+    pub(crate) server_mute_state_by_user_server: HashMap<(UserId, ServerId), NotificationMuteState>,
+    pub(crate) channel_notification_category_by_user_channel:
+        HashMap<(UserId, ChannelId), NotificationCategoryPreference>,
     pub(crate) channel_mute_until_by_user_channel: HashMap<(UserId, ChannelId), SystemTime>,
 }
 
@@ -268,6 +278,7 @@ impl InMemoryStore {
         channel_id: ChannelId,
         author_user_id: UserId,
         content: String,
+        mentioned_user_id: Option<UserId>,
     ) -> CreateMessageResult {
         let Some(channel) = self.channels.get(&channel_id).cloned() else {
             return CreateMessageResult::NotFound;
@@ -287,11 +298,16 @@ impl InMemoryStore {
             return CreateMessageResult::Forbidden;
         }
 
-        let message = Message {
-            id: Uuid::new_v4().into(),
-            channel_id,
-            author_user_id,
-            content,
+        let message_id: MessageId = Uuid::new_v4().into();
+        let message = match mentioned_user_id {
+            Some(mentioned_user_id) => Message::new_mentioned(
+                message_id,
+                channel_id,
+                author_user_id,
+                content,
+                mentioned_user_id,
+            ),
+            None => Message::new_regular(message_id, channel_id, author_user_id, content),
         };
 
         self.messages_by_channel
@@ -307,19 +323,50 @@ impl InMemoryStore {
             .unwrap_or_default()
             .into_iter()
             .filter(|user_id| {
-                *user_id != author_user_id
-                    && !self.is_globally_muted_for_user(*user_id)
-                    && !self.is_server_muted_for_user(*user_id, server_id)
-                    && !self.is_channel_muted_for_user(*user_id, channel_id)
+                if *user_id == author_user_id
+                    || self.is_channel_temporarily_muted_for_user(*user_id, channel_id)
+                {
+                    return false;
+                }
+
+                if self.global_mute_state_for_user(*user_id).is_muted() {
+                    return false;
+                }
+
+                if self
+                    .server_mute_state_for_user(*user_id, server_id)
+                    .is_muted()
+                {
+                    return false;
+                }
+
+                let effective_category = self.effective_notification_category_for_channel(
+                    *user_id,
+                    server_id,
+                    channel_id,
+                );
+
+                match effective_category {
+                    NotificationCategoryPreference::None => false,
+                    NotificationCategoryPreference::AllMessages => true,
+                    NotificationCategoryPreference::OnlyMentions => message.is_mentioned(),
+                }
             })
             .collect::<Vec<_>>();
 
+        let event_type = if message.is_mentioned() {
+            NotificationEventType::Mentioned
+        } else {
+            NotificationEventType::UnreadMessage
+        };
+
         for recipient_user_id in &notified_user_ids {
             self.notification_outbox.push((
-                message.id,
+                message.id(),
                 channel_id,
                 *recipient_user_id,
                 author_user_id,
+                event_type,
             ));
 
             let unread_count = self
@@ -354,11 +401,11 @@ impl InMemoryStore {
             None => return MutationResult::NotFound,
         };
 
-        let maybe_message = messages.iter_mut().find(|message| message.id == message_id);
+        let maybe_message = messages.iter_mut().find(|message| message.id() == message_id);
 
         match maybe_message {
-            Some(message) if message.author_user_id == author_user_id => {
-                message.content = content;
+            Some(message) if message.author_user_id() == author_user_id => {
+                message.set_content(content);
                 MutationResult::Updated
             }
             Some(_) => MutationResult::Forbidden,
@@ -377,10 +424,10 @@ impl InMemoryStore {
             None => return MutationResult::NotFound,
         };
 
-        let message_index = messages.iter().position(|message| message.id == message_id);
+        let message_index = messages.iter().position(|message| message.id() == message_id);
 
         match message_index {
-            Some(index) if messages[index].author_user_id == author_user_id => {
+            Some(index) if messages[index].author_user_id() == author_user_id => {
                 messages.remove(index);
                 MutationResult::Deleted
             }
@@ -389,21 +436,90 @@ impl InMemoryStore {
         }
     }
 
-    pub(crate) fn set_server_muted_for_user(
+    pub(crate) fn set_server_notification_category_for_user(
         &mut self,
         user_id: UserId,
         server_id: ServerId,
-        muted: bool,
+        category: NotificationCategoryPreference,
     ) {
-        self.server_mute_by_user_server
-            .insert((user_id, server_id), muted);
+        self.server_notification_category_by_user_server
+            .insert((user_id, server_id), category);
     }
 
-    pub(crate) fn set_globally_muted_for_user(&mut self, user_id: UserId, muted: bool) {
-        self.global_mute_by_user.insert(user_id, muted);
+    pub(crate) fn set_global_notification_category_for_user(
+        &mut self,
+        user_id: UserId,
+        category: NotificationCategoryPreference,
+    ) {
+        self.global_notification_category_by_user
+            .insert(user_id, category);
     }
 
-    pub(crate) fn set_channel_temporarily_muted_for_user(
+    pub(crate) fn set_global_channel_default_notification_category_for_user(
+        &mut self,
+        user_id: UserId,
+        category: NotificationCategoryPreference,
+    ) {
+        self.global_channel_default_category_by_user
+            .insert(user_id, category);
+    }
+
+    pub(crate) fn set_channel_notification_category_for_user(
+        &mut self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        category: NotificationCategoryPreference,
+    ) {
+        self.channel_notification_category_by_user_channel
+            .insert((user_id, channel_id), category);
+    }
+
+    pub(crate) fn clear_channel_notification_category_for_user(
+        &mut self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) {
+        self.channel_notification_category_by_user_channel
+            .remove(&(user_id, channel_id));
+    }
+
+    pub(crate) fn global_mute_state_for_user(&self, user_id: UserId) -> NotificationMuteState {
+        self.global_mute_state_by_user
+            .get(&user_id)
+            .copied()
+            .unwrap_or(NotificationMuteState::Unmuted)
+    }
+
+    pub(crate) fn set_global_mute_state_for_user(
+        &mut self,
+        user_id: UserId,
+        mute_state: NotificationMuteState,
+    ) {
+        self.global_mute_state_by_user.insert(user_id, mute_state);
+    }
+
+    pub(crate) fn server_mute_state_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+    ) -> NotificationMuteState {
+        self.server_mute_state_by_user_server
+            .get(&(user_id, server_id))
+            .copied()
+            .unwrap_or(NotificationMuteState::Unmuted)
+    }
+
+    pub(crate) fn set_server_mute_state_for_user(
+        &mut self,
+        user_id: UserId,
+        server_id: ServerId,
+        mute_state: NotificationMuteState,
+    ) {
+        self.server_mute_state_by_user_server
+            .insert((user_id, server_id), mute_state);
+    }
+
+    pub(crate) fn set_channel_temporary_mute_for_user(
         &mut self,
         user_id: UserId,
         channel_id: ChannelId,
@@ -414,32 +530,66 @@ impl InMemoryStore {
             .insert((user_id, channel_id), until);
     }
 
-    pub(crate) fn expire_channel_mute_for_user(&mut self, user_id: UserId, channel_id: ChannelId) {
+    pub(crate) fn clear_channel_temporary_mute_for_user(
+        &mut self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) {
         self.channel_mute_until_by_user_channel
             .insert((user_id, channel_id), SystemTime::UNIX_EPOCH);
     }
 
-    pub(crate) fn is_server_muted_for_user(&self, user_id: UserId, server_id: ServerId) -> bool {
-        self.server_mute_by_user_server
+    pub(crate) fn server_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+    ) -> Option<NotificationCategoryPreference> {
+        self.server_notification_category_by_user_server
             .get(&(user_id, server_id))
             .copied()
-            .unwrap_or(false)
     }
 
-    pub(crate) fn is_globally_muted_for_user(&self, user_id: UserId) -> bool {
-        self.global_mute_by_user
+    pub(crate) fn global_notification_category_for_user(
+        &self,
+        user_id: UserId,
+    ) -> NotificationCategoryPreference {
+        self.global_notification_category_by_user
             .get(&user_id)
             .copied()
-            .unwrap_or(false)
+            .unwrap_or_default()
     }
 
-    pub(crate) fn is_channel_muted_for_user(&self, user_id: UserId, channel_id: ChannelId) -> bool {
+    pub(crate) fn global_channel_default_notification_category_for_user(
+        &self,
+        user_id: UserId,
+    ) -> NotificationCategoryPreference {
+        self.global_channel_default_category_by_user
+            .get(&user_id)
+            .copied()
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn channel_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Option<NotificationCategoryPreference> {
+        self.channel_notification_category_by_user_channel
+            .get(&(user_id, channel_id))
+            .copied()
+    }
+
+    pub(crate) fn is_channel_temporarily_muted_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> bool {
         self.channel_mute_until_by_user_channel
             .get(&(user_id, channel_id))
             .is_some_and(|muted_until| *muted_until > SystemTime::now())
     }
 
-    pub(crate) fn channel_mute_expires_at_epoch_seconds(
+    pub(crate) fn channel_temporary_mute_expires_at_epoch_seconds(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
@@ -457,4 +607,26 @@ impl InMemoryStore {
             .ok()
             .map(|duration| duration.as_secs())
     }
+
+    pub(crate) fn effective_notification_category_for_channel(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+        channel_id: ChannelId,
+    ) -> NotificationCategoryPreference {
+        let scoped_category = self
+            .channel_notification_category_for_user(user_id, channel_id)
+            .or_else(|| self.server_notification_category_for_user(user_id, server_id))
+            .unwrap_or_else(|| self.global_channel_default_notification_category_for_user(user_id));
+
+        let global_category = self.global_notification_category_for_user(user_id);
+        match (global_category, scoped_category) {
+            (NotificationCategoryPreference::None, _) => NotificationCategoryPreference::None,
+            (NotificationCategoryPreference::OnlyMentions, NotificationCategoryPreference::AllMessages) => {
+                NotificationCategoryPreference::OnlyMentions
+            }
+            _ => scoped_category,
+        }
+    }
+
 }

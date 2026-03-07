@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use backend_domain::{
     Channel, ChannelId, ChannelType, ExternalReference, Membership, Message, MessageId, Server,
-    ServerId, User, UserId,
+    NotificationCategoryPreference, NotificationMuteState, ServerId, User, UserId,
 };
 use tokio::sync::RwLock;
 
@@ -30,9 +30,10 @@ impl MessageRepository for InMemoryRepository {
         channel_id: ChannelId,
         author_user_id: UserId,
         content: String,
+        mentioned_user_id: Option<UserId>,
     ) -> CreateMessageResult {
         let mut store = self.store.write().await;
-        store.create_message(channel_id, author_user_id, content)
+        store.create_message(channel_id, author_user_id, content, mentioned_user_id)
     }
 
     async fn update_message(
@@ -227,48 +228,138 @@ impl NotificationRepository for InMemoryRepository {
             .remove(&(user_id, channel_id));
     }
 
-    async fn is_globally_muted_for_user(&self, user_id: UserId) -> bool {
+    async fn global_notification_category_for_user(
+        &self,
+        user_id: UserId,
+    ) -> NotificationCategoryPreference {
         let store = self.store.read().await;
-        store.is_globally_muted_for_user(user_id)
+        store.global_notification_category_for_user(user_id)
     }
 
-    async fn is_server_muted_for_user(&self, user_id: UserId, server_id: ServerId) -> bool {
+    async fn global_channel_default_notification_category_for_user(
+        &self,
+        user_id: UserId,
+    ) -> NotificationCategoryPreference {
         let store = self.store.read().await;
-        store.is_server_muted_for_user(user_id, server_id)
+        store.global_channel_default_notification_category_for_user(user_id)
     }
 
-    async fn channel_mute_expires_at_epoch_seconds(
+    async fn server_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+    ) -> Option<NotificationCategoryPreference> {
+        let store = self.store.read().await;
+        store.server_notification_category_for_user(user_id, server_id)
+    }
+
+    async fn channel_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Option<NotificationCategoryPreference> {
+        let store = self.store.read().await;
+        store.channel_notification_category_for_user(user_id, channel_id)
+    }
+
+    async fn set_global_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        category: NotificationCategoryPreference,
+    ) {
+        let mut store = self.store.write().await;
+        store.set_global_notification_category_for_user(user_id, category);
+    }
+
+    async fn set_global_channel_default_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        category: NotificationCategoryPreference,
+    ) {
+        let mut store = self.store.write().await;
+        store.set_global_channel_default_notification_category_for_user(user_id, category);
+    }
+
+    async fn set_server_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+        category: NotificationCategoryPreference,
+    ) {
+        let mut store = self.store.write().await;
+        store.set_server_notification_category_for_user(user_id, server_id, category);
+    }
+
+    async fn set_channel_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        category: NotificationCategoryPreference,
+    ) {
+        let mut store = self.store.write().await;
+        store.set_channel_notification_category_for_user(user_id, channel_id, category);
+    }
+
+    async fn clear_channel_notification_category_for_user(&self, user_id: UserId, channel_id: ChannelId) {
+        let mut store = self.store.write().await;
+        store.clear_channel_notification_category_for_user(user_id, channel_id);
+    }
+
+    async fn global_mute_state_for_user(&self, user_id: UserId) -> NotificationMuteState {
+        let store = self.store.read().await;
+        store.global_mute_state_for_user(user_id)
+    }
+
+    async fn server_mute_state_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+    ) -> NotificationMuteState {
+        let store = self.store.read().await;
+        store.server_mute_state_for_user(user_id, server_id)
+    }
+
+    async fn set_global_mute_state_for_user(
+        &self,
+        user_id: UserId,
+        mute_state: NotificationMuteState,
+    ) {
+        let mut store = self.store.write().await;
+        store.set_global_mute_state_for_user(user_id, mute_state);
+    }
+
+    async fn set_server_mute_state_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+        mute_state: NotificationMuteState,
+    ) {
+        let mut store = self.store.write().await;
+        store.set_server_mute_state_for_user(user_id, server_id, mute_state);
+    }
+
+    async fn channel_temporary_mute_expires_at_epoch_seconds(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
     ) -> Option<u64> {
         let store = self.store.read().await;
-        store.channel_mute_expires_at_epoch_seconds(user_id, channel_id)
+        store.channel_temporary_mute_expires_at_epoch_seconds(user_id, channel_id)
     }
 
-    async fn set_globally_muted_for_user(&self, user_id: UserId, muted: bool) {
-        let mut store = self.store.write().await;
-        store.set_globally_muted_for_user(user_id, muted);
-    }
-
-    async fn set_server_muted_for_user(&self, user_id: UserId, server_id: ServerId, muted: bool) {
-        let mut store = self.store.write().await;
-        store.set_server_muted_for_user(user_id, server_id, muted);
-    }
-
-    async fn set_channel_temporarily_muted_for_user(
+    async fn set_channel_temporary_mute_for_user(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
         duration_minutes: u32,
     ) {
         let mut store = self.store.write().await;
-        store.set_channel_temporarily_muted_for_user(user_id, channel_id, duration_minutes);
+        store.set_channel_temporary_mute_for_user(user_id, channel_id, duration_minutes);
     }
 
-    async fn expire_channel_mute_for_user(&self, user_id: UserId, channel_id: ChannelId) {
+    async fn clear_channel_temporary_mute_for_user(&self, user_id: UserId, channel_id: ChannelId) {
         let mut store = self.store.write().await;
-        store.expire_channel_mute_for_user(user_id, channel_id);
+        store.clear_channel_temporary_mute_for_user(user_id, channel_id);
     }
 
     async fn outbox_count_for_message_recipient(
@@ -280,7 +371,7 @@ impl NotificationRepository for InMemoryRepository {
         let count = store
             .notification_outbox
             .iter()
-            .filter(|(stored_message_id, _, stored_recipient_user_id, _)| {
+            .filter(|(stored_message_id, _, stored_recipient_user_id, _, _)| {
                 *stored_message_id == message_id && *stored_recipient_user_id == recipient_user_id
             })
             .count();
@@ -293,7 +384,7 @@ impl NotificationRepository for InMemoryRepository {
         let count = store
             .notification_outbox
             .iter()
-            .filter(|(_, _, stored_recipient_user_id, _)| {
+            .filter(|(_, _, stored_recipient_user_id, _, _)| {
                 *stored_recipient_user_id == recipient_user_id
             })
             .count();

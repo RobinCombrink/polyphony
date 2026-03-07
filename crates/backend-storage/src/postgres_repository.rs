@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use backend_domain::{
     Channel, ChannelId, ChannelType, DisplayName, ExternalReference, Membership, Message,
-    MessageId, NotificationEventType, Server, ServerId, User, UserId,
+    MessageId, NotificationCategoryPreference, NotificationEventType, NotificationMuteState,
+    Server, ServerId, User, UserId,
 };
 use sqlx::migrate::Migrator;
 use sqlx::{
@@ -112,6 +113,39 @@ impl PostgresRepository {
         self.is_user_member_of_server(server_id.into(), user_id)
             .await
     }
+
+    async fn effective_notification_category_for_channel(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+        channel_id: ChannelId,
+    ) -> NotificationCategoryPreference {
+        let scoped_category = if let Some(channel_category) = self
+            .channel_notification_category_for_user(user_id, channel_id)
+            .await
+        {
+            channel_category
+        } else if let Some(server_category) = self
+            .server_notification_category_for_user(user_id, server_id)
+            .await
+        {
+            server_category
+        } else {
+            self.global_channel_default_notification_category_for_user(user_id)
+                .await
+        };
+
+        let global_category = self.global_notification_category_for_user(user_id).await;
+
+        match (global_category, scoped_category) {
+            (NotificationCategoryPreference::None, _) => NotificationCategoryPreference::None,
+            (
+                NotificationCategoryPreference::OnlyMentions,
+                NotificationCategoryPreference::AllMessages,
+            ) => NotificationCategoryPreference::OnlyMentions,
+            _ => scoped_category,
+        }
+    }
 }
 
 #[async_trait]
@@ -121,6 +155,7 @@ impl MessageRepository for PostgresRepository {
         channel_id: ChannelId,
         author_user_id: UserId,
         content: String,
+        mentioned_user_id: Option<UserId>,
     ) -> CreateMessageResult {
         let is_channel_member = match self
             .is_user_member_of_channel(channel_id, author_user_id)
@@ -150,41 +185,35 @@ impl MessageRepository for PostgresRepository {
             Err(_) => return CreateMessageResult::NotFound,
         };
 
-        let created_message = sqlx::query_as::<_, (Uuid, Uuid, Uuid, String)>(
-            "INSERT INTO messages (id, channel_id, author_user_id, content)
-             VALUES (gen_random_uuid(), $1, $2, $3)
-             RETURNING id, channel_id, author_user_id, content",
+        let created_message = sqlx::query_as::<_, (Uuid, Uuid, Uuid, String, Option<Uuid>)>(
+            "INSERT INTO messages (id, channel_id, author_user_id, content, mentioned_user_id)
+             VALUES (gen_random_uuid(), $1, $2, $3, $4)
+             RETURNING id, channel_id, author_user_id, content, mentioned_user_id",
         )
         .bind(channel_id)
         .bind(author_user_id)
         .bind(content)
+        .bind(mentioned_user_id.map(Uuid::from))
         .fetch_one(&mut *transaction)
         .await;
 
-        let (message_id, message_channel_id, message_author_user_id, message_content) =
-            match created_message {
-                Ok(value) => value,
-                Err(_) => return CreateMessageResult::NotFound,
-            };
+        let (
+            message_id,
+            message_channel_id,
+            message_author_user_id,
+            message_content,
+            mentioned_user_id,
+        ) = match created_message {
+            Ok(value) => value,
+            Err(_) => return CreateMessageResult::NotFound,
+        };
 
-        let notified_user_ids = sqlx::query_scalar::<_, Uuid>(
+        let candidate_user_ids = sqlx::query_scalar::<_, Uuid>(
             "SELECT sm.user_id
              FROM server_members sm
              INNER JOIN channels c ON c.server_id = sm.server_id
-                         LEFT JOIN notification_user_preferences nup
-                             ON nup.user_id = sm.user_id
-                         LEFT JOIN notification_server_preferences nsp
-                             ON nsp.user_id = sm.user_id
-                            AND nsp.server_id = c.server_id
-                         LEFT JOIN notification_channel_mutes ncm
-                             ON ncm.user_id = sm.user_id
-                            AND ncm.channel_id = c.id
-                            AND ncm.muted_until > NOW()
              WHERE c.id = $1
-                             AND sm.user_id != $2
-                             AND COALESCE(nup.muted, FALSE) = FALSE
-                             AND COALESCE(nsp.muted, FALSE) = FALSE
-                             AND ncm.user_id IS NULL",
+               AND sm.user_id != $2",
         )
         .bind(channel_id)
         .bind(author_user_id)
@@ -192,7 +221,65 @@ impl MessageRepository for PostgresRepository {
         .await
         .unwrap_or_default();
 
-        let event_type = NotificationEventType::MessageCreated;
+        let server_id = channel.server_id();
+        let channel_id_typed: ChannelId = message_channel_id.into();
+        let is_mentioned = mentioned_user_id.is_some();
+
+        let mut notified_user_ids = Vec::new();
+        for candidate_user_id in candidate_user_ids {
+            let candidate_user_id_typed: UserId = candidate_user_id.into();
+
+            if self
+                .channel_temporary_mute_expires_at_epoch_seconds(
+                    candidate_user_id_typed,
+                    channel_id_typed,
+                )
+                .await
+                .is_some()
+            {
+                continue;
+            }
+
+            if self
+                .global_mute_state_for_user(candidate_user_id_typed)
+                .await
+                .is_muted()
+            {
+                continue;
+            }
+
+            if self
+                .server_mute_state_for_user(candidate_user_id_typed, server_id)
+                .await
+                .is_muted()
+            {
+                continue;
+            }
+
+            let category = self
+                .effective_notification_category_for_channel(
+                    candidate_user_id_typed,
+                    server_id,
+                    channel_id_typed,
+                )
+                .await;
+
+            let should_notify = match category {
+                NotificationCategoryPreference::None => false,
+                NotificationCategoryPreference::AllMessages => true,
+                NotificationCategoryPreference::OnlyMentions => is_mentioned,
+            };
+
+            if should_notify {
+                notified_user_ids.push(candidate_user_id);
+            }
+        }
+
+        let event_type = if is_mentioned {
+            NotificationEventType::Mentioned
+        } else {
+            NotificationEventType::UnreadMessage
+        };
 
         let payload = serde_json::json!({
             "event_type": event_type.as_str(),
@@ -246,11 +333,21 @@ impl MessageRepository for PostgresRepository {
         }
 
         CreateMessageResult::Created {
-            message: Message {
-                id: message_id.into(),
-                channel_id: message_channel_id.into(),
-                author_user_id: message_author_user_id.into(),
-                content: message_content,
+            message: if let Some(mentioned_user_id) = mentioned_user_id {
+                Message::new_mentioned(
+                    message_id.into(),
+                    message_channel_id.into(),
+                    message_author_user_id.into(),
+                    message_content,
+                    mentioned_user_id.into(),
+                )
+            } else {
+                Message::new_regular(
+                    message_id.into(),
+                    message_channel_id.into(),
+                    message_author_user_id.into(),
+                    message_content,
+                )
             },
             notified_user_ids: notified_user_ids
                 .into_iter()
@@ -353,8 +450,8 @@ impl MessageRepository for PostgresRepository {
     async fn list_messages(&self, channel_id: ChannelId) -> Vec<Message> {
         let channel_id = Uuid::from(channel_id);
 
-        sqlx::query_as::<_, (Uuid, Uuid, Uuid, String)>(
-            "SELECT id, channel_id, author_user_id, content
+        sqlx::query_as::<_, (Uuid, Uuid, Uuid, String, Option<Uuid>)>(
+            "SELECT id, channel_id, author_user_id, content, mentioned_user_id
              FROM messages
              WHERE channel_id = $1
              ORDER BY created_order ASC",
@@ -364,12 +461,26 @@ impl MessageRepository for PostgresRepository {
         .await
         .unwrap_or_default()
         .into_iter()
-        .map(|(id, channel_id, author_user_id, content)| Message {
-            id: id.into(),
-            channel_id: channel_id.into(),
-            author_user_id: author_user_id.into(),
-            content,
-        })
+        .map(
+            |(id, channel_id, author_user_id, content, mentioned_user_id)| {
+                if let Some(mentioned_user_id) = mentioned_user_id {
+                    Message::new_mentioned(
+                        id.into(),
+                        channel_id.into(),
+                        author_user_id.into(),
+                        content,
+                        mentioned_user_id.into(),
+                    )
+                } else {
+                    Message::new_regular(
+                        id.into(),
+                        channel_id.into(),
+                        author_user_id.into(),
+                        content,
+                    )
+                }
+            },
+        )
         .collect()
     }
 }
@@ -500,8 +611,196 @@ impl NotificationRepository for PostgresRepository {
         .await;
     }
 
-    async fn is_globally_muted_for_user(&self, user_id: UserId) -> bool {
-        sqlx::query_scalar::<_, bool>(
+    async fn global_notification_category_for_user(
+        &self,
+        user_id: UserId,
+    ) -> NotificationCategoryPreference {
+        sqlx::query_scalar::<_, String>(
+            "SELECT COALESCE(notification_category, 'only_mentions')
+             FROM notification_user_preferences
+             WHERE user_id = $1",
+        )
+        .bind(Uuid::from(user_id))
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or_default()
+    }
+
+    async fn global_channel_default_notification_category_for_user(
+        &self,
+        user_id: UserId,
+    ) -> NotificationCategoryPreference {
+        sqlx::query_scalar::<_, String>(
+            "SELECT COALESCE(channel_default_category, 'only_mentions')
+             FROM notification_user_preferences
+             WHERE user_id = $1",
+        )
+        .bind(Uuid::from(user_id))
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or_default()
+    }
+
+    async fn server_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+    ) -> Option<NotificationCategoryPreference> {
+        sqlx::query_scalar::<_, String>(
+            "SELECT notification_category
+             FROM notification_server_preferences
+             WHERE user_id = $1
+               AND server_id = $2",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(server_id))
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|value| value.parse().ok())
+    }
+
+    async fn channel_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Option<NotificationCategoryPreference> {
+        sqlx::query_scalar::<_, String>(
+            "SELECT notification_category
+             FROM notification_channel_preferences
+             WHERE user_id = $1
+               AND channel_id = $2",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(channel_id))
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|value| value.parse().ok())
+    }
+
+    async fn set_global_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        category: NotificationCategoryPreference,
+    ) {
+        let _ = sqlx::query(
+            "INSERT INTO notification_user_preferences (
+                user_id,
+                notification_category,
+                channel_default_category,
+                muted,
+                updated_at
+             )
+             VALUES ($1, $2, 'only_mentions', $3, NOW())
+             ON CONFLICT (user_id)
+             DO UPDATE SET notification_category = EXCLUDED.notification_category,
+                           muted = EXCLUDED.muted,
+                           updated_at = NOW()",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(category.as_str())
+        .bind(category == NotificationCategoryPreference::None)
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn set_global_channel_default_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        category: NotificationCategoryPreference,
+    ) {
+        let _ = sqlx::query(
+            "INSERT INTO notification_user_preferences (
+                user_id,
+                notification_category,
+                channel_default_category,
+                muted,
+                updated_at
+             )
+             VALUES ($1, 'only_mentions', $2, FALSE, NOW())
+             ON CONFLICT (user_id)
+             DO UPDATE SET channel_default_category = EXCLUDED.channel_default_category,
+                           updated_at = NOW()",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(category.as_str())
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn set_server_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+        category: NotificationCategoryPreference,
+    ) {
+        let _ = sqlx::query(
+            "INSERT INTO notification_server_preferences (
+                user_id,
+                server_id,
+                notification_category,
+                updated_at
+             )
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (user_id, server_id)
+             DO UPDATE SET notification_category = EXCLUDED.notification_category,
+                           updated_at = NOW()",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(server_id))
+        .bind(category.as_str())
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn set_channel_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        category: NotificationCategoryPreference,
+    ) {
+        let _ = sqlx::query(
+            "INSERT INTO notification_channel_preferences (
+                user_id,
+                channel_id,
+                notification_category,
+                updated_at
+             )
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (user_id, channel_id)
+             DO UPDATE SET notification_category = EXCLUDED.notification_category,
+                           updated_at = NOW()",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(channel_id))
+        .bind(category.as_str())
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn clear_channel_notification_category_for_user(&self, user_id: UserId, channel_id: ChannelId) {
+        let _ = sqlx::query(
+            "DELETE FROM notification_channel_preferences
+             WHERE user_id = $1
+               AND channel_id = $2",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(channel_id))
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn global_mute_state_for_user(&self, user_id: UserId) -> NotificationMuteState {
+        let muted = sqlx::query_scalar::<_, bool>(
             "SELECT COALESCE(muted, FALSE)
              FROM notification_user_preferences
              WHERE user_id = $1",
@@ -511,11 +810,17 @@ impl NotificationRepository for PostgresRepository {
         .await
         .ok()
         .flatten()
-        .unwrap_or(false)
+        .unwrap_or(false);
+
+        NotificationMuteState::from_muted_flag(muted)
     }
 
-    async fn is_server_muted_for_user(&self, user_id: UserId, server_id: ServerId) -> bool {
-        sqlx::query_scalar::<_, bool>(
+    async fn server_mute_state_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+    ) -> NotificationMuteState {
+        let muted = sqlx::query_scalar::<_, bool>(
             "SELECT COALESCE(muted, FALSE)
              FROM notification_server_preferences
              WHERE user_id = $1
@@ -527,10 +832,62 @@ impl NotificationRepository for PostgresRepository {
         .await
         .ok()
         .flatten()
-        .unwrap_or(false)
+        .unwrap_or(false);
+
+        NotificationMuteState::from_muted_flag(muted)
     }
 
-    async fn channel_mute_expires_at_epoch_seconds(
+    async fn set_global_mute_state_for_user(
+        &self,
+        user_id: UserId,
+        mute_state: NotificationMuteState,
+    ) {
+        let _ = sqlx::query(
+            "INSERT INTO notification_user_preferences (
+                user_id,
+                notification_category,
+                channel_default_category,
+                muted,
+                updated_at
+             )
+             VALUES ($1, 'only_mentions', 'only_mentions', $2, NOW())
+             ON CONFLICT (user_id)
+             DO UPDATE SET muted = EXCLUDED.muted,
+                           updated_at = NOW()",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(mute_state.is_muted())
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn set_server_mute_state_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+        mute_state: NotificationMuteState,
+    ) {
+        let _ = sqlx::query(
+            "INSERT INTO notification_server_preferences (
+                user_id,
+                server_id,
+                notification_category,
+                muted,
+                updated_at
+             )
+             VALUES ($1, $2, 'only_mentions', $3, NOW())
+             ON CONFLICT (user_id, server_id)
+             DO UPDATE SET muted = EXCLUDED.muted,
+                           updated_at = NOW()",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(server_id))
+        .bind(mute_state.is_muted())
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn channel_temporary_mute_expires_at_epoch_seconds(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
@@ -551,45 +908,7 @@ impl NotificationRepository for PostgresRepository {
         .and_then(|value| u64::try_from(value).ok())
     }
 
-    async fn set_globally_muted_for_user(&self, user_id: UserId, muted: bool) {
-        let _ = sqlx::query(
-            "INSERT INTO notification_user_preferences (
-                user_id,
-                muted,
-                updated_at
-             )
-             VALUES ($1, $2, NOW())
-             ON CONFLICT (user_id)
-             DO UPDATE SET muted = EXCLUDED.muted,
-                           updated_at = NOW()",
-        )
-        .bind(Uuid::from(user_id))
-        .bind(muted)
-        .execute(&self.pool)
-        .await;
-    }
-
-    async fn set_server_muted_for_user(&self, user_id: UserId, server_id: ServerId, muted: bool) {
-        let _ = sqlx::query(
-            "INSERT INTO notification_server_preferences (
-                user_id,
-                server_id,
-                muted,
-                updated_at
-             )
-             VALUES ($1, $2, $3, NOW())
-             ON CONFLICT (user_id, server_id)
-             DO UPDATE SET muted = EXCLUDED.muted,
-                           updated_at = NOW()",
-        )
-        .bind(Uuid::from(user_id))
-        .bind(Uuid::from(server_id))
-        .bind(muted)
-        .execute(&self.pool)
-        .await;
-    }
-
-    async fn set_channel_temporarily_muted_for_user(
+    async fn set_channel_temporary_mute_for_user(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
@@ -615,7 +934,7 @@ impl NotificationRepository for PostgresRepository {
         .await;
     }
 
-    async fn expire_channel_mute_for_user(&self, user_id: UserId, channel_id: ChannelId) {
+    async fn clear_channel_temporary_mute_for_user(&self, user_id: UserId, channel_id: ChannelId) {
         let _ = sqlx::query(
             "UPDATE notification_channel_mutes
              SET muted_until = NOW() - INTERVAL '1 second',

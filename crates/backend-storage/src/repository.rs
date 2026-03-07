@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use backend_domain::{
-    Channel, ChannelId, ChannelType, ExternalReference, Membership, Message, MessageId, Server,
-    ServerId, User, UserId,
+    Channel, ChannelId, ChannelType, ExternalReference, Membership, Message, MessageId,
+    NotificationCategoryPreference, NotificationMuteState, Server, ServerId, User, UserId,
 };
 
 use crate::MutationResult;
@@ -21,22 +21,81 @@ pub trait NotificationRepository: Send + Sync {
     async fn unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> u64;
     async fn total_unread_count_for_user(&self, user_id: UserId) -> u64;
     async fn clear_unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId);
-    async fn is_globally_muted_for_user(&self, user_id: UserId) -> bool;
-    async fn is_server_muted_for_user(&self, user_id: UserId, server_id: ServerId) -> bool;
-    async fn channel_mute_expires_at_epoch_seconds(
+    async fn global_notification_category_for_user(
+        &self,
+        user_id: UserId,
+    ) -> NotificationCategoryPreference;
+    async fn global_channel_default_notification_category_for_user(
+        &self,
+        user_id: UserId,
+    ) -> NotificationCategoryPreference;
+    async fn server_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+    ) -> Option<NotificationCategoryPreference>;
+    async fn channel_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Option<NotificationCategoryPreference>;
+    async fn set_global_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        category: NotificationCategoryPreference,
+    );
+    async fn set_global_channel_default_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        category: NotificationCategoryPreference,
+    );
+    async fn set_server_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+        category: NotificationCategoryPreference,
+    );
+    async fn set_channel_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        category: NotificationCategoryPreference,
+    );
+    async fn clear_channel_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    );
+
+    async fn global_mute_state_for_user(&self, user_id: UserId) -> NotificationMuteState;
+    async fn server_mute_state_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+    ) -> NotificationMuteState;
+    async fn set_global_mute_state_for_user(
+        &self,
+        user_id: UserId,
+        mute_state: NotificationMuteState,
+    );
+    async fn set_server_mute_state_for_user(
+        &self,
+        user_id: UserId,
+        server_id: ServerId,
+        mute_state: NotificationMuteState,
+    );
+    async fn channel_temporary_mute_expires_at_epoch_seconds(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
     ) -> Option<u64>;
-    async fn set_globally_muted_for_user(&self, user_id: UserId, muted: bool);
-    async fn set_server_muted_for_user(&self, user_id: UserId, server_id: ServerId, muted: bool);
-    async fn set_channel_temporarily_muted_for_user(
+    async fn set_channel_temporary_mute_for_user(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
         duration_minutes: u32,
     );
-    async fn expire_channel_mute_for_user(&self, user_id: UserId, channel_id: ChannelId);
+    async fn clear_channel_temporary_mute_for_user(&self, user_id: UserId, channel_id: ChannelId);
     async fn outbox_count_for_message_recipient(
         &self,
         message_id: MessageId,
@@ -52,6 +111,7 @@ pub trait MessageRepository: Send + Sync {
         channel_id: ChannelId,
         author_user_id: UserId,
         content: String,
+        mentioned_user_id: Option<UserId>,
     ) -> CreateMessageResult;
     async fn update_message(
         &self,

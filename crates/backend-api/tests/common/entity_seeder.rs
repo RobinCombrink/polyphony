@@ -100,11 +100,11 @@ impl EntitySeeder {
             .collect::<String>()
             .to_lowercase();
 
-        Message {
-            id: Uuid::new_v4().into(),
+        Message::new_regular(
+            Uuid::new_v4().into(),
             channel_id,
             author_user_id,
-            content: format!("Message-{random_segment}"),
-        }
+            format!("Message-{random_segment}"),
+        )
     }
 }

@@ -24,7 +24,9 @@ use testcontainers_modules::{
 use tower::ServiceExt;
 use uuid::Uuid;
 
-pub(crate) use backend_api::domain::{ChannelId, ExternalReference, MessageId, ServerId, UserId};
+pub(crate) use backend_api::domain::{
+    ChannelId, ExternalReference, MessageId, NotificationMuteState, ServerId, UserId,
+};
 
 #[derive(Debug)]
 pub(crate) struct PostgresTestEnv {
@@ -97,7 +99,16 @@ pub(crate) fn payload_channel_id(payload: &Value, key: &str) -> ChannelId {
 }
 
 pub(crate) fn payload_message_id(payload: &Value, key: &str) -> MessageId {
-    payload_uuid(payload, key).into()
+    payload[key]
+        .as_str()
+        .and_then(|value| Uuid::parse_str(value).ok())
+        .or_else(|| {
+            payload["details"]["common"][key]
+                .as_str()
+                .and_then(|value| Uuid::parse_str(value).ok())
+        })
+        .expect("message uuid field to be present")
+        .into()
 }
 
 struct TestTokenVerifier {
@@ -324,6 +335,33 @@ pub(crate) async fn create_message_with_token(
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(
                     serde_json::json!({ "content": content }).to_string(),
+                ))
+                .expect("create message request to be valid"),
+        )
+        .await
+        .expect("create message response from app")
+}
+
+pub(crate) async fn create_message_with_token_and_mention(
+    app: &axum::Router,
+    channel_id: &ChannelId,
+    content: &str,
+    mentioned_user_id: &UserId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/channels/{channel_id}/messages"))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "content": content,
+                        "mentioned_user_id": mentioned_user_id,
+                    })
+                    .to_string(),
                 ))
                 .expect("create message request to be valid"),
         )
@@ -646,7 +684,7 @@ pub(crate) async fn mark_channel_notifications_read_with_token(
 
 pub(crate) async fn update_global_notification_preference_with_token(
     app: &axum::Router,
-    muted: bool,
+    mute_state: NotificationMuteState,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
@@ -657,7 +695,7 @@ pub(crate) async fn update_global_notification_preference_with_token(
                 .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(
-                    serde_json::json!({ "muted": muted }).to_string(),
+                    serde_json::json!({ "mute_state": mute_state }).to_string(),
                 ))
                 .expect("update global notification preference request to be valid"),
         )
@@ -684,7 +722,7 @@ pub(crate) async fn global_notification_preference_with_token(
 pub(crate) async fn update_server_notification_preference_with_token(
     app: &axum::Router,
     server_id: &ServerId,
-    muted: bool,
+    mute_state: NotificationMuteState,
     bearer_token: &str,
 ) -> axum::response::Response {
     app.clone()
@@ -697,7 +735,7 @@ pub(crate) async fn update_server_notification_preference_with_token(
                 .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(
-                    serde_json::json!({ "muted": muted }).to_string(),
+                    serde_json::json!({ "mute_state": mute_state }).to_string(),
                 ))
                 .expect("update server notification preference request to be valid"),
         )
@@ -905,46 +943,48 @@ pub(crate) async fn unread_count_for_channel(
     }
 }
 
-pub(crate) async fn set_server_muted_for_user(
+pub(crate) async fn set_server_mute_state_for_user(
     repository: &SharedTestStore,
     user_id: UserId,
     server_id: ServerId,
-    muted: bool,
+    mute_state: NotificationMuteState,
 ) {
     match repository.as_ref() {
         TestStore::InMemory(store) => {
             store
-                .set_server_muted_for_user(user_id, server_id, muted)
+                .set_server_mute_state_for_user(user_id, server_id, mute_state)
                 .await;
         }
         TestStore::Postgres(store) => {
             store
                 .repository
-                .set_server_muted_for_user(user_id, server_id, muted)
+                .set_server_mute_state_for_user(user_id, server_id, mute_state)
                 .await;
         }
     }
 }
 
-pub(crate) async fn set_globally_muted_for_user(
+pub(crate) async fn set_global_mute_state_for_user(
     repository: &SharedTestStore,
     user_id: UserId,
-    muted: bool,
+    mute_state: NotificationMuteState,
 ) {
     match repository.as_ref() {
         TestStore::InMemory(store) => {
-            store.set_globally_muted_for_user(user_id, muted).await;
+            store
+                .set_global_mute_state_for_user(user_id, mute_state)
+                .await;
         }
         TestStore::Postgres(store) => {
             store
                 .repository
-                .set_globally_muted_for_user(user_id, muted)
+                .set_global_mute_state_for_user(user_id, mute_state)
                 .await;
         }
     }
 }
 
-pub(crate) async fn set_channel_temporarily_muted_for_user(
+pub(crate) async fn set_channel_temporary_mute_for_user(
     repository: &SharedTestStore,
     user_id: UserId,
     channel_id: ChannelId,
@@ -953,19 +993,19 @@ pub(crate) async fn set_channel_temporarily_muted_for_user(
     match repository.as_ref() {
         TestStore::InMemory(store) => {
             store
-                .set_channel_temporarily_muted_for_user(user_id, channel_id, duration_minutes)
+                .set_channel_temporary_mute_for_user(user_id, channel_id, duration_minutes)
                 .await;
         }
         TestStore::Postgres(store) => {
             store
                 .repository
-                .set_channel_temporarily_muted_for_user(user_id, channel_id, duration_minutes)
+                .set_channel_temporary_mute_for_user(user_id, channel_id, duration_minutes)
                 .await;
         }
     }
 }
 
-pub(crate) async fn expire_channel_mute_for_user(
+pub(crate) async fn clear_channel_temporary_mute_for_user(
     repository: &SharedTestStore,
     user_id: UserId,
     channel_id: ChannelId,
@@ -973,13 +1013,13 @@ pub(crate) async fn expire_channel_mute_for_user(
     match repository.as_ref() {
         TestStore::InMemory(store) => {
             store
-                .expire_channel_mute_for_user(user_id, channel_id)
+                .clear_channel_temporary_mute_for_user(user_id, channel_id)
                 .await;
         }
         TestStore::Postgres(store) => {
             store
                 .repository
-                .expire_channel_mute_for_user(user_id, channel_id)
+                .clear_channel_temporary_mute_for_user(user_id, channel_id)
                 .await;
         }
     }

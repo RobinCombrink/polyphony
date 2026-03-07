@@ -1,9 +1,8 @@
+use backend_domain::NotificationCategoryPreference;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use backend_domain::{NotificationCategoryPreference, NotificationMuteState};
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-pub struct NotificationServerPreferenceResponse {
-    pub mute_state: NotificationMuteState,
+pub struct UpdateNotificationChannelPreferenceRequest {
     pub notification_category: NotificationCategoryPreference,
 }

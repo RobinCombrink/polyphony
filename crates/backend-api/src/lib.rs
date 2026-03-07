@@ -28,8 +28,8 @@ use routes::{
         channel_notification_preference, global_notification_preference,
         mark_channel_notifications_read, mute_channel_notifications,
         server_notification_preference, unmute_channel_notifications, unread_notifications_count,
-        update_global_notification_preference, update_server_notification_preference,
-        websocket_notifications,
+        update_channel_notification_preference, update_global_notification_preference,
+        update_server_notification_preference, websocket_notifications,
     },
     servers::{
         add_server_member, create_channel, create_server, delete_channel, delete_server,
@@ -238,7 +238,7 @@ where
         )
         .route(
             "/api/v1/channels/{channel_id}/notifications/preferences",
-            get(channel_notification_preference),
+            get(channel_notification_preference).patch(update_channel_notification_preference),
         )
         .route(
             "/api/v1/channels/{channel_id}/notifications/preferences/mute",

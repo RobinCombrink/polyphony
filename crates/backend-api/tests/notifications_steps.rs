@@ -8,9 +8,10 @@ use std::time::Duration;
 use axum::http::StatusCode;
 use backend_api::notification_hub::NotificationHub;
 use common::bdd_support::{
-    Actor, ChannelId, MessageId, ServerId, SharedTestStore, add_server_member_with_token,
-    channel_notification_preference_with_token, create_actor_with_notification_hub,
-    create_channel_with_token, create_message_with_token, create_server_with_token,
+    Actor, ChannelId, MessageId, NotificationMuteState, ServerId, SharedTestStore,
+    add_server_member_with_token, channel_notification_preference_with_token,
+    create_actor_with_notification_hub, create_channel_with_token, create_message_with_token,
+    create_message_with_token_and_mention, create_server_with_token,
     global_notification_preference_with_token, mark_channel_notifications_read_with_token,
     mute_channel_notifications_with_token, outbox_count_for_message_recipient,
     outbox_total_count_for_recipient, payload_channel_id, payload_message_id, payload_server_id,
@@ -339,7 +340,7 @@ async fn named_user_has_muted_named_server(
     let response = update_server_notification_preference_with_token(
         &actor.app,
         &server_id,
-        true,
+        NotificationMuteState::Muted,
         &actor.token,
     )
     .await;
@@ -352,8 +353,12 @@ async fn named_user_has_globally_muted_notifications(
     actor_name: String,
 ) {
     let actor = world.actor_ref(&actor_name);
-    let response =
-        update_global_notification_preference_with_token(&actor.app, true, &actor.token).await;
+    let response = update_global_notification_preference_with_token(
+        &actor.app,
+        NotificationMuteState::Muted,
+        &actor.token,
+    )
+    .await;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
@@ -434,8 +439,12 @@ async fn named_user_globally_unmutes_notifications(
     actor_name: String,
 ) {
     let actor = world.actor_ref(&actor_name);
-    let response =
-        update_global_notification_preference_with_token(&actor.app, false, &actor.token).await;
+    let response = update_global_notification_preference_with_token(
+        &actor.app,
+        NotificationMuteState::Unmuted,
+        &actor.token,
+    )
+    .await;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
@@ -452,7 +461,7 @@ async fn named_user_unmutes_named_server(
     let response = update_server_notification_preference_with_token(
         &actor.app,
         &server_id,
-        false,
+        NotificationMuteState::Unmuted,
         &actor.token,
     )
     .await;
@@ -555,27 +564,29 @@ async fn named_user_sees_total_unread_notification_count_of(
     assert_eq!(total_unread_count, expected_total);
 }
 
-#[then(regex = r#"^"([^"]+)" sees global notification preference muted is (true|false)$"#)]
-async fn named_user_sees_global_notification_preference_muted_is(
+#[then(regex = r#"^"([^"]+)" sees global notification preference mute state is (muted|unmuted)$"#)]
+async fn named_user_sees_global_notification_preference_mute_state_is(
     world: &mut NotificationsWorld,
     actor_name: String,
-    expected_muted: String,
+    expected_state: String,
 ) {
     let actor = world.actor_ref(&actor_name);
     let response = global_notification_preference_with_token(&actor.app, &actor.token).await;
 
     assert_eq!(response.status(), StatusCode::OK);
     let payload = response_payload_json(response).await;
-    let muted = payload["muted"].as_bool().expect("muted to be present");
+    let mute_state = payload["mute_state"]
+        .as_str()
+        .expect("mute_state to be present");
 
-    assert_eq!(muted, parse_bool(&expected_muted));
+    assert_eq!(mute_state, expected_state);
 }
 
-#[then(regex = r#"^"([^"]+)" sees server notification preference muted is (true|false)$"#)]
-async fn named_user_sees_server_notification_preference_muted_is(
+#[then(regex = r#"^"([^"]+)" sees server notification preference mute state is (muted|unmuted)$"#)]
+async fn named_user_sees_server_notification_preference_mute_state_is(
     world: &mut NotificationsWorld,
     actor_name: String,
-    expected_muted: String,
+    expected_state: String,
 ) {
     let actor = world.actor_ref(&actor_name);
     let response =
@@ -584,19 +595,21 @@ async fn named_user_sees_server_notification_preference_muted_is(
 
     assert_eq!(response.status(), StatusCode::OK);
     let payload = response_payload_json(response).await;
-    let muted = payload["muted"].as_bool().expect("muted to be present");
+    let mute_state = payload["mute_state"]
+        .as_str()
+        .expect("mute_state to be present");
 
-    assert_eq!(muted, parse_bool(&expected_muted));
+    assert_eq!(mute_state, expected_state);
 }
 
 #[then(
-    regex = r#"^"([^"]+)" sees channel "([^"]+)" notification preference muted is (true|false)$"#
+    regex = r#"^"([^"]+)" sees channel "([^"]+)" notification preference mute state is (muted|unmuted)$"#
 )]
-async fn named_user_sees_named_channel_notification_preference_muted_is(
+async fn named_user_sees_named_channel_notification_preference_mute_state_is(
     world: &mut NotificationsWorld,
     actor_name: String,
     channel_name: String,
-    expected_muted: String,
+    expected_state: String,
 ) {
     let actor = world.actor_ref(&actor_name);
     let channel_id = *world.channel_id_by_name_ref(&channel_name);
@@ -605,9 +618,11 @@ async fn named_user_sees_named_channel_notification_preference_muted_is(
 
     assert_eq!(response.status(), StatusCode::OK);
     let payload = response_payload_json(response).await;
-    let muted = payload["muted"].as_bool().expect("muted to be present");
+    let mute_state = payload["mute_state"]
+        .as_str()
+        .expect("mute_state to be present");
 
-    assert_eq!(muted, parse_bool(&expected_muted));
+    assert_eq!(mute_state, expected_state);
 }
 
 #[then(regex = r#"^"([^"]+)" sees channel "([^"]+)" mute expiry timestamp is (present|absent)$"#)]
@@ -647,7 +662,7 @@ async fn named_user_receives_message_created_websocket_notification_for_named_ch
         .expect("websocket notification event to be received");
 
     assert_eq!(world.latest_status(), StatusCode::CREATED);
-    assert_eq!(event["event_type"].as_str(), Some("message_created"));
+    assert_eq!(event["event_type"].as_str(), Some("mentioned"));
     let expected_channel_id = world.channel_id_by_name_ref(&channel_name).to_string();
     assert_eq!(
         event["channel_id"].as_str(),
@@ -768,13 +783,29 @@ async fn named_user_posts_a_message_in_given_channel(
     channel_id: ChannelId,
 ) {
     let actor = world.actor_ref(&actor_name);
-    let response = create_message_with_token(
-        &actor.app,
-        &channel_id,
-        "notification-message",
-        &actor.token,
-    )
-    .await;
+    let mentioned_user_id = world
+        .actors
+        .get("Noah")
+        .map(|recipient| recipient.user_id)
+        .filter(|user_id| *user_id != actor.user_id);
+    let response = if let Some(mentioned_user_id) = mentioned_user_id {
+        create_message_with_token_and_mention(
+            &actor.app,
+            &channel_id,
+            "@noah notification-message",
+            &mentioned_user_id,
+            &actor.token,
+        )
+        .await
+    } else {
+        create_message_with_token(
+            &actor.app,
+            &channel_id,
+            "notification-message",
+            &actor.token,
+        )
+        .await
+    };
 
     world.latest_status = Some(response.status());
     if response.status() == StatusCode::CREATED {
@@ -796,14 +827,6 @@ async fn track_outbox_totals_before_post(world: &mut NotificationsWorld) {
         world
             .outbox_totals_before_post_by_actor
             .insert(name.to_owned(), outbox_count);
-    }
-}
-
-fn parse_bool(value: &str) -> bool {
-    match value {
-        "true" => true,
-        "false" => false,
-        _ => panic!("expected boolean string"),
     }
 }
 

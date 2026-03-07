@@ -63,7 +63,12 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
         .expect("channel to be created");
 
     let message = repository
-        .create_message(channel.id(), user.id, "hello from integration".to_owned())
+        .create_message(
+            channel.id(),
+            user.id,
+            "hello from integration".to_owned(),
+            Some(member_user.id),
+        )
         .await;
 
     let message = match message {
@@ -81,12 +86,12 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
     let listed_messages = repository.list_messages(channel.id()).await;
 
     assert_eq!(listed_messages.len(), 1);
-    assert_eq!(listed_messages[0].id, message.id);
-    assert_eq!(listed_messages[0].author_user_id, user.id);
+    assert_eq!(listed_messages[0].id(), message.id());
+    assert_eq!(listed_messages[0].author_user_id(), user.id);
 
     assert_notification_outbox_and_unread_counts(
         &pool,
-        message.id,
+        message.id(),
         channel.id(),
         user.id,
         member_user.id,
@@ -164,7 +169,7 @@ async fn assert_notification_outbox_and_unread_counts(
     let outbox_rows = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(1)
          FROM notification_outbox
-         WHERE event_type = 'message_created'
+                 WHERE event_type = 'mentioned'
            AND message_id = $1
            AND channel_id = $2
            AND recipient_user_id = $3

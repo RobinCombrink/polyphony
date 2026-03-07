@@ -158,7 +158,7 @@ impl MessagesWorld {
             create_message(
                 self.owner_app_ref(),
                 self.channel_id_ref(),
-                &fixture.message.content,
+                fixture.message.content(),
             )
             .await,
         )
@@ -629,8 +629,11 @@ async fn listing_messages_for_that_channel_returns_the_updated_content(world: &m
             .await;
     let messages = payload.as_array().expect("messages payload to be array");
     assert!(messages.iter().any(|message| {
+        let content = message["content"]
+            .as_str()
+            .or_else(|| message["details"]["common"]["content"].as_str());
         payload_message_id(message, "id") == *world.message_id_ref()
-            && message["content"].as_str() == Some("updated message")
+            && content == Some("updated message")
     }));
 }
 
