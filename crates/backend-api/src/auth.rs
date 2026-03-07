@@ -64,7 +64,7 @@ impl Default for Auth0Config {
         Self {
             issuer: Url::parse("https://dev-polyphony.eu.auth0.com/")
                 .expect("default issuer to be valid URL"),
-            audience: "https://polyphony.com".to_owned(),
+            audience: "https://app.polyphony.com".to_owned(),
             token_duration_hours: 18,
         }
     }
