@@ -11,17 +11,17 @@ abstract final class PolyphonyConfig {
 
   static const auth0NativeClientId = String.fromEnvironment(
     "AUTH0_NATIVE_CLIENT_ID",
-    defaultValue: "3QEwnOrRK5qAFqjNJvXWdPJDhLz1p0yZ",
+    defaultValue: "PPpiiFNzm71rBt6WoF0J4h6mZvlr08yK",
   );
 
   static const auth0WebClientId = String.fromEnvironment(
     "AUTH0_WEB_CLIENT_ID",
-    defaultValue: "pyTVsVOWzcOK85LQfL4Ulwpeft4XpSqW",
+    defaultValue: "XtYoQKoUZvWeYtqmNEoIUByjYlSNGjgd",
   );
 
   static const auth0Audience = String.fromEnvironment(
     "AUTH0_AUDIENCE",
-    defaultValue: "https://polyphony.com",
+    defaultValue: "https://app.polyphony.com",
   );
 
   static const auth0Scopes = String.fromEnvironment(
