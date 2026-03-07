@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::{Duration, SystemTime};
 
 use backend_domain::{
     Channel, ChannelId, ChannelType, DisplayName, ExternalReference, Membership, Message,
@@ -18,6 +19,8 @@ pub(crate) struct InMemoryStore {
     pub(crate) messages_by_channel: HashMap<ChannelId, Vec<Message>>,
     pub(crate) notification_outbox: Vec<(MessageId, ChannelId, UserId, UserId)>,
     pub(crate) unread_counts_by_user_channel: HashMap<(UserId, ChannelId), u64>,
+    pub(crate) server_mute_by_user_server: HashMap<(UserId, ServerId), bool>,
+    pub(crate) channel_mute_until_by_user_channel: HashMap<(UserId, ChannelId), SystemTime>,
 }
 
 impl InMemoryStore {
@@ -302,12 +305,20 @@ impl InMemoryStore {
             .cloned()
             .unwrap_or_default()
             .into_iter()
-            .filter(|user_id| *user_id != author_user_id)
+            .filter(|user_id| {
+                *user_id != author_user_id
+                    && !self.is_server_muted_for_user(*user_id, server_id)
+                    && !self.is_channel_muted_for_user(*user_id, channel_id)
+            })
             .collect::<Vec<_>>();
 
         for recipient_user_id in &notified_user_ids {
-            self.notification_outbox
-                .push((message.id, channel_id, *recipient_user_id, author_user_id));
+            self.notification_outbox.push((
+                message.id,
+                channel_id,
+                *recipient_user_id,
+                author_user_id,
+            ));
 
             let unread_count = self
                 .unread_counts_by_user_channel
@@ -374,5 +385,44 @@ impl InMemoryStore {
             Some(_) => MutationResult::Forbidden,
             None => MutationResult::NotFound,
         }
+    }
+
+    pub(crate) fn set_server_muted_for_user(
+        &mut self,
+        user_id: UserId,
+        server_id: ServerId,
+        muted: bool,
+    ) {
+        self.server_mute_by_user_server
+            .insert((user_id, server_id), muted);
+    }
+
+    pub(crate) fn set_channel_temporarily_muted_for_user(
+        &mut self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        duration_minutes: u32,
+    ) {
+        let until = SystemTime::now() + Duration::from_secs(u64::from(duration_minutes) * 60);
+        self.channel_mute_until_by_user_channel
+            .insert((user_id, channel_id), until);
+    }
+
+    pub(crate) fn expire_channel_mute_for_user(&mut self, user_id: UserId, channel_id: ChannelId) {
+        self.channel_mute_until_by_user_channel
+            .insert((user_id, channel_id), SystemTime::UNIX_EPOCH);
+    }
+
+    fn is_server_muted_for_user(&self, user_id: UserId, server_id: ServerId) -> bool {
+        self.server_mute_by_user_server
+            .get(&(user_id, server_id))
+            .copied()
+            .unwrap_or(false)
+    }
+
+    fn is_channel_muted_for_user(&self, user_id: UserId, channel_id: ChannelId) -> bool {
+        self.channel_mute_until_by_user_channel
+            .get(&(user_id, channel_id))
+            .is_some_and(|muted_until| *muted_until > SystemTime::now())
     }
 }

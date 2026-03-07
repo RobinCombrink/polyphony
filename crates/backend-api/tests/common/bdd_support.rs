@@ -762,6 +762,68 @@ pub(crate) async fn unread_count_for_channel(
     }
 }
 
+pub(crate) async fn set_server_muted_for_user(
+    repository: &SharedTestStore,
+    user_id: UserId,
+    server_id: ServerId,
+    muted: bool,
+) {
+    match repository.as_ref() {
+        TestStore::InMemory(store) => {
+            store
+                .set_server_muted_for_user(user_id, server_id, muted)
+                .await;
+        }
+        TestStore::Postgres(store) => {
+            store
+                .repository
+                .set_server_muted_for_user(user_id, server_id, muted)
+                .await;
+        }
+    }
+}
+
+pub(crate) async fn set_channel_temporarily_muted_for_user(
+    repository: &SharedTestStore,
+    user_id: UserId,
+    channel_id: ChannelId,
+    duration_minutes: u32,
+) {
+    match repository.as_ref() {
+        TestStore::InMemory(store) => {
+            store
+                .set_channel_temporarily_muted_for_user(user_id, channel_id, duration_minutes)
+                .await;
+        }
+        TestStore::Postgres(store) => {
+            store
+                .repository
+                .set_channel_temporarily_muted_for_user(user_id, channel_id, duration_minutes)
+                .await;
+        }
+    }
+}
+
+pub(crate) async fn expire_channel_mute_for_user(
+    repository: &SharedTestStore,
+    user_id: UserId,
+    channel_id: ChannelId,
+) {
+    match repository.as_ref() {
+        TestStore::InMemory(store) => {
+            store
+                .expire_channel_mute_for_user(user_id, channel_id)
+                .await;
+        }
+        TestStore::Postgres(store) => {
+            store
+                .repository
+                .expire_channel_mute_for_user(user_id, channel_id)
+                .await;
+        }
+    }
+}
+
 pub(crate) async fn outbox_count_for_message_recipient(
     repository: &SharedTestStore,
     message_id: MessageId,

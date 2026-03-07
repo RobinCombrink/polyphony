@@ -227,6 +227,26 @@ impl NotificationRepository for InMemoryRepository {
             .remove(&(user_id, channel_id));
     }
 
+    async fn set_server_muted_for_user(&self, user_id: UserId, server_id: ServerId, muted: bool) {
+        let mut store = self.store.write().await;
+        store.set_server_muted_for_user(user_id, server_id, muted);
+    }
+
+    async fn set_channel_temporarily_muted_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        duration_minutes: u32,
+    ) {
+        let mut store = self.store.write().await;
+        store.set_channel_temporarily_muted_for_user(user_id, channel_id, duration_minutes);
+    }
+
+    async fn expire_channel_mute_for_user(&self, user_id: UserId, channel_id: ChannelId) {
+        let mut store = self.store.write().await;
+        store.expire_channel_mute_for_user(user_id, channel_id);
+    }
+
     async fn outbox_count_for_message_recipient(
         &self,
         message_id: MessageId,

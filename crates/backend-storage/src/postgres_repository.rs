@@ -171,8 +171,17 @@ impl MessageRepository for PostgresRepository {
             "SELECT sm.user_id
              FROM server_members sm
              INNER JOIN channels c ON c.server_id = sm.server_id
+                         LEFT JOIN notification_server_preferences nsp
+                             ON nsp.user_id = sm.user_id
+                            AND nsp.server_id = c.server_id
+                         LEFT JOIN notification_channel_mutes ncm
+                             ON ncm.user_id = sm.user_id
+                            AND ncm.channel_id = c.id
+                            AND ncm.muted_until > NOW()
              WHERE c.id = $1
-               AND sm.user_id != $2",
+                             AND sm.user_id != $2
+                             AND COALESCE(nsp.muted, FALSE) = FALSE
+                             AND ncm.user_id IS NULL",
         )
         .bind(channel_id)
         .bind(author_user_id)
@@ -479,6 +488,66 @@ impl NotificationRepository for PostgresRepository {
     async fn clear_unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) {
         let _ = sqlx::query(
             "DELETE FROM notification_unread_counts
+             WHERE user_id = $1
+               AND channel_id = $2",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(channel_id))
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn set_server_muted_for_user(&self, user_id: UserId, server_id: ServerId, muted: bool) {
+        let _ = sqlx::query(
+            "INSERT INTO notification_server_preferences (
+                user_id,
+                server_id,
+                muted,
+                updated_at
+             )
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (user_id, server_id)
+             DO UPDATE SET muted = EXCLUDED.muted,
+                           updated_at = NOW()",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(server_id))
+        .bind(muted)
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn set_channel_temporarily_muted_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        duration_minutes: u32,
+    ) {
+        let duration_minutes = i32::try_from(duration_minutes).unwrap_or(i32::MAX);
+        let _ = sqlx::query(
+            "INSERT INTO notification_channel_mutes (
+                user_id,
+                channel_id,
+                muted_until,
+                updated_at
+             )
+             VALUES ($1, $2, NOW() + make_interval(mins => $3), NOW())
+             ON CONFLICT (user_id, channel_id)
+             DO UPDATE SET muted_until = EXCLUDED.muted_until,
+                           updated_at = NOW()",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(channel_id))
+        .bind(duration_minutes)
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn expire_channel_mute_for_user(&self, user_id: UserId, channel_id: ChannelId) {
+        let _ = sqlx::query(
+            "UPDATE notification_channel_mutes
+             SET muted_until = NOW() - INTERVAL '1 second',
+                 updated_at = NOW()
              WHERE user_id = $1
                AND channel_id = $2",
         )

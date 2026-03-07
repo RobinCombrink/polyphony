@@ -62,3 +62,27 @@ Feature: Notifications
       And "Noah" marks channel "engineering" notifications as read
       Then unread count for "Noah" in channel "engineering" is zero
       And "Noah" sees total unread notification count of 1
+
+  Rule: Notification policy precedence controls unread increments
+    Background:
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And a text channel named "engineering" exists in "Olivia"'s server
+      And "Olivia" adds "Noah" to the server
+
+    Scenario: Muted server suppresses channel notification increments
+      Given "Noah" has muted that server
+      When "Olivia" posts a message in channel "engineering"
+      Then unread count for "Noah" in channel "engineering" is zero
+      And no notification outbox event is recorded for "Noah" for the last message
+      And "Noah" sees total unread notification count of 0
+
+    Scenario: Temporarily muted channel suppresses increments until mute expires
+      Given "Noah" has temporarily muted channel "engineering" for 30 minutes
+      When "Olivia" posts a message in channel "engineering"
+      Then unread count for "Noah" in channel "engineering" is zero
+      And no notification outbox event is recorded for "Noah" for the last message
+      When the temporary mute expires for "Noah" in channel "engineering"
+      And "Olivia" posts a message in channel "engineering"
+      Then unread count increments for "Noah" in channel "engineering"
+      And "Noah" sees total unread notification count of 1

@@ -10,10 +10,12 @@ use backend_api::notification_hub::NotificationHub;
 use common::bdd_support::{
     Actor, ChannelId, MessageId, ServerId, SharedTestStore, add_server_member_with_token,
     create_actor_with_notification_hub, create_channel_with_token, create_message_with_token,
-    create_server_with_token, mark_channel_notifications_read_with_token,
-    outbox_count_for_message_recipient, outbox_total_count_for_recipient, payload_channel_id,
-    payload_message_id, payload_server_id, prime_feature_test_store, response_payload_json,
-    shutdown_feature_test_store, unread_count_for_channel, unread_notifications_count_with_token,
+    create_server_with_token, expire_channel_mute_for_user,
+    mark_channel_notifications_read_with_token, outbox_count_for_message_recipient,
+    outbox_total_count_for_recipient, payload_channel_id, payload_message_id, payload_server_id,
+    prime_feature_test_store, response_payload_json, set_channel_temporarily_muted_for_user,
+    set_server_muted_for_user, shutdown_feature_test_store, unread_count_for_channel,
+    unread_notifications_count_with_token,
 };
 use cucumber::{World as _, given, then, when};
 use futures_util::StreamExt;
@@ -266,6 +268,36 @@ async fn named_user_adds_named_user_to_the_server(
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
+#[given(regex = r#"^"([^"]+)" has muted that server$"#)]
+async fn named_user_has_muted_that_server(world: &mut NotificationsWorld, actor_name: String) {
+    let actor = world.actor_ref(&actor_name);
+    set_server_muted_for_user(
+        &world.shared_store,
+        actor.user_id,
+        *world.server_id_ref(),
+        true,
+    )
+    .await;
+}
+
+#[given(regex = r#"^"([^"]+)" has temporarily muted channel "([^"]+)" for ([0-9]+) minutes$"#)]
+async fn named_user_has_temporarily_muted_named_channel_for_minutes(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+    duration_minutes: u32,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    set_channel_temporarily_muted_for_user(
+        &world.shared_store,
+        actor.user_id,
+        channel_id,
+        duration_minutes,
+    )
+    .await;
+}
+
 #[given(regex = r#"^"([^"]+)" is connected to notifications websocket$"#)]
 async fn named_user_is_connected_to_notifications_websocket(
     world: &mut NotificationsWorld,
@@ -338,6 +370,17 @@ async fn named_user_marks_channel_notifications_as_read(
     assert_eq!(world.latest_status(), StatusCode::NO_CONTENT);
 }
 
+#[when(regex = r#"^the temporary mute expires for "([^"]+)" in channel "([^"]+)"$"#)]
+async fn temporary_mute_expires_for_named_user_in_named_channel(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    expire_channel_mute_for_user(&world.shared_store, actor.user_id, channel_id).await;
+}
+
 #[then(regex = r#"^unread count increments for "([^"]+)" in that channel$"#)]
 async fn unread_count_increments_for_named_user_in_that_channel(
     world: &mut NotificationsWorld,
@@ -367,6 +410,22 @@ async fn a_notification_outbox_event_is_recorded_for_named_user(
     .await;
 
     assert_eq!(outbox_count, 1);
+}
+
+#[then(regex = r#"^no notification outbox event is recorded for "([^"]+)" for the last message$"#)]
+async fn no_notification_outbox_event_is_recorded_for_named_user_for_last_message(
+    world: &mut NotificationsWorld,
+    recipient_name: String,
+) {
+    let recipient = world.actor_ref(&recipient_name);
+    let outbox_count = outbox_count_for_message_recipient(
+        &world.shared_store,
+        world.latest_message_id(),
+        recipient.user_id,
+    )
+    .await;
+
+    assert_eq!(outbox_count, 0);
 }
 
 #[then(regex = r#"^unread count for "([^"]+)" in that channel is zero$"#)]
@@ -410,6 +469,20 @@ async fn unread_count_for_named_user_in_named_channel_is_zero(
         unread_count_for_channel(&world.shared_store, actor.user_id, channel_id).await;
 
     assert_eq!(unread_count, 0);
+}
+
+#[then(regex = r#"^unread count increments for "([^"]+)" in channel "([^"]+)"$"#)]
+async fn unread_count_increments_for_named_user_in_named_channel(
+    world: &mut NotificationsWorld,
+    recipient_name: String,
+    channel_name: String,
+) {
+    let recipient = world.actor_ref(&recipient_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let unread_count =
+        unread_count_for_channel(&world.shared_store, recipient.user_id, channel_id).await;
+
+    assert_eq!(unread_count, 1);
 }
 
 #[then(regex = r#"^"([^"]+)" sees total unread notification count of ([0-9]+)$"#)]
