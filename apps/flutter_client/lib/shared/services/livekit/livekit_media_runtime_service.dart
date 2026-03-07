@@ -698,7 +698,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
 
     final attributes = Map<String, String>.from(localParticipant.attributes)
       ..[_deafenedAttributeKey] = deafenedAttributeValue;
-    localParticipant.setAttributes(attributes);
+    unawaited(localParticipant.setAttributes(attributes));
   }
 
   VideoTrack? _firstVideoTrackFromPublications(
