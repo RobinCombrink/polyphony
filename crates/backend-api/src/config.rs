@@ -147,6 +147,13 @@ impl BackendApiConfig {
             return Ok(());
         }
 
+        let supported_issuer = Auth0Config::default().issuer;
+        if self.auth0.issuer != supported_issuer {
+            return Err(ConfigValidationError::InvalidProductionAuth0Issuer(
+                self.auth0.issuer.to_string(),
+            ));
+        }
+
         let configured_cors_origins_raw = lookup(ENV_CORS_ALLOWED_ORIGINS).unwrap_or_default();
 
         let configured_cors_origins = configured_cors_origins_raw
@@ -214,6 +221,8 @@ impl FromStr for RuntimeEnvironment {
 pub enum ConfigValidationError {
     #[error("missing required environment variables for non-local runtime: {0}")]
     MissingRequiredEnvironmentVariables(String),
+    #[error("production AUTH0_ISSUER must be https://dev-polyphony.eu.auth0.com/, got: {0}")]
+    InvalidProductionAuth0Issuer(String),
     #[error("production CORS origins cannot include localhost addresses: {0}")]
     InvalidProductionCorsOrigins(String),
 }
@@ -456,6 +465,22 @@ mod tests {
     }
 
     #[test]
+    fn production_validation_fails_for_unsupported_auth0_tenant() {
+        let mut config = production_config();
+        config.auth0.issuer = "https://different-tenant.eu.auth0.com/"
+            .parse()
+            .expect("issuer should parse");
+
+        let lookup = required_production_lookup();
+        let validation = config.validate_for_runtime_with_lookup(|name| lookup.get(name).cloned());
+
+        assert!(matches!(
+            validation,
+            Err(ConfigValidationError::InvalidProductionAuth0Issuer(_))
+        ));
+    }
+
+    #[test]
     fn production_validation_passes_with_required_values() {
         let config = production_config();
         let lookup = required_production_lookup();
@@ -470,7 +495,7 @@ mod tests {
             runtime_environment: RuntimeEnvironment::Production,
             bind_address: "0.0.0.0:5067".parse().expect("bind address should parse"),
             auth0: Auth0Config {
-                issuer: "https://prod-polyphony.eu.auth0.com/"
+                issuer: "https://dev-polyphony.eu.auth0.com/"
                     .parse()
                     .expect("issuer should parse"),
                 audience: "https://api.polyphony.com".to_owned(),
@@ -504,7 +529,7 @@ mod tests {
             ),
             (
                 ENV_AUTH0_ISSUER.to_owned(),
-                "https://prod-polyphony.eu.auth0.com/".to_owned(),
+                "https://dev-polyphony.eu.auth0.com/".to_owned(),
             ),
             (
                 ENV_AUTH0_AUDIENCE.to_owned(),

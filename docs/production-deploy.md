@@ -28,8 +28,11 @@ For deterministic deploys, set `BACKEND_API_IMAGE` in `.env.production` to an im
 ```bash
 cp .env.production.example .env.production
 # edit .env.production with real values
+docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
+
+Use `config --quiet` for preflight validation to avoid printing resolved environment values.
 
 ## Rollout Procedure
 ```bash
@@ -73,8 +76,10 @@ Rollback should always target a previously verified immutable tag (for example `
 - `BACKEND_API_IMAGE` (for example `ghcr.io/polyphony-org/polyphony/backend-api:latest`)
 - `LIVEKIT_URL` (public URL clients should use, for example `wss://livekit.polyphony.com`)
 - `BACKEND_API_CORS_ALLOWED_ORIGINS` (comma-separated allowed origins for frontend clients)
-- `AUTH0_ISSUER` (for example `https://your-tenant.eu.auth0.com/`)
+- `AUTH0_ISSUER` (`https://dev-polyphony.eu.auth0.com/` for all environments)
 - `AUTH0_AUDIENCE` (for example `https://api.polyphony.com`)
+
+Production guardrail: backend startup rejects production configuration when `AUTH0_ISSUER` is not `https://dev-polyphony.eu.auth0.com/`.
 
 Canonical source of required non-local runtime variables is `REQUIRED_NON_LOCAL_ENV_VARS` in `crates/backend-api/src/config.rs`.
 
