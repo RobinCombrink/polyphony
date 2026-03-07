@@ -8,5 +8,4 @@ pub struct MeResponse {
     pub external_reference: ExternalReference,
     pub display_name: Option<String>,
     pub issuer: String,
-    pub token_duration_hours: u64,
 }

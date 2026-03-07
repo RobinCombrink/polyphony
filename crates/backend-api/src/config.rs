@@ -499,7 +499,6 @@ mod tests {
                     .parse()
                     .expect("issuer should parse"),
                 audience: "https://api.polyphony.com".to_owned(),
-                token_duration_hours: 18,
             },
             livekit: LiveKitConfig {
                 url: "ws://livekit:7880".to_owned(),

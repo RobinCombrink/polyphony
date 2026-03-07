@@ -56,7 +56,6 @@ where
 pub struct Auth0Config {
     pub issuer: Url,
     pub audience: String,
-    pub token_duration_hours: u64,
 }
 
 impl Default for Auth0Config {
@@ -65,7 +64,6 @@ impl Default for Auth0Config {
             issuer: Url::parse("https://dev-polyphony.eu.auth0.com/")
                 .expect("default issuer to be valid URL"),
             audience: "https://app.polyphony.com".to_owned(),
-            token_duration_hours: 18,
         }
     }
 }
@@ -80,16 +78,10 @@ impl Auth0Config {
         let audience =
             std::env::var("AUTH0_AUDIENCE").unwrap_or_else(|_| default_config.audience.clone());
 
-        let token_duration_hours = std::env::var("AUTH0_ACCESS_TOKEN_DURATION_HOURS")
-            .ok()
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(default_config.token_duration_hours);
-
         Self {
             issuer: Url::parse(&issuer)
                 .expect("AUTH0_ISSUER must be a valid URL with trailing slash"),
             audience,
-            token_duration_hours,
         }
     }
 }

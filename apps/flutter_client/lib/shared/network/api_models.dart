@@ -134,20 +134,17 @@ class ApiMe {
     required this.userId,
     required this.displayName,
     required this.issuer,
-    required this.tokenDurationHours,
   });
 
   final String userId;
   final String? displayName;
   final String issuer;
-  final int tokenDurationHours;
 
   factory ApiMe.fromJson(Map<String, dynamic> json) {
     return ApiMe(
       userId: json["user_id"] as String,
       displayName: json["display_name"] as String?,
       issuer: json["issuer"] as String,
-      tokenDurationHours: json["token_duration_hours"] as int,
     );
   }
 }

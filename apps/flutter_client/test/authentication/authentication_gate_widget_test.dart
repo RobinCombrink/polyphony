@@ -37,7 +37,6 @@ class _FakeAuthenticationProfileService extends AuthenticationProfileService {
         userId: "test-user-id",
         displayName: null,
         issuer: "test",
-        tokenDurationHours: 1,
       ),
     );
   }

@@ -38,7 +38,6 @@ where
         external_reference: authenticated_user.external_reference,
         display_name: user.and_then(|value| value.display_name).map(String::from),
         issuer: state.auth_state.config.issuer.to_string(),
-        token_duration_hours: state.auth_state.config.token_duration_hours,
     };
 
     (StatusCode::OK, Json(response))
@@ -90,7 +89,6 @@ where
             external_reference: updated_user.external_reference,
             display_name: updated_user.display_name.map(String::from),
             issuer: state.auth_state.config.issuer.to_string(),
-            token_duration_hours: state.auth_state.config.token_duration_hours,
         }),
     )
         .into_response()
