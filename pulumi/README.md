@@ -2,10 +2,79 @@
 
 This Pulumi project manages Auth0 baseline resources for Polyphony using C#/.NET:
 
-- Auth0 API (`ResourceServer`) for backend audience
+- Auth0 API resource server (`ResourceServer`)
+- Auth0 App resource server (`ResourceServer`)
+- Auth0 database connection (`Connection`, strategy `auth0`)
 - Flutter Web Auth0 application (`Client`, SPA)
 - Flutter Native Auth0 application (`Client`, Native)
-- Backend machine-to-machine application (`Client`, Non-interactive)
+- App machine-to-machine client (`Client`, Non-interactive)
+- API machine-to-machine client (`Client`, Non-interactive)
+- Client grants for app/api M2M clients to their corresponding resource servers (`ClientGrant`)
+- Database connection to application-client mapping (`ConnectionClients`)
+
+## Current Auth0 model
+
+- Single tenant policy: use `dev-polyphony` tenant for all environments.
+- API audience: `https://api.polyphony.com`.
+- App origin identifier: `https://app.polyphony.com`.
+- Organization support is intentionally out of scope.
+
+## Managed resources (source of truth: `Program.cs`)
+
+`pulumi/Program.cs` currently creates:
+
+1. `ResourceServer` named `polyphony-api`
+- Identifier: `https://api.polyphony.com`
+- Signing algorithm: `RS256`
+- Token lifetime: `3600` seconds
+
+2. `ResourceServer` named `polyphony-app`
+- Identifier: `https://app.polyphony.com`
+- Signing algorithm: `RS256`
+- Token lifetime: `3600` seconds
+
+3. `Connection` named `polyphony-database`
+- Connection strategy: `auth0`
+- Connection name: `polyphony-users`
+
+4. `Client` named `polyphony-web`
+- App type: `spa`
+- OIDC conformant: true
+- Grant types: `authorization_code`, `refresh_token`
+- Callback/logout/origin values come from Pulumi config list keys:
+	- `flutterWebCallbackUrls`
+	- `flutterWebLogoutUrls`
+	- `flutterWebOrigins`
+
+5. `Client` named `polyphony-native`
+- App type: `native`
+- OIDC conformant: true
+- Grant types: `authorization_code`, `refresh_token`
+- Callback and logout URIs are provided by Pulumi config list key `flutterNativeRedirectUris`
+
+6. `Client` named `polyphony-app-service`
+- App type: `non_interactive`
+- OIDC conformant: true
+- Grant type: `client_credentials`
+
+7. `Client` named `polyphony-api-service`
+- App type: `non_interactive`
+- OIDC conformant: true
+- Grant type: `client_credentials`
+- Allowed origins use Pulumi config list key `backendApiBaseUrls`
+
+8. `ConnectionClients` mapping
+- Enables the database connection for:
+	- `polyphony-web`
+	- `polyphony-native`
+
+9. `ClientGrant` named `polyphony-app-client-grant`
+- Client: `polyphony-app-service`
+- Audience: `https://app.polyphony.com`
+
+10. `ClientGrant` named `polyphony-api-client-grant`
+- Client: `polyphony-api-service`
+- Audience: `https://api.polyphony.com`
 
 ## Prerequisites
 
@@ -29,6 +98,13 @@ populate the `pulumiConfig` keys shown in `esc-auth0-dev.example.yaml`.
 Important:
 - Keep `auth0:clientSecret` as a secret in ESC.
 - Do not commit real secrets to git.
+
+Required Pulumi config values for this project:
+- `flutterNativeRedirectUris`
+- `flutterWebCallbackUrls`
+- `flutterWebLogoutUrls`
+- `flutterWebOrigins`
+- `backendApiBaseUrls`
 
 ## 3) Create stack and attach ESC environment
 
@@ -66,3 +142,18 @@ pulumi stack output
 ```
 
 Outputs include Auth0 app client IDs and API identifier for wiring backend and Flutter config.
+
+Current outputs:
+- `auth0ApiIdentifier`
+- `auth0ApiId`
+- `auth0AppIdentifier`
+- `auth0AppId`
+- `auth0DatabaseConnectionName`
+- `auth0DatabaseConnectionId`
+- `flutterWebClientId`
+- `flutterNativeClientId`
+- `appM2mClientId`
+- `backendM2mClientId`
+- `appClientGrantId`
+- `apiClientGrantId`
+- `databaseConnectionClientsId`
