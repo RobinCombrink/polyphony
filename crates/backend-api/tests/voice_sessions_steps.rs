@@ -191,6 +191,26 @@ async fn a_voice_channel_exists_in_named_users_server(
     a_voice_channel_exists_in_the_owners_server(world).await;
 }
 
+#[given(regex = r#"^a server named "([^"]+)" owned by "([^"]+)" exists$"#)]
+async fn a_server_named_owned_by_named_user_exists(
+    world: &mut VoiceSessionsWorld,
+    _server_name: String,
+    owner_name: String,
+) {
+    world.assert_owner_name(&owner_name);
+    world.ensure_owner_server().await;
+}
+
+#[given(regex = r#"^a voice channel exists in server "([^"]+)" owned by "([^"]+)"$"#)]
+async fn a_voice_channel_exists_in_named_server_owned_by_named_user(
+    world: &mut VoiceSessionsWorld,
+    _server_name: String,
+    owner_name: String,
+) {
+    world.assert_owner_name(&owner_name);
+    a_voice_channel_exists_in_the_owners_server(world).await;
+}
+
 #[given(regex = r#"^"([^"]+)" adds "([^"]+)" to the server$"#)]
 async fn named_user_adds_named_user_to_the_server(
     world: &mut VoiceSessionsWorld,
@@ -200,6 +220,16 @@ async fn named_user_adds_named_user_to_the_server(
     world.assert_owner_name(&owner_name);
     world.assert_second_name(&member_name);
     the_first_user_adds_the_second_user_as_a_member(world).await;
+}
+
+#[given(regex = r#"^"([^"]+)" adds "([^"]+)" to server "([^"]+)"$"#)]
+async fn named_user_adds_named_user_to_named_server(
+    world: &mut VoiceSessionsWorld,
+    owner_name: String,
+    member_name: String,
+    _server_name: String,
+) {
+    named_user_adds_named_user_to_the_server(world, owner_name, member_name).await;
 }
 
 #[given("a voice channel exists in the user's server")]
@@ -216,6 +246,14 @@ async fn a_voice_channel_exists_in_the_users_server(world: &mut VoiceSessionsWor
     )
     .await;
     world.channel_id = Some(payload_channel_id(&payload, "id"));
+}
+
+#[given(regex = r#"^a voice channel exists in server "([^"]+)" for the authenticated user$"#)]
+async fn a_voice_channel_exists_in_named_server_for_the_authenticated_user(
+    world: &mut VoiceSessionsWorld,
+    _server_name: String,
+) {
+    a_voice_channel_exists_in_the_users_server(world).await;
 }
 
 #[given("a server owner exists")]
@@ -300,6 +338,14 @@ async fn a_text_channel_exists_in_the_users_server(world: &mut VoiceSessionsWorl
     )
     .await;
     world.channel_id = Some(payload_channel_id(&payload, "id"));
+}
+
+#[given(regex = r#"^a text channel exists in server "([^"]+)" for the authenticated user$"#)]
+async fn a_text_channel_exists_in_named_server_for_the_authenticated_user(
+    world: &mut VoiceSessionsWorld,
+    _server_name: String,
+) {
+    a_text_channel_exists_in_the_users_server(world).await;
 }
 
 #[when("I connect to voice for that channel")]

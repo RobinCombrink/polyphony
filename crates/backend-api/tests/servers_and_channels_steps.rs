@@ -212,10 +212,28 @@ async fn named_user_owns_a_server(world: &mut ServersAndChannelsWorld, name: Str
     world.ensure_owner_server().await;
 }
 
+#[given(regex = r#"^"([^"]+)" owns server "([^"]+)"$"#)]
+async fn named_user_owns_named_server(
+    world: &mut ServersAndChannelsWorld,
+    name: String,
+    _server_name: String,
+) {
+    named_user_owns_a_server(world, name).await;
+}
+
 #[given(regex = r#"^a channel exists in "([^"]+)"'s server$"#)]
 async fn a_channel_exists_in_named_users_server(world: &mut ServersAndChannelsWorld, name: String) {
     world.assert_owner_name(&name);
     world.ensure_owner_channel().await;
+}
+
+#[given(regex = r#"^a channel exists in server "([^"]+)" owned by "([^"]+)"$"#)]
+async fn a_channel_exists_in_named_server_owned_by_named_user(
+    world: &mut ServersAndChannelsWorld,
+    _server_name: String,
+    owner_name: String,
+) {
+    a_channel_exists_in_named_users_server(world, owner_name).await;
 }
 
 #[given(regex = r#"^"([^"]+)" adds "([^"]+)" to the server$"#)]
@@ -229,14 +247,40 @@ async fn named_user_adds_named_user_to_the_server(
     the_first_user_adds_the_second_user_as_a_member(world).await;
 }
 
+#[given(regex = r#"^"([^"]+)" adds "([^"]+)" to server "([^"]+)"$"#)]
+async fn named_user_adds_named_user_to_named_server(
+    world: &mut ServersAndChannelsWorld,
+    owner_name: String,
+    member_name: String,
+    _server_name: String,
+) {
+    named_user_adds_named_user_to_the_server(world, owner_name, member_name).await;
+}
+
 #[given("the user already owns a server")]
 async fn the_user_already_owns_a_server(world: &mut ServersAndChannelsWorld) {
     world.ensure_owner_server().await;
 }
 
+#[given(regex = r#"^the user already owns server "([^"]+)"$"#)]
+async fn the_user_already_owns_named_server(
+    world: &mut ServersAndChannelsWorld,
+    _server_name: String,
+) {
+    the_user_already_owns_a_server(world).await;
+}
+
 #[given("a channel exists in the user's server")]
 async fn a_channel_exists_in_the_users_server(world: &mut ServersAndChannelsWorld) {
     world.ensure_owner_channel().await;
+}
+
+#[given(regex = r#"^a channel exists in server "([^"]+)" for the authenticated user$"#)]
+async fn a_channel_exists_in_named_server_for_the_authenticated_user(
+    world: &mut ServersAndChannelsWorld,
+    _server_name: String,
+) {
+    a_channel_exists_in_the_users_server(world).await;
 }
 
 #[given("a server owner exists")]
@@ -366,12 +410,28 @@ async fn the_user_creates_a_channel_in_that_server(world: &mut ServersAndChannel
     world.channel_id = Some(payload_channel_id(world.latest_payload_ref(), "id"));
 }
 
+#[when(regex = r#"^the user creates a channel in server "([^"]+)"$"#)]
+async fn the_user_creates_a_channel_in_named_server(
+    world: &mut ServersAndChannelsWorld,
+    _server_name: String,
+) {
+    the_user_creates_a_channel_in_that_server(world).await;
+}
+
 #[when("the user lists channels in that server")]
 async fn the_user_lists_channels_in_that_server(world: &mut ServersAndChannelsWorld) {
     world.ensure_owner_server().await;
     let response = list_channels(world.owner_app_ref(), world.server_id_ref()).await;
     world.latest_status = Some(response.status());
     world.latest_payload = Some(response_payload_json(response).await);
+}
+
+#[when(regex = r#"^the user lists channels in server "([^"]+)"$"#)]
+async fn the_user_lists_channels_in_named_server(
+    world: &mut ServersAndChannelsWorld,
+    _server_name: String,
+) {
+    the_user_lists_channels_in_that_server(world).await;
 }
 
 #[when("the server owner updates the channel name")]
@@ -447,6 +507,15 @@ async fn the_second_user_lists_channels_in_that_server(world: &mut ServersAndCha
     world.latest_payload = None;
 }
 
+#[when(regex = r#"^"([^"]+)" lists channels in server "([^"]+)"$"#)]
+async fn named_user_lists_channels_in_named_server(
+    world: &mut ServersAndChannelsWorld,
+    name: String,
+    _server_name: String,
+) {
+    named_user_lists_channels_in_that_server(world, name).await;
+}
+
 #[when(regex = r#"^"([^"]+)" lists channels in that server$"#)]
 async fn named_user_lists_channels_in_that_server(
     world: &mut ServersAndChannelsWorld,
@@ -481,11 +550,28 @@ async fn named_user_tries_to_add_a_different_user_to_that_server(
     the_second_user_tries_to_add_a_different_user_to_that_server(world).await;
 }
 
+#[when(regex = r#"^"([^"]+)" tries to add a different user to server "([^"]+)"$"#)]
+async fn named_user_tries_to_add_a_different_user_to_named_server(
+    world: &mut ServersAndChannelsWorld,
+    name: String,
+    _server_name: String,
+) {
+    named_user_tries_to_add_a_different_user_to_that_server(world, name).await;
+}
+
 #[when("the server owner deletes that server")]
 async fn the_server_owner_deletes_that_server(world: &mut ServersAndChannelsWorld) {
     let response = delete_server(world.owner_app_ref(), world.server_id_ref()).await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;
+}
+
+#[when(regex = r#"^the server owner deletes server "([^"]+)"$"#)]
+async fn the_server_owner_deletes_named_server(
+    world: &mut ServersAndChannelsWorld,
+    _server_name: String,
+) {
+    the_server_owner_deletes_that_server(world).await;
 }
 
 #[when("the second user deletes that server")]
@@ -504,6 +590,15 @@ async fn the_second_user_deletes_that_server(world: &mut ServersAndChannelsWorld
 async fn named_user_deletes_that_server(world: &mut ServersAndChannelsWorld, name: String) {
     world.assert_second_name(&name);
     the_second_user_deletes_that_server(world).await;
+}
+
+#[when(regex = r#"^"([^"]+)" deletes server "([^"]+)"$"#)]
+async fn named_user_deletes_named_server(
+    world: &mut ServersAndChannelsWorld,
+    name: String,
+    _server_name: String,
+) {
+    named_user_deletes_that_server(world, name).await;
 }
 
 #[when("the user deletes a server that does not exist")]
@@ -610,6 +705,14 @@ async fn listing_channels_in_that_server_includes_the_updated_name(
     }));
 }
 
+#[then(regex = r#"^listing channels in server "([^"]+)" includes the updated name$"#)]
+async fn listing_channels_in_named_server_includes_the_updated_name(
+    world: &mut ServersAndChannelsWorld,
+    _server_name: String,
+) {
+    listing_channels_in_that_server_includes_the_updated_name(world).await;
+}
+
 #[then("the update is denied")]
 async fn the_update_is_denied(world: &mut ServersAndChannelsWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
@@ -693,6 +796,14 @@ async fn listing_channels_in_that_server_returns_no_channels(world: &mut Servers
             .expect("channel list payload to be array")
             .is_empty()
     );
+}
+
+#[then(regex = r#"^listing channels in server "([^"]+)" returns no channels$"#)]
+async fn listing_channels_in_named_server_returns_no_channels(
+    world: &mut ServersAndChannelsWorld,
+    _server_name: String,
+) {
+    listing_channels_in_that_server_returns_no_channels(world).await;
 }
 
 #[tokio::test]

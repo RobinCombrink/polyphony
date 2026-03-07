@@ -12,24 +12,24 @@ Feature: Servers and channels
       Then the server is created successfully
 
     Scenario: Authenticated user can list their servers
-      Given the user already owns a server
+      Given the user already owns server "Test"
       When the user lists their servers
       Then the owned server is included in the server list
 
     Scenario: Authenticated user can create a server channel
-      Given the user already owns a server
-      When the user creates a channel in that server
+      Given the user already owns server "Test"
+      When the user creates a channel in server "Test"
       Then the server channel is created successfully
 
     Scenario: Authenticated user can list channels in server
-      Given a channel exists in the user's server
-      When the user lists channels in that server
+      Given a channel exists in server "Test" for the authenticated user
+      When the user lists channels in server "Test"
       Then the channel is included in the channel list
 
     Scenario: Server owner can update a channel name
-      Given a channel exists in the user's server
+      Given a channel exists in server "Test" for the authenticated user
       When the server owner updates the channel name
-      Then listing channels in that server includes the updated name
+      Then listing channels in server "Test" includes the updated name
 
     Scenario: Non-owner cannot update a channel name
       Given a channel exists in a server owned by another user
@@ -41,13 +41,13 @@ Feature: Servers and channels
       Then the action fails because the channel does not exist
 
     Scenario: Server owner can add a server member
-      Given the user already owns a server
+      Given the user already owns server "Test"
       When the server owner adds another user as a member
       Then the server membership is created successfully
 
     Scenario: Server owner can delete a server
-      Given the user already owns a server
-      When the server owner deletes that server
+      Given the user already owns server "Test"
+      When the server owner deletes server "Test"
       Then the delete succeeds
       And listing servers for that user returns no servers
 
@@ -56,10 +56,10 @@ Feature: Servers and channels
       Then the action fails because the server does not exist
 
     Scenario: Server owner can delete a channel
-      Given a channel exists in the user's server
+      Given a channel exists in server "Test" for the authenticated user
       When the server owner deletes that channel
       Then the delete succeeds
-      And listing channels in that server returns no channels
+      And listing channels in server "Test" returns no channels
 
     Scenario: Deleting a missing channel reports that it does not exist
       When the user deletes a channel that does not exist
@@ -69,39 +69,39 @@ Feature: Servers and channels
     Scenario: Added server member can list the shared server
       Given a user named "Olivia" exists
       And a user named "Noah" exists
-      And "Olivia" owns a server
-      And "Olivia" adds "Noah" to the server
+      And "Olivia" owns server "Test"
+      And "Olivia" adds "Noah" to server "Test"
       When "Noah" lists their servers
       Then the shared server is included in their server list
 
     Scenario: Non-member cannot list channels in a server they do not belong to
       Given a user named "Olivia" exists
       And a user named "Noah" exists
-      And "Olivia" owns a server
-      And a channel exists in "Olivia"'s server
-      When "Noah" lists channels in that server
+      And "Olivia" owns server "Test"
+      And a channel exists in server "Test" owned by "Olivia"
+      When "Noah" lists channels in server "Test"
       Then channel listing is denied
 
     Scenario: Non-owner cannot add a server member
       Given a user named "Olivia" exists
       And a user named "Noah" exists
-      And "Olivia" owns a server
-      And "Olivia" adds "Noah" to the server
-      When "Noah" tries to add a different user to that server
+      And "Olivia" owns server "Test"
+      And "Olivia" adds "Noah" to server "Test"
+      When "Noah" tries to add a different user to server "Test"
       Then adding a member is denied
 
     Scenario: Non-owner cannot delete a server
       Given a user named "Olivia" exists
       And a user named "Noah" exists
-      And "Olivia" owns a server
-      And "Olivia" adds "Noah" to the server
-      When "Noah" deletes that server
+      And "Olivia" owns server "Test"
+      And "Olivia" adds "Noah" to server "Test"
+      When "Noah" deletes server "Test"
       Then the delete is denied
 
     Scenario: Non-owner cannot delete a channel
       Given a user named "Olivia" exists
       And a user named "Noah" exists
-      And a channel exists in "Olivia"'s server
-      And "Olivia" adds "Noah" to the server
+      And a channel exists in server "Test" owned by "Olivia"
+      And "Olivia" adds "Noah" to server "Test"
       When "Noah" deletes that channel
       Then the delete is denied
