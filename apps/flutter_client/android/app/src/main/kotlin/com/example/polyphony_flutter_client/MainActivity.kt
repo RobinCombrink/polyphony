@@ -1,4 +1,4 @@
-package com.example.polyphony_flutter_client
+package com.example.polyphony
 
 import io.flutter.embedding.android.FlutterActivity
 
