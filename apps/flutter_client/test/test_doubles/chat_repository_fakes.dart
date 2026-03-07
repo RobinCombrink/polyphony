@@ -11,6 +11,7 @@ import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 
 import "../entity_seeder.dart";
 
@@ -590,6 +591,58 @@ class FakeMessageRuntimeService implements MessageRuntimeService {
     }
 
     return const Ok<void>(null);
+  }
+}
+
+class FakeNotificationRuntimeService implements NotificationRuntimeService {
+  FakeNotificationRuntimeService({
+    this.forceConnectError = false,
+    this.forceDisconnectError = false,
+  });
+
+  final bool forceConnectError;
+  final bool forceDisconnectError;
+  final _notificationEventsController =
+      StreamController<RuntimeNotificationEvent>.broadcast();
+
+  @override
+  Future<Result<void>> connect({
+    required String notificationsWebSocketUrl,
+    required String bearerToken,
+  }) async {
+    if (forceConnectError) {
+      return Error<void>(
+        RuntimeConnectionException(
+          operation: "connect notifications websocket",
+          cause: Exception("Failed to connect to notifications websocket"),
+        ),
+      );
+    }
+
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> disconnect() async {
+    if (forceDisconnectError) {
+      return Error<void>(
+        RuntimeConnectionException(
+          operation: "disconnect notifications websocket",
+          cause: Exception("Failed to disconnect from notifications websocket"),
+        ),
+      );
+    }
+
+    return const Ok<void>(null);
+  }
+
+  @override
+  Stream<RuntimeNotificationEvent> notificationEvents() {
+    return _notificationEventsController.stream;
+  }
+
+  void emit(RuntimeNotificationEvent event) {
+    _notificationEventsController.add(event);
   }
 }
 

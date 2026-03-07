@@ -292,7 +292,8 @@ class _MessageComposerWidgetState extends State<_MessageComposerWidget> {
   @override
   Widget build(BuildContext context) {
     final filteredCandidates = _filteredCandidates().take(6).toList();
-    final showMentionSuggestions = _mentionQuery != null && filteredCandidates.isNotEmpty;
+    final showMentionSuggestions =
+        _mentionQuery != null && filteredCandidates.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

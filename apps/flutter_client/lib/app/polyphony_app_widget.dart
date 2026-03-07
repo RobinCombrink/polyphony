@@ -16,7 +16,9 @@ import "package:polyphony_flutter_client/shared/services/livekit/livekit_media_r
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
+import "package:polyphony_flutter_client/shared/services/websocket/web_socket_notification_runtime_service.dart";
 import "package:provider/provider.dart";
 
 class PolyphonyApp extends StatelessWidget {
@@ -94,6 +96,9 @@ class PolyphonyApp extends StatelessWidget {
         ),
         Provider<MessageRuntimeService>(
           create: (_) => LivekitMessageRuntimeService(),
+        ),
+        Provider<NotificationRuntimeService>(
+          create: (_) => WebSocketNotificationRuntimeService(),
         ),
         BlocProvider<SettingsBloc>(
           create: (context) => SettingsBloc(

@@ -17,6 +17,7 @@ import "package:polyphony_flutter_client/shared/auth/authentication_session_serv
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:provider/provider.dart";
 
@@ -102,8 +103,7 @@ class _FakeNotificationRepository implements NotificationRepo {
       ApiNotificationGlobalPreference(
         muteState: ApiNotificationMuteState.unmuted,
         notificationCategory: ApiNotificationCategoryPreference.onlyMentions,
-        channelDefaultCategory:
-            ApiNotificationCategoryPreference.onlyMentions,
+        channelDefaultCategory: ApiNotificationCategoryPreference.onlyMentions,
       ),
     );
   }
@@ -188,11 +188,13 @@ void main() {
       final messageRepo = FakeMessageRepository(fixture: fixture);
       final profileRepo = FakeProfileRepository(
         userId: fixture.ownerUserId,
+        initialDisplayName: "Owner",
       );
       final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
       final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
       final voiceRuntimeService = FakeVoiceRuntimeService();
       final messageRuntimeService = FakeMessageRuntimeService();
+      final notificationRuntimeService = FakeNotificationRuntimeService();
 
       final authenticationBloc = AuthenticationBloc(
         profileService: _FakeAuthenticationProfileService(
@@ -236,6 +238,9 @@ void main() {
           providers: [
             Provider<PreferencesStore>(
               create: (_) => InMemoryPreferencesStore(),
+            ),
+            Provider<NotificationRuntimeService>(
+              create: (_) => notificationRuntimeService,
             ),
           ],
           child: MultiBlocProvider(
@@ -287,11 +292,13 @@ void main() {
       final messageRepo = FakeMessageRepository(fixture: fixture);
       final profileRepo = FakeProfileRepository(
         userId: fixture.ownerUserId,
+        initialDisplayName: "Owner",
       );
       final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
       final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
       final voiceRuntimeService = FakeVoiceRuntimeService();
       final messageRuntimeService = FakeMessageRuntimeService();
+      final notificationRuntimeService = FakeNotificationRuntimeService();
 
       final authenticationBloc = AuthenticationBloc(
         profileService: _FakeAuthenticationProfileService(
@@ -336,6 +343,9 @@ void main() {
             Provider<PreferencesStore>(
               create: (_) => InMemoryPreferencesStore(),
             ),
+            Provider<NotificationRuntimeService>(
+              create: (_) => notificationRuntimeService,
+            ),
           ],
           child: MultiBlocProvider(
             providers: [
@@ -369,11 +379,15 @@ void main() {
       final serverRepo = FakeServerRepository(fixture: fixture);
       final channelRepo = FakeChannelRepository(fixture: fixture);
       final messageRepo = FakeMessageRepository(fixture: fixture);
-      final profileRepo = FakeProfileRepository(userId: fixture.ownerUserId);
+      final profileRepo = FakeProfileRepository(
+        userId: fixture.ownerUserId,
+        initialDisplayName: "Owner",
+      );
       final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
       final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
       final voiceRuntimeService = FakeVoiceRuntimeService();
       final messageRuntimeService = FakeMessageRuntimeService();
+      final notificationRuntimeService = FakeNotificationRuntimeService();
 
       final authenticationBloc = AuthenticationBloc(
         profileService: _FakeAuthenticationProfileService(
@@ -417,6 +431,9 @@ void main() {
           providers: [
             Provider<PreferencesStore>(
               create: (_) => InMemoryPreferencesStore(),
+            ),
+            Provider<NotificationRuntimeService>(
+              create: (_) => notificationRuntimeService,
             ),
           ],
           child: MultiBlocProvider(

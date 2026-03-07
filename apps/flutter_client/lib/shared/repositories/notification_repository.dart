@@ -44,7 +44,8 @@ class NotificationRepository implements NotificationRepo {
   }
 
   @override
-  Future<Result<ApiNotificationServerPreference>> getServerNotificationPreference({
+  Future<Result<ApiNotificationServerPreference>>
+      getServerNotificationPreference({
     required String serverId,
   }) {
     return _notificationService.getServerNotificationPreference(

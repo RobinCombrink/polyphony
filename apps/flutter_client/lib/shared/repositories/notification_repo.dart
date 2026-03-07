@@ -17,7 +17,8 @@ abstract interface class NotificationRepo
     ApiNotificationCategoryPreference? channelDefaultCategory,
   });
 
-  Future<Result<ApiNotificationServerPreference>> getServerNotificationPreference({
+  Future<Result<ApiNotificationServerPreference>>
+      getServerNotificationPreference({
     required String serverId,
   });
 

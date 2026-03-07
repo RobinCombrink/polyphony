@@ -44,6 +44,7 @@ class ServersSectionWidget extends StatefulWidget {
     required this.createController,
     required this.onTap,
     required this.onAddUser,
+    required this.onNotificationPreferences,
     required this.onDeleteServer,
     required this.onCreate,
     super.key,
@@ -55,6 +56,7 @@ class ServersSectionWidget extends StatefulWidget {
   final TextEditingController createController;
   final void Function(Server server) onTap;
   final void Function(Server server) onAddUser;
+  final void Function(Server server) onNotificationPreferences;
   final void Function(Server server) onDeleteServer;
   final VoidCallback onCreate;
 
@@ -105,6 +107,10 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
         PopupMenuItem<void>(
           onTap: () => widget.onAddUser(server),
           child: const Text("Add user to server"),
+        ),
+        PopupMenuItem<void>(
+          onTap: () => widget.onNotificationPreferences(server),
+          child: const Text("Notification preferences"),
         ),
         PopupMenuItem<void>(
           onTap: () => widget.onDeleteServer(server),

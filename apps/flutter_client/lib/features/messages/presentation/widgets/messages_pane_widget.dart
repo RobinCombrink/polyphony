@@ -133,8 +133,8 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                 final visibleMessages = isLoading && messages.isEmpty
                     ? _skeletonMessages(selectedTextChannel.id)
                     : messages;
-                final mentionCandidates = switch (
-                    context.watch<ServerMembersBloc>().state) {
+                final mentionCandidates =
+                    switch (context.watch<ServerMembersBloc>().state) {
                   ServerMembersLoadedDataState(:final members) => members
                       .where((member) => member.userId != profileState.userId)
                       .toList(),
@@ -153,13 +153,14 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                     createController: widget.createController,
                     mentionCandidates: mentionCandidates,
                     isLoading: isLoading,
-                    onCreate: (mentionedUserId) => context.read<MessagesBloc>().add(
-                          CreateMessageRequested(
-                            channelId: selectedTextChannel.id,
-                            messageContent: widget.createController.text,
-                            mentionedUserId: mentionedUserId,
-                          ),
-                        ),
+                    onCreate: (mentionedUserId) =>
+                        context.read<MessagesBloc>().add(
+                              CreateMessageRequested(
+                                channelId: selectedTextChannel.id,
+                                messageContent: widget.createController.text,
+                                mentionedUserId: mentionedUserId,
+                              ),
+                            ),
                     onEdit: _showEditMessageDialog,
                     onDelete: (message) => context.read<MessagesBloc>().add(
                           DeleteMessageRequested(

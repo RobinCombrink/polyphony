@@ -93,7 +93,8 @@ class NotificationPreferencesBloc
       case ChannelNotificationCategoryChangedRequested():
         await _updateAndReload(
           emit,
-          operation: () => _notificationRepo.updateChannelNotificationPreference(
+          operation: () =>
+              _notificationRepo.updateChannelNotificationPreference(
             channelId: event.channelId,
             notificationCategory: event.notificationCategory,
           ),
@@ -156,7 +157,8 @@ class NotificationPreferencesBloc
       ));
     }
 
-    final globalResult = await _notificationRepo.getGlobalNotificationPreference();
+    final globalResult =
+        await _notificationRepo.getGlobalNotificationPreference();
     final ApiNotificationGlobalPreference globalPreference;
     switch (globalResult) {
       case Ok<ApiNotificationGlobalPreference>(:final value):
@@ -178,7 +180,8 @@ class NotificationPreferencesBloc
     ApiNotificationServerPreference? serverPreference;
     final trimmedServerId = serverId?.trim();
     if (trimmedServerId != null && trimmedServerId.isNotEmpty) {
-      final serverResult = await _notificationRepo.getServerNotificationPreference(
+      final serverResult =
+          await _notificationRepo.getServerNotificationPreference(
         serverId: trimmedServerId,
       );
       if (serverResult case Ok<ApiNotificationServerPreference>(:final value)) {
@@ -193,7 +196,8 @@ class NotificationPreferencesBloc
           await _notificationRepo.getChannelNotificationPreference(
         channelId: trimmedChannelId,
       );
-      if (channelResult case Ok<ApiNotificationChannelPreference>(:final value)) {
+      if (channelResult
+          case Ok<ApiNotificationChannelPreference>(:final value)) {
         channelPreference = value;
       }
     }

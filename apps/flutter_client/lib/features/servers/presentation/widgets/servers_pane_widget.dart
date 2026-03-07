@@ -4,8 +4,10 @@ import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/servers_section_widget.dart";
+import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_notification_preferences_section_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
 import "package:skeletonizer/skeletonizer.dart";
@@ -130,6 +132,41 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
         );
   }
 
+  Future<void> _showServerNotificationPreferencesDialog(Server server) async {
+    final notificationPreferencesBloc =
+        context.read<NotificationPreferencesBloc>()
+          ..add(
+            LoadNotificationPreferencesRequested(
+              serverId: server.id,
+              channelId: null,
+            ),
+          );
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return BlocProvider<NotificationPreferencesBloc>.value(
+          value: notificationPreferencesBloc,
+          child: Dialog(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: SettingsNotificationPreferencesSectionWidget(
+                  selectedServerId: server.id,
+                  showGlobal: false,
+                  showChannel: false,
+                  title: "Server notification preferences",
+                  description: "Control notifications for this server.",
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   List<Server> _skeletonServers() {
     return List<Server>.generate(
       6,
@@ -203,6 +240,8 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
                     .add(SelectServerRequested(serverId: server.id));
               },
               onAddUser: (server) => _showAddUserToServerDialog(server.id),
+              onNotificationPreferences: (server) =>
+                  unawaited(_showServerNotificationPreferencesDialog(server)),
               onDeleteServer: (server) =>
                   unawaited(_showDeleteServerConfirmationDialog(server)),
               onCreate: () => context.read<ServersBloc>().add(

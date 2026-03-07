@@ -38,7 +38,8 @@ class RestNotificationService implements NotificationService {
   }
 
   @override
-  Future<Result<ApiNotificationServerPreference>> getServerNotificationPreference({
+  Future<Result<ApiNotificationServerPreference>>
+      getServerNotificationPreference({
     required String serverId,
   }) {
     return _chatApi.getServerNotificationPreference(

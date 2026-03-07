@@ -9,7 +9,7 @@ import "package:polyphony_flutter_client/shared/presentation/widgets/section_sta
 
 enum _PaneMenuAction { createChannel }
 
-enum _ChannelMenuAction { deleteChannel }
+enum _ChannelMenuAction { notificationPreferences, deleteChannel }
 
 SectionStatus? buildChannelPaneStatus(ChannelsState state) {
   if (state is ChannelsValidationFailedState) {
@@ -53,6 +53,7 @@ class ChannelPaneWidget extends StatefulWidget {
     required this.createController,
     required this.onTap,
     this.onDeleteChannel,
+    this.onNotificationPreferences,
     required this.onCreateChannel,
     this.title = "Channels",
     this.createActionLabel = "Create channel",
@@ -72,6 +73,7 @@ class ChannelPaneWidget extends StatefulWidget {
   final TextEditingController createController;
   final void Function(Channel channel) onTap;
   final void Function(Channel channel)? onDeleteChannel;
+  final void Function(Channel channel)? onNotificationPreferences;
   final void Function({
     required String channelName,
     required ChannelType channelType,
@@ -231,7 +233,8 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
     required Offset globalPosition,
   }) async {
     final onDeleteChannel = widget.onDeleteChannel;
-    if (onDeleteChannel == null) {
+    final onNotificationPreferences = widget.onNotificationPreferences;
+    if (onDeleteChannel == null && onNotificationPreferences == null) {
       return;
     }
 
@@ -245,6 +248,11 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
         globalPosition.dy,
       ),
       items: <PopupMenuEntry<_ChannelMenuAction>>[
+        if (onNotificationPreferences != null)
+          const PopupMenuItem<_ChannelMenuAction>(
+            value: _ChannelMenuAction.notificationPreferences,
+            child: Text("Notification preferences"),
+          ),
         PopupMenuItem<_ChannelMenuAction>(
           value: _ChannelMenuAction.deleteChannel,
           child: Text(
@@ -255,11 +263,16 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
       ],
     );
 
-    if (!mounted || selectedAction != _ChannelMenuAction.deleteChannel) {
+    if (!mounted || selectedAction == null) {
       return;
     }
 
-    onDeleteChannel(channel);
+    switch (selectedAction) {
+      case _ChannelMenuAction.notificationPreferences:
+        onNotificationPreferences?.call(channel);
+      case _ChannelMenuAction.deleteChannel:
+        onDeleteChannel?.call(channel);
+    }
   }
 
   @override
@@ -343,36 +356,38 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
                           const <VoiceParticipant>[];
 
                   return GestureDetector(
-                    onSecondaryTapDown:
-                        widget.isLoading || widget.onDeleteChannel == null
-                            ? null
-                            : (details) => unawaited(
-                                  _showChannelContextMenu(
-                                    context: context,
-                                    channel: channel,
-                                    globalPosition: details.globalPosition,
-                                  ),
-                                ),
-                    onLongPress:
-                        widget.isLoading || widget.onDeleteChannel == null
-                            ? null
-                            : () {
-                                final renderBox =
-                                    context.findRenderObject() as RenderBox?;
-                                final globalPosition = renderBox == null
-                                    ? Offset.zero
-                                    : renderBox.localToGlobal(
-                                        renderBox.size.center(Offset.zero),
-                                      );
+                    onSecondaryTapDown: widget.isLoading ||
+                            (widget.onDeleteChannel == null &&
+                                widget.onNotificationPreferences == null)
+                        ? null
+                        : (details) => unawaited(
+                              _showChannelContextMenu(
+                                context: context,
+                                channel: channel,
+                                globalPosition: details.globalPosition,
+                              ),
+                            ),
+                    onLongPress: widget.isLoading ||
+                            (widget.onDeleteChannel == null &&
+                                widget.onNotificationPreferences == null)
+                        ? null
+                        : () {
+                            final renderBox =
+                                context.findRenderObject() as RenderBox?;
+                            final globalPosition = renderBox == null
+                                ? Offset.zero
+                                : renderBox.localToGlobal(
+                                    renderBox.size.center(Offset.zero),
+                                  );
 
-                                unawaited(
-                                  _showChannelContextMenu(
-                                    context: context,
-                                    channel: channel,
-                                    globalPosition: globalPosition,
-                                  ),
-                                );
-                              },
+                            unawaited(
+                              _showChannelContextMenu(
+                                context: context,
+                                channel: channel,
+                                globalPosition: globalPosition,
+                              ),
+                            );
+                          },
                     child: ChannelWidget.fromChannel(
                       channel: channel,
                       isSelected: isSelected,

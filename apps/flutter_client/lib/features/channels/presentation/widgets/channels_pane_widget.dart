@@ -5,6 +5,8 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/presentation/widgets/channel_pane_widget.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
+import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_notification_preferences_section_widget.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
@@ -113,6 +115,44 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
     context.read<ChannelsBloc>().add(
           DeleteChannelRequested(channelId: channel.id),
         );
+  }
+
+  Future<void> _showChannelNotificationPreferencesDialog(
+    BuildContext context,
+    Channel channel,
+  ) async {
+    final notificationPreferencesBloc =
+        context.read<NotificationPreferencesBloc>()
+          ..add(
+            LoadNotificationPreferencesRequested(
+              serverId: null,
+              channelId: channel.id,
+            ),
+          );
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return BlocProvider<NotificationPreferencesBloc>.value(
+          value: notificationPreferencesBloc,
+          child: Dialog(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: SettingsNotificationPreferencesSectionWidget(
+                  selectedChannelId: channel.id,
+                  showGlobal: false,
+                  showServer: false,
+                  title: "Channel notification preferences",
+                  description: "Control notifications for this channel.",
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -261,6 +301,9 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
                   ),
                   onDeleteChannel: (channel) => unawaited(
                     _showDeleteChannelConfirmationDialog(context, channel),
+                  ),
+                  onNotificationPreferences: (channel) => unawaited(
+                    _showChannelNotificationPreferencesDialog(context, channel),
                   ),
                 ),
               );

@@ -16,7 +16,9 @@ import "package:polyphony_flutter_client/features/settings/presentation/widgets/
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_keybindings_focus_widget.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_quick_actions_overlay_widget.dart";
+import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/top_right_error_toast.dart";
+import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 
 class HomePageWidget extends StatefulWidget {
   const HomePageWidget({super.key});
@@ -29,6 +31,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   final createServerController = TextEditingController();
   final createChannelController = TextEditingController();
   final createMessageController = TextEditingController();
+  late final NotificationRuntimeService _notificationRuntimeService;
+  StreamSubscription<RuntimeNotificationEvent>? _notificationSubscription;
   var _keybindingsRefreshToken = 0;
   var _isDisplayNamePromptOpen = false;
 
@@ -42,6 +46,21 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   void initState() {
     super.initState();
 
+    _notificationRuntimeService = context.read<NotificationRuntimeService>();
+
+    _notificationSubscription =
+        _notificationRuntimeService.notificationEvents().listen((_) {
+      if (!mounted) {
+        return;
+      }
+
+      context.read<NotificationUnreadCountBloc>().add(
+            const LoadNotificationUnreadCountRequested(),
+          );
+    });
+
+    unawaited(_connectNotificationRuntime(context));
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -53,10 +72,50 @@ class _HomePageWidgetState extends State<HomePageWidget> {
 
   @override
   void dispose() {
+    final notificationSubscription = _notificationSubscription;
+    if (notificationSubscription != null) {
+      unawaited(notificationSubscription.cancel());
+    }
+
+    unawaited(_notificationRuntimeService.disconnect());
     createServerController.dispose();
     createChannelController.dispose();
     createMessageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _connectNotificationRuntime(BuildContext context) async {
+    final authenticationState = context.read<AuthenticationBloc>().state;
+    if (authenticationState is! AuthenticationAuthenticatedState) {
+      return;
+    }
+
+    final notificationsWebSocketUrl = _notificationWebSocketUrlFromBaseUrl(
+      PolyphonyConfig.backendBaseUrl,
+    );
+
+    await _notificationRuntimeService.connect(
+      notificationsWebSocketUrl: notificationsWebSocketUrl,
+      bearerToken: authenticationState.metadata.bearerToken,
+    );
+  }
+
+  String _notificationWebSocketUrlFromBaseUrl(String baseUrl) {
+    final baseUri = Uri.parse(baseUrl);
+    final notificationsPath =
+        "${baseUri.path.endsWith("/") ? baseUri.path.substring(0, baseUri.path.length - 1) : baseUri.path}/api/v1/notifications/ws";
+
+    final websocketScheme = switch (baseUri.scheme) {
+      "https" => "wss",
+      _ => "ws",
+    };
+
+    return baseUri
+        .replace(
+          scheme: websocketScheme,
+          path: notificationsPath,
+        )
+        .toString();
   }
 
   void _requestUpdateDisplayName(BuildContext context, String displayName) {
@@ -256,6 +315,21 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                 showTopRightErrorToast(
                   context,
                   state.error.toString(),
+                );
+              },
+            ),
+            BlocListener<NotificationUnreadCountBloc,
+                NotificationUnreadCountState>(
+              listenWhen: (_, current) =>
+                  current is NotificationUnreadCountExceptionState,
+              listener: (context, state) {
+                if (state is! NotificationUnreadCountExceptionState) {
+                  return;
+                }
+
+                showTopRightErrorToast(
+                  context,
+                  "Unable to refresh notifications.",
                 );
               },
             ),
