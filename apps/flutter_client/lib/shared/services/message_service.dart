@@ -9,6 +9,7 @@ abstract interface class MessageService {
   Future<Result<ApiMessage>> createMessage({
     required String channelId,
     required String content,
+    String? mentionedUserId,
   });
 
   Future<Result<ApiMessage>> updateMessage({

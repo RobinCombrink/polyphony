@@ -199,6 +199,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
       command: CreateMessageCommand(
         channelId: trimmedChannelId,
         content: trimmedMessageContent,
+        mentionedUserId: event.mentionedUserId,
       ),
     );
 

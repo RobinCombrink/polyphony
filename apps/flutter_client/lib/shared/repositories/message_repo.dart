@@ -13,10 +13,12 @@ class CreateMessageCommand {
   const CreateMessageCommand({
     required this.channelId,
     required this.content,
+    this.mentionedUserId,
   });
 
   final String channelId;
   final String content;
+  final String? mentionedUserId;
 }
 
 class UpdateMessageCommand {

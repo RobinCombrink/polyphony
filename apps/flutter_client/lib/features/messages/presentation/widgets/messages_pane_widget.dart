@@ -5,6 +5,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_section_widget.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/pane_placeholder_widget.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
@@ -132,6 +133,13 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                 final visibleMessages = isLoading && messages.isEmpty
                     ? _skeletonMessages(selectedTextChannel.id)
                     : messages;
+                final mentionCandidates = switch (
+                    context.watch<ServerMembersBloc>().state) {
+                  ServerMembersLoadedDataState(:final members) => members
+                      .where((member) => member.userId != profileState.userId)
+                      .toList(),
+                  _ => const <UserProfile>[],
+                };
 
                 return Skeletonizer(
                   enabled: isLoading,
@@ -143,11 +151,13 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                             const <String, String?>{},
                     channelName: selectedTextChannel.name,
                     createController: widget.createController,
+                    mentionCandidates: mentionCandidates,
                     isLoading: isLoading,
-                    onCreate: () => context.read<MessagesBloc>().add(
+                    onCreate: (mentionedUserId) => context.read<MessagesBloc>().add(
                           CreateMessageRequested(
                             channelId: selectedTextChannel.id,
                             messageContent: widget.createController.text,
+                            mentionedUserId: mentionedUserId,
                           ),
                         ),
                     onEdit: _showEditMessageDialog,

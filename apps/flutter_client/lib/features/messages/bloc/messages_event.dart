@@ -20,10 +20,12 @@ final class CreateMessageRequested extends MessagesEvent {
   const CreateMessageRequested({
     required this.channelId,
     required this.messageContent,
+    this.mentionedUserId,
   });
 
   final String channelId;
   final String messageContent;
+  final String? mentionedUserId;
 }
 
 final class UpdateMessageRequested extends MessagesEvent {

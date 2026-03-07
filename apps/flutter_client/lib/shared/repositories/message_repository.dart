@@ -34,6 +34,7 @@ class MessageRepository implements MessageRepo {
     final serviceResult = await _messageService.createMessage(
       channelId: command.channelId,
       content: command.content,
+      mentionedUserId: command.mentionedUserId,
     );
 
     return switch (serviceResult) {

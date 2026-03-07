@@ -23,11 +23,13 @@ class RestMessageService implements MessageService {
   Future<Result<ApiMessage>> createMessage({
     required String channelId,
     required String content,
+    String? mentionedUserId,
   }) {
     return _chatApi.createMessage(
       baseUrl: _baseUrl,
       channelId: channelId,
       content: content,
+      mentionedUserId: mentionedUserId,
     );
   }
 
