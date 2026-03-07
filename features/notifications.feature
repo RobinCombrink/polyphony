@@ -7,8 +7,9 @@ Feature: Notifications
     Background:
       Given a user named "Olivia" exists
       And a user named "Noah" exists
-      And a text channel exists in "Olivia"'s server
-      And "Olivia" adds "Noah" to the server
+      And a server named "Test" owned by "Olivia" exists
+      And a text channel exists in server "Test" created by "Olivia"
+      And "Olivia" adds "Noah" to server "Test"
 
     Scenario: Persisted message increments unread count for other members
       When "Olivia" posts a message in that channel
@@ -21,7 +22,7 @@ Feature: Notifications
       And no notification outbox event is recorded for "Olivia"
 
     Scenario: Failed message creation does not enqueue notifications
-      Given a voice channel exists in "Olivia"'s server
+      Given a voice channel exists in server "Test" created by "Olivia"
       When "Olivia" posts a message in that channel
       Then posting is denied because that channel does not support messaging
       And no notification outbox event is recorded for "Noah"
@@ -30,10 +31,11 @@ Feature: Notifications
     Background:
       Given a user named "Olivia" exists
       And a user named "Noah" exists
-      And a text channel exists in "Olivia"'s server
+      And a server named "Test" owned by "Olivia" exists
+      And a text channel exists in server "Test" created by "Olivia"
 
     Scenario: Connected websocket recipient receives message-created notification event
-      Given "Olivia" adds "Noah" to the server
+      Given "Olivia" adds "Noah" to server "Test"
       And "Noah" is connected to notifications websocket
       When "Olivia" posts a message in that channel
       Then "Noah" receives a message-created websocket notification for that channel
@@ -47,9 +49,10 @@ Feature: Notifications
     Background:
       Given a user named "Olivia" exists
       And a user named "Noah" exists
-      And a text channel named "engineering" exists in "Olivia"'s server
-      And a text channel named "product" exists in "Olivia"'s server
-      And "Olivia" adds "Noah" to the server
+      And a server named "Test" owned by "Olivia" exists
+      And a text channel named "engineering" exists in server "Test" created by "Olivia"
+      And a text channel named "product" exists in server "Test" created by "Olivia"
+      And "Olivia" adds "Noah" to server "Test"
 
     Scenario: Aggregated unread count includes all unread channels for the recipient
       When "Olivia" posts a message in channel "engineering"
@@ -67,11 +70,12 @@ Feature: Notifications
     Background:
       Given a user named "Olivia" exists
       And a user named "Noah" exists
-      And a text channel named "engineering" exists in "Olivia"'s server
-      And "Olivia" adds "Noah" to the server
+      And a server named "Test" owned by "Olivia" exists
+      And a text channel named "engineering" exists in server "Test" created by "Olivia"
+      And "Olivia" adds "Noah" to server "Test"
 
     Scenario: Muted server suppresses channel notification increments
-      Given "Noah" has muted that server
+      Given "Noah" has muted server "Test"
       When "Olivia" posts a message in channel "engineering"
       Then unread count for "Noah" in channel "engineering" is zero
       And no notification outbox event is recorded for "Noah" for the last message
@@ -98,9 +102,24 @@ Feature: Notifications
       Then unread count increments for "Noah" in channel "engineering"
       And "Noah" sees total unread notification count of 1
 
+    Scenario: Server mute still suppresses notifications after global mute is lifted
+      Given "Noah" has globally muted notifications
+      And "Noah" has muted server "Test"
+      When "Olivia" posts a message in channel "engineering"
+      Then unread count for "Noah" in channel "engineering" is zero
+      And no notification outbox event is recorded for "Noah" for the last message
+      When "Noah" globally unmutes notifications
+      And "Olivia" posts a message in channel "engineering"
+      Then unread count for "Noah" in channel "engineering" is zero
+      And no notification outbox event is recorded for "Noah" for the last message
+      When "Noah" unmutes server "Test"
+      And "Olivia" posts a message in channel "engineering"
+      Then unread count increments for "Noah" in channel "engineering"
+      And "Noah" sees total unread notification count of 1
+
     Scenario: Preference APIs reflect global, server, and channel mute state
       Given "Noah" has globally muted notifications
-      And "Noah" has muted that server
+      And "Noah" has muted server "Test"
       And "Noah" has temporarily muted channel "engineering" for 30 minutes
       Then "Noah" sees global notification preference muted is true
       And "Noah" sees server notification preference muted is true

@@ -50,6 +50,8 @@ struct NotificationsWorld {
     shared_store: SharedTestStore,
     notification_hub: Arc<NotificationHub>,
     server_id: Option<ServerId>,
+    server_ids_by_name: HashMap<String, ServerId>,
+    server_owner_by_name: HashMap<String, String>,
     channel_id: Option<ChannelId>,
     channel_ids_by_name: HashMap<String, ChannelId>,
     latest_status: Option<StatusCode>,
@@ -66,6 +68,8 @@ impl Default for NotificationsWorld {
             shared_store: common::bdd_support::default_shared_store(),
             notification_hub: Arc::new(NotificationHub::default()),
             server_id: None,
+            server_ids_by_name: HashMap::new(),
+            server_owner_by_name: HashMap::new(),
             channel_id: None,
             channel_ids_by_name: HashMap::new(),
             latest_status: None,
@@ -86,6 +90,12 @@ impl NotificationsWorld {
 
     fn server_id_ref(&self) -> &ServerId {
         self.server_id.as_ref().expect("server id to be set")
+    }
+
+    fn server_id_by_name_ref(&self, server_name: &str) -> &ServerId {
+        self.server_ids_by_name
+            .get(server_name)
+            .unwrap_or_else(|| panic!("server {server_name} to be initialized"))
     }
 
     fn channel_id_ref(&self) -> &ChannelId {
@@ -206,27 +216,47 @@ async fn a_user_named_exists(world: &mut NotificationsWorld, name: String) {
     world.actors.insert(name, actor);
 }
 
-#[given(regex = r#"^a text channel exists in "([^"]+)"'s server$"#)]
-async fn a_text_channel_exists_in_named_users_server(
+#[given(regex = r#"^a server named "([^"]+)" owned by "([^"]+)" exists$"#)]
+async fn a_server_named_owned_by_named_user_exists(
     world: &mut NotificationsWorld,
+    server_name: String,
     owner_name: String,
 ) {
-    let channel_id =
-        create_text_channel_for_owner(world, &owner_name, "notification-channel").await;
+    let server_id = ensure_named_server_for_owner(world, &server_name, &owner_name).await;
+    world.server_id = Some(server_id);
+}
+
+#[given(regex = r#"^a text channel exists in server "([^"]+)" created by "([^"]+)"$"#)]
+async fn a_text_channel_exists_in_named_server_created_by_named_user(
+    world: &mut NotificationsWorld,
+    server_name: String,
+    owner_name: String,
+) {
+    let channel_id = create_text_channel_for_named_server(
+        world,
+        &server_name,
+        &owner_name,
+        "notification-channel",
+    )
+    .await;
     world.channel_id = Some(channel_id);
 }
 
-#[given(regex = r#"^a voice channel exists in "([^"]+)"'s server$"#)]
-async fn a_voice_channel_exists_in_named_users_server(
+#[given(regex = r#"^a voice channel exists in server "([^"]+)" created by "([^"]+)"$"#)]
+async fn a_voice_channel_exists_in_named_server_created_by_named_user(
     world: &mut NotificationsWorld,
+    server_name: String,
     owner_name: String,
 ) {
+    let server_id = ensure_named_server_for_owner(world, &server_name, &owner_name).await;
+    world.server_id = Some(server_id);
+
     let owner = world.actor_ref(&owner_name);
 
     let channel_payload = response_payload_json(
         create_channel_with_token(
             &owner.app,
-            world.server_id_ref(),
+            &server_id,
             "notification-voice",
             "voice",
             &owner.token,
@@ -238,44 +268,55 @@ async fn a_voice_channel_exists_in_named_users_server(
     world.channel_id = Some(payload_channel_id(&channel_payload, "id"));
 }
 
-#[given(regex = r#"^a text channel named "([^"]+)" exists in "([^"]+)"'s server$"#)]
-async fn a_text_channel_named_exists_in_named_users_server(
+#[given(
+    regex = r#"^a text channel named "([^"]+)" exists in server "([^"]+)" created by "([^"]+)"$"#
+)]
+async fn a_text_channel_named_exists_in_named_server_created_by_named_user(
     world: &mut NotificationsWorld,
     channel_name: String,
+    server_name: String,
     owner_name: String,
 ) {
-    let channel_id = create_text_channel_for_owner(world, &owner_name, &channel_name).await;
+    let channel_id =
+        create_text_channel_for_named_server(world, &server_name, &owner_name, &channel_name).await;
     world
         .channel_ids_by_name
         .insert(channel_name.clone(), channel_id);
 }
 
-#[given(regex = r#"^"([^"]+)" adds "([^"]+)" to the server$"#)]
-async fn named_user_adds_named_user_to_the_server(
+#[given(regex = r#"^"([^"]+)" adds "([^"]+)" to server "([^"]+)"$"#)]
+async fn named_user_adds_named_user_to_named_server(
     world: &mut NotificationsWorld,
     owner_name: String,
     member_name: String,
+    server_name: String,
 ) {
-    let owner = world.actor_ref(&owner_name);
-    let member = world.actor_ref(&member_name);
+    assert_server_owner(world, &server_name, &owner_name);
 
-    let response = add_server_member_with_token(
-        &owner.app,
-        world.server_id_ref(),
-        &member.user_id,
-        &owner.token,
-    )
-    .await;
+    let owner = world.actor_ref(&owner_name).clone();
+    let member = world.actor_ref(&member_name).clone();
+    let server_id = *world.server_id_by_name_ref(&server_name);
+    world.server_id = Some(server_id);
+
+    let response =
+        add_server_member_with_token(&owner.app, &server_id, &member.user_id, &owner.token).await;
 
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
-#[given(regex = r#"^"([^"]+)" has muted that server$"#)]
-async fn named_user_has_muted_that_server(world: &mut NotificationsWorld, actor_name: String) {
+#[given(regex = r#"^"([^"]+)" has muted server "([^"]+)"$"#)]
+async fn named_user_has_muted_named_server(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    server_name: String,
+) {
+    let server_id = *world.server_id_by_name_ref(&server_name);
+    world.server_id = Some(server_id);
+
     let actor = world.actor_ref(&actor_name);
     let response = update_server_notification_preference_with_token(
         &actor.app,
-        world.server_id_ref(),
+        &server_id,
         true,
         &actor.token,
     )
@@ -406,6 +447,27 @@ async fn named_user_globally_unmutes_notifications(
     let actor = world.actor_ref(&actor_name);
     let response =
         update_global_notification_preference_with_token(&actor.app, false, &actor.token).await;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+#[when(regex = r#"^"([^"]+)" unmutes server "([^"]+)"$"#)]
+async fn named_user_unmutes_named_server(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    server_name: String,
+) {
+    let server_id = *world.server_id_by_name_ref(&server_name);
+    world.server_id = Some(server_id);
+
+    let actor = world.actor_ref(&actor_name);
+    let response = update_server_notification_preference_with_token(
+        &actor.app,
+        &server_id,
+        false,
+        &actor.token,
+    )
+    .await;
+
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
@@ -656,36 +718,56 @@ async fn posting_is_denied_because_that_channel_does_not_support_messaging(
     assert_eq!(world.latest_status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
 
-async fn ensure_server_for_owner(world: &mut NotificationsWorld, owner_name: &str) {
-    if world.server_id.is_some() {
-        return;
+async fn ensure_named_server_for_owner(
+    world: &mut NotificationsWorld,
+    server_name: &str,
+    owner_name: &str,
+) -> ServerId {
+    if let Some(existing_server_id) = world.server_ids_by_name.get(server_name) {
+        assert_server_owner(world, server_name, owner_name);
+        return *existing_server_id;
     }
 
     let owner = world.actor_ref(owner_name).clone();
     let server_payload = response_payload_json(
-        create_server_with_token(&owner.app, "notification-server", &owner.token).await,
+        create_server_with_token(&owner.app, server_name, &owner.token).await,
     )
     .await;
-    world.server_id = Some(payload_server_id(&server_payload, "id"));
+    let server_id = payload_server_id(&server_payload, "id");
+    world
+        .server_ids_by_name
+        .insert(server_name.to_owned(), server_id);
+    world
+        .server_owner_by_name
+        .insert(server_name.to_owned(), owner_name.to_owned());
+
+    server_id
 }
 
-async fn create_text_channel_for_owner(
+fn assert_server_owner(world: &NotificationsWorld, server_name: &str, owner_name: &str) {
+    let configured_owner = world
+        .server_owner_by_name
+        .get(server_name)
+        .unwrap_or_else(|| panic!("server {server_name} owner to be set"));
+
+    assert_eq!(
+        configured_owner, owner_name,
+        "referenced server owner must match the initialized server"
+    );
+}
+
+async fn create_text_channel_for_named_server(
     world: &mut NotificationsWorld,
+    server_name: &str,
     owner_name: &str,
     channel_name: &str,
 ) -> ChannelId {
-    ensure_server_for_owner(world, owner_name).await;
+    let server_id = ensure_named_server_for_owner(world, server_name, owner_name).await;
+    world.server_id = Some(server_id);
 
     let owner = world.actor_ref(owner_name);
     let channel_payload = response_payload_json(
-        create_channel_with_token(
-            &owner.app,
-            world.server_id_ref(),
-            channel_name,
-            "text",
-            &owner.token,
-        )
-        .await,
+        create_channel_with_token(&owner.app, &server_id, channel_name, "text", &owner.token).await,
     )
     .await;
 
