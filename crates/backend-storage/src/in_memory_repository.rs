@@ -205,6 +205,28 @@ impl NotificationRepository for InMemoryRepository {
             .unwrap_or(0)
     }
 
+    async fn total_unread_count_for_user(&self, user_id: UserId) -> u64 {
+        let store = self.store.read().await;
+        store
+            .unread_counts_by_user_channel
+            .iter()
+            .filter_map(|((entry_user_id, _), unread_count)| {
+                if *entry_user_id == user_id {
+                    Some(*unread_count)
+                } else {
+                    None
+                }
+            })
+            .sum::<u64>()
+    }
+
+    async fn clear_unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) {
+        let mut store = self.store.write().await;
+        store
+            .unread_counts_by_user_channel
+            .remove(&(user_id, channel_id));
+    }
+
     async fn outbox_count_for_message_recipient(
         &self,
         message_id: MessageId,

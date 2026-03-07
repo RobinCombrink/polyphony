@@ -42,3 +42,23 @@ Feature: Notifications
       Given "Noah" is connected to notifications websocket
       When "Olivia" posts a message in that channel
       Then "Noah" does not receive websocket notification events for that channel
+
+  Rule: Unread count aggregation and mark-read lifecycle stay consistent
+    Background:
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And a text channel named "engineering" exists in "Olivia"'s server
+      And a text channel named "product" exists in "Olivia"'s server
+      And "Olivia" adds "Noah" to the server
+
+    Scenario: Aggregated unread count includes all unread channels for the recipient
+      When "Olivia" posts a message in channel "engineering"
+      And "Olivia" posts a message in channel "product"
+      Then "Noah" sees total unread notification count of 2
+
+    Scenario: Marking one channel as read only clears that channel unread count
+      When "Olivia" posts a message in channel "engineering"
+      And "Olivia" posts a message in channel "product"
+      And "Noah" marks channel "engineering" notifications as read
+      Then unread count for "Noah" in channel "engineering" is zero
+      And "Noah" sees total unread notification count of 1

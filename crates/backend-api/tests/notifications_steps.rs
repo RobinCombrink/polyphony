@@ -10,9 +10,10 @@ use backend_api::notification_hub::NotificationHub;
 use common::bdd_support::{
     Actor, ChannelId, MessageId, ServerId, SharedTestStore, add_server_member_with_token,
     create_actor_with_notification_hub, create_channel_with_token, create_message_with_token,
-    create_server_with_token, outbox_count_for_message_recipient, outbox_total_count_for_recipient,
-    payload_channel_id, payload_message_id, payload_server_id, prime_feature_test_store,
-    response_payload_json, shutdown_feature_test_store, unread_count_for_channel,
+    create_server_with_token, mark_channel_notifications_read_with_token,
+    outbox_count_for_message_recipient, outbox_total_count_for_recipient, payload_channel_id,
+    payload_message_id, payload_server_id, prime_feature_test_store, response_payload_json,
+    shutdown_feature_test_store, unread_count_for_channel, unread_notifications_count_with_token,
 };
 use cucumber::{World as _, given, then, when};
 use futures_util::StreamExt;
@@ -46,6 +47,7 @@ struct NotificationsWorld {
     notification_hub: Arc<NotificationHub>,
     server_id: Option<ServerId>,
     channel_id: Option<ChannelId>,
+    channel_ids_by_name: HashMap<String, ChannelId>,
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
     latest_message_id: Option<MessageId>,
@@ -61,6 +63,7 @@ impl Default for NotificationsWorld {
             notification_hub: Arc::new(NotificationHub::default()),
             server_id: None,
             channel_id: None,
+            channel_ids_by_name: HashMap::new(),
             latest_status: None,
             latest_payload: None,
             latest_message_id: None,
@@ -83,6 +86,12 @@ impl NotificationsWorld {
 
     fn channel_id_ref(&self) -> &ChannelId {
         self.channel_id.as_ref().expect("channel id to be set")
+    }
+
+    fn channel_id_by_name_ref(&self, channel_name: &str) -> &ChannelId {
+        self.channel_ids_by_name
+            .get(channel_name)
+            .unwrap_or_else(|| panic!("channel {channel_name} to be initialized"))
     }
 
     fn latest_status(&self) -> StatusCode {
@@ -198,27 +207,9 @@ async fn a_text_channel_exists_in_named_users_server(
     world: &mut NotificationsWorld,
     owner_name: String,
 ) {
-    let owner = world.actor_ref(&owner_name).clone();
-
-    let server_payload = response_payload_json(
-        create_server_with_token(&owner.app, "notification-server", &owner.token).await,
-    )
-    .await;
-    world.server_id = Some(payload_server_id(&server_payload, "id"));
-
-    let channel_payload = response_payload_json(
-        create_channel_with_token(
-            &owner.app,
-            world.server_id_ref(),
-            "notification-channel",
-            "text",
-            &owner.token,
-        )
-        .await,
-    )
-    .await;
-
-    world.channel_id = Some(payload_channel_id(&channel_payload, "id"));
+    let channel_id =
+        create_text_channel_for_owner(world, &owner_name, "notification-channel").await;
+    world.channel_id = Some(channel_id);
 }
 
 #[given(regex = r#"^a voice channel exists in "([^"]+)"'s server$"#)]
@@ -241,6 +232,18 @@ async fn a_voice_channel_exists_in_named_users_server(
     .await;
 
     world.channel_id = Some(payload_channel_id(&channel_payload, "id"));
+}
+
+#[given(regex = r#"^a text channel named "([^"]+)" exists in "([^"]+)"'s server$"#)]
+async fn a_text_channel_named_exists_in_named_users_server(
+    world: &mut NotificationsWorld,
+    channel_name: String,
+    owner_name: String,
+) {
+    let channel_id = create_text_channel_for_owner(world, &owner_name, &channel_name).await;
+    world
+        .channel_ids_by_name
+        .insert(channel_name.clone(), channel_id);
 }
 
 #[given(regex = r#"^"([^"]+)" adds "([^"]+)" to the server$"#)]
@@ -306,6 +309,35 @@ async fn named_user_posts_a_message_in_that_channel(
     }
 }
 
+#[when(regex = r#"^"([^"]+)" posts a message in channel "([^"]+)"$"#)]
+async fn named_user_posts_a_message_in_channel_named(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+) {
+    named_user_posts_a_message_in_given_channel(
+        world,
+        actor_name,
+        *world.channel_id_by_name_ref(&channel_name),
+    )
+    .await;
+}
+
+#[when(regex = r#"^"([^"]+)" marks channel "([^"]+)" notifications as read$"#)]
+async fn named_user_marks_channel_notifications_as_read(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let response =
+        mark_channel_notifications_read_with_token(&actor.app, &channel_id, &actor.token).await;
+
+    world.latest_status = Some(response.status());
+    assert_eq!(world.latest_status(), StatusCode::NO_CONTENT);
+}
+
 #[then(regex = r#"^unread count increments for "([^"]+)" in that channel$"#)]
 async fn unread_count_increments_for_named_user_in_that_channel(
     world: &mut NotificationsWorld,
@@ -366,6 +398,38 @@ async fn no_notification_outbox_event_is_recorded_for_named_user(
     assert_eq!(after_count, before_count);
 }
 
+#[then(regex = r#"^unread count for "([^"]+)" in channel "([^"]+)" is zero$"#)]
+async fn unread_count_for_named_user_in_named_channel_is_zero(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let unread_count =
+        unread_count_for_channel(&world.shared_store, actor.user_id, channel_id).await;
+
+    assert_eq!(unread_count, 0);
+}
+
+#[then(regex = r#"^"([^"]+)" sees total unread notification count of ([0-9]+)$"#)]
+async fn named_user_sees_total_unread_notification_count_of(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    expected_total: u64,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let response = unread_notifications_count_with_token(&actor.app, &actor.token).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = response_payload_json(response).await;
+    let total_unread_count = payload["total_unread_count"]
+        .as_u64()
+        .expect("total unread count to be present");
+
+    assert_eq!(total_unread_count, expected_total);
+}
+
 #[then(regex = r#"^"([^"]+)" receives a message-created websocket notification for that channel$"#)]
 async fn named_user_receives_message_created_websocket_notification_for_that_channel(
     world: &mut NotificationsWorld,
@@ -411,6 +475,72 @@ async fn posting_is_denied_because_that_channel_does_not_support_messaging(
     world: &mut NotificationsWorld,
 ) {
     assert_eq!(world.latest_status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+async fn ensure_server_for_owner(world: &mut NotificationsWorld, owner_name: &str) {
+    if world.server_id.is_some() {
+        return;
+    }
+
+    let owner = world.actor_ref(owner_name).clone();
+    let server_payload = response_payload_json(
+        create_server_with_token(&owner.app, "notification-server", &owner.token).await,
+    )
+    .await;
+    world.server_id = Some(payload_server_id(&server_payload, "id"));
+}
+
+async fn create_text_channel_for_owner(
+    world: &mut NotificationsWorld,
+    owner_name: &str,
+    channel_name: &str,
+) -> ChannelId {
+    ensure_server_for_owner(world, owner_name).await;
+
+    let owner = world.actor_ref(owner_name);
+    let channel_payload = response_payload_json(
+        create_channel_with_token(
+            &owner.app,
+            world.server_id_ref(),
+            channel_name,
+            "text",
+            &owner.token,
+        )
+        .await,
+    )
+    .await;
+
+    let channel_id = payload_channel_id(&channel_payload, "id");
+    world
+        .channel_ids_by_name
+        .insert(channel_name.to_owned(), channel_id);
+
+    channel_id
+}
+
+async fn named_user_posts_a_message_in_given_channel(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_id: ChannelId,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let response = create_message_with_token(
+        &actor.app,
+        &channel_id,
+        "notification-message",
+        &actor.token,
+    )
+    .await;
+
+    world.latest_status = Some(response.status());
+    if response.status() == StatusCode::CREATED {
+        let payload = response_payload_json(response).await;
+        world.latest_message_id = Some(payload_message_id(&payload, "id"));
+        world.latest_payload = Some(payload);
+    } else {
+        world.latest_message_id = None;
+        world.latest_payload = None;
+    }
 }
 
 #[tokio::test]

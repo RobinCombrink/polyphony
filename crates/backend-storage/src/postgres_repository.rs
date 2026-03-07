@@ -462,6 +462,32 @@ impl NotificationRepository for PostgresRepository {
         .unwrap_or(0)
     }
 
+    async fn total_unread_count_for_user(&self, user_id: UserId) -> u64 {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT COALESCE(SUM(unread_count), 0)
+             FROM notification_unread_counts
+             WHERE user_id = $1",
+        )
+        .bind(Uuid::from(user_id))
+        .fetch_one(&self.pool)
+        .await
+        .ok()
+        .and_then(|value| u64::try_from(value).ok())
+        .unwrap_or(0)
+    }
+
+    async fn clear_unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) {
+        let _ = sqlx::query(
+            "DELETE FROM notification_unread_counts
+             WHERE user_id = $1
+               AND channel_id = $2",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(channel_id))
+        .execute(&self.pool)
+        .await;
+    }
+
     async fn outbox_count_for_message_recipient(
         &self,
         message_id: MessageId,

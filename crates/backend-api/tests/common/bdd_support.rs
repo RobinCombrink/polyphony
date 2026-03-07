@@ -578,7 +578,11 @@ fn seeded_state_with_store<Repo>(
     notification_hub: Arc<NotificationHub>,
 ) -> ApiState<Repo, Repo, Repo, Repo, TestTokenVerifier>
 where
-    Repo: UserRepository + ServerRepository + ChannelRepository + MessageRepository,
+    Repo: UserRepository
+        + ServerRepository
+        + ChannelRepository
+        + MessageRepository
+        + NotificationRepository,
 {
     let auth_config = Auth0Config::default();
 
@@ -604,6 +608,40 @@ where
 
     state.notification_hub = notification_hub;
     state
+}
+
+pub(crate) async fn unread_notifications_count_with_token(
+    app: &axum::Router,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications/unread-count")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("unread notifications count request to be valid"),
+        )
+        .await
+        .expect("unread notifications count response from app")
+}
+
+pub(crate) async fn mark_channel_notifications_read_with_token(
+    app: &axum::Router,
+    channel_id: &ChannelId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/channels/{channel_id}/notifications/read"))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("mark channel notifications read request to be valid"),
+        )
+        .await
+        .expect("mark channel notifications read response from app")
 }
 
 pub(crate) fn seeded_app_with_store_and_notification_hub(

@@ -15,7 +15,8 @@ use auth::{AuthState, JwksTokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
 use backend_storage::{
-    ChannelRepository, MessageRepository, PostgresRepository, ServerRepository, UserRepository,
+    ChannelRepository, MessageRepository, NotificationRepository, PostgresRepository,
+    ServerRepository, UserRepository,
 };
 use http::{HeaderValue, Method};
 use openapi::ApiDocumentation;
@@ -23,7 +24,9 @@ use routes::{
     health::health,
     me::{me, update_me},
     messages::{create_message, delete_message, list_messages, update_message},
-    notifications::websocket_notifications,
+    notifications::{
+        mark_channel_notifications_read, unread_notifications_count, websocket_notifications,
+    },
     servers::{
         add_server_member, create_channel, create_server, delete_channel, delete_server,
         list_channels, list_server_members, list_servers, update_channel,
@@ -169,7 +172,7 @@ where
     UserRepo: UserRepository + Send + Sync + 'static,
     ServerRepo: ServerRepository + Send + Sync + 'static,
     ChannelRepo: ChannelRepository + Send + Sync + 'static,
-    MessageRepo: MessageRepository + Send + Sync + 'static,
+    MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: auth::TokenVerifier + Send + Sync + 'static,
 {
     let backend_config = config::BackendApiConfig::from_environment();
@@ -189,7 +192,7 @@ where
     UserRepo: UserRepository + Send + Sync + 'static,
     ServerRepo: ServerRepository + Send + Sync + 'static,
     ChannelRepo: ChannelRepository + Send + Sync + 'static,
-    MessageRepo: MessageRepository + Send + Sync + 'static,
+    MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: auth::TokenVerifier + Send + Sync + 'static,
 {
     let router = Router::new()
@@ -224,6 +227,14 @@ where
         .route(
             "/api/v1/channels/{channel_id}/session",
             post(create_session),
+        )
+        .route(
+            "/api/v1/channels/{channel_id}/notifications/read",
+            post(mark_channel_notifications_read),
+        )
+        .route(
+            "/api/v1/notifications/unread-count",
+            get(unread_notifications_count),
         )
         .route("/api/v1/notifications/ws", get(websocket_notifications))
         .merge(
