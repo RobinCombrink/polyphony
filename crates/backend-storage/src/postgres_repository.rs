@@ -171,6 +171,8 @@ impl MessageRepository for PostgresRepository {
             "SELECT sm.user_id
              FROM server_members sm
              INNER JOIN channels c ON c.server_id = sm.server_id
+                         LEFT JOIN notification_user_preferences nup
+                             ON nup.user_id = sm.user_id
                          LEFT JOIN notification_server_preferences nsp
                              ON nsp.user_id = sm.user_id
                             AND nsp.server_id = c.server_id
@@ -180,6 +182,7 @@ impl MessageRepository for PostgresRepository {
                             AND ncm.muted_until > NOW()
              WHERE c.id = $1
                              AND sm.user_id != $2
+                             AND COALESCE(nup.muted, FALSE) = FALSE
                              AND COALESCE(nsp.muted, FALSE) = FALSE
                              AND ncm.user_id IS NULL",
         )
@@ -493,6 +496,24 @@ impl NotificationRepository for PostgresRepository {
         )
         .bind(Uuid::from(user_id))
         .bind(Uuid::from(channel_id))
+        .execute(&self.pool)
+        .await;
+    }
+
+    async fn set_globally_muted_for_user(&self, user_id: UserId, muted: bool) {
+        let _ = sqlx::query(
+            "INSERT INTO notification_user_preferences (
+                user_id,
+                muted,
+                updated_at
+             )
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (user_id)
+             DO UPDATE SET muted = EXCLUDED.muted,
+                           updated_at = NOW()",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(muted)
         .execute(&self.pool)
         .await;
     }

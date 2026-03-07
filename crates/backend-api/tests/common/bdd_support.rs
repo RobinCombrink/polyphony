@@ -783,6 +783,24 @@ pub(crate) async fn set_server_muted_for_user(
     }
 }
 
+pub(crate) async fn set_globally_muted_for_user(
+    repository: &SharedTestStore,
+    user_id: UserId,
+    muted: bool,
+) {
+    match repository.as_ref() {
+        TestStore::InMemory(store) => {
+            store.set_globally_muted_for_user(user_id, muted).await;
+        }
+        TestStore::Postgres(store) => {
+            store
+                .repository
+                .set_globally_muted_for_user(user_id, muted)
+                .await;
+        }
+    }
+}
+
 pub(crate) async fn set_channel_temporarily_muted_for_user(
     repository: &SharedTestStore,
     user_id: UserId,

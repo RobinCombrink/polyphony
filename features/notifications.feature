@@ -86,3 +86,14 @@ Feature: Notifications
       And "Olivia" posts a message in channel "engineering"
       Then unread count increments for "Noah" in channel "engineering"
       And "Noah" sees total unread notification count of 1
+
+    Scenario: Global mute suppresses notifications until the user unmutes globally
+      Given "Noah" has globally muted notifications
+      When "Olivia" posts a message in channel "engineering"
+      Then unread count for "Noah" in channel "engineering" is zero
+      And no notification outbox event is recorded for "Noah" for the last message
+      And "Noah" sees total unread notification count of 0
+      When "Noah" globally unmutes notifications
+      And "Olivia" posts a message in channel "engineering"
+      Then unread count increments for "Noah" in channel "engineering"
+      And "Noah" sees total unread notification count of 1

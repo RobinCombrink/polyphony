@@ -14,8 +14,8 @@ use common::bdd_support::{
     mark_channel_notifications_read_with_token, outbox_count_for_message_recipient,
     outbox_total_count_for_recipient, payload_channel_id, payload_message_id, payload_server_id,
     prime_feature_test_store, response_payload_json, set_channel_temporarily_muted_for_user,
-    set_server_muted_for_user, shutdown_feature_test_store, unread_count_for_channel,
-    unread_notifications_count_with_token,
+    set_globally_muted_for_user, set_server_muted_for_user, shutdown_feature_test_store,
+    unread_count_for_channel, unread_notifications_count_with_token,
 };
 use cucumber::{World as _, given, then, when};
 use futures_util::StreamExt;
@@ -280,6 +280,15 @@ async fn named_user_has_muted_that_server(world: &mut NotificationsWorld, actor_
     .await;
 }
 
+#[given(regex = r#"^"([^"]+)" has globally muted notifications$"#)]
+async fn named_user_has_globally_muted_notifications(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    set_globally_muted_for_user(&world.shared_store, actor.user_id, true).await;
+}
+
 #[given(regex = r#"^"([^"]+)" has temporarily muted channel "([^"]+)" for ([0-9]+) minutes$"#)]
 async fn named_user_has_temporarily_muted_named_channel_for_minutes(
     world: &mut NotificationsWorld,
@@ -379,6 +388,15 @@ async fn temporary_mute_expires_for_named_user_in_named_channel(
     let actor = world.actor_ref(&actor_name);
     let channel_id = *world.channel_id_by_name_ref(&channel_name);
     expire_channel_mute_for_user(&world.shared_store, actor.user_id, channel_id).await;
+}
+
+#[when(regex = r#"^"([^"]+)" globally unmutes notifications$"#)]
+async fn named_user_globally_unmutes_notifications(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    set_globally_muted_for_user(&world.shared_store, actor.user_id, false).await;
 }
 
 #[then(regex = r#"^unread count increments for "([^"]+)" in that channel$"#)]

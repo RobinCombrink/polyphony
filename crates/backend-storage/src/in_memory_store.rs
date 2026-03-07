@@ -19,6 +19,7 @@ pub(crate) struct InMemoryStore {
     pub(crate) messages_by_channel: HashMap<ChannelId, Vec<Message>>,
     pub(crate) notification_outbox: Vec<(MessageId, ChannelId, UserId, UserId)>,
     pub(crate) unread_counts_by_user_channel: HashMap<(UserId, ChannelId), u64>,
+    pub(crate) global_mute_by_user: HashMap<UserId, bool>,
     pub(crate) server_mute_by_user_server: HashMap<(UserId, ServerId), bool>,
     pub(crate) channel_mute_until_by_user_channel: HashMap<(UserId, ChannelId), SystemTime>,
 }
@@ -307,6 +308,7 @@ impl InMemoryStore {
             .into_iter()
             .filter(|user_id| {
                 *user_id != author_user_id
+                    && !self.is_globally_muted_for_user(*user_id)
                     && !self.is_server_muted_for_user(*user_id, server_id)
                     && !self.is_channel_muted_for_user(*user_id, channel_id)
             })
@@ -397,6 +399,10 @@ impl InMemoryStore {
             .insert((user_id, server_id), muted);
     }
 
+    pub(crate) fn set_globally_muted_for_user(&mut self, user_id: UserId, muted: bool) {
+        self.global_mute_by_user.insert(user_id, muted);
+    }
+
     pub(crate) fn set_channel_temporarily_muted_for_user(
         &mut self,
         user_id: UserId,
@@ -416,6 +422,13 @@ impl InMemoryStore {
     fn is_server_muted_for_user(&self, user_id: UserId, server_id: ServerId) -> bool {
         self.server_mute_by_user_server
             .get(&(user_id, server_id))
+            .copied()
+            .unwrap_or(false)
+    }
+
+    fn is_globally_muted_for_user(&self, user_id: UserId) -> bool {
+        self.global_mute_by_user
+            .get(&user_id)
             .copied()
             .unwrap_or(false)
     }

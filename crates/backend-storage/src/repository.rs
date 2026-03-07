@@ -21,6 +21,7 @@ pub trait NotificationRepository: Send + Sync {
     async fn unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> u64;
     async fn total_unread_count_for_user(&self, user_id: UserId) -> u64;
     async fn clear_unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId);
+    async fn set_globally_muted_for_user(&self, user_id: UserId, muted: bool);
     async fn set_server_muted_for_user(&self, user_id: UserId, server_id: ServerId, muted: bool);
     async fn set_channel_temporarily_muted_for_user(
         &self,
