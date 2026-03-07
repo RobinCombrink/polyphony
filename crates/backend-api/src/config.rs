@@ -19,6 +19,7 @@ const ENV_POSTGRES_PASSWORD: &str = "POSTGRES_PASSWORD";
 const ENV_LIVEKIT_URL: &str = "LIVEKIT_URL";
 const ENV_LIVEKIT_API_KEY: &str = "LIVEKIT_API_KEY";
 const ENV_LIVEKIT_API_SECRET: &str = "LIVEKIT_API_SECRET";
+const DEFAULT_LOCAL_CORS_ORIGINS: &[&str] = &["http://localhost:3000", "http://127.0.0.1:3000"];
 
 const REQUIRED_NON_LOCAL_ENV_VARS: &[&str] = &[
     ENV_RUNTIME,
@@ -90,6 +91,30 @@ impl BackendApiConfig {
         Ok(config)
     }
 
+    pub fn allowed_cors_origins(&self) -> Vec<String> {
+        let configured_origins = std::env::var(ENV_CORS_ALLOWED_ORIGINS)
+            .ok()
+            .map(|value| {
+                value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|origin| !origin.is_empty())
+                    .map(str::to_owned)
+                    .collect::<Vec<_>>()
+            })
+            .filter(|origins| !origins.is_empty())
+            .unwrap_or_default();
+
+        if configured_origins.is_empty() {
+            return DEFAULT_LOCAL_CORS_ORIGINS
+                .iter()
+                .map(|origin| origin.to_string())
+                .collect();
+        }
+
+        configured_origins
+    }
+
     pub fn validate(&self) -> Result<(), ConfigValidationError> {
         self.validate_for_runtime_with_lookup(|name| std::env::var(name).ok())
     }
@@ -122,9 +147,9 @@ impl BackendApiConfig {
             return Ok(());
         }
 
-        let lookup = lookup(ENV_CORS_ALLOWED_ORIGINS).unwrap_or_default();
+        let configured_cors_origins_raw = lookup(ENV_CORS_ALLOWED_ORIGINS).unwrap_or_default();
 
-        let configured_cors_origins = lookup
+        let configured_cors_origins = configured_cors_origins_raw
             .split(',')
             .map(str::trim)
             .filter(|origin| !origin.is_empty())

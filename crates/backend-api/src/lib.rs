@@ -167,18 +167,17 @@ where
     Verifier: auth::TokenVerifier + Send + Sync + 'static,
 {
     let backend_config = config::BackendApiConfig::from_environment();
-    build_app_with_http_request_logging(state, backend_config.http_request_logging)
+    build_app_with_runtime_settings(
+        state,
+        backend_config.http_request_logging,
+        backend_config.allowed_cors_origins(),
+    )
 }
 
-pub fn build_app_with_http_request_logging<
-    UserRepo,
-    ServerRepo,
-    ChannelRepo,
-    MessageRepo,
-    Verifier,
->(
+pub fn build_app_with_runtime_settings<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     state: ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>,
     http_request_logging: config::HttpRequestLoggingConfig,
+    cors_allowed_origins: Vec<String>,
 ) -> Router
 where
     UserRepo: UserRepository + Send + Sync + 'static,
@@ -226,7 +225,7 @@ where
                 .config(Config::default().try_it_out_enabled(true)),
         )
         .with_state(state)
-        .layer(build_cors_layer());
+        .layer(build_cors_layer(cors_allowed_origins));
 
     if http_request_logging.enabled {
         let log_level = http_request_logging.level.as_tracing_level();
@@ -251,41 +250,13 @@ where
     }
 }
 
-fn build_cors_layer() -> CorsLayer {
-    let default_origins = ["http://localhost:3000", "http://127.0.0.1:3000"];
-
-    let configured_origins = std::env::var("BACKEND_API_CORS_ALLOWED_ORIGINS")
-        .ok()
-        .map(|value| {
-            value
-                .split(',')
-                .map(str::trim)
-                .filter(|origin| !origin.is_empty())
-                .map(str::to_owned)
-                .collect::<Vec<_>>()
-        })
-        .filter(|origins| !origins.is_empty())
-        .unwrap_or_else(|| {
-            default_origins
-                .iter()
-                .map(|origin| origin.to_string())
-                .collect()
-        });
-
+fn build_cors_layer(configured_origins: Vec<String>) -> CorsLayer {
     let allowed_origins = configured_origins
         .iter()
         .filter_map(|origin| HeaderValue::from_str(origin).ok())
         .collect::<Vec<_>>();
 
-    let allow_origin = if allowed_origins.is_empty() {
-        AllowOrigin::list(
-            default_origins
-                .iter()
-                .filter_map(|origin| HeaderValue::from_str(origin).ok()),
-        )
-    } else {
-        AllowOrigin::list(allowed_origins)
-    };
+    let allow_origin = AllowOrigin::list(allowed_origins);
 
     CorsLayer::new()
         .allow_origin(allow_origin)

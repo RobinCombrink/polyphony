@@ -83,6 +83,11 @@ Canonical source of required non-local runtime variables is `REQUIRED_NON_LOCAL_
 - `livekit`
 - `backend-api`
 
+Compose runtime semantics:
+- All production services use `restart: unless-stopped` for automatic recovery after host or process restarts.
+- `backend-api` waits for `postgres` to be healthy before start (`depends_on: condition: service_healthy`).
+- `backend-api` requires `livekit` to be started before start (`depends_on: condition: service_started`).
+
 The backend container reads:
 - Runtime mode: `BACKEND_API_RUNTIME_ENV` (defaults to `production` if omitted)
 - Postgres: `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DATABASE`, `POSTGRES_USERNAME`, `POSTGRES_PASSWORD`
@@ -94,6 +99,48 @@ The backend container reads:
 When runtime mode is non-local (`dev` or `production`), backend startup validates required env vars before binding the HTTP port. Production additionally rejects localhost CORS origins. This fail-fast behavior is implemented in `crates/backend-api/src/config.rs` and wired in `crates/backend-api/src/main.rs`.
 
 HTTP request logs are emitted by automatic middleware instrumentation for every request (method, path, status, latency). Keep request/response headers and bodies disabled unless you have a temporary debugging need and a reviewed redaction plan.
+
+## Operational Observability Checks
+Use these checks after rollout and during incident triage.
+
+```bash
+# service process status
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+
+# backend health endpoint
+curl -fsS http://127.0.0.1:5067/health
+
+# backend recent logs (method/path/status/latency)
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=200 backend-api
+
+# livekit recent logs
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=200 livekit
+
+# postgres recent logs
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=200 postgres
+```
+
+Minimum operational signals to monitor:
+- API availability (`/health` success).
+- Elevated 5xx response rate from backend logs.
+- Elevated request latency from backend logs.
+- Repeated container restarts from `docker compose ps` and host logs.
+
+## Temporary Debug Escalation (Safe)
+Prefer short, time-boxed escalation and revert promptly.
+
+```bash
+# temporarily increase HTTP middleware log verbosity
+BACKEND_API_HTTP_REQUEST_LOGGING_LEVEL=debug
+
+# apply with compose after editing .env.production
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d backend-api
+```
+
+Redaction and safety requirements:
+- Do not enable request/response headers or bodies in production unless there is an explicit redaction plan.
+- Avoid copying secrets, bearer tokens, or connection strings into tickets or chat logs.
+- Revert temporary debug levels to baseline (`info`) after investigation.
 
 ## Notes
 - `docker-compose.local.yml` and `livekit.local.yaml` are local-development only.
