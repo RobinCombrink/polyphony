@@ -118,7 +118,12 @@ final class Auth0WebTokenProvider implements AccessTokenProvider {
 
   @override
   Future<Result<void>> clearPersistedSession() async {
-    return const Ok<void>(null);
+    try {
+      await _auth0Web.logout(returnToUrl: _redirectUrl);
+      return const Ok<void>(null);
+    } on Exception catch (error) {
+      return Error<void>(error);
+    }
   }
 }
 
