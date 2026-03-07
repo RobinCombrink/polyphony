@@ -75,6 +75,26 @@ class MessagesSectionWidget extends StatelessWidget {
         : "Member";
   }
 
+  bool _isMentioningCurrentUser(Message message) {
+    final normalizedContent = message.content.toLowerCase();
+    final mentionTargets = <String>{
+      currentUser.userId.trim().toLowerCase(),
+    };
+
+    final displayName = currentUser.displayName?.trim().toLowerCase();
+    if (displayName != null && displayName.isNotEmpty) {
+      mentionTargets.add(displayName);
+    }
+
+    return mentionTargets.any((target) {
+      if (target.isEmpty) {
+        return false;
+      }
+
+      return normalizedContent.contains("@$target");
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -110,6 +130,11 @@ class MessagesSectionWidget extends StatelessWidget {
               itemBuilder: (context, index) {
                 final message = messages[index];
                 final isOwnMessage = message.authorUserId == currentUser.userId;
+                final isMentioningCurrentUser =
+                    !isOwnMessage && _isMentioningCurrentUser(message);
+                final mentionBackgroundColor = isMentioningCurrentUser
+                    ? Theme.of(context).colorScheme.secondaryContainer
+                    : null;
 
                 return Align(
                   alignment: isOwnMessage
@@ -118,6 +143,7 @@ class MessagesSectionWidget extends StatelessWidget {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 520),
                     child: Card(
+                      color: mentionBackgroundColor,
                       margin: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 4,
@@ -147,13 +173,14 @@ class MessagesSectionWidget extends StatelessWidget {
                                   icon: const Icon(Icons.edit),
                                   tooltip: "Edit message",
                                 ),
-                                IconButton(
-                                  onPressed: isLoading
-                                      ? null
-                                      : () => onDelete(message),
-                                  icon: const Icon(Icons.delete),
-                                  tooltip: "Delete message",
-                                ),
+                                if (isOwnMessage)
+                                  IconButton(
+                                    onPressed: isLoading
+                                        ? null
+                                        : () => onDelete(message),
+                                    icon: const Icon(Icons.delete),
+                                    tooltip: "Delete message",
+                                  ),
                               ],
                             ),
                           ],

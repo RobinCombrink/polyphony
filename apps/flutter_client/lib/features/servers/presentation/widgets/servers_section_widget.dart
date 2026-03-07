@@ -40,6 +40,7 @@ class ServersSectionWidget extends StatefulWidget {
   const ServersSectionWidget({
     required this.servers,
     required this.selectedServerId,
+    required this.currentUserId,
     required this.isLoading,
     required this.createController,
     required this.onTap,
@@ -52,6 +53,7 @@ class ServersSectionWidget extends StatefulWidget {
 
   final List<Server> servers;
   final String? selectedServerId;
+  final String? currentUserId;
   final bool isLoading;
   final TextEditingController createController;
   final void Function(Server server) onTap;
@@ -95,6 +97,8 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
     required Offset globalPosition,
   }) async {
     final errorColor = Theme.of(context).colorScheme.error;
+    final canDeleteServer = widget.currentUserId?.trim() == server.ownerUserId;
+
     await showMenu<void>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -112,13 +116,14 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
           onTap: () => widget.onNotificationPreferences(server),
           child: const Text("Notification preferences"),
         ),
-        PopupMenuItem<void>(
-          onTap: () => widget.onDeleteServer(server),
-          child: Text(
-            "Delete server",
-            style: TextStyle(color: errorColor),
+        if (canDeleteServer)
+          PopupMenuItem<void>(
+            onTap: () => widget.onDeleteServer(server),
+            child: Text(
+              "Delete server",
+              style: TextStyle(color: errorColor),
+            ),
           ),
-        ),
       ],
     );
   }

@@ -3,6 +3,7 @@ import "dart:async";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
+import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
@@ -180,6 +181,11 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = switch (context.watch<ProfileBloc>().state) {
+      ProfileLoadedDataState(:final userId) => userId,
+      _ => null,
+    };
+
     return BlocListener<ServersBloc, ServersState>(
       listenWhen: (previous, current) {
         final previousSelectedServerId = switch (previous) {
@@ -232,6 +238,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
             child: ServersSectionWidget(
               servers: visibleServers,
               selectedServerId: loadedData?.selectedServerId,
+              currentUserId: currentUserId,
               isLoading: isLoading,
               createController: widget.createController,
               onTap: (server) {

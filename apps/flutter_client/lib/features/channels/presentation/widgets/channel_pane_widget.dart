@@ -253,13 +253,14 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
             value: _ChannelMenuAction.notificationPreferences,
             child: Text("Notification preferences"),
           ),
-        PopupMenuItem<_ChannelMenuAction>(
-          value: _ChannelMenuAction.deleteChannel,
-          child: Text(
-            "Delete channel",
-            style: TextStyle(color: errorColor),
+        if (onDeleteChannel != null)
+          PopupMenuItem<_ChannelMenuAction>(
+            value: _ChannelMenuAction.deleteChannel,
+            child: Text(
+              "Delete channel",
+              style: TextStyle(color: errorColor),
+            ),
           ),
-        ),
       ],
     );
 

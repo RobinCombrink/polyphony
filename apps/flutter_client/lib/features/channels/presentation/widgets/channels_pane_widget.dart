@@ -1,11 +1,14 @@
 import "dart:async";
 
+import "package:collection/collection.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/presentation/widgets/channel_pane_widget.dart";
+import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_notification_preferences_section_widget.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
@@ -157,6 +160,22 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = switch (context.watch<ProfileBloc>().state) {
+      ProfileLoadedDataState(:final userId) => userId,
+      _ => null,
+    };
+    final selectedServerOwnerUserId =
+        switch (context.watch<ServersBloc>().state) {
+      ServersLoadedDataState(:final servers, :final selectedServerId)
+          when selectedServerId != null =>
+        servers
+            .firstWhereOrNull((server) => server.id == selectedServerId)
+            ?.ownerUserId,
+      _ => null,
+    };
+    final canDeleteChannels =
+        currentUserId != null && currentUserId == selectedServerOwnerUserId;
+
     return BlocListener<ChannelsBloc, ChannelsState>(
       listenWhen: (previous, current) {
         final previousSelectedTextChannelId = switch (previous) {
@@ -299,9 +318,14 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
                     channelName: channelName,
                     channelType: channelType,
                   ),
-                  onDeleteChannel: (channel) => unawaited(
-                    _showDeleteChannelConfirmationDialog(context, channel),
-                  ),
+                  onDeleteChannel: canDeleteChannels
+                      ? (channel) => unawaited(
+                            _showDeleteChannelConfirmationDialog(
+                              context,
+                              channel,
+                            ),
+                          )
+                      : null,
                   onNotificationPreferences: (channel) => unawaited(
                     _showChannelNotificationPreferencesDialog(context, channel),
                   ),
