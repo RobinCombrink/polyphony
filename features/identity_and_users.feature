@@ -14,7 +14,7 @@ Feature: Backend API identity and user lookup
 
   Scenario: Existing user can be looked up by id
     Given the authenticated user has an updated display name
-    When I look up that user by id
+    When I look up the authenticated user by id
     Then the lookup succeeds
     And the result includes the user id and display name
 

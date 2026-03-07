@@ -182,15 +182,6 @@ async fn a_user_named_exists(world: &mut VoiceSessionsWorld, name: String) {
     world.assert_owner_name(&name);
 }
 
-#[given(regex = r#"^a voice channel exists in "([^"]+)"'s server$"#)]
-async fn a_voice_channel_exists_in_named_users_server(
-    world: &mut VoiceSessionsWorld,
-    name: String,
-) {
-    world.assert_owner_name(&name);
-    a_voice_channel_exists_in_the_owners_server(world).await;
-}
-
 #[given(regex = r#"^a server named "([^"]+)" owned by "([^"]+)" exists$"#)]
 async fn a_server_named_owned_by_named_user_exists(
     world: &mut VoiceSessionsWorld,
@@ -211,7 +202,6 @@ async fn a_voice_channel_exists_in_named_server_owned_by_named_user(
     a_voice_channel_exists_in_the_owners_server(world).await;
 }
 
-#[given(regex = r#"^"([^"]+)" adds "([^"]+)" to the server$"#)]
 async fn named_user_adds_named_user_to_the_server(
     world: &mut VoiceSessionsWorld,
     owner_name: String,
@@ -219,7 +209,7 @@ async fn named_user_adds_named_user_to_the_server(
 ) {
     world.assert_owner_name(&owner_name);
     world.assert_second_name(&member_name);
-    the_first_user_adds_the_second_user_as_a_member(world).await;
+    add_second_user_as_a_member(world).await;
 }
 
 #[given(regex = r#"^"([^"]+)" adds "([^"]+)" to server "([^"]+)"$"#)]
@@ -232,7 +222,6 @@ async fn named_user_adds_named_user_to_named_server(
     named_user_adds_named_user_to_the_server(world, owner_name, member_name).await;
 }
 
-#[given("a voice channel exists in the user's server")]
 async fn a_voice_channel_exists_in_the_users_server(world: &mut VoiceSessionsWorld) {
     world.ensure_owner_server().await;
     let fixture = EntitySeeder.chat_fixture();
@@ -290,7 +279,6 @@ async fn a_second_authenticated_user_exists(world: &mut VoiceSessionsWorld) {
     world.second_name = Some("Member".to_owned());
 }
 
-#[given("a voice channel exists in the owner's server")]
 async fn a_voice_channel_exists_in_the_owners_server(world: &mut VoiceSessionsWorld) {
     world.ensure_owner_server().await;
     let payload = response_payload_json(
@@ -307,8 +295,7 @@ async fn a_voice_channel_exists_in_the_owners_server(world: &mut VoiceSessionsWo
     world.channel_id = Some(payload_channel_id(&payload, "id"));
 }
 
-#[given("the first user adds the second user as a member")]
-async fn the_first_user_adds_the_second_user_as_a_member(world: &mut VoiceSessionsWorld) {
+async fn add_second_user_as_a_member(world: &mut VoiceSessionsWorld) {
     let second_user_id = world
         .second_user_id
         .as_ref()
@@ -323,7 +310,6 @@ async fn the_first_user_adds_the_second_user_as_a_member(world: &mut VoiceSessio
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
-#[given("a text channel exists in the user's server")]
 async fn a_text_channel_exists_in_the_users_server(world: &mut VoiceSessionsWorld) {
     world.ensure_owner_server().await;
     let payload = response_payload_json(
@@ -348,11 +334,18 @@ async fn a_text_channel_exists_in_named_server_for_the_authenticated_user(
     a_text_channel_exists_in_the_users_server(world).await;
 }
 
-#[when("I connect to voice for that channel")]
 async fn i_connect_to_voice_for_that_channel(world: &mut VoiceSessionsWorld) {
     let response = connect_voice_session(world.owner_app_ref(), world.channel_id_ref()).await;
     world.latest_status = Some(response.status());
     world.latest_payload = Some(response_payload_json(response).await);
+}
+
+#[when(regex = r#"^I connect to voice for channel "([^"]+)"$"#)]
+async fn i_connect_to_voice_for_named_channel(
+    world: &mut VoiceSessionsWorld,
+    _channel_name: String,
+) {
+    i_connect_to_voice_for_that_channel(world).await;
 }
 
 #[when("I connect to voice for a missing channel")]
@@ -363,7 +356,6 @@ async fn i_connect_to_voice_for_a_missing_channel(world: &mut VoiceSessionsWorld
     world.latest_payload = None;
 }
 
-#[when("the second user connects to voice for that channel")]
 async fn the_second_user_connects_to_voice_for_that_channel(world: &mut VoiceSessionsWorld) {
     let response = connect_voice_session_with_token(
         world.second_app_ref(),
@@ -379,7 +371,6 @@ async fn the_second_user_connects_to_voice_for_that_channel(world: &mut VoiceSes
     }
 }
 
-#[when(regex = r#"^"([^"]+)" connects to voice for that channel$"#)]
 async fn named_user_connects_to_voice_for_that_channel(
     world: &mut VoiceSessionsWorld,
     name: String,
@@ -388,14 +379,29 @@ async fn named_user_connects_to_voice_for_that_channel(
     the_second_user_connects_to_voice_for_that_channel(world).await;
 }
 
-#[when("I connect to voice for that text channel")]
+#[when(regex = r#"^"([^"]+)" connects to voice for channel "([^"]+)"$"#)]
+async fn named_user_connects_to_voice_for_named_channel(
+    world: &mut VoiceSessionsWorld,
+    name: String,
+    _channel_name: String,
+) {
+    named_user_connects_to_voice_for_that_channel(world, name).await;
+}
+
 async fn i_connect_to_voice_for_that_text_channel(world: &mut VoiceSessionsWorld) {
     let response = connect_voice_session(world.owner_app_ref(), world.channel_id_ref()).await;
     world.latest_status = Some(response.status());
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[when("I connect to text session for that voice channel")]
+#[when(regex = r#"^I connect to voice for text channel "([^"]+)"$"#)]
+async fn i_connect_to_voice_for_named_text_channel(
+    world: &mut VoiceSessionsWorld,
+    _channel_name: String,
+) {
+    i_connect_to_voice_for_that_text_channel(world).await;
+}
+
 async fn i_connect_to_text_session_for_that_voice_channel(world: &mut VoiceSessionsWorld) {
     let response =
         connect_channel_session_with_type(world.owner_app_ref(), world.channel_id_ref(), "text")
@@ -404,12 +410,19 @@ async fn i_connect_to_text_session_for_that_voice_channel(world: &mut VoiceSessi
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
+#[when(regex = r#"^I connect to text session for channel "([^"]+)"$"#)]
+async fn i_connect_to_text_session_for_named_channel(
+    world: &mut VoiceSessionsWorld,
+    _channel_name: String,
+) {
+    i_connect_to_text_session_for_that_voice_channel(world).await;
+}
+
 #[then("the connection succeeds")]
 async fn the_connection_succeeds(world: &mut VoiceSessionsWorld) {
     assert_eq!(world.latest_status(), StatusCode::OK);
 }
 
-#[then("the participant can join that voice conversation")]
 async fn the_participant_can_join_that_voice_conversation(world: &mut VoiceSessionsWorld) {
     assert_eq!(
         payload_channel_id(world.latest_payload_ref(), "channel_id"),
@@ -433,6 +446,14 @@ async fn the_participant_can_join_that_voice_conversation(world: &mut VoiceSessi
     );
 }
 
+#[then(regex = r#"^the participant can join voice conversation for channel "([^"]+)"$"#)]
+async fn the_participant_can_join_voice_conversation_for_named_channel(
+    world: &mut VoiceSessionsWorld,
+    _channel_name: String,
+) {
+    the_participant_can_join_that_voice_conversation(world).await;
+}
+
 #[then("the action fails because the channel does not exist")]
 async fn the_action_fails_because_the_channel_does_not_exist(world: &mut VoiceSessionsWorld) {
     assert_eq!(world.latest_status(), StatusCode::NOT_FOUND);
@@ -443,7 +464,6 @@ async fn voice_connection_is_denied(world: &mut VoiceSessionsWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
 }
 
-#[then("voice connection is denied for that channel type")]
 async fn voice_connection_is_denied_for_that_channel_type(world: &mut VoiceSessionsWorld) {
     assert_eq!(world.latest_status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(
@@ -452,13 +472,28 @@ async fn voice_connection_is_denied_for_that_channel_type(world: &mut VoiceSessi
     );
 }
 
-#[then("text session connection is denied for that channel type")]
+#[then(regex = r#"^voice connection is denied for channel "([^"]+)" type$"#)]
+async fn voice_connection_is_denied_for_named_channel_type(
+    world: &mut VoiceSessionsWorld,
+    _channel_name: String,
+) {
+    voice_connection_is_denied_for_that_channel_type(world).await;
+}
+
 async fn text_session_connection_is_denied_for_that_channel_type(world: &mut VoiceSessionsWorld) {
     assert_eq!(world.latest_status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(
         world.latest_payload_ref()["error_code"].as_str(),
         Some("CHANNEL_KIND_MISMATCH")
     );
+}
+
+#[then(regex = r#"^text session connection is denied for channel "([^"]+)" type$"#)]
+async fn text_session_connection_is_denied_for_named_channel_type(
+    world: &mut VoiceSessionsWorld,
+    _channel_name: String,
+) {
+    text_session_connection_is_denied_for_that_channel_type(world).await;
 }
 
 #[tokio::test]

@@ -220,7 +220,6 @@ async fn a_user_named_exists(world: &mut MessagesWorld, name: String) {
     world.assert_owner_name(&name);
 }
 
-#[given(regex = r#"^a channel exists in "([^"]+)"'s server$"#)]
 async fn a_channel_exists_in_named_users_server(world: &mut MessagesWorld, name: String) {
     world.assert_owner_name(&name);
     world.ensure_owner_channel().await;
@@ -245,7 +244,6 @@ async fn a_channel_exists_in_named_server_owned_by_named_user(
     a_channel_exists_in_named_users_server(world, owner_name).await;
 }
 
-#[given("a channel exists in the user's server")]
 async fn a_channel_exists_in_the_users_server(world: &mut MessagesWorld) {
     world.ensure_owner_channel().await;
 }
@@ -258,9 +256,16 @@ async fn a_channel_exists_in_named_server_for_the_authenticated_user(
     a_channel_exists_in_the_users_server(world).await;
 }
 
-#[given("the user already has a message in that channel")]
 async fn the_user_already_has_a_message_in_that_channel(world: &mut MessagesWorld) {
     world.ensure_owner_message().await;
+}
+
+#[given(regex = r#"^the user already has a message in channel "([^"]+)"$"#)]
+async fn the_user_already_has_a_message_in_named_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    the_user_already_has_a_message_in_that_channel(world).await;
 }
 
 #[given("a channel exists in a server shared with another user")]
@@ -309,7 +314,6 @@ async fn a_channel_exists_in_a_server_shared_with_another_user(world: &mut Messa
     world.owner_token = "owner-token".to_owned();
 }
 
-#[given("another user already has a message in that channel")]
 async fn another_user_already_has_a_message_in_that_channel(world: &mut MessagesWorld) {
     let payload = response_payload_json(
         create_message_with_token(
@@ -322,6 +326,14 @@ async fn another_user_already_has_a_message_in_that_channel(world: &mut Messages
     )
     .await;
     world.message_id = Some(payload_message_id(&payload, "id"));
+}
+
+#[given(regex = r#"^another user already has a message in channel "([^"]+)"$"#)]
+async fn another_user_already_has_a_message_in_named_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    another_user_already_has_a_message_in_that_channel(world).await;
 }
 
 #[given("a server owner exists")]
@@ -357,12 +369,6 @@ async fn a_second_authenticated_user_exists(world: &mut MessagesWorld) {
     world.second_name = Some("Member".to_owned());
 }
 
-#[given("a channel exists in the owner's server")]
-async fn a_channel_exists_in_the_owners_server(world: &mut MessagesWorld) {
-    world.ensure_owner_channel().await;
-}
-
-#[given("a voice channel exists in the user's server")]
 async fn a_voice_channel_exists_in_the_users_server(world: &mut MessagesWorld) {
     world.ensure_owner_server().await;
     let payload = response_payload_json(
@@ -387,7 +393,6 @@ async fn a_voice_channel_exists_in_named_server_for_the_authenticated_user(
     a_voice_channel_exists_in_the_users_server(world).await;
 }
 
-#[when("the user posts a message in that channel")]
 async fn the_user_posts_a_message_in_that_channel(world: &mut MessagesWorld) {
     let response =
         create_message(world.owner_app_ref(), world.channel_id_ref(), "new message").await;
@@ -396,7 +401,14 @@ async fn the_user_posts_a_message_in_that_channel(world: &mut MessagesWorld) {
     world.message_id = Some(payload_message_id(world.latest_payload_ref(), "id"));
 }
 
-#[when("the user edits that message")]
+#[when(regex = r#"^the user posts a message in channel "([^"]+)"$"#)]
+async fn the_user_posts_a_message_in_named_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    the_user_posts_a_message_in_that_channel(world).await;
+}
+
 async fn the_user_edits_that_message(world: &mut MessagesWorld) {
     let response = update_message(
         world.owner_app_ref(),
@@ -409,7 +421,14 @@ async fn the_user_edits_that_message(world: &mut MessagesWorld) {
     world.latest_payload = None;
 }
 
-#[when("the user deletes that message")]
+#[when(regex = r#"^the user edits the message in channel "([^"]+)"$"#)]
+async fn the_user_edits_the_message_in_named_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    the_user_edits_that_message(world).await;
+}
+
 async fn the_user_deletes_that_message(world: &mut MessagesWorld) {
     let response = delete_message(
         world.owner_app_ref(),
@@ -421,7 +440,14 @@ async fn the_user_deletes_that_message(world: &mut MessagesWorld) {
     world.latest_payload = None;
 }
 
-#[when("the authenticated user edits the other user's message")]
+#[when(regex = r#"^the user deletes the message in channel "([^"]+)"$"#)]
+async fn the_user_deletes_the_message_in_named_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    the_user_deletes_that_message(world).await;
+}
+
 async fn the_authenticated_user_edits_the_other_users_message(world: &mut MessagesWorld) {
     let response = update_message_with_token(
         world.second_app_ref(),
@@ -435,7 +461,14 @@ async fn the_authenticated_user_edits_the_other_users_message(world: &mut Messag
     world.latest_payload = None;
 }
 
-#[when("the authenticated user deletes the other user's message")]
+#[when(regex = r#"^the authenticated user edits the other user's message in channel "([^"]+)"$"#)]
+async fn the_authenticated_user_edits_the_other_users_message_in_named_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    the_authenticated_user_edits_the_other_users_message(world).await;
+}
+
 async fn the_authenticated_user_deletes_the_other_users_message(world: &mut MessagesWorld) {
     let response = delete_message_with_token(
         world.second_app_ref(),
@@ -448,7 +481,14 @@ async fn the_authenticated_user_deletes_the_other_users_message(world: &mut Mess
     world.latest_payload = None;
 }
 
-#[when("the second user lists messages in that channel")]
+#[when(regex = r#"^the authenticated user deletes the other user's message in channel "([^"]+)"$"#)]
+async fn the_authenticated_user_deletes_the_other_users_message_in_named_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    the_authenticated_user_deletes_the_other_users_message(world).await;
+}
+
 async fn the_second_user_lists_messages_in_that_channel(world: &mut MessagesWorld) {
     let response = list_messages_with_token(
         world.second_app_ref(),
@@ -460,13 +500,20 @@ async fn the_second_user_lists_messages_in_that_channel(world: &mut MessagesWorl
     world.latest_payload = None;
 }
 
-#[when(regex = r#"^"([^"]+)" lists messages in that channel$"#)]
 async fn named_user_lists_messages_in_that_channel(world: &mut MessagesWorld, name: String) {
     world.assert_second_name(&name);
     the_second_user_lists_messages_in_that_channel(world).await;
 }
 
-#[when("the user edits a message that does not exist in that channel")]
+#[when(regex = r#"^"([^"]+)" lists messages in channel "([^"]+)"$"#)]
+async fn named_user_lists_messages_in_named_channel(
+    world: &mut MessagesWorld,
+    name: String,
+    _channel_name: String,
+) {
+    named_user_lists_messages_in_that_channel(world, name).await;
+}
+
 async fn the_user_edits_a_message_that_does_not_exist_in_that_channel(world: &mut MessagesWorld) {
     let missing_message_id: MessageId = Uuid::new_v4().into();
     let response = update_message(
@@ -478,6 +525,14 @@ async fn the_user_edits_a_message_that_does_not_exist_in_that_channel(world: &mu
     .await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;
+}
+
+#[when(regex = r#"^the user edits a message that does not exist in channel "([^"]+)"$"#)]
+async fn the_user_edits_a_message_that_does_not_exist_in_named_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    the_user_edits_a_message_that_does_not_exist_in_that_channel(world).await;
 }
 
 #[when("the user edits a message in a channel that does not exist")]
@@ -495,7 +550,6 @@ async fn the_user_edits_a_message_in_a_channel_that_does_not_exist(world: &mut M
     world.latest_payload = None;
 }
 
-#[when("the user deletes a message that does not exist in that channel")]
 async fn the_user_deletes_a_message_that_does_not_exist_in_that_channel(world: &mut MessagesWorld) {
     let missing_message_id: MessageId = Uuid::new_v4().into();
     let response = delete_message(
@@ -506,6 +560,14 @@ async fn the_user_deletes_a_message_that_does_not_exist_in_that_channel(world: &
     .await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;
+}
+
+#[when(regex = r#"^the user deletes a message that does not exist in channel "([^"]+)"$"#)]
+async fn the_user_deletes_a_message_that_does_not_exist_in_named_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    the_user_deletes_a_message_that_does_not_exist_in_that_channel(world).await;
 }
 
 #[when("the user deletes a message in a channel that does not exist")]
@@ -522,7 +584,6 @@ async fn the_user_deletes_a_message_in_a_channel_that_does_not_exist(world: &mut
     world.latest_payload = None;
 }
 
-#[when("the user posts a message in that voice channel")]
 async fn the_user_posts_a_message_in_that_voice_channel(world: &mut MessagesWorld) {
     let response = create_message(
         world.owner_app_ref(),
@@ -534,7 +595,14 @@ async fn the_user_posts_a_message_in_that_voice_channel(world: &mut MessagesWorl
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[then("listing messages for that channel includes the new message")]
+#[when(regex = r#"^the user posts a message in voice channel "([^"]+)"$"#)]
+async fn the_user_posts_a_message_in_named_voice_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    the_user_posts_a_message_in_that_voice_channel(world).await;
+}
+
 async fn listing_messages_for_that_channel_includes_the_new_message(world: &mut MessagesWorld) {
     let payload =
         response_payload_json(list_messages(world.owner_app_ref(), world.channel_id_ref()).await)
@@ -547,7 +615,14 @@ async fn listing_messages_for_that_channel_includes_the_new_message(world: &mut 
     );
 }
 
-#[then("listing messages for that channel returns the updated content")]
+#[then(regex = r#"^listing messages for channel "([^"]+)" includes the new message$"#)]
+async fn listing_messages_for_named_channel_includes_the_new_message(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    listing_messages_for_that_channel_includes_the_new_message(world).await;
+}
+
 async fn listing_messages_for_that_channel_returns_the_updated_content(world: &mut MessagesWorld) {
     let payload =
         response_payload_json(list_messages(world.owner_app_ref(), world.channel_id_ref()).await)
@@ -559,7 +634,14 @@ async fn listing_messages_for_that_channel_returns_the_updated_content(world: &m
     }));
 }
 
-#[then("listing messages for that channel does not include the deleted message")]
+#[then(regex = r#"^listing messages for channel "([^"]+)" returns the updated content$"#)]
+async fn listing_messages_for_named_channel_returns_the_updated_content(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    listing_messages_for_that_channel_returns_the_updated_content(world).await;
+}
+
 async fn listing_messages_for_that_channel_does_not_include_the_deleted_message(
     world: &mut MessagesWorld,
 ) {
@@ -572,6 +654,14 @@ async fn listing_messages_for_that_channel_does_not_include_the_deleted_message(
             .iter()
             .any(|message| payload_message_id(message, "id") == *world.message_id_ref())
     );
+}
+
+#[then(regex = r#"^listing messages for channel "([^"]+)" does not include the deleted message$"#)]
+async fn listing_messages_for_named_channel_does_not_include_the_deleted_message(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    listing_messages_for_that_channel_does_not_include_the_deleted_message(world).await;
 }
 
 #[then("the edit is denied")]
@@ -599,7 +689,6 @@ async fn the_action_fails_because_the_channel_does_not_exist(world: &mut Message
     assert_eq!(world.latest_status(), StatusCode::NOT_FOUND);
 }
 
-#[then("posting is denied because that channel does not support messaging")]
 async fn posting_is_denied_because_that_channel_does_not_support_messaging(
     world: &mut MessagesWorld,
 ) {
@@ -608,6 +697,14 @@ async fn posting_is_denied_because_that_channel_does_not_support_messaging(
         world.latest_payload_ref()["error_code"].as_str(),
         Some("CHANNEL_KIND_MISMATCH")
     );
+}
+
+#[then(regex = r#"^posting is denied because channel "([^"]+)" does not support messaging$"#)]
+async fn posting_is_denied_because_named_channel_does_not_support_messaging(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    posting_is_denied_because_that_channel_does_not_support_messaging(world).await;
 }
 
 #[tokio::test]

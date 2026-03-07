@@ -98,10 +98,6 @@ impl NotificationsWorld {
             .unwrap_or_else(|| panic!("server {server_name} to be initialized"))
     }
 
-    fn channel_id_ref(&self) -> &ChannelId {
-        self.channel_id.as_ref().expect("channel id to be set")
-    }
-
     fn channel_id_by_name_ref(&self, channel_name: &str) -> &ChannelId {
         self.channel_ids_by_name
             .get(channel_name)
@@ -269,6 +265,32 @@ async fn a_voice_channel_exists_in_named_server_created_by_named_user(
 }
 
 #[given(
+    regex = r#"^a voice channel named "([^"]+)" exists in server "([^"]+)" created by "([^"]+)"$"#
+)]
+async fn a_voice_channel_named_exists_in_named_server_created_by_named_user(
+    world: &mut NotificationsWorld,
+    channel_name: String,
+    server_name: String,
+    owner_name: String,
+) {
+    let server_id = ensure_named_server_for_owner(world, &server_name, &owner_name).await;
+    world.server_id = Some(server_id);
+
+    let owner = world.actor_ref(&owner_name);
+    let channel_payload = response_payload_json(
+        create_channel_with_token(&owner.app, &server_id, &channel_name, "voice", &owner.token)
+            .await,
+    )
+    .await;
+
+    let channel_id = payload_channel_id(&channel_payload, "id");
+    world.channel_id = Some(channel_id);
+    world
+        .channel_ids_by_name
+        .insert(channel_name.to_owned(), channel_id);
+}
+
+#[given(
     regex = r#"^a text channel named "([^"]+)" exists in server "([^"]+)" created by "([^"]+)"$"#
 )]
 async fn a_text_channel_named_exists_in_named_server_created_by_named_user(
@@ -362,47 +384,14 @@ async fn named_user_is_connected_to_notifications_websocket(
     world.connect_actor_ws_notifications(&actor_name).await;
 }
 
-#[when(regex = r#"^"([^"]+)" posts a message in that channel$"#)]
-async fn named_user_posts_a_message_in_that_channel(
-    world: &mut NotificationsWorld,
-    actor_name: String,
-) {
-    world.outbox_totals_before_post_by_actor.clear();
-
-    for (name, actor) in &world.actors {
-        let outbox_count =
-            outbox_total_count_for_recipient(&world.shared_store, actor.user_id).await;
-        world
-            .outbox_totals_before_post_by_actor
-            .insert(name.to_owned(), outbox_count);
-    }
-
-    let actor = world.actor_ref(&actor_name);
-    let response = create_message_with_token(
-        &actor.app,
-        world.channel_id_ref(),
-        "notification-message",
-        &actor.token,
-    )
-    .await;
-
-    world.latest_status = Some(response.status());
-    if response.status() == StatusCode::CREATED {
-        let payload = response_payload_json(response).await;
-        world.latest_message_id = Some(payload_message_id(&payload, "id"));
-        world.latest_payload = Some(payload);
-    } else {
-        world.latest_message_id = None;
-        world.latest_payload = None;
-    }
-}
-
 #[when(regex = r#"^"([^"]+)" posts a message in channel "([^"]+)"$"#)]
 async fn named_user_posts_a_message_in_channel_named(
     world: &mut NotificationsWorld,
     actor_name: String,
     channel_name: String,
 ) {
+    track_outbox_totals_before_post(world).await;
+
     named_user_posts_a_message_in_given_channel(
         world,
         actor_name,
@@ -471,21 +460,6 @@ async fn named_user_unmutes_named_server(
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
-#[then(regex = r#"^unread count increments for "([^"]+)" in that channel$"#)]
-async fn unread_count_increments_for_named_user_in_that_channel(
-    world: &mut NotificationsWorld,
-    recipient_name: String,
-) {
-    let recipient = world.actor_ref(&recipient_name);
-    let unread_count = unread_count_for_channel(
-        &world.shared_store,
-        recipient.user_id,
-        *world.channel_id_ref(),
-    )
-    .await;
-    assert_eq!(unread_count, 1);
-}
-
 #[then(regex = r#"^a notification outbox event is recorded for "([^"]+)"$"#)]
 async fn a_notification_outbox_event_is_recorded_for_named_user(
     world: &mut NotificationsWorld,
@@ -516,18 +490,6 @@ async fn no_notification_outbox_event_is_recorded_for_named_user_for_last_messag
     .await;
 
     assert_eq!(outbox_count, 0);
-}
-
-#[then(regex = r#"^unread count for "([^"]+)" in that channel is zero$"#)]
-async fn unread_count_for_named_user_in_that_channel_is_zero(
-    world: &mut NotificationsWorld,
-    actor_name: String,
-) {
-    let actor = world.actor_ref(&actor_name);
-    let unread_count =
-        unread_count_for_channel(&world.shared_store, actor.user_id, *world.channel_id_ref()).await;
-
-    assert_eq!(unread_count, 0);
 }
 
 #[then(regex = r#"^no notification outbox event is recorded for "([^"]+)"$"#)]
@@ -671,10 +633,13 @@ async fn named_user_sees_named_channel_mute_expiry_timestamp_is(
     }
 }
 
-#[then(regex = r#"^"([^"]+)" receives a message-created websocket notification for that channel$"#)]
-async fn named_user_receives_message_created_websocket_notification_for_that_channel(
+#[then(
+    regex = r#"^"([^"]+)" receives a message-created websocket notification for channel "([^"]+)"$"#
+)]
+async fn named_user_receives_message_created_websocket_notification_for_named_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
+    channel_name: String,
 ) {
     let event = world
         .next_ws_event(Duration::from_secs(2))
@@ -683,7 +648,7 @@ async fn named_user_receives_message_created_websocket_notification_for_that_cha
 
     assert_eq!(world.latest_status(), StatusCode::CREATED);
     assert_eq!(event["event_type"].as_str(), Some("message_created"));
-    let expected_channel_id = world.channel_id_ref().to_string();
+    let expected_channel_id = world.channel_id_by_name_ref(&channel_name).to_string();
     assert_eq!(
         event["channel_id"].as_str(),
         Some(expected_channel_id.as_str())
@@ -696,7 +661,6 @@ async fn named_user_receives_message_created_websocket_notification_for_that_cha
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
-#[then(regex = r#"^"([^"]+)" does not receive websocket notification events for that channel$"#)]
 async fn named_user_does_not_receive_websocket_notification_events_for_that_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -711,11 +675,30 @@ async fn named_user_does_not_receive_websocket_notification_events_for_that_chan
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
-#[then("posting is denied because that channel does not support messaging")]
+#[then(
+    regex = r#"^"([^"]+)" does not receive websocket notification events for channel "([^"]+)"$"#
+)]
+async fn named_user_does_not_receive_websocket_notification_events_for_named_channel(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    _channel_name: String,
+) {
+    named_user_does_not_receive_websocket_notification_events_for_that_channel(world, actor_name)
+        .await;
+}
+
 async fn posting_is_denied_because_that_channel_does_not_support_messaging(
     world: &mut NotificationsWorld,
 ) {
     assert_eq!(world.latest_status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[then(regex = r#"^posting is denied because channel "([^"]+)" does not support messaging$"#)]
+async fn posting_is_denied_because_named_channel_does_not_support_messaging(
+    world: &mut NotificationsWorld,
+    _channel_name: String,
+) {
+    posting_is_denied_because_that_channel_does_not_support_messaging(world).await;
 }
 
 async fn ensure_named_server_for_owner(
@@ -801,6 +784,18 @@ async fn named_user_posts_a_message_in_given_channel(
     } else {
         world.latest_message_id = None;
         world.latest_payload = None;
+    }
+}
+
+async fn track_outbox_totals_before_post(world: &mut NotificationsWorld) {
+    world.outbox_totals_before_post_by_actor.clear();
+
+    for (name, actor) in &world.actors {
+        let outbox_count =
+            outbox_total_count_for_recipient(&world.shared_store, actor.user_id).await;
+        world
+            .outbox_totals_before_post_by_actor
+            .insert(name.to_owned(), outbox_count);
     }
 }
 

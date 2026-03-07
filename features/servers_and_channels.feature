@@ -49,7 +49,7 @@ Feature: Servers and channels
       Given the user already owns server "Test"
       When the server owner deletes server "Test"
       Then the delete succeeds
-      And listing servers for that user returns no servers
+      And listing servers for the authenticated user returns no servers
 
     Scenario: Deleting a missing server reports that it does not exist
       When the user deletes a server that does not exist
@@ -57,7 +57,7 @@ Feature: Servers and channels
 
     Scenario: Server owner can delete a channel
       Given a channel exists in server "Test" for the authenticated user
-      When the server owner deletes that channel
+      When the server owner deletes channel "general"
       Then the delete succeeds
       And listing channels in server "Test" returns no channels
 
@@ -103,5 +103,5 @@ Feature: Servers and channels
       And a user named "Noah" exists
       And a channel exists in server "Test" owned by "Olivia"
       And "Olivia" adds "Noah" to server "Test"
-      When "Noah" deletes that channel
+      When "Noah" deletes channel "general"
       Then the delete is denied

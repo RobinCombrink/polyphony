@@ -115,8 +115,8 @@ async fn the_authenticated_user_has_an_updated_display_name(world: &mut Identity
     world.user_id = Some(payload_user_id(&me_payload, "user_id"));
 }
 
-#[when("I look up that user by id")]
-async fn i_look_up_that_user_by_id(world: &mut IdentityWorld) {
+#[when("I look up the authenticated user by id")]
+async fn i_look_up_the_authenticated_user_by_id(world: &mut IdentityWorld) {
     let response =
         get_user_by_id_with_token(world.app_ref(), world.user_id_ref(), VALID_TOKEN).await;
 

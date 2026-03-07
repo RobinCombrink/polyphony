@@ -8,23 +8,23 @@ Feature: Notifications
       Given a user named "Olivia" exists
       And a user named "Noah" exists
       And a server named "Test" owned by "Olivia" exists
-      And a text channel exists in server "Test" created by "Olivia"
+      And a text channel named "general" exists in server "Test" created by "Olivia"
       And "Olivia" adds "Noah" to server "Test"
 
     Scenario: Persisted message increments unread count for other members
-      When "Olivia" posts a message in that channel
-      Then unread count increments for "Noah" in that channel
+      When "Olivia" posts a message in channel "general"
+      Then unread count increments for "Noah" in channel "general"
       And a notification outbox event is recorded for "Noah"
 
     Scenario: Message author does not receive their own unread increment
-      When "Olivia" posts a message in that channel
-      Then unread count for "Olivia" in that channel is zero
+      When "Olivia" posts a message in channel "general"
+      Then unread count for "Olivia" in channel "general" is zero
       And no notification outbox event is recorded for "Olivia"
 
     Scenario: Failed message creation does not enqueue notifications
-      Given a voice channel exists in server "Test" created by "Olivia"
-      When "Olivia" posts a message in that channel
-      Then posting is denied because that channel does not support messaging
+      Given a voice channel named "voice-alerts" exists in server "Test" created by "Olivia"
+      When "Olivia" posts a message in channel "voice-alerts"
+      Then posting is denied because channel "voice-alerts" does not support messaging
       And no notification outbox event is recorded for "Noah"
 
   Rule: Websocket delivery mirrors durable unread updates for connected clients
@@ -32,18 +32,18 @@ Feature: Notifications
       Given a user named "Olivia" exists
       And a user named "Noah" exists
       And a server named "Test" owned by "Olivia" exists
-      And a text channel exists in server "Test" created by "Olivia"
+      And a text channel named "general" exists in server "Test" created by "Olivia"
 
     Scenario: Connected websocket recipient receives message-created notification event
       Given "Olivia" adds "Noah" to server "Test"
       And "Noah" is connected to notifications websocket
-      When "Olivia" posts a message in that channel
-      Then "Noah" receives a message-created websocket notification for that channel
+      When "Olivia" posts a message in channel "general"
+      Then "Noah" receives a message-created websocket notification for channel "general"
 
     Scenario: Websocket does not deliver notifications for unauthorized channels
       Given "Noah" is connected to notifications websocket
-      When "Olivia" posts a message in that channel
-      Then "Noah" does not receive websocket notification events for that channel
+      When "Olivia" posts a message in channel "general"
+      Then "Noah" does not receive websocket notification events for channel "general"
 
   Rule: Unread count aggregation and mark-read lifecycle stay consistent
     Background:
@@ -59,7 +59,7 @@ Feature: Notifications
       And "Olivia" posts a message in channel "product"
       Then "Noah" sees total unread notification count of 2
 
-    Scenario: Marking one channel as read only clears that channel unread count
+    Scenario: Marking one channel as read only clears that named channel unread count
       When "Olivia" posts a message in channel "engineering"
       And "Olivia" posts a message in channel "product"
       And "Noah" marks channel "engineering" notifications as read
