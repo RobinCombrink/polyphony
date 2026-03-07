@@ -2,11 +2,11 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: polyphony
-      POSTGRES_USER: polyphony
+      POSTGRES_DB: ${POSTGRES_DATABASE:?POSTGRES_DATABASE is required}
+      POSTGRES_USER: ${POSTGRES_USERNAME:?POSTGRES_USERNAME is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U polyphony -d polyphony"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME} -d ${POSTGRES_DATABASE}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -19,11 +19,15 @@ services:
   backend-api:
     image: ${BACKEND_API_IMAGE:?BACKEND_API_IMAGE is required}
     environment:
-      BACKEND_API_BIND: 0.0.0.0:5067
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DATABASE: polyphony
-      POSTGRES_USERNAME: polyphony
+      BACKEND_API_RUNTIME_ENV: ${BACKEND_API_RUNTIME_ENV:-production}
+      BACKEND_API_BIND: ${BACKEND_API_BIND:?BACKEND_API_BIND is required}
+      BACKEND_API_CORS_ALLOWED_ORIGINS: ${BACKEND_API_CORS_ALLOWED_ORIGINS:?BACKEND_API_CORS_ALLOWED_ORIGINS is required}
+      AUTH0_ISSUER: ${AUTH0_ISSUER:?AUTH0_ISSUER is required}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:?AUTH0_AUDIENCE is required}
+      POSTGRES_HOST: ${POSTGRES_HOST:?POSTGRES_HOST is required}
+      POSTGRES_PORT: ${POSTGRES_PORT:?POSTGRES_PORT is required}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE:?POSTGRES_DATABASE is required}
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME:?POSTGRES_USERNAME is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       LIVEKIT_URL: ${LIVEKIT_URL:?LIVEKIT_URL is required}
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?LIVEKIT_API_KEY is required}

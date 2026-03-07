@@ -10,7 +10,7 @@ Defaults are defined in backend runtime configuration (`BackendApiConfig` and `A
 
 Optionally set these environment variables to override defaults at runtime:
 
-- `AUTH0_ISSUER` (for example `https://example-dev.us.auth0.com/`)
+- `AUTH0_ISSUER` (for example `https://example-dev.eu.auth0.com/`)
 - `AUTH0_AUDIENCE` (for example `polyphony-api`)
 - `AUTH0_ACCESS_TOKEN_DURATION_HOURS=18`
 - `BACKEND_API_BIND` (for example `127.0.0.1:5067`)

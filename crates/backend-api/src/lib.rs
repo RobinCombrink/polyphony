@@ -116,7 +116,12 @@ pub fn default_bind_address() -> SocketAddr {
 }
 
 pub async fn default_api_state() -> DefaultApiState {
-    let backend_config = config::BackendApiConfig::from_environment();
+    default_api_state_with_config(config::BackendApiConfig::from_environment()).await
+}
+
+pub async fn default_api_state_with_config(
+    backend_config: config::BackendApiConfig,
+) -> DefaultApiState {
     let auth_config = backend_config.auth0;
     let token_verifier = Arc::new(
         JwksTokenVerifier::new(auth_config.clone())
@@ -162,7 +167,26 @@ where
     Verifier: auth::TokenVerifier + Send + Sync + 'static,
 {
     let backend_config = config::BackendApiConfig::from_environment();
+    build_app_with_http_request_logging(state, backend_config.http_request_logging)
+}
 
+pub fn build_app_with_http_request_logging<
+    UserRepo,
+    ServerRepo,
+    ChannelRepo,
+    MessageRepo,
+    Verifier,
+>(
+    state: ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>,
+    http_request_logging: config::HttpRequestLoggingConfig,
+) -> Router
+where
+    UserRepo: UserRepository + Send + Sync + 'static,
+    ServerRepo: ServerRepository + Send + Sync + 'static,
+    ChannelRepo: ChannelRepository + Send + Sync + 'static,
+    MessageRepo: MessageRepository + Send + Sync + 'static,
+    Verifier: auth::TokenVerifier + Send + Sync + 'static,
+{
     let router = Router::new()
         .route("/health", get(health))
         .route("/api/v1/me", get(me).patch(update_me))
@@ -204,8 +228,8 @@ where
         .with_state(state)
         .layer(build_cors_layer());
 
-    if backend_config.http_request_logging.enabled {
-        let log_level = backend_config.http_request_logging.level.as_tracing_level();
+    if http_request_logging.enabled {
+        let log_level = http_request_logging.level.as_tracing_level();
 
         let trace_layer = TraceLayer::new_for_http()
             .make_span_with(

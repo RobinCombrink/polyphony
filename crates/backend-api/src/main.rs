@@ -3,10 +3,16 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let backend_config =
+        backend_api::config::BackendApiConfig::load_and_validate_from_environment()?;
+
     backend_api::observability::init_open_telemetry()?;
 
-    let bind_address = backend_api::default_bind_address();
-    let app = backend_api::build_app(backend_api::default_api_state().await);
+    let bind_address = backend_config.bind_address;
+    let app = backend_api::build_app_with_http_request_logging(
+        backend_api::default_api_state_with_config(backend_config.clone()).await,
+        backend_config.http_request_logging,
+    );
 
     info!(%bind_address, "backend-api listening");
 

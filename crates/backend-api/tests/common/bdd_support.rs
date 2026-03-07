@@ -20,7 +20,6 @@ use testcontainers_modules::{
     testcontainers::{ContainerAsync, runners::AsyncRunner},
 };
 use tower::ServiceExt;
-use url::Url;
 use uuid::Uuid;
 
 pub(crate) use backend_api::domain::{ChannelId, ExternalReference, MessageId, ServerId, UserId};
@@ -578,11 +577,7 @@ fn seeded_state_with_store<Repo>(
 where
     Repo: UserRepository + ServerRepository + ChannelRepository + MessageRepository,
 {
-    let auth_config = Auth0Config {
-        issuer: Url::parse("https://example-dev.us.auth0.com/").expect("valid issuer url"),
-        audience: "polyphony-api".to_owned(),
-        token_duration_hours: 18,
-    };
+    let auth_config = Auth0Config::default();
 
     let token_verifier = Arc::new(TestTokenVerifier {
         expected_token: token.to_owned(),
