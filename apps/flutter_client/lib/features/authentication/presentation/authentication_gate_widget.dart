@@ -9,12 +9,12 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_feed_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/network/authenticated_http_client.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/network/polyphony_api_client.dart";
@@ -38,6 +38,7 @@ import "package:polyphony_flutter_client/shared/services/channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_service.dart";
+import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
@@ -328,13 +329,17 @@ final class _AuthenticatedShell extends StatelessWidget {
               messageRuntimeService: context.read<MessageRuntimeService>(),
             ),
           ),
-          BlocProvider<NotificationUnreadCountBloc>(
-            create: (context) => NotificationUnreadCountBloc(
+          BlocProvider<NotificationCenterBloc>(
+            create: (context) => NotificationCenterBloc(
               notificationRepo: context.read<NotificationRepo>(),
-            )..add(const LoadNotificationUnreadCountRequested()),
-          ),
-          BlocProvider<NotificationFeedBloc>(
-            create: (_) => NotificationFeedBloc(),
+              notificationRuntimeService:
+                  context.read<NotificationRuntimeService>(),
+            )..add(
+                NotificationCenterStartedRequested(
+                  backendBaseUrl: PolyphonyConfig.backendBaseUrl,
+                  bearerToken: metadata.bearerToken,
+                ),
+              ),
           ),
           BlocProvider<NotificationPreferencesBloc>(
             create: (context) => NotificationPreferencesBloc(

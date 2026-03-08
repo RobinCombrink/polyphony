@@ -8,8 +8,7 @@ import "package:polyphony_flutter_client/features/home/presentation/widgets/home
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/identity/presentation/widgets/display_name_banner_widget.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_feed_bloc.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/servers_pane_widget.dart";
@@ -17,7 +16,6 @@ import "package:polyphony_flutter_client/features/settings/presentation/widgets/
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_keybindings_focus_widget.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_quick_actions_overlay_widget.dart";
-import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/top_right_error_toast.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
@@ -34,8 +32,6 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   final createServerController = TextEditingController();
   final createChannelController = TextEditingController();
   final createMessageController = TextEditingController();
-  late final NotificationRuntimeService _notificationRuntimeService;
-  StreamSubscription<RuntimeNotificationEvent>? _notificationSubscription;
   _NotificationChannelTarget? _pendingNotificationChannelTarget;
   var _keybindingsRefreshToken = 0;
   var _isDisplayNamePromptOpen = false;
@@ -50,23 +46,6 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   void initState() {
     super.initState();
 
-    _notificationRuntimeService = context.read<NotificationRuntimeService>();
-
-    _notificationSubscription =
-        _notificationRuntimeService.notificationEvents().listen((event) {
-      if (!mounted) {
-        return;
-      }
-
-      context.read<NotificationFeedBloc>().add(
-            NotificationFeedRuntimeEventReceived(event: event),
-          );
-
-      _refreshUnreadCount(context);
-    });
-
-    unawaited(_connectNotificationRuntime(context));
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -78,50 +57,10 @@ class _HomePageWidgetState extends State<HomePageWidget> {
 
   @override
   void dispose() {
-    final notificationSubscription = _notificationSubscription;
-    if (notificationSubscription != null) {
-      unawaited(notificationSubscription.cancel());
-    }
-
-    unawaited(_notificationRuntimeService.disconnect());
     createServerController.dispose();
     createChannelController.dispose();
     createMessageController.dispose();
     super.dispose();
-  }
-
-  Future<void> _connectNotificationRuntime(BuildContext context) async {
-    final authenticationState = context.read<AuthenticationBloc>().state;
-    if (authenticationState is! AuthenticationAuthenticatedState) {
-      return;
-    }
-
-    final notificationsWebSocketUrl = _notificationWebSocketUrlFromBaseUrl(
-      PolyphonyConfig.backendBaseUrl,
-    );
-
-    await _notificationRuntimeService.connect(
-      notificationsWebSocketUrl: notificationsWebSocketUrl,
-      bearerToken: authenticationState.metadata.bearerToken,
-    );
-  }
-
-  String _notificationWebSocketUrlFromBaseUrl(String baseUrl) {
-    final baseUri = Uri.parse(baseUrl);
-    final notificationsPath =
-        "${baseUri.path.endsWith("/") ? baseUri.path.substring(0, baseUri.path.length - 1) : baseUri.path}/api/v1/notifications/ws";
-
-    final websocketScheme = switch (baseUri.scheme) {
-      "https" => "wss",
-      _ => "ws",
-    };
-
-    return baseUri
-        .replace(
-          scheme: websocketScheme,
-          path: notificationsPath,
-        )
-        .toString();
   }
 
   void _requestUpdateDisplayName(BuildContext context, String displayName) {
@@ -151,8 +90,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   }
 
   void _refreshUnreadCount(BuildContext context) {
-    context.read<NotificationUnreadCountBloc>().add(
-          const LoadNotificationUnreadCountRequested(),
+    context.read<NotificationCenterBloc>().add(
+          const NotificationCenterUnreadCountRefreshRequested(),
         );
   }
 
@@ -187,16 +126,15 @@ class _HomePageWidgetState extends State<HomePageWidget> {
       appBar: AppBar(
         title: const Text("Polyphony"),
         actions: <Widget>[
-          BlocBuilder<NotificationUnreadCountBloc,
-              NotificationUnreadCountState>(
+          BlocBuilder<NotificationCenterBloc, NotificationCenterState>(
             builder: (context, notificationState) {
               return _UnreadNotificationCountIconButton(
-                totalUnreadCount: notificationState.totalUnreadCountOrZero(),
+                totalUnreadCount: notificationState.totalUnreadCount,
                 onPressed: () => _refreshUnreadCount(context),
               );
             },
           ),
-          BlocBuilder<NotificationFeedBloc, NotificationFeedState>(
+          BlocBuilder<NotificationCenterBloc, NotificationCenterState>(
             builder: (context, notificationFeedState) {
               return _NotificationFeedIconButton(
                 feedEntryCount: notificationFeedState.entries.length,
@@ -419,12 +357,11 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                 );
               },
             ),
-            BlocListener<NotificationUnreadCountBloc,
-                NotificationUnreadCountState>(
+            BlocListener<NotificationCenterBloc, NotificationCenterState>(
               listenWhen: (_, current) =>
-                  current is NotificationUnreadCountExceptionState,
+                  current is NotificationCenterExceptionState,
               listener: (context, state) {
-                if (state is! NotificationUnreadCountExceptionState) {
+                if (state is! NotificationCenterExceptionState) {
                   return;
                 }
 
@@ -542,16 +479,29 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   }
 
   Future<void> _showNotificationFeedSheet(BuildContext context) async {
-    final notificationFeedBloc = context.read<NotificationFeedBloc>();
+    final notificationCenterBloc = context.read<NotificationCenterBloc>();
+    final serversBloc = context.read<ServersBloc>();
+    final channelsBloc = context.read<ChannelsBloc>();
 
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       builder: (sheetContext) {
-        return BlocProvider<NotificationFeedBloc>.value(
-            value: notificationFeedBloc,
+        return MultiBlocProvider(
+            providers: [
+              BlocProvider<NotificationCenterBloc>.value(
+                value: notificationCenterBloc,
+              ),
+              BlocProvider<ServersBloc>.value(
+                value: serversBloc,
+              ),
+              BlocProvider<ChannelsBloc>.value(
+                value: channelsBloc,
+              ),
+            ],
             child: SafeArea(
-              child: BlocBuilder<NotificationFeedBloc, NotificationFeedState>(
+              child:
+                  BlocBuilder<NotificationCenterBloc, NotificationCenterState>(
                 builder: (context, state) {
                   final entries = state.entries;
 
@@ -580,9 +530,9 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                             const Spacer(),
                             TextButton(
                               onPressed: () => context
-                                  .read<NotificationFeedBloc>()
+                                  .read<NotificationCenterBloc>()
                                   .add(
-                                      const NotificationFeedClearedRequested()),
+                                      const NotificationCenterFeedClearedRequested()),
                               child: const Text("Clear"),
                             ),
                           ],
@@ -619,30 +569,31 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     );
   }
 
-  String _notificationEntryTitle(NotificationFeedEntry entry) {
+  String _notificationEntryTitle(NotificationCenterEntry entry) {
     return switch (entry.event) {
       UnreadMessageRuntimeNotificationEvent() => "New unread message",
       MentionedRuntimeNotificationEvent() => "You were mentioned",
     };
   }
 
-  String _notificationEntrySubtitle(NotificationFeedEntry entry) {
+  String _notificationEntrySubtitle(NotificationCenterEntry entry) {
     return "${entry.event.channelName} / ${entry.event.serverName}";
   }
 
   void _openNotificationFeedEntry(
     BuildContext context,
-    NotificationFeedEntry entry,
+    NotificationCenterEntry entry,
   ) {
     final serverId = entry.event.serverId.trim();
+    final serversBloc = context.read<ServersBloc>();
+    final channelsBloc = context.read<ChannelsBloc>();
 
     Navigator.of(context).pop();
 
-    context.read<ServersBloc>().add(
-          SelectServerRequested(serverId: serverId),
-        );
+    serversBloc.add(
+      SelectServerRequested(serverId: serverId),
+    );
 
-    final channelsBloc = context.read<ChannelsBloc>();
     final channelsState = channelsBloc.state;
 
     final hasTargetLoaded = channelsState is ChannelsLoadedDataState &&
@@ -666,7 +617,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     channelsBloc.add(LoadChannelsRequested(serverId: serverId));
   }
 
-  String _notificationEntryTime(NotificationFeedEntry entry) {
+  String _notificationEntryTime(NotificationCenterEntry entry) {
     final localTime = entry.receivedAt.toLocal();
     final hour = localTime.hour.toString().padLeft(2, "0");
     final minute = localTime.minute.toString().padLeft(2, "0");

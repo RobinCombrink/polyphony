@@ -7,8 +7,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_feed_bloc.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
@@ -19,6 +18,7 @@ import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:provider/provider.dart";
 
@@ -98,6 +98,92 @@ class _FakeNotificationRepository implements NotificationRepo {
   }
 }
 
+class _FakeNotificationService implements NotificationService {
+  @override
+  Future<Result<ApiNotificationUnreadCount>>
+      getUnreadNotificationCount() async {
+    return const Ok<ApiNotificationUnreadCount>(
+      ApiNotificationUnreadCount(totalUnreadCount: 0),
+    );
+  }
+
+  @override
+  Future<Result<ApiNotificationGlobalPreference>>
+      getGlobalNotificationPreference() async {
+    return Error<ApiNotificationGlobalPreference>(
+      Exception("Not used in test."),
+    );
+  }
+
+  @override
+  Future<Result<ApiNotificationServerPreference>>
+      getServerNotificationPreference({
+    required String serverId,
+  }) async {
+    return Error<ApiNotificationServerPreference>(
+      Exception("Not used in test."),
+    );
+  }
+
+  @override
+  Future<Result<ApiNotificationChannelPreference>>
+      getChannelNotificationPreference({
+    required String channelId,
+  }) async {
+    return Error<ApiNotificationChannelPreference>(
+      Exception("Not used in test."),
+    );
+  }
+
+  @override
+  Future<Result<void>> markChannelNotificationsRead({
+    required String channelId,
+  }) async {
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> muteChannelNotifications({
+    required String channelId,
+    required int durationMinutes,
+  }) async {
+    return Error<void>(Exception("Not used in test."));
+  }
+
+  @override
+  Future<Result<void>> unmuteChannelNotifications({
+    required String channelId,
+  }) async {
+    return Error<void>(Exception("Not used in test."));
+  }
+
+  @override
+  Future<Result<void>> updateChannelNotificationPreference({
+    required String channelId,
+    required ApiNotificationCategoryPreference notificationCategory,
+  }) async {
+    return Error<void>(Exception("Not used in test."));
+  }
+
+  @override
+  Future<Result<void>> updateGlobalNotificationPreference({
+    ApiNotificationMuteState? muteState,
+    ApiNotificationCategoryPreference? notificationCategory,
+    ApiNotificationCategoryPreference? channelDefaultCategory,
+  }) async {
+    return Error<void>(Exception("Not used in test."));
+  }
+
+  @override
+  Future<Result<void>> updateServerNotificationPreference({
+    required String serverId,
+    ApiNotificationMuteState? muteState,
+    ApiNotificationCategoryPreference? notificationCategory,
+  }) async {
+    return Error<void>(Exception("Not used in test."));
+  }
+}
+
 void main() {
   testWidgets(
     "loads server users when selected server changes",
@@ -142,10 +228,15 @@ void main() {
         voiceRuntimeService: voiceRuntimeService,
         profileRepo: profileRepo,
       );
-      final notificationUnreadCountBloc = NotificationUnreadCountBloc(
+      final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 3),
-      )..add(const LoadNotificationUnreadCountRequested());
-      final notificationFeedBloc = NotificationFeedBloc();
+        notificationRuntimeService: notificationRuntimeService,
+      )..add(
+          const NotificationCenterStartedRequested(
+            backendBaseUrl: "http://localhost:3000",
+            bearerToken: "test-token",
+          ),
+        );
 
       addTearDown(authenticationBloc.close);
       addTearDown(serversBloc.close);
@@ -154,8 +245,7 @@ void main() {
       addTearDown(profileBloc.close);
       addTearDown(serverMembersBloc.close);
       addTearDown(voiceSessionsBloc.close);
-      addTearDown(notificationUnreadCountBloc.close);
-      addTearDown(notificationFeedBloc.close);
+      addTearDown(notificationCenterBloc.close);
 
       await tester.pumpWidget(
         MultiProvider(
@@ -176,11 +266,8 @@ void main() {
               BlocProvider<ProfileBloc>.value(value: profileBloc),
               BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
-              BlocProvider<NotificationUnreadCountBloc>.value(
-                value: notificationUnreadCountBloc,
-              ),
-              BlocProvider<NotificationFeedBloc>.value(
-                value: notificationFeedBloc,
+              BlocProvider<NotificationCenterBloc>.value(
+                value: notificationCenterBloc,
               ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
@@ -188,7 +275,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
       serverMembersBloc.recordedEvents.clear();
       serversBloc.add(
@@ -253,10 +341,15 @@ void main() {
         voiceRuntimeService: voiceRuntimeService,
         profileRepo: profileRepo,
       );
-      final notificationUnreadCountBloc = NotificationUnreadCountBloc(
+      final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(),
-      )..add(const LoadNotificationUnreadCountRequested());
-      final notificationFeedBloc = NotificationFeedBloc();
+        notificationRuntimeService: notificationRuntimeService,
+      )..add(
+          const NotificationCenterStartedRequested(
+            backendBaseUrl: "http://localhost:3000",
+            bearerToken: "test-token",
+          ),
+        );
 
       addTearDown(authenticationBloc.close);
       addTearDown(serversBloc.close);
@@ -265,8 +358,7 @@ void main() {
       addTearDown(profileBloc.close);
       addTearDown(serverMembersBloc.close);
       addTearDown(voiceSessionsBloc.close);
-      addTearDown(notificationUnreadCountBloc.close);
-      addTearDown(notificationFeedBloc.close);
+      addTearDown(notificationCenterBloc.close);
 
       await tester.pumpWidget(
         MultiProvider(
@@ -287,11 +379,8 @@ void main() {
               BlocProvider<ProfileBloc>.value(value: profileBloc),
               BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
-              BlocProvider<NotificationUnreadCountBloc>.value(
-                value: notificationUnreadCountBloc,
-              ),
-              BlocProvider<NotificationFeedBloc>.value(
-                value: notificationFeedBloc,
+              BlocProvider<NotificationCenterBloc>.value(
+                value: notificationCenterBloc,
               ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
@@ -299,7 +388,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(tester.takeException(), isNull);
       expect(find.byType(HomePageWidget), findsOneWidget);
@@ -349,10 +439,15 @@ void main() {
         voiceRuntimeService: voiceRuntimeService,
         profileRepo: profileRepo,
       );
-      final notificationUnreadCountBloc = NotificationUnreadCountBloc(
+      final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 7),
-      )..add(const LoadNotificationUnreadCountRequested());
-      final notificationFeedBloc = NotificationFeedBloc();
+        notificationRuntimeService: notificationRuntimeService,
+      )..add(
+          const NotificationCenterStartedRequested(
+            backendBaseUrl: "http://localhost:3000",
+            bearerToken: "test-token",
+          ),
+        );
 
       addTearDown(authenticationBloc.close);
       addTearDown(serversBloc.close);
@@ -361,8 +456,7 @@ void main() {
       addTearDown(profileBloc.close);
       addTearDown(serverMembersBloc.close);
       addTearDown(voiceSessionsBloc.close);
-      addTearDown(notificationUnreadCountBloc.close);
-      addTearDown(notificationFeedBloc.close);
+      addTearDown(notificationCenterBloc.close);
 
       await tester.pumpWidget(
         MultiProvider(
@@ -383,11 +477,8 @@ void main() {
               BlocProvider<ProfileBloc>.value(value: profileBloc),
               BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
-              BlocProvider<NotificationUnreadCountBloc>.value(
-                value: notificationUnreadCountBloc,
-              ),
-              BlocProvider<NotificationFeedBloc>.value(
-                value: notificationFeedBloc,
+              BlocProvider<NotificationCenterBloc>.value(
+                value: notificationCenterBloc,
               ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
@@ -398,6 +489,259 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text("7"), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    "tapping notification feed entry selects its server and channel",
+    (tester) async {
+      final fixture = EntitySeeder().chatApiFixture();
+      final serverRepo = FakeServerRepository(fixture: fixture);
+      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
+      final channelRepo = FakeChannelRepository(fixture: fixture);
+      final messageRepo = FakeMessageRepository(fixture: fixture);
+      final profileRepo = FakeProfileRepository(
+        userId: fixture.ownerUserId,
+        initialDisplayName: "Owner",
+      );
+      final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
+      final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
+      final voiceRuntimeService = FakeVoiceRuntimeService();
+      final messageRuntimeService = FakeMessageRuntimeService();
+      final notificationRuntimeService = FakeNotificationRuntimeService();
+
+      final authenticationBloc = AuthenticationBloc(
+        profileService: _FakeAuthenticationProfileService(
+          userId: fixture.ownerUserId,
+        ),
+        sessionService: _FakeAuthenticationSessionService(),
+      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
+      final serversBloc = ServersBloc(serverRepo: serverRepo);
+      final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
+      final messagesBloc = MessagesBloc(
+        messageRepo: messageRepo,
+        profileRepo: profileRepo,
+        textSessionRepo: textSessionRepo,
+        messageRuntimeService: messageRuntimeService,
+      );
+      final profileBloc = ProfileBloc(
+          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
+      final serverMembersBloc = _RecordingServerMembersBloc(
+        serverMemberRepo: serverMemberRepo,
+        profileRepo: profileRepo,
+      );
+      final voiceSessionsBloc = VoiceSessionsBloc(
+        voiceSessionRepo: voiceSessionRepo,
+        voiceRuntimeService: voiceRuntimeService,
+        profileRepo: profileRepo,
+      );
+      final notificationCenterBloc = NotificationCenterBloc(
+        notificationRepo: _FakeNotificationRepository(),
+        notificationRuntimeService: notificationRuntimeService,
+      )..add(
+          const NotificationCenterStartedRequested(
+            backendBaseUrl: "http://localhost:3000",
+            bearerToken: "test-token",
+          ),
+        );
+
+      addTearDown(authenticationBloc.close);
+      addTearDown(serversBloc.close);
+      addTearDown(channelsBloc.close);
+      addTearDown(messagesBloc.close);
+      addTearDown(profileBloc.close);
+      addTearDown(serverMembersBloc.close);
+      addTearDown(voiceSessionsBloc.close);
+      addTearDown(notificationCenterBloc.close);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<PreferencesStore>(
+              create: (_) => InMemoryPreferencesStore(),
+            ),
+            Provider<NotificationRuntimeService>(
+              create: (_) => notificationRuntimeService,
+            ),
+            Provider<NotificationService>(
+              create: (_) => _FakeNotificationService(),
+            ),
+          ],
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
+              BlocProvider<ServersBloc>.value(value: serversBloc),
+              BlocProvider<ChannelsBloc>.value(value: channelsBloc),
+              BlocProvider<MessagesBloc>.value(value: messagesBloc),
+              BlocProvider<ProfileBloc>.value(value: profileBloc),
+              BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
+              BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
+              BlocProvider<NotificationCenterBloc>.value(
+                value: notificationCenterBloc,
+              ),
+            ],
+            child: const MaterialApp(home: HomePageWidget()),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      notificationRuntimeService.emit(
+        MentionedRuntimeNotificationEvent(
+          serverId: fixture.listedServer.id,
+          serverName: fixture.listedServer.name,
+          channelId: fixture.listedChannel.id,
+          channelName: fixture.listedChannel.name,
+          messageId: fixture.listedMessage.id,
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip("Notification feed"));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.text("You were mentioned"));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final serversState = serversBloc.state;
+      expect(serversState, isA<ServersLoadedDataState>());
+      expect(
+        (serversState as ServersLoadedDataState).selectedServerId,
+        fixture.listedServer.id,
+      );
+
+      final channelsState = channelsBloc.state;
+      expect(channelsState, isA<ChannelsLoadedDataState>());
+      expect((channelsState as ChannelsLoadedDataState).serverId,
+          fixture.listedServer.id);
+      expect(channelsState.selectedTextChannelId, fixture.listedChannel.id);
+    },
+  );
+
+  testWidgets(
+    "tapping stale notification entry shows unable-to-open channel toast",
+    (tester) async {
+      final fixture = EntitySeeder().chatApiFixture();
+      final serverRepo = FakeServerRepository(fixture: fixture);
+      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
+      final channelRepo = FakeChannelRepository(fixture: fixture);
+      final messageRepo = FakeMessageRepository(fixture: fixture);
+      final profileRepo = FakeProfileRepository(
+        userId: fixture.ownerUserId,
+        initialDisplayName: "Owner",
+      );
+      final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
+      final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
+      final voiceRuntimeService = FakeVoiceRuntimeService();
+      final messageRuntimeService = FakeMessageRuntimeService();
+      final notificationRuntimeService = FakeNotificationRuntimeService();
+
+      final authenticationBloc = AuthenticationBloc(
+        profileService: _FakeAuthenticationProfileService(
+          userId: fixture.ownerUserId,
+        ),
+        sessionService: _FakeAuthenticationSessionService(),
+      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
+      final serversBloc = ServersBloc(serverRepo: serverRepo);
+      final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
+      final messagesBloc = MessagesBloc(
+        messageRepo: messageRepo,
+        profileRepo: profileRepo,
+        textSessionRepo: textSessionRepo,
+        messageRuntimeService: messageRuntimeService,
+      );
+      final profileBloc = ProfileBloc(
+          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
+      final serverMembersBloc = _RecordingServerMembersBloc(
+        serverMemberRepo: serverMemberRepo,
+        profileRepo: profileRepo,
+      );
+      final voiceSessionsBloc = VoiceSessionsBloc(
+        voiceSessionRepo: voiceSessionRepo,
+        voiceRuntimeService: voiceRuntimeService,
+        profileRepo: profileRepo,
+      );
+      final notificationCenterBloc = NotificationCenterBloc(
+        notificationRepo: _FakeNotificationRepository(),
+        notificationRuntimeService: notificationRuntimeService,
+      )..add(
+          const NotificationCenterStartedRequested(
+            backendBaseUrl: "http://localhost:3000",
+            bearerToken: "test-token",
+          ),
+        );
+
+      addTearDown(authenticationBloc.close);
+      addTearDown(serversBloc.close);
+      addTearDown(channelsBloc.close);
+      addTearDown(messagesBloc.close);
+      addTearDown(profileBloc.close);
+      addTearDown(serverMembersBloc.close);
+      addTearDown(voiceSessionsBloc.close);
+      addTearDown(notificationCenterBloc.close);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<PreferencesStore>(
+              create: (_) => InMemoryPreferencesStore(),
+            ),
+            Provider<NotificationRuntimeService>(
+              create: (_) => notificationRuntimeService,
+            ),
+            Provider<NotificationService>(
+              create: (_) => _FakeNotificationService(),
+            ),
+          ],
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
+              BlocProvider<ServersBloc>.value(value: serversBloc),
+              BlocProvider<ChannelsBloc>.value(value: channelsBloc),
+              BlocProvider<MessagesBloc>.value(value: messagesBloc),
+              BlocProvider<ProfileBloc>.value(value: profileBloc),
+              BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
+              BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
+              BlocProvider<NotificationCenterBloc>.value(
+                value: notificationCenterBloc,
+              ),
+            ],
+            child: const MaterialApp(home: HomePageWidget()),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      notificationRuntimeService.emit(
+        MentionedRuntimeNotificationEvent(
+          serverId: fixture.listedServer.id,
+          serverName: fixture.listedServer.name,
+          channelId: "missing-channel-id",
+          channelName: "missing",
+          messageId: fixture.listedMessage.id,
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      await tester.tap(find.byTooltip("Notification feed"));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.text("You were mentioned"));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text("Unable to open notification channel."), findsOneWidget);
+
+      // Flush the error toast auto-dismiss timer to avoid pending timers at test end.
+      await tester.pump(const Duration(seconds: 5));
     },
   );
 }
