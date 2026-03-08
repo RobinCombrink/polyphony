@@ -80,6 +80,9 @@ Use this repository layout and naming when creating or updating code.
 - Keep UI logic in BLoCs, not widgets. Widgets should render state only.
 - UI display text must never be part of BLoC state or BLoC logic. BLoCs expose semantic state and required data; widgets decide display text.
 - Prerequisite state checks inside BLoCs should use pattern matching (prefer switch expressions, then switch statements, and avoid null-flag branching patterns).
+- Repositories can ONLY use services and API clients; they must not use other repositories. Services and API clients must not use repositories. This ensures a clear separation between pure data access logic (repositories) and side-effecting operations (services/API clients).
+- Services should implement caching (if necessary), not repositories.
+- Repositories MUST use the Repository Mixins for ALL public methods that they implement from their abstract interface. This ensures a consistent API and allows for easy swapping of implementations without changing the public interface.
 
 ## Service and Caching Rules
 
