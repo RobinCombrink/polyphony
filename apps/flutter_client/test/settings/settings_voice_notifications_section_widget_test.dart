@@ -23,6 +23,12 @@ Widget _buildTestApp(SettingsBloc settingsBloc, ChannelsBloc channelsBloc) {
   );
 }
 
+Future<void> _pumpUi(WidgetTester tester) async {
+  // Use bounded pumping to avoid waiting forever on unrelated scheduled frames.
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 250));
+}
+
 void main() {
   group("SettingsVoiceNotificationsSectionWidget", () {
     testWidgets("disables channel selector when voice notifications are off",
@@ -34,9 +40,13 @@ void main() {
       final channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),
       )..add(LoadChannelsRequested(serverId: fixture.listedServer.id));
+      addTearDown(() async {
+        await settingsBloc.close();
+        await channelsBloc.close();
+      });
 
       await tester.pumpWidget(_buildTestApp(settingsBloc, channelsBloc));
-      await tester.pumpAndSettle();
+      await _pumpUi(tester);
 
       expect(find.text("All voice channels are allowed."), findsOneWidget);
 
@@ -44,9 +54,6 @@ void main() {
         find.widgetWithText(OutlinedButton, "Select voice channels"),
       );
       expect(selectButton.onPressed, isNull);
-
-      await settingsBloc.close();
-      await channelsBloc.close();
     });
 
     testWidgets("saves selected channel ids and updates summary",
@@ -58,30 +65,31 @@ void main() {
       final channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),
       )..add(LoadChannelsRequested(serverId: fixture.listedServer.id));
+      addTearDown(() async {
+        await settingsBloc.close();
+        await channelsBloc.close();
+      });
 
       await tester.pumpWidget(_buildTestApp(settingsBloc, channelsBloc));
-      await tester.pumpAndSettle();
+      await _pumpUi(tester);
 
       await tester.tap(find.byType(SwitchListTile));
-      await tester.pumpAndSettle();
+      await _pumpUi(tester);
 
       await tester
           .tap(find.widgetWithText(OutlinedButton, "Select voice channels"));
-      await tester.pumpAndSettle();
+      await _pumpUi(tester);
 
       await tester.tap(find.byType(CheckboxListTile).first);
-      await tester.pumpAndSettle();
+      await _pumpUi(tester);
       await tester.tap(find.widgetWithText(FilledButton, "Save"));
-      await tester.pumpAndSettle();
+      await _pumpUi(tester);
 
       expect(find.text("1 channel(s) selected."), findsOneWidget);
       expect(
         await preferencesStore.readChannelJoinNotificationChannelIds(),
         const <String>["vch-1"],
       );
-
-      await settingsBloc.close();
-      await channelsBloc.close();
     });
 
     testWidgets("use all channels clears selected channel ids", (tester) async {
@@ -96,27 +104,28 @@ void main() {
       final channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),
       )..add(LoadChannelsRequested(serverId: fixture.listedServer.id));
+      addTearDown(() async {
+        await settingsBloc.close();
+        await channelsBloc.close();
+      });
 
       await tester.pumpWidget(_buildTestApp(settingsBloc, channelsBloc));
-      await tester.pumpAndSettle();
+      await _pumpUi(tester);
 
       expect(find.text("1 channel(s) selected."), findsOneWidget);
 
       await tester
           .tap(find.widgetWithText(OutlinedButton, "Select voice channels"));
-      await tester.pumpAndSettle();
+      await _pumpUi(tester);
 
       await tester.tap(find.widgetWithText(TextButton, "Use all channels"));
-      await tester.pumpAndSettle();
+      await _pumpUi(tester);
 
       expect(find.text("All voice channels are allowed."), findsOneWidget);
       expect(
         await preferencesStore.readChannelJoinNotificationChannelIds(),
         isEmpty,
       );
-
-      await settingsBloc.close();
-      await channelsBloc.close();
     });
   });
 }
