@@ -1,10 +1,10 @@
 import "dart:async";
 import "dart:convert";
-import "dart:io";
 
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
+import "package:web_socket_channel/web_socket_channel.dart";
 
 class WebSocketNotificationRuntimeService
     implements NotificationRuntimeService {
@@ -16,7 +16,7 @@ class WebSocketNotificationRuntimeService
   final _notificationEventsController =
       StreamController<RuntimeNotificationEvent>.broadcast();
 
-  WebSocket? _socket;
+  WebSocketChannel? _socket;
   Timer? _reconnectTimer;
   String? _notificationsWebSocketUrl;
   String? _bearerToken;
@@ -51,7 +51,7 @@ class WebSocketNotificationRuntimeService
     }
 
     try {
-      await activeSocket.close();
+      await activeSocket.sink.close();
       return const Ok<void>(null);
     } on Exception catch (exception) {
       return Error<void>(
@@ -89,17 +89,20 @@ class WebSocketNotificationRuntimeService
     _isConnecting = true;
 
     try {
-      final socket = await WebSocket.connect(
-        resolvedNotificationsWebSocketUrl,
-        headers: <String, String>{
-          HttpHeaders.authorizationHeader: "Bearer $resolvedBearerToken",
-        },
+      final socketConnectionUri = _socketConnectionUri(
+        notificationsWebSocketUrl: resolvedNotificationsWebSocketUrl,
+        bearerToken: resolvedBearerToken,
       );
+
+      final socket = WebSocketChannel.connect(socketConnectionUri);
+
+      // On web this resolves when the browser websocket handshake completes.
+      await socket.ready;
 
       _socket = socket;
       _isConnected = true;
 
-      socket.listen(
+      socket.stream.listen(
         _onSocketData,
         onDone: _onSocketDone,
         onError: (_) => _onSocketDone(),
@@ -118,6 +121,20 @@ class WebSocketNotificationRuntimeService
     } finally {
       _isConnecting = false;
     }
+  }
+
+  Uri _socketConnectionUri({
+    required String notificationsWebSocketUrl,
+    required String bearerToken,
+  }) {
+    final parsedBaseUri = Uri.parse(notificationsWebSocketUrl);
+    final existingQueryParameters = Map<String, String>.from(
+      parsedBaseUri.queryParameters,
+    );
+
+    existingQueryParameters["access_token"] = bearerToken;
+
+    return parsedBaseUri.replace(queryParameters: existingQueryParameters);
   }
 
   void _onSocketData(Object? payload) {
