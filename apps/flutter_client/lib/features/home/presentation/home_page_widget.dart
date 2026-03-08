@@ -21,6 +21,7 @@ import "package:polyphony_flutter_client/shared/presentation/widgets/top_right_e
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
+import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 
 class HomePageWidget extends StatefulWidget {
   const HomePageWidget({super.key});
@@ -147,6 +148,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
             onPressed: () async {
               final currentProfileState = context.read<ProfileBloc>().state;
               final channelsBloc = context.read<ChannelsBloc>();
+              final profileService = context.read<ProfileService>();
               final notificationPreferencesBloc =
                   context.read<NotificationPreferencesBloc>();
               final currentDisplayName = switch (currentProfileState) {
@@ -156,18 +158,22 @@ class _HomePageWidgetState extends State<HomePageWidget> {
 
               await Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (settingsContext) => MultiBlocProvider(
-                    providers: <BlocProvider<dynamic>>[
-                      BlocProvider<ChannelsBloc>.value(value: channelsBloc),
-                      BlocProvider<NotificationPreferencesBloc>.value(
-                        value: notificationPreferencesBloc,
+                  builder: (settingsContext) =>
+                      RepositoryProvider<ProfileService>.value(
+                    value: profileService,
+                    child: MultiBlocProvider(
+                      providers: <BlocProvider<dynamic>>[
+                        BlocProvider<ChannelsBloc>.value(value: channelsBloc),
+                        BlocProvider<NotificationPreferencesBloc>.value(
+                          value: notificationPreferencesBloc,
+                        ),
+                      ],
+                      child: ChatBrowserSettingsPageWidget(
+                        bearerToken: bearerToken,
+                        initialDisplayName: currentDisplayName,
+                        onSaveDisplayName: (displayName) =>
+                            _requestUpdateDisplayName(context, displayName),
                       ),
-                    ],
-                    child: ChatBrowserSettingsPageWidget(
-                      bearerToken: bearerToken,
-                      initialDisplayName: currentDisplayName,
-                      onSaveDisplayName: (displayName) =>
-                          _requestUpdateDisplayName(context, displayName),
                     ),
                   ),
                 ),

@@ -2,11 +2,13 @@ import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/identity/presentation/widgets/settings_display_name_section_widget.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
+import "package:polyphony_flutter_client/features/settings/bloc/settings_developer_profile_bloc.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_appearance_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_developer_options_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_keybindings_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_notification_preferences_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_voice_notifications_section_widget.dart";
+import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 
 class ChatBrowserSettingsPageWidget extends StatefulWidget {
   const ChatBrowserSettingsPageWidget({
@@ -81,9 +83,15 @@ class _ChatBrowserSettingsPageWidgetState
               child: SettingsVoiceNotificationsSectionWidget()),
           const SizedBox(height: 16),
           _SettingsSectionWidget(
+            child: BlocProvider<SettingsDeveloperProfileBloc>(
+              create: (context) => SettingsDeveloperProfileBloc(
+                profileService: context.read<ProfileService>(),
+              ),
               child: SettingsDeveloperOptionsSectionWidget(
-            bearerToken: widget.bearerToken,
-          )),
+                bearerToken: widget.bearerToken,
+              ),
+            ),
+          ),
         ],
       ),
     );
