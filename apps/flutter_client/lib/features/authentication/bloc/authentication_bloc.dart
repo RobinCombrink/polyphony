@@ -24,11 +24,17 @@ class AuthenticationBloc
 
   final AuthenticationProfileService _profileService;
   final AuthenticationSessionService _sessionService;
+  var _hasRestoredSession = false;
 
   Future<void> _onAuthenticationSessionRestoreRequested(
     AuthenticationSessionRestoreRequested event,
     Emitter<AuthenticationState> emit,
   ) async {
+    if (_hasRestoredSession) {
+      return;
+    }
+
+    _hasRestoredSession = true;
     emit(const AuthenticationAuthenticatingState());
 
     final restoreResult = await _sessionService.restoreAccessToken();

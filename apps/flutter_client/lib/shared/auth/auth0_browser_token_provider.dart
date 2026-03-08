@@ -77,6 +77,8 @@ final class Auth0WebTokenProvider implements AccessTokenProvider {
   final String? _audience;
   final Set<String> _scopes;
   final String _redirectUrl;
+  var _redirectInFlight = false;
+  var _requireConsentPrompt = false;
 
   @override
   Future<Result<String?>> getPersistedAccessToken() async {
@@ -87,31 +89,50 @@ final class Auth0WebTokenProvider implements AccessTokenProvider {
         useRefreshTokens: false,
       );
 
+      _redirectInFlight = false;
+      _requireConsentPrompt = false;
+
       if (credentials == null) {
         return const Ok<String?>(null);
       }
 
       return _tokenResultOrNull(credentials.accessToken);
     } on Exception catch (error) {
+      final errorText = error.toString().toLowerCase();
+      if (_isConsentOrInteractionRequired(errorText)) {
+        _requireConsentPrompt = errorText.contains("consent_required");
+        return const Ok<String?>(null);
+      }
+
       return Error<String?>(error);
     }
   }
 
   @override
   Future<Result<String>> getAccessToken({String? loginHint}) async {
+    if (_redirectInFlight) {
+      return Error<String>(Exception("Redirecting to Auth0 for sign in."));
+    }
+
     try {
       final normalizedLoginHint = _normalizedLoginHint(loginHint);
+      _redirectInFlight = true;
+
+      final parameters = <String, String>{
+        if (normalizedLoginHint != null) "login_hint": normalizedLoginHint,
+        if (_requireConsentPrompt) "prompt": "consent",
+      };
+
       await _auth0Web.loginWithRedirect(
         audience: _audience,
         scopes: _scopes,
         redirectUrl: _redirectUrl,
-        parameters: <String, String>{
-          if (normalizedLoginHint != null) "login_hint": normalizedLoginHint,
-        },
+        parameters: parameters,
       );
 
       return Error<String>(Exception("Redirecting to Auth0 for sign in."));
     } on Exception catch (error) {
+      _redirectInFlight = false;
       return Error<String>(error);
     }
   }
@@ -119,11 +140,19 @@ final class Auth0WebTokenProvider implements AccessTokenProvider {
   @override
   Future<Result<void>> clearPersistedSession() async {
     try {
+      _redirectInFlight = false;
+      _requireConsentPrompt = false;
       await _auth0Web.logout(returnToUrl: _redirectUrl);
       return const Ok<void>(null);
     } on Exception catch (error) {
       return Error<void>(error);
     }
+  }
+
+  bool _isConsentOrInteractionRequired(String errorText) {
+    return errorText.contains("consent_required") ||
+        errorText.contains("login_required") ||
+        errorText.contains("interaction_required");
   }
 }
 
