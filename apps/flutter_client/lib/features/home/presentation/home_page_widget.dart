@@ -8,6 +8,7 @@ import "package:polyphony_flutter_client/features/home/presentation/widgets/home
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/identity/presentation/widgets/display_name_banner_widget.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_feed_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
@@ -51,10 +52,14 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     _notificationRuntimeService = context.read<NotificationRuntimeService>();
 
     _notificationSubscription =
-        _notificationRuntimeService.notificationEvents().listen((_) {
+        _notificationRuntimeService.notificationEvents().listen((event) {
       if (!mounted) {
         return;
       }
+
+      context.read<NotificationFeedBloc>().add(
+            NotificationFeedRuntimeEventReceived(event: event),
+          );
 
       _refreshUnreadCount(context);
     });
@@ -187,6 +192,14 @@ class _HomePageWidgetState extends State<HomePageWidget> {
               return _UnreadNotificationCountIconButton(
                 totalUnreadCount: notificationState.totalUnreadCountOrZero(),
                 onPressed: () => _refreshUnreadCount(context),
+              );
+            },
+          ),
+          BlocBuilder<NotificationFeedBloc, NotificationFeedState>(
+            builder: (context, notificationFeedState) {
+              return _NotificationFeedIconButton(
+                feedEntryCount: notificationFeedState.entries.length,
+                onPressed: () => _showNotificationFeedSheet(context),
               );
             },
           ),
@@ -492,6 +505,95 @@ class _HomePageWidgetState extends State<HomePageWidget> {
 
     _requestUpdateDisplayName(context, result);
   }
+
+  Future<void> _showNotificationFeedSheet(BuildContext context) async {
+    final notificationFeedBloc = context.read<NotificationFeedBloc>();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return BlocProvider<NotificationFeedBloc>.value(
+          value: notificationFeedBloc,
+          child: SafeArea(
+            child: BlocBuilder<NotificationFeedBloc, NotificationFeedState>(
+              builder: (context, state) {
+                final entries = state.entries;
+
+                if (entries.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: Text("No recent notifications."),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: <Widget>[
+                          const Text(
+                            "Recent notifications",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () => context
+                                .read<NotificationFeedBloc>()
+                                .add(const NotificationFeedClearedRequested()),
+                            child: const Text("Clear"),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: entries.length,
+                        itemBuilder: (context, index) {
+                          final entry = entries[index];
+
+                          return ListTile(
+                            title: Text(_notificationEntryTitle(entry)),
+                            subtitle: Text(
+                              "Channel ${entry.event.channelId}",
+                            ),
+                            trailing: Text(_notificationEntryTime(entry)),
+                            dense: true,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _notificationEntryTitle(NotificationFeedEntry entry) {
+    return switch (entry.event.eventType) {
+      RuntimeNotificationEventType.unreadMessage => "New unread message",
+      RuntimeNotificationEventType.mentioned => "You were mentioned",
+    };
+  }
+
+  String _notificationEntryTime(NotificationFeedEntry entry) {
+    final localTime = entry.receivedAt.toLocal();
+    final hour = localTime.hour.toString().padLeft(2, "0");
+    final minute = localTime.minute.toString().padLeft(2, "0");
+
+    return "$hour:$minute";
+  }
 }
 
 class _UnreadNotificationCountIconButton extends StatelessWidget {
@@ -536,6 +638,59 @@ class _UnreadNotificationCountIconButton extends StatelessWidget {
                 semanticCount > 99 ? "99+" : "$semanticCount",
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onError,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _NotificationFeedIconButton extends StatelessWidget {
+  const _NotificationFeedIconButton({
+    required this.feedEntryCount,
+    required this.onPressed,
+  });
+
+  final int feedEntryCount;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final semanticCount = switch (feedEntryCount) {
+      < 0 => 0,
+      > 99 => 99,
+      _ => feedEntryCount,
+    };
+
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: <Widget>[
+        IconButton(
+          onPressed: onPressed,
+          tooltip: "Notification feed",
+          icon: const Icon(Icons.notifications),
+        ),
+        if (feedEntryCount > 0)
+          Positioned(
+            top: 8,
+            right: 6,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                semanticCount > 99 ? "99+" : "$semanticCount",
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),

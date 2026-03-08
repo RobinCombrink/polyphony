@@ -9,6 +9,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_feed_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
@@ -331,6 +332,9 @@ final class _AuthenticatedShell extends StatelessWidget {
             create: (context) => NotificationUnreadCountBloc(
               notificationRepo: context.read<NotificationRepo>(),
             )..add(const LoadNotificationUnreadCountRequested()),
+          ),
+          BlocProvider<NotificationFeedBloc>(
+            create: (_) => NotificationFeedBloc(),
           ),
           BlocProvider<NotificationPreferencesBloc>(
             create: (context) => NotificationPreferencesBloc(

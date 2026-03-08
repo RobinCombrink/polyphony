@@ -7,6 +7,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_feed_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
@@ -144,6 +145,7 @@ void main() {
       final notificationUnreadCountBloc = NotificationUnreadCountBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 3),
       )..add(const LoadNotificationUnreadCountRequested());
+      final notificationFeedBloc = NotificationFeedBloc();
 
       addTearDown(authenticationBloc.close);
       addTearDown(serversBloc.close);
@@ -153,6 +155,7 @@ void main() {
       addTearDown(serverMembersBloc.close);
       addTearDown(voiceSessionsBloc.close);
       addTearDown(notificationUnreadCountBloc.close);
+      addTearDown(notificationFeedBloc.close);
 
       await tester.pumpWidget(
         MultiProvider(
@@ -175,6 +178,9 @@ void main() {
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
               BlocProvider<NotificationUnreadCountBloc>.value(
                 value: notificationUnreadCountBloc,
+              ),
+              BlocProvider<NotificationFeedBloc>.value(
+                value: notificationFeedBloc,
               ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
@@ -250,6 +256,7 @@ void main() {
       final notificationUnreadCountBloc = NotificationUnreadCountBloc(
         notificationRepo: _FakeNotificationRepository(),
       )..add(const LoadNotificationUnreadCountRequested());
+      final notificationFeedBloc = NotificationFeedBloc();
 
       addTearDown(authenticationBloc.close);
       addTearDown(serversBloc.close);
@@ -259,6 +266,7 @@ void main() {
       addTearDown(serverMembersBloc.close);
       addTearDown(voiceSessionsBloc.close);
       addTearDown(notificationUnreadCountBloc.close);
+      addTearDown(notificationFeedBloc.close);
 
       await tester.pumpWidget(
         MultiProvider(
@@ -281,6 +289,9 @@ void main() {
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
               BlocProvider<NotificationUnreadCountBloc>.value(
                 value: notificationUnreadCountBloc,
+              ),
+              BlocProvider<NotificationFeedBloc>.value(
+                value: notificationFeedBloc,
               ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
@@ -341,6 +352,7 @@ void main() {
       final notificationUnreadCountBloc = NotificationUnreadCountBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 7),
       )..add(const LoadNotificationUnreadCountRequested());
+      final notificationFeedBloc = NotificationFeedBloc();
 
       addTearDown(authenticationBloc.close);
       addTearDown(serversBloc.close);
@@ -350,6 +362,7 @@ void main() {
       addTearDown(serverMembersBloc.close);
       addTearDown(voiceSessionsBloc.close);
       addTearDown(notificationUnreadCountBloc.close);
+      addTearDown(notificationFeedBloc.close);
 
       await tester.pumpWidget(
         MultiProvider(
@@ -372,6 +385,9 @@ void main() {
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
               BlocProvider<NotificationUnreadCountBloc>.value(
                 value: notificationUnreadCountBloc,
+              ),
+              BlocProvider<NotificationFeedBloc>.value(
+                value: notificationFeedBloc,
               ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
