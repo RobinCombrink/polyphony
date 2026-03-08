@@ -38,6 +38,7 @@ import "package:polyphony_flutter_client/shared/services/channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_service.dart";
+import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
@@ -334,6 +335,8 @@ final class _AuthenticatedShell extends StatelessWidget {
               notificationRepo: context.read<NotificationRepo>(),
               notificationRuntimeService:
                   context.read<NotificationRuntimeService>(),
+              notificationBadgeService:
+                  context.read<NotificationBadgeService>(),
               preferencesStore: context.read<PreferencesStore>(),
             )..add(
                 NotificationCenterStartedRequested(

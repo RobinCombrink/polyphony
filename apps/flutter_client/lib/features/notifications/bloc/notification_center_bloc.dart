@@ -4,6 +4,7 @@ import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
@@ -15,9 +16,12 @@ class NotificationCenterBloc
   NotificationCenterBloc({
     required NotificationRepo notificationRepo,
     required NotificationRuntimeService notificationRuntimeService,
+    NotificationBadgeService? notificationBadgeService,
     PreferencesStore? preferencesStore,
   })  : _notificationRepo = notificationRepo,
         _notificationRuntimeService = notificationRuntimeService,
+        _notificationBadgeService =
+            notificationBadgeService ?? const NoOpNotificationBadgeService(),
         _preferencesStore = preferencesStore ?? const WebPreferencesStore(),
         super(const NotificationCenterInitialState()) {
     on<NotificationCenterEvent>(
@@ -30,6 +34,7 @@ class NotificationCenterBloc
 
   final NotificationRepo _notificationRepo;
   final NotificationRuntimeService _notificationRuntimeService;
+  final NotificationBadgeService _notificationBadgeService;
   final PreferencesStore _preferencesStore;
   StreamSubscription<RuntimeNotificationEvent>? _runtimeSubscription;
 
@@ -156,6 +161,9 @@ class NotificationCenterBloc
 
     switch (unreadCountResult) {
       case Ok<int>(:final value):
+        await _notificationBadgeService.syncUnreadCount(
+          totalUnreadCount: value,
+        );
         emit(
           NotificationCenterLoadedState(
             entries: entries,

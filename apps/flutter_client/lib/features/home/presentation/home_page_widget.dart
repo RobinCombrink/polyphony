@@ -9,6 +9,7 @@ import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dar
 import "package:polyphony_flutter_client/features/identity/presentation/widgets/display_name_banner_widget.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/servers_pane_widget.dart";
@@ -145,6 +146,9 @@ class _HomePageWidgetState extends State<HomePageWidget> {
           IconButton(
             onPressed: () async {
               final currentProfileState = context.read<ProfileBloc>().state;
+              final channelsBloc = context.read<ChannelsBloc>();
+              final notificationPreferencesBloc =
+                  context.read<NotificationPreferencesBloc>();
               final currentDisplayName = switch (currentProfileState) {
                 ProfileLoadedDataState(:final displayName) => displayName,
                 _ => null,
@@ -152,11 +156,19 @@ class _HomePageWidgetState extends State<HomePageWidget> {
 
               await Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (settingsContext) => ChatBrowserSettingsPageWidget(
-                    bearerToken: bearerToken,
-                    initialDisplayName: currentDisplayName,
-                    onSaveDisplayName: (displayName) =>
-                        _requestUpdateDisplayName(context, displayName),
+                  builder: (settingsContext) => MultiBlocProvider(
+                    providers: <BlocProvider<dynamic>>[
+                      BlocProvider<ChannelsBloc>.value(value: channelsBloc),
+                      BlocProvider<NotificationPreferencesBloc>.value(
+                        value: notificationPreferencesBloc,
+                      ),
+                    ],
+                    child: ChatBrowserSettingsPageWidget(
+                      bearerToken: bearerToken,
+                      initialDisplayName: currentDisplayName,
+                      onSaveDisplayName: (displayName) =>
+                          _requestUpdateDisplayName(context, displayName),
+                    ),
                   ),
                 ),
               );

@@ -17,6 +17,7 @@ import "package:polyphony_flutter_client/shared/auth/authentication_session_serv
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
@@ -231,6 +232,8 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 3),
         notificationRuntimeService: notificationRuntimeService,
+        notificationBadgeService: const NoOpNotificationBadgeService(),
+        preferencesStore: InMemoryPreferencesStore(),
       )..add(
           const NotificationCenterStartedRequested(
             backendBaseUrl: "http://localhost:3000",
@@ -344,6 +347,8 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(),
         notificationRuntimeService: notificationRuntimeService,
+        notificationBadgeService: const NoOpNotificationBadgeService(),
+        preferencesStore: InMemoryPreferencesStore(),
       )..add(
           const NotificationCenterStartedRequested(
             backendBaseUrl: "http://localhost:3000",
@@ -442,6 +447,8 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 7),
         notificationRuntimeService: notificationRuntimeService,
+        notificationBadgeService: const NoOpNotificationBadgeService(),
+        preferencesStore: InMemoryPreferencesStore(),
       )..add(
           const NotificationCenterStartedRequested(
             backendBaseUrl: "http://localhost:3000",
@@ -538,6 +545,8 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(),
         notificationRuntimeService: notificationRuntimeService,
+        notificationBadgeService: const NoOpNotificationBadgeService(),
+        preferencesStore: InMemoryPreferencesStore(),
       )..add(
           const NotificationCenterStartedRequested(
             backendBaseUrl: "http://localhost:3000",
@@ -668,6 +677,8 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(),
         notificationRuntimeService: notificationRuntimeService,
+        notificationBadgeService: const NoOpNotificationBadgeService(),
+        preferencesStore: InMemoryPreferencesStore(),
       )..add(
           const NotificationCenterStartedRequested(
             backendBaseUrl: "http://localhost:3000",
