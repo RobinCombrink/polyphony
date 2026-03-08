@@ -16,6 +16,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<SettingsChannelJoinNotificationsToggledRequested>(
       _onSettingsChannelJoinNotificationsToggledRequested,
     );
+    on<SettingsChannelJoinNotificationChannelsSetRequested>(
+      _onSettingsChannelJoinNotificationChannelsSetRequested,
+    );
   }
 
   final PreferencesStore _preferencesStore;
@@ -36,15 +39,25 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         isChannelJoinNotificationsEnabled,
       _ => false,
     };
+    final previousChannelJoinNotificationChannelIds = switch (state) {
+      SettingsLoadedState(:final channelJoinNotificationChannelIds) =>
+        channelJoinNotificationChannelIds,
+      SettingsExceptionState(:final channelJoinNotificationChannelIds) =>
+        channelJoinNotificationChannelIds,
+      _ => const <String>[],
+    };
 
     try {
       final isDarkModeEnabled = await _preferencesStore.readDarkModeEnabled();
       final isChannelJoinNotificationsEnabled =
           await _preferencesStore.readChannelJoinNotificationsEnabled();
+      final channelJoinNotificationChannelIds =
+          await _preferencesStore.readChannelJoinNotificationChannelIds();
       emit(
         SettingsLoadedState(
           isDarkModeEnabled: isDarkModeEnabled,
           isChannelJoinNotificationsEnabled: isChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds: channelJoinNotificationChannelIds,
         ),
       );
     } on Exception catch (error) {
@@ -54,6 +67,8 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           isDarkModeEnabled: previousDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               previousChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds:
+              previousChannelJoinNotificationChannelIds,
         ),
       );
     }
@@ -71,12 +86,21 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         isChannelJoinNotificationsEnabled,
       _ => false,
     };
+    final currentChannelJoinNotificationChannelIds = switch (state) {
+      SettingsLoadedState(:final channelJoinNotificationChannelIds) =>
+        channelJoinNotificationChannelIds,
+      SettingsExceptionState(:final channelJoinNotificationChannelIds) =>
+        channelJoinNotificationChannelIds,
+      _ => const <String>[],
+    };
 
     emit(
       SettingsLoadedState(
         isDarkModeEnabled: nextDarkModeEnabled,
         isChannelJoinNotificationsEnabled:
             currentChannelJoinNotificationsEnabled,
+        channelJoinNotificationChannelIds:
+            currentChannelJoinNotificationChannelIds,
       ),
     );
 
@@ -89,6 +113,8 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           isDarkModeEnabled: nextDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               currentChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds:
+              currentChannelJoinNotificationChannelIds,
         ),
       );
     }
@@ -104,11 +130,20 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       SettingsExceptionState(:final isDarkModeEnabled) => isDarkModeEnabled,
       _ => false,
     };
+    final currentChannelJoinNotificationChannelIds = switch (state) {
+      SettingsLoadedState(:final channelJoinNotificationChannelIds) =>
+        channelJoinNotificationChannelIds,
+      SettingsExceptionState(:final channelJoinNotificationChannelIds) =>
+        channelJoinNotificationChannelIds,
+      _ => const <String>[],
+    };
 
     emit(
       SettingsLoadedState(
         isDarkModeEnabled: currentDarkModeEnabled,
         isChannelJoinNotificationsEnabled: nextChannelJoinNotificationsEnabled,
+        channelJoinNotificationChannelIds:
+            currentChannelJoinNotificationChannelIds,
       ),
     );
 
@@ -123,6 +158,57 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           isDarkModeEnabled: currentDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               nextChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds:
+              currentChannelJoinNotificationChannelIds,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onSettingsChannelJoinNotificationChannelsSetRequested(
+    SettingsChannelJoinNotificationChannelsSetRequested event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final nextChannelIds = event.channelIds
+        .map((channelId) => channelId.trim())
+        .where((channelId) => channelId.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    final currentDarkModeEnabled = switch (state) {
+      SettingsLoadedState(:final isDarkModeEnabled) => isDarkModeEnabled,
+      SettingsExceptionState(:final isDarkModeEnabled) => isDarkModeEnabled,
+      _ => false,
+    };
+    final currentChannelJoinNotificationsEnabled = switch (state) {
+      SettingsLoadedState(:final isChannelJoinNotificationsEnabled) =>
+        isChannelJoinNotificationsEnabled,
+      SettingsExceptionState(:final isChannelJoinNotificationsEnabled) =>
+        isChannelJoinNotificationsEnabled,
+      _ => false,
+    };
+
+    emit(
+      SettingsLoadedState(
+        isDarkModeEnabled: currentDarkModeEnabled,
+        isChannelJoinNotificationsEnabled:
+            currentChannelJoinNotificationsEnabled,
+        channelJoinNotificationChannelIds: nextChannelIds,
+      ),
+    );
+
+    try {
+      await _preferencesStore.writeChannelJoinNotificationChannelIds(
+        nextChannelIds,
+      );
+    } on Exception catch (error) {
+      emit(
+        SettingsExceptionState(
+          error: error,
+          isDarkModeEnabled: currentDarkModeEnabled,
+          isChannelJoinNotificationsEnabled:
+              currentChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds: nextChannelIds,
         ),
       );
     }

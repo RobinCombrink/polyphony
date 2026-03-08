@@ -8,6 +8,7 @@ final class _TestPreferencesStore implements PreferencesStore {
 
   var darkModeEnabled = false;
   var channelJoinNotificationsEnabled = false;
+  var channelJoinNotificationChannelIds = const <String>[];
 
   @override
   Future<bool> readDarkModeEnabled() async {
@@ -27,6 +28,18 @@ final class _TestPreferencesStore implements PreferencesStore {
   @override
   Future<void> writeChannelJoinNotificationsEnabled(bool enabled) async {
     channelJoinNotificationsEnabled = enabled;
+  }
+
+  @override
+  Future<List<String>> readChannelJoinNotificationChannelIds() async {
+    return channelJoinNotificationChannelIds;
+  }
+
+  @override
+  Future<void> writeChannelJoinNotificationChannelIds(
+    List<String> channelIds,
+  ) async {
+    channelJoinNotificationChannelIds = channelIds;
   }
 
   @override
@@ -91,6 +104,11 @@ void main() {
               (state) => state.isChannelJoinNotificationsEnabled,
               "isChannelJoinNotificationsEnabled",
               isFalse,
+            )
+            .having(
+              (state) => state.channelJoinNotificationChannelIds,
+              "channelJoinNotificationChannelIds",
+              isEmpty,
             ),
       ],
     );
@@ -102,11 +120,17 @@ void main() {
       },
       act: (bloc) => bloc.add(const SettingsPreferencesRestoreRequested()),
       expect: () => <Matcher>[
-        isA<SettingsLoadedState>().having(
-          (state) => state.isChannelJoinNotificationsEnabled,
-          "isChannelJoinNotificationsEnabled",
-          isFalse,
-        ),
+        isA<SettingsLoadedState>()
+            .having(
+              (state) => state.isChannelJoinNotificationsEnabled,
+              "isChannelJoinNotificationsEnabled",
+              isFalse,
+            )
+            .having(
+              (state) => state.channelJoinNotificationChannelIds,
+              "channelJoinNotificationChannelIds",
+              isEmpty,
+            ),
       ],
     );
 
@@ -129,6 +153,11 @@ void main() {
               (state) => state.isChannelJoinNotificationsEnabled,
               "isChannelJoinNotificationsEnabled",
               isFalse,
+            )
+            .having(
+              (state) => state.channelJoinNotificationChannelIds,
+              "channelJoinNotificationChannelIds",
+              isEmpty,
             ),
       ],
       verify: (_) {
@@ -145,14 +174,45 @@ void main() {
         const SettingsChannelJoinNotificationsToggledRequested(enabled: true),
       ),
       expect: () => <Matcher>[
-        isA<SettingsLoadedState>().having(
-          (state) => state.isChannelJoinNotificationsEnabled,
-          "isChannelJoinNotificationsEnabled",
-          isTrue,
-        ),
+        isA<SettingsLoadedState>()
+            .having(
+              (state) => state.isChannelJoinNotificationsEnabled,
+              "isChannelJoinNotificationsEnabled",
+              isTrue,
+            )
+            .having(
+              (state) => state.channelJoinNotificationChannelIds,
+              "channelJoinNotificationChannelIds",
+              isEmpty,
+            ),
       ],
       verify: (_) {
         expect(preferencesStore.channelJoinNotificationsEnabled, isTrue);
+      },
+    );
+
+    blocTest<SettingsBloc, SettingsState>(
+      "emits loaded state and persists selected channel join notification channels",
+      build: () {
+        return SettingsBloc(preferencesStore: preferencesStore);
+      },
+      act: (bloc) => bloc.add(
+        const SettingsChannelJoinNotificationChannelsSetRequested(
+          channelIds: <String>["voice-1", "voice-2", "voice-1"],
+        ),
+      ),
+      expect: () => <Matcher>[
+        isA<SettingsLoadedState>().having(
+          (state) => state.channelJoinNotificationChannelIds,
+          "channelJoinNotificationChannelIds",
+          const <String>["voice-1", "voice-2"],
+        ),
+      ],
+      verify: (_) {
+        expect(
+          preferencesStore.channelJoinNotificationChannelIds,
+          const <String>["voice-1", "voice-2"],
+        );
       },
     );
   });

@@ -110,10 +110,18 @@ class NotificationCenterBloc
     _NotificationCenterRuntimeEventReceived event,
     Emitter<NotificationCenterState> emit,
   ) async {
-    if (event.event is FriendJoinedVoiceRuntimeNotificationEvent) {
+    if (event.event
+        case final FriendJoinedVoiceRuntimeNotificationEvent voiceEvent) {
       final isEnabled =
           await _preferencesStore.readChannelJoinNotificationsEnabled();
       if (!isEnabled) {
+        return;
+      }
+
+      final allowedChannelIds =
+          await _preferencesStore.readChannelJoinNotificationChannelIds();
+      if (allowedChannelIds.isNotEmpty &&
+          !allowedChannelIds.contains(voiceEvent.channelId)) {
         return;
       }
     }

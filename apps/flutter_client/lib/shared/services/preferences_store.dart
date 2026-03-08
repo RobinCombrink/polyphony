@@ -93,6 +93,8 @@ abstract interface class PreferencesStore {
   Future<void> writeDarkModeEnabled(bool enabled);
   Future<bool> readChannelJoinNotificationsEnabled();
   Future<void> writeChannelJoinNotificationsEnabled(bool enabled);
+  Future<List<String>> readChannelJoinNotificationChannelIds();
+  Future<void> writeChannelJoinNotificationChannelIds(List<String> channelIds);
   Future<bool> readRememberEmailEnabled();
   Future<void> writeRememberEmailEnabled(bool enabled);
   Future<String?> readRememberedEmailAddress();
@@ -107,12 +109,15 @@ final class SharedPreferencesBackedPreferencesStore
   static const _darkModeEnabledKey = "settings.dark_mode_enabled";
   static const _channelJoinNotificationsEnabledKey =
       "settings.channel_join_notifications_enabled";
+  static const _channelJoinNotificationChannelIdsKey =
+      "settings.channel_join_notification_channel_ids";
   static const _rememberEmailKey = "auth.remember_email";
   static const _rememberedEmailAddressKey = "auth.remembered_email_address";
   static const _keybindingsKey = "settings.keybindings";
   static const _allowList = <String>{
     _darkModeEnabledKey,
     _channelJoinNotificationsEnabledKey,
+    _channelJoinNotificationChannelIdsKey,
     _rememberEmailKey,
     _rememberedEmailAddressKey,
     _keybindingsKey,
@@ -151,6 +156,41 @@ final class SharedPreferencesBackedPreferencesStore
     final sharedPreferences = await _sharedPreferencesWithCacheFuture;
     await sharedPreferences.setBool(
         _channelJoinNotificationsEnabledKey, enabled);
+  }
+
+  @override
+  Future<List<String>> readChannelJoinNotificationChannelIds() async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    final storedChannelIds =
+        sharedPreferences.getStringList(_channelJoinNotificationChannelIdsKey);
+
+    if (storedChannelIds == null) {
+      return const <String>[];
+    }
+
+    final normalizedChannelIds = storedChannelIds
+        .map((channelId) => channelId.trim())
+        .where((channelId) => channelId.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    return normalizedChannelIds;
+  }
+
+  @override
+  Future<void> writeChannelJoinNotificationChannelIds(
+    List<String> channelIds,
+  ) async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    final normalizedChannelIds = channelIds
+        .map((channelId) => channelId.trim())
+        .where((channelId) => channelId.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    await sharedPreferences.setStringList(
+      _channelJoinNotificationChannelIdsKey,
+      normalizedChannelIds,
+    );
   }
 
   @override
@@ -224,6 +264,7 @@ final class SharedPreferencesBackedPreferencesStore
 final class InMemoryPreferencesStore implements PreferencesStore {
   var _darkModeEnabled = false;
   var _channelJoinNotificationsEnabled = false;
+  var _channelJoinNotificationChannelIds = const <String>[];
   var _rememberEmailEnabled = false;
   String? _rememberedEmailAddress;
   var _keybindingsPreferences = const KeybindingsPreferences.unset();
@@ -246,6 +287,22 @@ final class InMemoryPreferencesStore implements PreferencesStore {
   @override
   Future<void> writeChannelJoinNotificationsEnabled(bool enabled) async {
     _channelJoinNotificationsEnabled = enabled;
+  }
+
+  @override
+  Future<List<String>> readChannelJoinNotificationChannelIds() async {
+    return _channelJoinNotificationChannelIds;
+  }
+
+  @override
+  Future<void> writeChannelJoinNotificationChannelIds(
+    List<String> channelIds,
+  ) async {
+    _channelJoinNotificationChannelIds = channelIds
+        .map((channelId) => channelId.trim())
+        .where((channelId) => channelId.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
   }
 
   @override
@@ -306,6 +363,18 @@ final class WebPreferencesStore implements PreferencesStore {
 
   @override
   Future<void> writeChannelJoinNotificationsEnabled(bool enabled) async {
+    return;
+  }
+
+  @override
+  Future<List<String>> readChannelJoinNotificationChannelIds() async {
+    return const <String>[];
+  }
+
+  @override
+  Future<void> writeChannelJoinNotificationChannelIds(
+    List<String> channelIds,
+  ) async {
     return;
   }
 

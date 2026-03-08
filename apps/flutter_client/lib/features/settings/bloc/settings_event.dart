@@ -22,3 +22,12 @@ final class SettingsChannelJoinNotificationsToggledRequested
 
   final bool enabled;
 }
+
+final class SettingsChannelJoinNotificationChannelsSetRequested
+    extends SettingsEvent {
+  const SettingsChannelJoinNotificationChannelsSetRequested({
+    required this.channelIds,
+  });
+
+  final List<String> channelIds;
+}

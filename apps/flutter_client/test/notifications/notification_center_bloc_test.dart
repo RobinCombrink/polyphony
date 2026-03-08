@@ -186,4 +186,100 @@ void main() {
       ),
     ],
   );
+
+  blocTest<NotificationCenterBloc, NotificationCenterState>(
+    "ignores friend joined voice notifications when channel is not in selected allow-list",
+    build: () {
+      return NotificationCenterBloc(
+        notificationRepo: _FakeNotificationRepository(totalUnreadCount: 2),
+        notificationRuntimeService: runtimeService,
+        preferencesStore: preferencesStore,
+      );
+    },
+    act: (bloc) async {
+      await preferencesStore.writeChannelJoinNotificationsEnabled(true);
+      await preferencesStore.writeChannelJoinNotificationChannelIds(
+        const <String>["voice-allowed"],
+      );
+
+      bloc.add(
+        const NotificationCenterStartedRequested(
+          backendBaseUrl: "http://localhost:3000",
+          bearerToken: "token",
+        ),
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+
+      runtimeService.emit(
+        const FriendJoinedVoiceRuntimeNotificationEvent(
+          serverId: "server-1",
+          serverName: "Server",
+          channelId: "voice-2",
+          channelName: "Elsewhere",
+          joinedUserId: "user-2",
+          joinedUserDisplayName: "Olivia",
+        ),
+      );
+    },
+    wait: const Duration(milliseconds: 20),
+    expect: () => <Matcher>[
+      isA<NotificationCenterLoadedState>().having(
+        (state) => state.entries.length,
+        "entries length",
+        0,
+      ),
+    ],
+  );
+
+  blocTest<NotificationCenterBloc, NotificationCenterState>(
+    "adds friend joined voice notifications when channel is in selected allow-list",
+    build: () {
+      return NotificationCenterBloc(
+        notificationRepo: _FakeNotificationRepository(totalUnreadCount: 2),
+        notificationRuntimeService: runtimeService,
+        preferencesStore: preferencesStore,
+      );
+    },
+    act: (bloc) async {
+      await preferencesStore.writeChannelJoinNotificationsEnabled(true);
+      await preferencesStore.writeChannelJoinNotificationChannelIds(
+        const <String>["voice-allowed"],
+      );
+
+      bloc.add(
+        const NotificationCenterStartedRequested(
+          backendBaseUrl: "http://localhost:3000",
+          bearerToken: "token",
+        ),
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+
+      runtimeService.emit(
+        const FriendJoinedVoiceRuntimeNotificationEvent(
+          serverId: "server-1",
+          serverName: "Server",
+          channelId: "voice-allowed",
+          channelName: "Lobby",
+          joinedUserId: "user-2",
+          joinedUserDisplayName: "Olivia",
+        ),
+      );
+    },
+    wait: const Duration(milliseconds: 20),
+    expect: () => <Matcher>[
+      isA<NotificationCenterLoadedState>(),
+      isA<NotificationCenterLoadedState>().having(
+        (state) => state.entries.length,
+        "entries length",
+        1,
+      ),
+      isA<NotificationCenterLoadedState>().having(
+        (state) => state.entries.length,
+        "entries length",
+        1,
+      ),
+    ],
+  );
 }
