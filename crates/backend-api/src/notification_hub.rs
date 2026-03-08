@@ -1,15 +1,84 @@
-use backend_domain::{ChannelId, MessageId, NotificationEventType, ServerId, UserId};
+use backend_domain::{ChannelId, MessageId, ServerId, UserId};
 use serde::Serialize;
 use tokio::sync::broadcast;
 
 #[derive(Clone, Debug, Serialize)]
-pub struct NotificationEvent {
-    pub event_type: NotificationEventType,
-    pub server_id: ServerId,
-    pub server_name: String,
-    pub channel_id: ChannelId,
-    pub channel_name: String,
-    pub message_id: MessageId,
+#[serde(tag = "event_type", rename_all = "snake_case")]
+pub enum NotificationEvent {
+    UnreadMessage {
+        server_id: ServerId,
+        server_name: String,
+        channel_id: ChannelId,
+        channel_name: String,
+        message_id: MessageId,
+    },
+    Mentioned {
+        server_id: ServerId,
+        server_name: String,
+        channel_id: ChannelId,
+        channel_name: String,
+        message_id: MessageId,
+    },
+    FriendJoinedVoice {
+        server_id: ServerId,
+        server_name: String,
+        channel_id: ChannelId,
+        channel_name: String,
+        joined_user_id: UserId,
+        joined_user_display_name: String,
+    },
+}
+
+impl NotificationEvent {
+    pub fn unread_message(
+        server_id: ServerId,
+        server_name: String,
+        channel_id: ChannelId,
+        channel_name: String,
+        message_id: MessageId,
+    ) -> Self {
+        Self::UnreadMessage {
+            server_id,
+            server_name,
+            channel_id,
+            channel_name,
+            message_id,
+        }
+    }
+
+    pub fn mentioned(
+        server_id: ServerId,
+        server_name: String,
+        channel_id: ChannelId,
+        channel_name: String,
+        message_id: MessageId,
+    ) -> Self {
+        Self::Mentioned {
+            server_id,
+            server_name,
+            channel_id,
+            channel_name,
+            message_id,
+        }
+    }
+
+    pub fn friend_joined_voice(
+        server_id: ServerId,
+        server_name: String,
+        channel_id: ChannelId,
+        channel_name: String,
+        joined_user_id: UserId,
+        joined_user_display_name: String,
+    ) -> Self {
+        Self::FriendJoinedVoice {
+            server_id,
+            server_name,
+            channel_id,
+            channel_name,
+            joined_user_id,
+            joined_user_display_name,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

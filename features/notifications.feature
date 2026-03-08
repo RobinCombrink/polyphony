@@ -45,6 +45,20 @@ Feature: Notifications
       When "Olivia" posts a message in channel "general"
       Then "Noah" does not receive websocket notification events for channel "general"
 
+    Scenario: Connected websocket recipient receives friend joined voice notification event
+      Given a voice channel named "voice-lobby" exists in server "Test" created by "Olivia"
+      And "Olivia" adds "Noah" to server "Test"
+      And "Noah" is connected to notifications websocket
+      When "Olivia" connects to voice for channel "voice-lobby"
+      Then "Noah" receives a friend-joined-voice websocket notification for channel "voice-lobby" from "Olivia"
+
+    Scenario: Joining user does not receive their own friend joined voice websocket notification event
+      Given a voice channel named "voice-lobby" exists in server "Test" created by "Olivia"
+      And "Olivia" adds "Noah" to server "Test"
+      And "Olivia" is connected to notifications websocket
+      When "Olivia" connects to voice for channel "voice-lobby"
+      Then "Olivia" does not receive websocket notification events for channel "voice-lobby"
+
   Rule: Unread count aggregation and mark-read lifecycle stay consistent
     Background:
       Given a user named "Olivia" exists

@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_domain::{ChannelId, Message, NotificationEventType};
+use backend_domain::{ChannelId, Message};
 use backend_storage::{
     ChannelRepository, CreateMessageResult, MessageRepository, ServerRepository, UserRepository,
 };
@@ -91,23 +91,28 @@ where
             message,
             notified_user_ids,
         } => {
-            let event_type = if message.is_mentioned() {
-                NotificationEventType::Mentioned
-            } else {
-                NotificationEventType::UnreadMessage
-            };
-
             for recipient_user_id in notified_user_ids {
+                let event = if message.is_mentioned() {
+                    NotificationEvent::mentioned(
+                        channel.server_id(),
+                        server_name.clone(),
+                        message.channel_id(),
+                        channel.name().to_owned(),
+                        message.id(),
+                    )
+                } else {
+                    NotificationEvent::unread_message(
+                        channel.server_id(),
+                        server_name.clone(),
+                        message.channel_id(),
+                        channel.name().to_owned(),
+                        message.id(),
+                    )
+                };
+
                 state.notification_hub.publish(NotificationEnvelope {
                     recipient_user_id,
-                    event: NotificationEvent {
-                        event_type,
-                        server_id: channel.server_id(),
-                        server_name: server_name.clone(),
-                        channel_id: message.channel_id(),
-                        channel_name: channel.name().to_owned(),
-                        message_id: message.id(),
-                    },
+                    event,
                 });
             }
 

@@ -12,6 +12,7 @@ use backend_domain::{Channel, ChannelId};
 use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
 use livekit_api::access_token::{AccessToken, VideoGrants};
 
+use crate::notification_hub::{NotificationEnvelope, NotificationEvent};
 use crate::{ApiState, auth::AuthenticatedUser};
 
 #[utoipa::path(
@@ -89,6 +90,29 @@ where
     };
 
     let participant_user_id = authenticated_user.user_id;
+
+    let server_name = match state
+        .server_repository
+        .list_servers_for_user(participant_user_id)
+        .await
+        .into_iter()
+        .find(|candidate| candidate.id == channel.server_id())
+    {
+        Some(server) => server.name,
+        None => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let joined_user_display_name = match state
+        .user_repository
+        .find_user_by_id(participant_user_id)
+        .await
+    {
+        Some(user) => user
+            .display_name
+            .map(String::from)
+            .unwrap_or_else(|| participant_user_id.to_string()),
+        None => participant_user_id.to_string(),
+    };
     let participant_identity = match participant_instance_id {
         Some(instance_id) => format!("{}:{instance_id}", participant_user_id),
         None => participant_user_id.to_string(),
@@ -117,6 +141,30 @@ where
         Ok(token) => token,
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
+
+    if let Some(memberships) = state
+        .server_repository
+        .list_server_members(channel.server_id())
+        .await
+    {
+        for membership in memberships {
+            if membership.user_id == participant_user_id {
+                continue;
+            }
+
+            state.notification_hub.publish(NotificationEnvelope {
+                recipient_user_id: membership.user_id,
+                event: NotificationEvent::friend_joined_voice(
+                    channel.server_id(),
+                    server_name.clone(),
+                    channel_id,
+                    channel.name().to_owned(),
+                    participant_user_id,
+                    joined_user_display_name.clone(),
+                ),
+            });
+        }
+    }
 
     (
         StatusCode::OK,

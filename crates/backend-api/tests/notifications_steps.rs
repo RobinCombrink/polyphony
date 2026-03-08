@@ -10,13 +10,14 @@ use backend_api::notification_hub::NotificationHub;
 use common::bdd_support::{
     Actor, ChannelId, MessageId, NotificationMuteState, ServerId, SharedTestStore,
     add_server_member_with_token, channel_notification_preference_with_token,
-    create_actor_with_notification_hub, create_channel_with_token, create_message_with_token,
-    create_message_with_token_and_mention, create_server_with_token,
-    global_notification_preference_with_token, mark_channel_notifications_read_with_token,
-    mute_channel_notifications_with_token, outbox_count_for_message_recipient,
-    outbox_total_count_for_recipient, payload_channel_id, payload_message_id, payload_server_id,
-    prime_feature_test_store, response_payload_json, server_notification_preference_with_token,
-    shutdown_feature_test_store, unmute_channel_notifications_with_token, unread_count_for_channel,
+    connect_voice_session_with_token, create_actor_with_notification_hub,
+    create_channel_with_token, create_message_with_token, create_message_with_token_and_mention,
+    create_server_with_token, global_notification_preference_with_token,
+    mark_channel_notifications_read_with_token, mute_channel_notifications_with_token,
+    outbox_count_for_message_recipient, outbox_total_count_for_recipient, payload_channel_id,
+    payload_message_id, payload_server_id, prime_feature_test_store, response_payload_json,
+    server_notification_preference_with_token, shutdown_feature_test_store,
+    unmute_channel_notifications_with_token, unread_count_for_channel,
     unread_notifications_count_with_token, update_global_notification_preference_with_token,
     update_server_notification_preference_with_token,
 };
@@ -405,6 +406,22 @@ async fn named_user_posts_a_message_in_channel_named(
     .await;
 }
 
+#[when(regex = r#"^"([^"]+)" connects to voice for channel "([^"]+)"$"#)]
+async fn named_user_connects_to_voice_for_channel_named(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let response = connect_voice_session_with_token(&actor.app, &channel_id, &actor.token).await;
+
+    world.latest_status = Some(response.status());
+    world.latest_payload = Some(response_payload_json(response).await);
+
+    assert_eq!(world.latest_status(), StatusCode::OK);
+}
+
 #[when(regex = r#"^"([^"]+)" marks channel "([^"]+)" notifications as read$"#)]
 async fn named_user_marks_channel_notifications_as_read(
     world: &mut NotificationsWorld,
@@ -678,6 +695,57 @@ async fn named_user_receives_message_created_websocket_notification_for_named_ch
         Some(expected_channel_id.as_str())
     );
     assert_eq!(event["channel_name"].as_str(), Some(channel_name.as_str()));
+
+    let ws_connection = world
+        .active_ws_connection
+        .as_ref()
+        .expect("active websocket connection to be set");
+    assert_eq!(ws_connection.actor_name, actor_name);
+}
+
+#[then(
+    regex = r#"^"([^"]+)" receives a friend-joined-voice websocket notification for channel "([^"]+)" from "([^"]+)"$"#
+)]
+async fn named_user_receives_friend_joined_voice_websocket_notification_for_named_channel_from_named_user(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+    joined_user_name: String,
+) {
+    let event = world
+        .next_ws_event(Duration::from_secs(2))
+        .await
+        .expect("websocket notification event to be received");
+
+    assert_eq!(world.latest_status(), StatusCode::OK);
+    assert_eq!(event["event_type"].as_str(), Some("friend_joined_voice"));
+
+    let expected_server_id = world.server_id.expect("server id to be set").to_string();
+    assert_eq!(
+        event["server_id"].as_str(),
+        Some(expected_server_id.as_str())
+    );
+
+    let expected_channel_id = world.channel_id_by_name_ref(&channel_name).to_string();
+    assert_eq!(
+        event["channel_id"].as_str(),
+        Some(expected_channel_id.as_str())
+    );
+    assert_eq!(event["channel_name"].as_str(), Some(channel_name.as_str()));
+
+    let expected_joined_user_id = world.actor_ref(&joined_user_name).user_id.to_string();
+    assert_eq!(
+        event["joined_user_id"].as_str(),
+        Some(expected_joined_user_id.as_str())
+    );
+    let joined_user_display_name = event["joined_user_display_name"]
+        .as_str()
+        .expect("expected joined_user_display_name");
+    assert!(
+        joined_user_display_name == joined_user_name
+            || joined_user_display_name == expected_joined_user_id,
+        "expected joined_user_display_name to match actor name or user id"
+    );
 
     let ws_connection = world
         .active_ws_connection
