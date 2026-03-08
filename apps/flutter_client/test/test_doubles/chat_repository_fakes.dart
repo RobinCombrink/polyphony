@@ -20,6 +20,7 @@ class FakeServerRepository implements ServerRepo {
   FakeServerRepository({
     required ChatApiFixture fixture,
     this.forceAddMemberError = false,
+    this.addMemberError,
     this.forceDeleteError = false,
   })  : _servers = <Server>[fixture.listedServer],
         _membersByServerId = <String, Set<String>>{
@@ -29,6 +30,7 @@ class FakeServerRepository implements ServerRepo {
         _createdServer = fixture.createdServer;
 
   final bool forceAddMemberError;
+  final Exception? addMemberError;
   final bool forceDeleteError;
   final List<Server> _servers;
   final Map<String, Set<String>> _membersByServerId;
@@ -67,7 +69,8 @@ class FakeServerRepository implements ServerRepo {
     required AddServerMemberCommand command,
   }) async {
     if (forceAddMemberError) {
-      return Error<void>(Exception("Failed to add server member"));
+      return Error<void>(
+          addMemberError ?? Exception("Failed to add server member"));
     }
 
     _membersByServerId

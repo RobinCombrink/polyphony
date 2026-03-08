@@ -5,6 +5,8 @@ enum ServersValidationIssue {
   serverSelectionRequired,
   userIdRequired,
   userIdInvalidFormat,
+  addMemberForbidden,
+  addMemberTargetNotFound,
 }
 
 sealed class ServersState {

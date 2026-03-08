@@ -20,6 +20,14 @@ SectionStatus? buildServersSectionStatus(ServersState state) {
           message: "User id must be a UUID.",
           isError: true,
         ),
+      ServersValidationIssue.addMemberForbidden => const SectionStatus(
+          message: "Only the server owner can add members.",
+          isError: true,
+        ),
+      ServersValidationIssue.addMemberTargetNotFound => const SectionStatus(
+          message: "User or server not found.",
+          isError: true,
+        ),
     };
   }
 

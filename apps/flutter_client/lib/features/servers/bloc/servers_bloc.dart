@@ -1,5 +1,6 @@
 import "package:flutter_bloc/flutter_bloc.dart";
 
+import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -276,8 +277,49 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
             emit(ServersExceptionState(error: error));
         }
       case Error<void>(:final error):
+        final handledApiError = _emitAddMemberValidationState(
+          error: error,
+          loadedState: loadedState,
+          emit: emit,
+        );
+        if (handledApiError) {
+          return;
+        }
+
         emit(ServersExceptionState(error: error));
     }
+  }
+
+  bool _emitAddMemberValidationState({
+    required Exception error,
+    required ServersLoadedDataState loadedState,
+    required Emitter<ServersState> emit,
+  }) {
+    final issue = _classifyAddMemberIssue(error);
+    if (issue == null) {
+      return false;
+    }
+
+    emit(ServersValidationFailedState(
+      issue: issue,
+      servers: loadedState.servers,
+      selectedServerId: loadedState.selectedServerId,
+    ));
+
+    return true;
+  }
+
+  ServersValidationIssue? _classifyAddMemberIssue(Exception error) {
+    if (error is! ApiRequestException) {
+      return null;
+    }
+
+    return switch (error.statusCode) {
+      403 => ServersValidationIssue.addMemberForbidden,
+      404 => ServersValidationIssue.addMemberTargetNotFound,
+      422 => ServersValidationIssue.userIdInvalidFormat,
+      _ => null,
+    };
   }
 
   ServersLoadedDataState? _loadedStateOrNull(ServersState state) {

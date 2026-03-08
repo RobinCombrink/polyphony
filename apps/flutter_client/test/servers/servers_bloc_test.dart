@@ -1,6 +1,7 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
+import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 
 import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
@@ -168,6 +169,72 @@ void main() {
         (state) => state.issue,
         "issue",
         ServersValidationIssue.userIdInvalidFormat,
+      ),
+    ],
+  );
+
+  blocTest<ServersBloc, ServersState>(
+    "emits validation failed when add-member is forbidden",
+    build: () => ServersBloc(
+      serverRepo: FakeServerRepository(
+        fixture: fixture,
+        forceAddMemberError: true,
+        addMemberError: const ApiRequestException(
+          operation: "add server member",
+          statusCode: 403,
+          responseBody: "",
+        ),
+      ),
+    ),
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id))
+      ..add(AddServerMemberRequested(
+        serverId: fixture.listedServer.id,
+        userId: validUserId,
+      )),
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadingState>(),
+      isA<ServersValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        ServersValidationIssue.addMemberForbidden,
+      ),
+    ],
+  );
+
+  blocTest<ServersBloc, ServersState>(
+    "emits validation failed when add-member target is missing",
+    build: () => ServersBloc(
+      serverRepo: FakeServerRepository(
+        fixture: fixture,
+        forceAddMemberError: true,
+        addMemberError: const ApiRequestException(
+          operation: "add server member",
+          statusCode: 404,
+          responseBody: "",
+        ),
+      ),
+    ),
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id))
+      ..add(AddServerMemberRequested(
+        serverId: fixture.listedServer.id,
+        userId: validUserId,
+      )),
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadingState>(),
+      isA<ServersValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        ServersValidationIssue.addMemberTargetNotFound,
       ),
     ],
   );
