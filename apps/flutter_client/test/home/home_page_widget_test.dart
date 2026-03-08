@@ -26,7 +26,7 @@ import "../test_doubles/chat_repository_fakes.dart";
 
 class _RecordingServerMembersBloc extends ServerMembersBloc {
   _RecordingServerMembersBloc({
-    required super.serverRepo,
+    required super.serverMemberRepo,
     required super.profileRepo,
   });
 
@@ -95,87 +95,6 @@ class _FakeNotificationRepository implements NotificationRepo {
   }) async {
     return Ok<int>(totalUnreadCount);
   }
-
-  @override
-  Future<Result<ApiNotificationGlobalPreference>>
-      getGlobalNotificationPreference() async {
-    return const Ok<ApiNotificationGlobalPreference>(
-      ApiNotificationGlobalPreference(
-        muteState: ApiNotificationMuteState.unmuted,
-        notificationCategory: ApiNotificationCategoryPreference.onlyMentions,
-        channelDefaultCategory: ApiNotificationCategoryPreference.onlyMentions,
-      ),
-    );
-  }
-
-  @override
-  Future<Result<void>> updateGlobalNotificationPreference({
-    ApiNotificationMuteState? muteState,
-    ApiNotificationCategoryPreference? notificationCategory,
-    ApiNotificationCategoryPreference? channelDefaultCategory,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<ApiNotificationServerPreference>>
-      getServerNotificationPreference({
-    required String serverId,
-  }) async {
-    return const Ok<ApiNotificationServerPreference>(
-      ApiNotificationServerPreference(
-        muteState: ApiNotificationMuteState.unmuted,
-        notificationCategory: ApiNotificationCategoryPreference.onlyMentions,
-      ),
-    );
-  }
-
-  @override
-  Future<Result<void>> updateServerNotificationPreference({
-    required String serverId,
-    ApiNotificationMuteState? muteState,
-    ApiNotificationCategoryPreference? notificationCategory,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<ApiNotificationChannelPreference>>
-      getChannelNotificationPreference({
-    required String channelId,
-  }) async {
-    return const Ok<ApiNotificationChannelPreference>(
-      ApiNotificationChannelPreference(
-        muteState: ApiNotificationMuteState.unmuted,
-        mutedUntilEpochSeconds: null,
-        notificationCategory: ApiNotificationCategoryPreference.onlyMentions,
-        inheritedFromGlobalDefault: true,
-      ),
-    );
-  }
-
-  @override
-  Future<Result<void>> updateChannelNotificationPreference({
-    required String channelId,
-    required ApiNotificationCategoryPreference notificationCategory,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<void>> muteChannelNotifications({
-    required String channelId,
-    required int durationMinutes,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<void>> unmuteChannelNotifications({
-    required String channelId,
-  }) async {
-    return const Ok<void>(null);
-  }
 }
 
 void main() {
@@ -184,6 +103,7 @@ void main() {
     (tester) async {
       final fixture = EntitySeeder().chatApiFixture();
       final serverRepo = FakeServerRepository(fixture: fixture);
+      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
       final channelRepo = FakeChannelRepository(fixture: fixture);
       final messageRepo = FakeMessageRepository(fixture: fixture);
       final profileRepo = FakeProfileRepository(
@@ -210,9 +130,10 @@ void main() {
         textSessionRepo: textSessionRepo,
         messageRuntimeService: messageRuntimeService,
       );
-      final profileBloc = ProfileBloc(profileRepo: profileRepo);
+      final profileBloc = ProfileBloc(
+          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
       final serverMembersBloc = _RecordingServerMembersBloc(
-        serverRepo: serverRepo,
+        serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
@@ -288,6 +209,7 @@ void main() {
 
       final fixture = EntitySeeder().chatApiFixture();
       final serverRepo = FakeServerRepository(fixture: fixture);
+      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
       final channelRepo = FakeChannelRepository(fixture: fixture);
       final messageRepo = FakeMessageRepository(fixture: fixture);
       final profileRepo = FakeProfileRepository(
@@ -314,9 +236,10 @@ void main() {
         textSessionRepo: textSessionRepo,
         messageRuntimeService: messageRuntimeService,
       );
-      final profileBloc = ProfileBloc(profileRepo: profileRepo);
+      final profileBloc = ProfileBloc(
+          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
       final serverMembersBloc = _RecordingServerMembersBloc(
-        serverRepo: serverRepo,
+        serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
@@ -377,6 +300,7 @@ void main() {
     (tester) async {
       final fixture = EntitySeeder().chatApiFixture();
       final serverRepo = FakeServerRepository(fixture: fixture);
+      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
       final channelRepo = FakeChannelRepository(fixture: fixture);
       final messageRepo = FakeMessageRepository(fixture: fixture);
       final profileRepo = FakeProfileRepository(
@@ -403,9 +327,10 @@ void main() {
         textSessionRepo: textSessionRepo,
         messageRuntimeService: messageRuntimeService,
       );
-      final profileBloc = ProfileBloc(profileRepo: profileRepo);
+      final profileBloc = ProfileBloc(
+          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
       final serverMembersBloc = _RecordingServerMembersBloc(
-        serverRepo: serverRepo,
+        serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(

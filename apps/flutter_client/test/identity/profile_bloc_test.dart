@@ -14,6 +14,7 @@ void main() {
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
       ),
+      currentUserId: fixture.ownerUserId,
     ),
     act: (bloc) => bloc.add(const LoadProfileRequested()),
     expect: () => <Matcher>[
@@ -30,6 +31,7 @@ void main() {
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
       ),
+      currentUserId: fixture.ownerUserId,
     ),
     act: (bloc) {
       bloc
@@ -55,6 +57,7 @@ void main() {
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
       ),
+      currentUserId: fixture.ownerUserId,
     ),
     act: (bloc) {
       bloc

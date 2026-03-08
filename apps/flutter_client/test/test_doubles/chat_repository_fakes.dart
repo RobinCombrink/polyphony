@@ -5,6 +5,7 @@ import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/server_member_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
@@ -78,9 +79,20 @@ class FakeServerRepository implements ServerRepo {
 
     return const Ok<void>(null);
   }
+}
+
+class FakeServerMemberRepository implements ServerMemberRepo {
+  FakeServerMemberRepository({
+    required ChatApiFixture fixture,
+  }) : _membersByServerId = <String, Set<String>>{
+          fixture.listedServer.id: <String>{fixture.ownerUserId},
+          fixture.createdServer.id: <String>{fixture.ownerUserId},
+        };
+
+  final Map<String, Set<String>> _membersByServerId;
 
   @override
-  Future<Result<Iterable<ServerMember>>> getServerMembers({
+  Future<Result<Iterable<ServerMember>>> getMany({
     required GetServerMembersQuery query,
   }) async {
     final members = _membersByServerId[query.serverId];
@@ -663,15 +675,20 @@ class FakeProfileRepository implements ProfileRepo {
   String? _displayName;
 
   @override
-  Future<Result<UserProfile>> getOne({required GetProfileQuery query}) async {
+  Future<Result<UserProfile>> getOne({required GetUserQuery query}) async {
     if (forceGetError) {
       return Error<UserProfile>(Exception("Failed to get profile"));
     }
 
+    final resolvedUserId = query.userId.trim();
+    final displayName = displayNamesByUserId.containsKey(resolvedUserId)
+        ? displayNamesByUserId[resolvedUserId]
+        : (resolvedUserId == userId ? _displayName : null);
+
     return Ok<UserProfile>(
       UserProfile(
-        userId: userId,
-        displayName: _displayName,
+        userId: resolvedUserId,
+        displayName: displayName,
       ),
     );
   }
@@ -689,26 +706,6 @@ class FakeProfileRepository implements ProfileRepo {
       UserProfile(
         userId: userId,
         displayName: _displayName,
-      ),
-    );
-  }
-
-  @override
-  Future<Result<UserProfile>> getUserById({
-    required GetUserProfileByIdQuery query,
-  }) async {
-    if (forceGetError) {
-      return Error<UserProfile>(Exception("Failed to get profile"));
-    }
-
-    final displayName = displayNamesByUserId.containsKey(query.userId)
-        ? displayNamesByUserId[query.userId]
-        : (query.userId == userId ? _displayName : null);
-
-    return Ok<UserProfile>(
-      UserProfile(
-        userId: query.userId,
-        displayName: displayName,
       ),
     );
   }

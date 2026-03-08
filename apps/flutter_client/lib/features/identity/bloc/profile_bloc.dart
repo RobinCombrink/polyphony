@@ -7,14 +7,18 @@ part "profile_event.dart";
 part "profile_state.dart";
 
 class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
-  ProfileBloc({required ProfileRepo profileRepo})
-      : _profileRepo = profileRepo,
+  ProfileBloc({
+    required ProfileRepo profileRepo,
+    required String currentUserId,
+  })  : _profileRepo = profileRepo,
+        _currentUserId = currentUserId,
         super(const ProfileInitialState()) {
     on<LoadProfileRequested>(_onLoadProfileRequested);
     on<UpdateDisplayNameRequested>(_onUpdateDisplayNameRequested);
   }
 
   final ProfileRepo _profileRepo;
+  final String _currentUserId;
 
   Future<void> _onLoadProfileRequested(
     LoadProfileRequested event,
@@ -23,7 +27,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     emit(const ProfileLoadingState());
 
     final profileResult = await _profileRepo.getOne(
-      query: const GetProfileQuery(),
+      query: GetUserQuery(userId: _currentUserId),
     );
 
     switch (profileResult) {

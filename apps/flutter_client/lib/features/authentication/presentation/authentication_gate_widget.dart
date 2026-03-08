@@ -25,6 +25,8 @@ import "package:polyphony_flutter_client/shared/repositories/notification_repo.d
 import "package:polyphony_flutter_client/shared/repositories/notification_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repository.dart";
+import "package:polyphony_flutter_client/shared/repositories/server_member_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/server_member_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
@@ -291,6 +293,11 @@ final class _AuthenticatedShell extends StatelessWidget {
             profileService: context.read<ProfileService>(),
           ),
         ),
+        Provider<ServerMemberRepo>(
+          create: (context) => ServerMemberRepository(
+            serverService: context.read<ServerService>(),
+          ),
+        ),
         Provider<VoiceSessionRepo>(
           create: (context) => VoiceSessionRepository(
             voiceSessionService: context.read<VoiceSessionService>(),
@@ -327,16 +334,18 @@ final class _AuthenticatedShell extends StatelessWidget {
           ),
           BlocProvider<NotificationPreferencesBloc>(
             create: (context) => NotificationPreferencesBloc(
-              notificationRepo: context.read<NotificationRepo>(),
+              notificationService: context.read<NotificationService>(),
             ),
           ),
           BlocProvider<ProfileBloc>(
-            create: (context) =>
-                ProfileBloc(profileRepo: context.read<ProfileRepo>()),
+            create: (context) => ProfileBloc(
+              profileRepo: context.read<ProfileRepo>(),
+              currentUserId: metadata.userId,
+            ),
           ),
           BlocProvider<ServerMembersBloc>(
             create: (context) => ServerMembersBloc(
-              serverRepo: context.read<ServerRepo>(),
+              serverMemberRepo: context.read<ServerMemberRepo>(),
               profileRepo: context.read<ProfileRepo>(),
             ),
           ),

@@ -6,14 +6,6 @@ class GetServersQuery {
   const GetServersQuery();
 }
 
-class GetServerMembersQuery {
-  const GetServerMembersQuery({
-    required this.serverId,
-  });
-
-  final String serverId;
-}
-
 class CreateServerCommand {
   const CreateServerCommand({
     required this.name,
@@ -45,8 +37,4 @@ abstract interface class ServerRepo
         RepositoryGetMany<Server, GetServersQuery>,
         RepositoryCreateOne<Server, CreateServerCommand>,
         RepositoryDeleteOne<DeleteServerCommand>,
-        RepositoryUpdateOne<void, AddServerMemberCommand> {
-  Future<Result<Iterable<ServerMember>>> getServerMembers({
-    required GetServerMembersQuery query,
-  });
-}
+        RepositoryUpdateOne<void, AddServerMemberCommand> {}

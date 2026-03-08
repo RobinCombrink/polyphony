@@ -945,8 +945,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           participantUserId,
         )
             ? existingDisplayNamesByUserId[participantUserId]
-            : switch (await _profileRepo.getUserById(
-                query: GetUserProfileByIdQuery(userId: participantUserId),
+            : switch (await _profileRepo.getOne(
+                query: GetUserQuery(userId: participantUserId),
               )) {
                 Ok<UserProfile>(:final value) => value.displayName?.trim(),
                 Error<UserProfile>() => null,

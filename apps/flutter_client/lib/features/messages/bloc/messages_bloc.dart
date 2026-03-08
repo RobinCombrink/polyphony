@@ -418,8 +418,8 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         continue;
       }
 
-      final profileResult = await _profileRepo.getUserById(
-        query: GetUserProfileByIdQuery(userId: userId),
+      final profileResult = await _profileRepo.getOne(
+        query: GetUserQuery(userId: userId),
       );
 
       final displayName = switch (profileResult) {

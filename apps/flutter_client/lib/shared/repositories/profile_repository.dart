@@ -12,12 +12,14 @@ class ProfileRepository implements ProfileRepo {
   final ProfileService _profileService;
 
   @override
-  Future<Result<UserProfile>> getOne({required GetProfileQuery query}) async {
-    final serviceResult = await _profileService.getMe();
+  Future<Result<UserProfile>> getOne({required GetUserQuery query}) async {
+    final serviceResult = await _profileService.getUserById(
+      userId: query.userId,
+    );
 
     return switch (serviceResult) {
-      Ok<ApiMe>(:final value) => Ok<UserProfile>(value.toDomainModel()),
-      Error<ApiMe>(:final error) => Error<UserProfile>(error),
+      Ok<ApiUserLookup>(:final value) => Ok<UserProfile>(value.toDomainModel()),
+      Error<ApiUserLookup>(:final error) => Error<UserProfile>(error),
     };
   }
 
@@ -32,19 +34,6 @@ class ProfileRepository implements ProfileRepo {
     return switch (serviceResult) {
       Ok<ApiMe>(:final value) => Ok<UserProfile>(value.toDomainModel()),
       Error<ApiMe>(:final error) => Error<UserProfile>(error),
-    };
-  }
-
-  @override
-  Future<Result<UserProfile>> getUserById({
-    required GetUserProfileByIdQuery query,
-  }) async {
-    final serviceResult =
-        await _profileService.getUserById(userId: query.userId);
-
-    return switch (serviceResult) {
-      Ok<ApiUserLookup>(:final value) => Ok<UserProfile>(value.toDomainModel()),
-      Error<ApiUserLookup>(:final error) => Error<UserProfile>(error),
     };
   }
 }

@@ -1,8 +1,8 @@
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
-import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 
 part "notification_preferences_event.dart";
 part "notification_preferences_state.dart";
@@ -10,8 +10,8 @@ part "notification_preferences_state.dart";
 class NotificationPreferencesBloc
     extends Bloc<NotificationPreferencesEvent, NotificationPreferencesState> {
   NotificationPreferencesBloc({
-    required NotificationRepo notificationRepo,
-  })  : _notificationRepo = notificationRepo,
+    required NotificationService notificationService,
+  })  : _notificationService = notificationService,
         super(const NotificationPreferencesInitialState()) {
     on<NotificationPreferencesEvent>(
       _onEvent,
@@ -19,7 +19,7 @@ class NotificationPreferencesBloc
     );
   }
 
-  final NotificationRepo _notificationRepo;
+  final NotificationService _notificationService;
 
   Future<void> _onEvent(
     NotificationPreferencesEvent event,
@@ -36,7 +36,8 @@ class NotificationPreferencesBloc
       case GlobalMuteToggledRequested():
         await _updateAndReload(
           emit,
-          operation: () => _notificationRepo.updateGlobalNotificationPreference(
+          operation: () =>
+              _notificationService.updateGlobalNotificationPreference(
             muteState: event.muted
                 ? ApiNotificationMuteState.muted
                 : ApiNotificationMuteState.unmuted,
@@ -45,21 +46,24 @@ class NotificationPreferencesBloc
       case GlobalNotificationCategoryChangedRequested():
         await _updateAndReload(
           emit,
-          operation: () => _notificationRepo.updateGlobalNotificationPreference(
+          operation: () =>
+              _notificationService.updateGlobalNotificationPreference(
             notificationCategory: event.notificationCategory,
           ),
         );
       case GlobalChannelDefaultCategoryChangedRequested():
         await _updateAndReload(
           emit,
-          operation: () => _notificationRepo.updateGlobalNotificationPreference(
+          operation: () =>
+              _notificationService.updateGlobalNotificationPreference(
             channelDefaultCategory: event.channelDefaultCategory,
           ),
         );
       case ServerMuteToggledRequested():
         await _updateAndReload(
           emit,
-          operation: () => _notificationRepo.updateServerNotificationPreference(
+          operation: () =>
+              _notificationService.updateServerNotificationPreference(
             serverId: event.serverId,
             muteState: event.muted
                 ? ApiNotificationMuteState.muted
@@ -69,7 +73,8 @@ class NotificationPreferencesBloc
       case ServerNotificationCategoryChangedRequested():
         await _updateAndReload(
           emit,
-          operation: () => _notificationRepo.updateServerNotificationPreference(
+          operation: () =>
+              _notificationService.updateServerNotificationPreference(
             serverId: event.serverId,
             notificationCategory: event.notificationCategory,
           ),
@@ -79,13 +84,13 @@ class NotificationPreferencesBloc
           emit,
           operation: () {
             if (event.muted) {
-              return _notificationRepo.muteChannelNotifications(
+              return _notificationService.muteChannelNotifications(
                 channelId: event.channelId,
                 durationMinutes: 30,
               );
             }
 
-            return _notificationRepo.unmuteChannelNotifications(
+            return _notificationService.unmuteChannelNotifications(
               channelId: event.channelId,
             );
           },
@@ -94,7 +99,7 @@ class NotificationPreferencesBloc
         await _updateAndReload(
           emit,
           operation: () =>
-              _notificationRepo.updateChannelNotificationPreference(
+              _notificationService.updateChannelNotificationPreference(
             channelId: event.channelId,
             notificationCategory: event.notificationCategory,
           ),
@@ -158,7 +163,7 @@ class NotificationPreferencesBloc
     }
 
     final globalResult =
-        await _notificationRepo.getGlobalNotificationPreference();
+        await _notificationService.getGlobalNotificationPreference();
     final ApiNotificationGlobalPreference globalPreference;
     switch (globalResult) {
       case Ok<ApiNotificationGlobalPreference>(:final value):
@@ -181,7 +186,7 @@ class NotificationPreferencesBloc
     final trimmedServerId = serverId?.trim();
     if (trimmedServerId != null && trimmedServerId.isNotEmpty) {
       final serverResult =
-          await _notificationRepo.getServerNotificationPreference(
+          await _notificationService.getServerNotificationPreference(
         serverId: trimmedServerId,
       );
       if (serverResult case Ok<ApiNotificationServerPreference>(:final value)) {
@@ -193,7 +198,7 @@ class NotificationPreferencesBloc
     final trimmedChannelId = channelId?.trim();
     if (trimmedChannelId != null && trimmedChannelId.isNotEmpty) {
       final channelResult =
-          await _notificationRepo.getChannelNotificationPreference(
+          await _notificationService.getChannelNotificationPreference(
         channelId: trimmedChannelId,
       );
       if (channelResult

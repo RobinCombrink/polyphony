@@ -1,13 +1,8 @@
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
-import "package:polyphony_flutter_client/shared/result/result.dart";
 
-class GetProfileQuery {
-  const GetProfileQuery();
-}
-
-class GetUserProfileByIdQuery {
-  const GetUserProfileByIdQuery({
+class GetUserQuery {
+  const GetUserQuery({
     required this.userId,
   });
 
@@ -24,9 +19,5 @@ class UpdateDisplayNameCommand {
 
 abstract interface class ProfileRepo
     with
-        RepositoryGetOne<UserProfile, GetProfileQuery>,
-        RepositoryUpdateOne<UserProfile, UpdateDisplayNameCommand> {
-  Future<Result<UserProfile>> getUserById({
-    required GetUserProfileByIdQuery query,
-  });
-}
+        RepositoryGetOne<UserProfile, GetUserQuery>,
+        RepositoryUpdateOne<UserProfile, UpdateDisplayNameCommand> {}

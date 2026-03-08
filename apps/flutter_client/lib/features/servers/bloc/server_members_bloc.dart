@@ -1,7 +1,7 @@
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
-import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/server_member_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
 part "server_members_event.dart";
@@ -9,16 +9,16 @@ part "server_members_state.dart";
 
 class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
   ServerMembersBloc({
-    required ServerRepo serverRepo,
+    required ServerMemberRepo serverMemberRepo,
     required ProfileRepo profileRepo,
-  })  : _serverRepo = serverRepo,
+  })  : _serverMemberRepo = serverMemberRepo,
         _profileRepo = profileRepo,
         super(const ServerMembersInitialState()) {
     on<LoadServerMembersRequested>(_onLoadServerMembersRequested);
     on<ResetServerMembersRequested>(_onResetServerMembersRequested);
   }
 
-  final ServerRepo _serverRepo;
+  final ServerMemberRepo _serverMemberRepo;
   final ProfileRepo _profileRepo;
 
   void _onResetServerMembersRequested(
@@ -62,7 +62,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
 
     emit(const ServerMembersLoadingState());
 
-    final membersResult = await _serverRepo.getServerMembers(
+    final membersResult = await _serverMemberRepo.getMany(
       query: GetServerMembersQuery(serverId: trimmedServerId),
     );
 
@@ -108,8 +108,8 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
         continue;
       }
 
-      final userResult = await _profileRepo.getUserById(
-        query: GetUserProfileByIdQuery(userId: userId),
+      final userResult = await _profileRepo.getOne(
+        query: GetUserQuery(userId: userId),
       );
 
       final profile = switch (userResult) {

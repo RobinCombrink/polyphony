@@ -14,14 +14,14 @@ class _CountingProfileRepository extends FakeProfileRepository {
     super.displayNamesByUserId,
   });
 
-  var getUserByIdCalls = 0;
+  var getOneCalls = 0;
 
   @override
-  Future<Result<UserProfile>> getUserById({
-    required GetUserProfileByIdQuery query,
+  Future<Result<UserProfile>> getOne({
+    required GetUserQuery query,
   }) {
-    getUserByIdCalls += 1;
-    return super.getUserById(query: query);
+    getOneCalls += 1;
+    return super.getOne(query: query);
   }
 }
 
@@ -57,7 +57,7 @@ void main() {
       ),
     verify: (bloc) {
       expect(
-        countingProfileRepository.getUserByIdCalls,
+        countingProfileRepository.getOneCalls,
         1,
       );
     },
