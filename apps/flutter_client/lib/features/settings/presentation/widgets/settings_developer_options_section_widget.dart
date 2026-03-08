@@ -88,7 +88,7 @@ class _SettingsDeveloperOptionsSectionWidgetState
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const SelectableText("Enable developer options"),
+          title: const Text("Enable developer options"),
           value: _developerOptionsEnabled,
           onChanged: (value) {
             setState(() {
