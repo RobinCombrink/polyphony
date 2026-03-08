@@ -4,6 +4,7 @@ enum ServersValidationIssue {
   serverNameRequired,
   serverSelectionRequired,
   userIdRequired,
+  userIdInvalidFormat,
 }
 
 sealed class ServersState {

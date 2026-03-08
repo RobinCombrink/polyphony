@@ -19,6 +19,9 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
   }
 
   final ServerRepo _serverRepo;
+  static final _uuidPattern = RegExp(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+  );
 
   Future<void> _onLoadServersRequested(
     LoadServersRequested event,
@@ -228,6 +231,15 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     if (trimmedUserId.isEmpty) {
       emit(ServersValidationFailedState(
         issue: ServersValidationIssue.userIdRequired,
+        servers: loadedState.servers,
+        selectedServerId: loadedState.selectedServerId,
+      ));
+      return;
+    }
+
+    if (!_uuidPattern.hasMatch(trimmedUserId)) {
+      emit(ServersValidationFailedState(
+        issue: ServersValidationIssue.userIdInvalidFormat,
         servers: loadedState.servers,
         selectedServerId: loadedState.selectedServerId,
       ));

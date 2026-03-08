@@ -16,6 +16,10 @@ SectionStatus? buildServersSectionStatus(ServersState state) {
           message: "User id is required.",
           isError: true,
         ),
+      ServersValidationIssue.userIdInvalidFormat => const SectionStatus(
+          message: "User id must be a UUID.",
+          isError: true,
+        ),
     };
   }
 

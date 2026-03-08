@@ -7,6 +7,7 @@ import "../test_doubles/chat_repository_fakes.dart";
 
 void main() {
   final fixture = EntitySeeder().chatApiFixture();
+  const validUserId = "7f6f10d3-252e-4bb8-a8e8-f6524f239432";
 
   blocTest<ServersBloc, ServersState>(
     "loads servers and emits loaded state",
@@ -84,7 +85,7 @@ void main() {
       ..add(SelectServerRequested(serverId: fixture.listedServer.id))
       ..add(AddServerMemberRequested(
         serverId: fixture.listedServer.id,
-        userId: "auth0|new_member",
+        userId: validUserId,
       )),
     expect: () => <Matcher>[
       isA<ServersLoadingState>(),
@@ -143,6 +144,30 @@ void main() {
         (state) => state.issue,
         "issue",
         ServersValidationIssue.userIdRequired,
+      ),
+    ],
+  );
+
+  blocTest<ServersBloc, ServersState>(
+    "emits validation failed when add-member user id is not a UUID",
+    build: () => ServersBloc(
+      serverRepo: FakeServerRepository(fixture: fixture),
+    ),
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id))
+      ..add(AddServerMemberRequested(
+        serverId: fixture.listedServer.id,
+        userId: "auth0|new_member",
+      )),
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        ServersValidationIssue.userIdInvalidFormat,
       ),
     ],
   );
