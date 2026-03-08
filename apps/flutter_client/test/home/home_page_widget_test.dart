@@ -500,6 +500,130 @@ void main() {
   );
 
   testWidgets(
+    "friend joined voice event outside selected channels is not shown in notification feed",
+    (tester) async {
+      final fixture = EntitySeeder().chatApiFixture();
+      final serverRepo = FakeServerRepository(fixture: fixture);
+      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
+      final channelRepo = FakeChannelRepository(fixture: fixture);
+      final messageRepo = FakeMessageRepository(fixture: fixture);
+      final profileRepo = FakeProfileRepository(
+        userId: fixture.ownerUserId,
+        initialDisplayName: "Owner",
+      );
+      final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
+      final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
+      final voiceRuntimeService = FakeVoiceRuntimeService();
+      final messageRuntimeService = FakeMessageRuntimeService();
+      final notificationRuntimeService = FakeNotificationRuntimeService();
+      final preferencesStore = InMemoryPreferencesStore();
+
+      await preferencesStore.writeChannelJoinNotificationsEnabled(true);
+      await preferencesStore.writeChannelJoinNotificationChannelIds(
+        const <String>["voice-allowed"],
+      );
+
+      final authenticationBloc = AuthenticationBloc(
+        profileService: _FakeAuthenticationProfileService(
+          userId: fixture.ownerUserId,
+        ),
+        sessionService: _FakeAuthenticationSessionService(),
+      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
+      final serversBloc = ServersBloc(serverRepo: serverRepo);
+      final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
+      final messagesBloc = MessagesBloc(
+        messageRepo: messageRepo,
+        profileRepo: profileRepo,
+        textSessionRepo: textSessionRepo,
+        messageRuntimeService: messageRuntimeService,
+      );
+      final profileBloc = ProfileBloc(
+          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
+      final serverMembersBloc = _RecordingServerMembersBloc(
+        serverMemberRepo: serverMemberRepo,
+        profileRepo: profileRepo,
+      );
+      final voiceSessionsBloc = VoiceSessionsBloc(
+        voiceSessionRepo: voiceSessionRepo,
+        voiceRuntimeService: voiceRuntimeService,
+        profileRepo: profileRepo,
+      );
+      final notificationCenterBloc = NotificationCenterBloc(
+        notificationRepo: _FakeNotificationRepository(),
+        notificationRuntimeService: notificationRuntimeService,
+        notificationBadgeService: const NoOpNotificationBadgeService(),
+        preferencesStore: preferencesStore,
+      )..add(
+          const NotificationCenterStartedRequested(
+            backendBaseUrl: "http://localhost:3000",
+            bearerToken: "test-token",
+          ),
+        );
+
+      addTearDown(authenticationBloc.close);
+      addTearDown(serversBloc.close);
+      addTearDown(channelsBloc.close);
+      addTearDown(messagesBloc.close);
+      addTearDown(profileBloc.close);
+      addTearDown(serverMembersBloc.close);
+      addTearDown(voiceSessionsBloc.close);
+      addTearDown(notificationCenterBloc.close);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<PreferencesStore>.value(
+              value: preferencesStore,
+            ),
+            Provider<NotificationRuntimeService>(
+              create: (_) => notificationRuntimeService,
+            ),
+            Provider<NotificationService>(
+              create: (_) => _FakeNotificationService(),
+            ),
+          ],
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
+              BlocProvider<ServersBloc>.value(value: serversBloc),
+              BlocProvider<ChannelsBloc>.value(value: channelsBloc),
+              BlocProvider<MessagesBloc>.value(value: messagesBloc),
+              BlocProvider<ProfileBloc>.value(value: profileBloc),
+              BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
+              BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
+              BlocProvider<NotificationCenterBloc>.value(
+                value: notificationCenterBloc,
+              ),
+            ],
+            child: const MaterialApp(home: HomePageWidget()),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      notificationRuntimeService.emit(
+        const FriendJoinedVoiceRuntimeNotificationEvent(
+          serverId: "server-1",
+          serverName: "Server",
+          channelId: "voice-blocked",
+          channelName: "Blocked",
+          joinedUserId: "user-2",
+          joinedUserDisplayName: "Olivia",
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip("Notification feed"));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text("No recent notifications."), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     "tapping notification feed entry selects its server and channel",
     (tester) async {
       final fixture = EntitySeeder().chatApiFixture();
