@@ -11,7 +11,6 @@ import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dar
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_bloc.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_event.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";

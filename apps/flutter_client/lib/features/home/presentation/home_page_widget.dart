@@ -9,8 +9,6 @@ import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dar
 import "package:polyphony_flutter_client/features/identity/presentation/widgets/display_name_banner_widget.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_bloc.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_event.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_state.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/servers_pane_widget.dart";

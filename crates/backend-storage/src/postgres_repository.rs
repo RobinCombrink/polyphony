@@ -787,7 +787,11 @@ impl NotificationRepository for PostgresRepository {
         .await;
     }
 
-    async fn clear_channel_notification_category_for_user(&self, user_id: UserId, channel_id: ChannelId) {
+    async fn clear_channel_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) {
         let _ = sqlx::query(
             "DELETE FROM notification_channel_preferences
              WHERE user_id = $1

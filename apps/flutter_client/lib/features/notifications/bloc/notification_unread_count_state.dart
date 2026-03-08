@@ -1,3 +1,5 @@
+part of "notification_unread_count_bloc.dart";
+
 sealed class NotificationUnreadCountState {
   const NotificationUnreadCountState();
 

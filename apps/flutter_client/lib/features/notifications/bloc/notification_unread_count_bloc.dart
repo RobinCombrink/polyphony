@@ -1,9 +1,10 @@
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_event.dart";
-import "package:polyphony_flutter_client/features/notifications/bloc/notification_unread_count_state.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+
+part "notification_unread_count_event.dart";
+part "notification_unread_count_state.dart";
 
 class NotificationUnreadCountBloc
     extends Bloc<NotificationUnreadCountEvent, NotificationUnreadCountState> {

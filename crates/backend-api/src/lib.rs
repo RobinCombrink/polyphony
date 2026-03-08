@@ -9,7 +9,7 @@ mod routes;
 pub use backend_domain as domain;
 pub use backend_storage as storage;
 
-use std::{net::SocketAddr, sync::Arc};
+use std::{collections::HashSet, net::SocketAddr, sync::Arc};
 
 use auth::{AuthState, JwksTokenVerifier};
 use axum::routing::{patch, post};
@@ -18,7 +18,7 @@ use backend_storage::{
     ChannelRepository, MessageRepository, NotificationRepository, PostgresRepository,
     ServerRepository, UserRepository,
 };
-use http::{HeaderValue, Method};
+use http::{HeaderValue, Method, Request, header::AUTHORIZATION};
 use openapi::ApiDocumentation;
 use routes::{
     health::health,
@@ -39,9 +39,9 @@ use routes::{
     voice::create_session,
 };
 use tower_http::cors::{AllowOrigin, CorsLayer};
-use tower_http::trace::{
-    DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer,
-};
+use tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer;
+use tower_http::trace::{DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer};
+use url::form_urlencoded;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
@@ -273,11 +273,9 @@ where
         let log_level = http_request_logging.level.as_tracing_level();
 
         let trace_layer = TraceLayer::new_for_http()
-            .make_span_with(
-                DefaultMakeSpan::new()
-                    .level(log_level)
-                    .include_headers(false),
-            )
+            .make_span_with(move |request: &Request<_>| {
+                make_sanitized_http_span(log_level, request)
+            })
             .on_request(DefaultOnRequest::new().level(log_level))
             .on_response(
                 DefaultOnResponse::new()
@@ -286,10 +284,69 @@ where
             )
             .on_failure(DefaultOnFailure::new().level(log_level));
 
-        router.layer(trace_layer)
+        router
+            .layer(trace_layer)
+            .layer(SetSensitiveRequestHeadersLayer::new(std::iter::once(
+                AUTHORIZATION,
+            )))
     } else {
         router
     }
+}
+
+fn make_sanitized_http_span(
+    log_level: tracing::Level,
+    request: &Request<impl Sized>,
+) -> tracing::Span {
+    let method = request.method();
+    let uri = sanitize_request_uri(request.uri());
+    let headers = request.headers();
+    let version = request.version();
+
+    match log_level {
+        tracing::Level::ERROR => {
+            tracing::span!(tracing::Level::ERROR, "request", %method, %uri, headers = ?headers, ?version)
+        }
+        tracing::Level::WARN => {
+            tracing::span!(tracing::Level::WARN, "request", %method, %uri, headers = ?headers, ?version)
+        }
+        tracing::Level::INFO => {
+            tracing::span!(tracing::Level::INFO, "request", %method, %uri, headers = ?headers, ?version)
+        }
+        tracing::Level::DEBUG => {
+            tracing::span!(tracing::Level::DEBUG, "request", %method, %uri, headers = ?headers, ?version)
+        }
+        tracing::Level::TRACE => {
+            tracing::span!(tracing::Level::TRACE, "request", %method, %uri, headers = ?headers, ?version)
+        }
+    }
+}
+
+fn sanitize_request_uri(uri: &http::Uri) -> String {
+    let path = uri.path();
+    let Some(query) = uri.query() else {
+        return path.to_owned();
+    };
+
+    let redacted_query_parameter_names: HashSet<&str> = ["access_token"].into_iter().collect();
+
+    let mut serializer = form_urlencoded::Serializer::new(String::new());
+    for (key, value) in form_urlencoded::parse(query.as_bytes()) {
+        let serialized_value = if redacted_query_parameter_names.contains(key.as_ref()) {
+            "__REDACTED__"
+        } else {
+            value.as_ref()
+        };
+
+        serializer.append_pair(&key, serialized_value);
+    }
+
+    let sanitized_query = serializer.finish();
+    if sanitized_query.is_empty() {
+        return path.to_owned();
+    }
+
+    format!("{path}?{sanitized_query}")
 }
 
 fn build_cors_layer(configured_origins: Vec<String>) -> CorsLayer {
