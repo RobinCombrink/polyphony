@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use backend_domain::{
-    Channel, ChannelId, ChannelType, ExternalReference, Membership, Message, MessageId, Server,
-    NotificationCategoryPreference, NotificationMuteState, ServerId, User, UserId,
+    Channel, ChannelId, ChannelType, ExternalReference, Membership, Message, MessageId,
+    NotificationCategoryPreference, NotificationMuteState, Server, ServerId, User, UserId,
 };
 use tokio::sync::RwLock;
 
@@ -300,7 +300,11 @@ impl NotificationRepository for InMemoryRepository {
         store.set_channel_notification_category_for_user(user_id, channel_id, category);
     }
 
-    async fn clear_channel_notification_category_for_user(&self, user_id: UserId, channel_id: ChannelId) {
+    async fn clear_channel_notification_category_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) {
         let mut store = self.store.write().await;
         store.clear_channel_notification_category_for_user(user_id, channel_id);
     }

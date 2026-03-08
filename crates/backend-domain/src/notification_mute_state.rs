@@ -14,10 +14,6 @@ impl NotificationMuteState {
     }
 
     pub fn from_muted_flag(muted: bool) -> Self {
-        if muted {
-            Self::Muted
-        } else {
-            Self::Unmuted
-        }
+        if muted { Self::Muted } else { Self::Unmuted }
     }
 }

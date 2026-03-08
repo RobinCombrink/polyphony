@@ -340,11 +340,8 @@ impl InMemoryStore {
                     return false;
                 }
 
-                let effective_category = self.effective_notification_category_for_channel(
-                    *user_id,
-                    server_id,
-                    channel_id,
-                );
+                let effective_category = self
+                    .effective_notification_category_for_channel(*user_id, server_id, channel_id);
 
                 match effective_category {
                     NotificationCategoryPreference::None => false,
@@ -401,7 +398,9 @@ impl InMemoryStore {
             None => return MutationResult::NotFound,
         };
 
-        let maybe_message = messages.iter_mut().find(|message| message.id() == message_id);
+        let maybe_message = messages
+            .iter_mut()
+            .find(|message| message.id() == message_id);
 
         match maybe_message {
             Some(message) if message.author_user_id() == author_user_id => {
@@ -424,7 +423,9 @@ impl InMemoryStore {
             None => return MutationResult::NotFound,
         };
 
-        let message_index = messages.iter().position(|message| message.id() == message_id);
+        let message_index = messages
+            .iter()
+            .position(|message| message.id() == message_id);
 
         match message_index {
             Some(index) if messages[index].author_user_id() == author_user_id => {
@@ -622,11 +623,11 @@ impl InMemoryStore {
         let global_category = self.global_notification_category_for_user(user_id);
         match (global_category, scoped_category) {
             (NotificationCategoryPreference::None, _) => NotificationCategoryPreference::None,
-            (NotificationCategoryPreference::OnlyMentions, NotificationCategoryPreference::AllMessages) => {
-                NotificationCategoryPreference::OnlyMentions
-            }
+            (
+                NotificationCategoryPreference::OnlyMentions,
+                NotificationCategoryPreference::AllMessages,
+            ) => NotificationCategoryPreference::OnlyMentions,
             _ => scoped_category,
         }
     }
-
 }

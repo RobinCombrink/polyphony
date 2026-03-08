@@ -1,6 +1,6 @@
+use backend_domain::{NotificationCategoryPreference, NotificationMuteState};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use backend_domain::{NotificationCategoryPreference, NotificationMuteState};
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct UpdateNotificationGlobalPreferenceRequest {

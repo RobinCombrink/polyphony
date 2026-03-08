@@ -121,7 +121,7 @@ where
     responses(
         (status = 201, description = "Server member added", body = Membership),
         (status = 403, description = "Only server owner can add members"),
-        (status = 404, description = "Server not found"),
+        (status = 404, description = "Server or user not found"),
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
