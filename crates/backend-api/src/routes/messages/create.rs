@@ -44,6 +44,25 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
+    let channel = match state
+        .channel_repository
+        .find_channel_by_id(channel_id)
+        .await
+    {
+        Some(channel) => channel,
+        None => return StatusCode::NOT_FOUND.into_response(),
+    };
+    let server_name = match state
+        .server_repository
+        .list_servers_for_user(authenticated_user.user_id)
+        .await
+        .into_iter()
+        .find(|candidate| candidate.id == channel.server_id())
+    {
+        Some(server) => server.name,
+        None => return StatusCode::NOT_FOUND.into_response(),
+    };
+
     let is_channel_member = match state
         .channel_repository
         .is_channel_member(channel_id, authenticated_user.user_id)
@@ -83,7 +102,10 @@ where
                     recipient_user_id,
                     event: NotificationEvent {
                         event_type,
+                        server_id: channel.server_id(),
+                        server_name: server_name.clone(),
                         channel_id: message.channel_id(),
+                        channel_name: channel.name().to_owned(),
                         message_id: message.id(),
                     },
                 });

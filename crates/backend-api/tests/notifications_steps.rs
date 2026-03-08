@@ -663,11 +663,21 @@ async fn named_user_receives_message_created_websocket_notification_for_named_ch
 
     assert_eq!(world.latest_status(), StatusCode::CREATED);
     assert_eq!(event["event_type"].as_str(), Some("mentioned"));
+    let expected_server_id = world.server_id.expect("server id to be set").to_string();
+    assert_eq!(
+        event["server_id"].as_str(),
+        Some(expected_server_id.as_str())
+    );
+    assert!(
+        event["server_name"].as_str().is_some(),
+        "expected server_name in websocket notification event"
+    );
     let expected_channel_id = world.channel_id_by_name_ref(&channel_name).to_string();
     assert_eq!(
         event["channel_id"].as_str(),
         Some(expected_channel_id.as_str())
     );
+    assert_eq!(event["channel_name"].as_str(), Some(channel_name.as_str()));
 
     let ws_connection = world
         .active_ws_connection

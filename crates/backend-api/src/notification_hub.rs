@@ -1,11 +1,14 @@
-use backend_domain::{ChannelId, MessageId, NotificationEventType, UserId};
+use backend_domain::{ChannelId, MessageId, NotificationEventType, ServerId, UserId};
 use serde::Serialize;
 use tokio::sync::broadcast;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct NotificationEvent {
     pub event_type: NotificationEventType,
+    pub server_id: ServerId,
+    pub server_name: String,
     pub channel_id: ChannelId,
+    pub channel_name: String,
     pub message_id: MessageId,
 }
 
