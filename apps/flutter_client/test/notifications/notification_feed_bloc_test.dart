@@ -10,9 +10,11 @@ void main() {
     act: (bloc) {
       bloc.add(
         const NotificationFeedRuntimeEventReceived(
-          event: RuntimeNotificationEvent(
-            eventType: RuntimeNotificationEventType.mentioned,
+          event: MentionedRuntimeNotificationEvent(
+            serverId: "server-1",
+            serverName: "Test",
             channelId: "channel-1",
+            channelName: "general",
             messageId: "message-1",
           ),
         ),
@@ -34,9 +36,11 @@ void main() {
       bloc
         ..add(
           const NotificationFeedRuntimeEventReceived(
-            event: RuntimeNotificationEvent(
-              eventType: RuntimeNotificationEventType.unreadMessage,
+            event: UnreadMessageRuntimeNotificationEvent(
+              serverId: "server-1",
+              serverName: "Test",
               channelId: "channel-1",
+              channelName: "general",
               messageId: "message-1",
             ),
           ),

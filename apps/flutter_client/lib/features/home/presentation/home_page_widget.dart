@@ -36,6 +36,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   final createMessageController = TextEditingController();
   late final NotificationRuntimeService _notificationRuntimeService;
   StreamSubscription<RuntimeNotificationEvent>? _notificationSubscription;
+  _NotificationChannelTarget? _pendingNotificationChannelTarget;
   var _keybindingsRefreshToken = 0;
   var _isDisplayNamePromptOpen = false;
 
@@ -321,6 +322,40 @@ class _HomePageWidgetState extends State<HomePageWidget> {
               },
             ),
             BlocListener<ChannelsBloc, ChannelsState>(
+              listenWhen: (_, current) => current is ChannelsLoadedDataState,
+              listener: (context, state) {
+                final pendingTarget = _pendingNotificationChannelTarget;
+                if (pendingTarget == null ||
+                    state is! ChannelsLoadedDataState) {
+                  return;
+                }
+
+                if (state.serverId != pendingTarget.serverId) {
+                  return;
+                }
+
+                final hasTargetChannel = state.textChannels.any(
+                  (channel) => channel.id == pendingTarget.channelId,
+                );
+
+                _pendingNotificationChannelTarget = null;
+
+                if (!hasTargetChannel) {
+                  showTopRightErrorToast(
+                    context,
+                    "Unable to open notification channel.",
+                  );
+                  return;
+                }
+
+                context.read<ChannelsBloc>().add(
+                      SelectTextChannelRequested(
+                        channelId: pendingTarget.channelId,
+                      ),
+                    );
+              },
+            ),
+            BlocListener<ChannelsBloc, ChannelsState>(
               listenWhen: (previous, current) {
                 if (current is! ChannelsLoadedDataState) {
                   return false;
@@ -514,77 +549,121 @@ class _HomePageWidgetState extends State<HomePageWidget> {
       showDragHandle: true,
       builder: (sheetContext) {
         return BlocProvider<NotificationFeedBloc>.value(
-          value: notificationFeedBloc,
-          child: SafeArea(
-            child: BlocBuilder<NotificationFeedBloc, NotificationFeedState>(
-              builder: (context, state) {
-                final entries = state.entries;
+            value: notificationFeedBloc,
+            child: SafeArea(
+              child: BlocBuilder<NotificationFeedBloc, NotificationFeedState>(
+                builder: (context, state) {
+                  final entries = state.entries;
 
-                if (entries.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(
-                      child: Text("No recent notifications."),
-                    ),
+                  if (entries.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: Text("No recent notifications."),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: <Widget>[
+                            const Text(
+                              "Recent notifications",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: () => context
+                                  .read<NotificationFeedBloc>()
+                                  .add(
+                                      const NotificationFeedClearedRequested()),
+                              child: const Text("Clear"),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: entries.length,
+                          itemBuilder: (context, index) {
+                            final entry = entries[index];
+
+                            return ListTile(
+                              title: Text(_notificationEntryTitle(entry)),
+                              onTap: () => _openNotificationFeedEntry(
+                                context,
+                                entry,
+                              ),
+                              subtitle: Text(
+                                _notificationEntrySubtitle(entry),
+                              ),
+                              trailing: Text(_notificationEntryTime(entry)),
+                              dense: true,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   );
-                }
-
-                return Column(
-                  children: <Widget>[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: <Widget>[
-                          const Text(
-                            "Recent notifications",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const Spacer(),
-                          TextButton(
-                            onPressed: () => context
-                                .read<NotificationFeedBloc>()
-                                .add(const NotificationFeedClearedRequested()),
-                            child: const Text("Clear"),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: entries.length,
-                        itemBuilder: (context, index) {
-                          final entry = entries[index];
-
-                          return ListTile(
-                            title: Text(_notificationEntryTitle(entry)),
-                            subtitle: Text(
-                              "Channel ${entry.event.channelId}",
-                            ),
-                            trailing: Text(_notificationEntryTime(entry)),
-                            dense: true,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        );
+                },
+              ),
+            ));
       },
     );
   }
 
   String _notificationEntryTitle(NotificationFeedEntry entry) {
-    return switch (entry.event.eventType) {
-      RuntimeNotificationEventType.unreadMessage => "New unread message",
-      RuntimeNotificationEventType.mentioned => "You were mentioned",
+    return switch (entry.event) {
+      UnreadMessageRuntimeNotificationEvent() => "New unread message",
+      MentionedRuntimeNotificationEvent() => "You were mentioned",
     };
+  }
+
+  String _notificationEntrySubtitle(NotificationFeedEntry entry) {
+    return "${entry.event.channelName} / ${entry.event.serverName}";
+  }
+
+  void _openNotificationFeedEntry(
+    BuildContext context,
+    NotificationFeedEntry entry,
+  ) {
+    final serverId = entry.event.serverId.trim();
+
+    Navigator.of(context).pop();
+
+    context.read<ServersBloc>().add(
+          SelectServerRequested(serverId: serverId),
+        );
+
+    final channelsBloc = context.read<ChannelsBloc>();
+    final channelsState = channelsBloc.state;
+
+    final hasTargetLoaded = channelsState is ChannelsLoadedDataState &&
+        channelsState.serverId == serverId &&
+        channelsState.textChannels.any(
+          (channel) => channel.id == entry.event.channelId,
+        );
+
+    if (hasTargetLoaded) {
+      channelsBloc.add(
+        SelectTextChannelRequested(channelId: entry.event.channelId),
+      );
+      return;
+    }
+
+    _pendingNotificationChannelTarget = _NotificationChannelTarget(
+      serverId: serverId,
+      channelId: entry.event.channelId,
+    );
+
+    channelsBloc.add(LoadChannelsRequested(serverId: serverId));
   }
 
   String _notificationEntryTime(NotificationFeedEntry entry) {
@@ -594,6 +673,16 @@ class _HomePageWidgetState extends State<HomePageWidget> {
 
     return "$hour:$minute";
   }
+}
+
+final class _NotificationChannelTarget {
+  const _NotificationChannelTarget({
+    required this.serverId,
+    required this.channelId,
+  });
+
+  final String serverId;
+  final String channelId;
 }
 
 class _UnreadNotificationCountIconButton extends StatelessWidget {

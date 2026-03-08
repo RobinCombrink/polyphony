@@ -1,20 +1,40 @@
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
-enum RuntimeNotificationEventType {
-  unreadMessage,
-  mentioned,
-}
-
-final class RuntimeNotificationEvent {
+sealed class RuntimeNotificationEvent {
   const RuntimeNotificationEvent({
-    required this.eventType,
+    required this.serverId,
+    required this.serverName,
     required this.channelId,
+    required this.channelName,
     required this.messageId,
   });
 
-  final RuntimeNotificationEventType eventType;
+  final String serverId;
+  final String serverName;
   final String channelId;
+  final String channelName;
   final String messageId;
+}
+
+final class UnreadMessageRuntimeNotificationEvent
+    extends RuntimeNotificationEvent {
+  const UnreadMessageRuntimeNotificationEvent({
+    required super.serverId,
+    required super.serverName,
+    required super.channelId,
+    required super.channelName,
+    required super.messageId,
+  });
+}
+
+final class MentionedRuntimeNotificationEvent extends RuntimeNotificationEvent {
+  const MentionedRuntimeNotificationEvent({
+    required super.serverId,
+    required super.serverName,
+    required super.channelId,
+    required super.channelName,
+    required super.messageId,
+  });
 }
 
 abstract interface class NotificationRuntimeService {

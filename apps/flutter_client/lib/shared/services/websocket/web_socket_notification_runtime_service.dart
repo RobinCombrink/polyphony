@@ -164,30 +164,52 @@ class WebSocketNotificationRuntimeService
     Map<String, dynamic> payload,
   ) {
     final eventTypeRaw = payload["event_type"];
+    final serverIdRaw = payload["server_id"];
+    final serverNameRaw = payload["server_name"];
     final channelIdRaw = payload["channel_id"];
+    final channelNameRaw = payload["channel_name"];
     final messageIdRaw = payload["message_id"];
 
     if (eventTypeRaw is! String ||
+        serverIdRaw is! String ||
+        serverNameRaw is! String ||
         channelIdRaw is! String ||
+        channelNameRaw is! String ||
         messageIdRaw is! String) {
       return null;
     }
 
-    final eventType = switch (eventTypeRaw) {
-      "unread_message" => RuntimeNotificationEventType.unreadMessage,
-      "mentioned" => RuntimeNotificationEventType.mentioned,
-      _ => null,
-    };
+    final serverId = serverIdRaw.trim();
+    final serverName = serverNameRaw.trim();
+    final channelId = channelIdRaw.trim();
+    final channelName = channelNameRaw.trim();
+    final messageId = messageIdRaw.trim();
 
-    if (eventType == null) {
+    if (serverId.isEmpty ||
+        serverName.isEmpty ||
+        channelId.isEmpty ||
+        channelName.isEmpty ||
+        messageId.isEmpty) {
       return null;
     }
 
-    return RuntimeNotificationEvent(
-      eventType: eventType,
-      channelId: channelIdRaw,
-      messageId: messageIdRaw,
-    );
+    return switch (eventTypeRaw) {
+      "unread_message" => UnreadMessageRuntimeNotificationEvent(
+          serverId: serverId,
+          serverName: serverName,
+          channelId: channelId,
+          channelName: channelName,
+          messageId: messageId,
+        ),
+      "mentioned" => MentionedRuntimeNotificationEvent(
+          serverId: serverId,
+          serverName: serverName,
+          channelId: channelId,
+          channelName: channelName,
+          messageId: messageId,
+        ),
+      _ => null,
+    };
   }
 
   void _onSocketDone() {
