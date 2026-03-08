@@ -4,6 +4,10 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 abstract interface class NotificationService {
   Future<Result<ApiNotificationUnreadCount>> getUnreadNotificationCount();
 
+  Future<Result<void>> markChannelNotificationsRead({
+    required String channelId,
+  });
+
   Future<Result<ApiNotificationGlobalPreference>>
       getGlobalNotificationPreference();
 

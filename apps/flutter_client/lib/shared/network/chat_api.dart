@@ -99,6 +99,11 @@ abstract interface class ChatApi {
     required String baseUrl,
   });
 
+  Future<Result<void>> markChannelNotificationsRead({
+    required String baseUrl,
+    required String channelId,
+  });
+
   Future<Result<ApiNotificationGlobalPreference>>
       getGlobalNotificationPreference({
     required String baseUrl,

@@ -18,7 +18,9 @@ import "package:polyphony_flutter_client/features/voice_sessions/presentation/wi
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_quick_actions_overlay_widget.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/top_right_error_toast.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 
 class HomePageWidget extends StatefulWidget {
   const HomePageWidget({super.key});
@@ -54,9 +56,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
         return;
       }
 
-      context.read<NotificationUnreadCountBloc>().add(
-            const LoadNotificationUnreadCountRequested(),
-          );
+      _refreshUnreadCount(context);
     });
 
     unawaited(_connectNotificationRuntime(context));
@@ -142,9 +142,32 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     context.read<ServersBloc>().add(
           const LoadServersRequested(),
         );
+  }
+
+  void _refreshUnreadCount(BuildContext context) {
     context.read<NotificationUnreadCountBloc>().add(
           const LoadNotificationUnreadCountRequested(),
         );
+  }
+
+  Future<void> _markChannelNotificationsRead(String channelId) async {
+    final markReadResult = await context
+        .read<NotificationService>()
+        .markChannelNotificationsRead(channelId: channelId);
+
+    if (!mounted) {
+      return;
+    }
+
+    if (markReadResult case Error<void>()) {
+      showTopRightErrorToast(
+        context,
+        "Unable to mark notifications as read.",
+      );
+      return;
+    }
+
+    _refreshUnreadCount(context);
   }
 
   @override
@@ -163,7 +186,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
             builder: (context, notificationState) {
               return _UnreadNotificationCountIconButton(
                 totalUnreadCount: notificationState.totalUnreadCountOrZero(),
-                onPressed: () => _loadInitialData(context),
+                onPressed: () => _refreshUnreadCount(context),
               );
             },
           ),
@@ -284,16 +307,46 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                 );
               },
             ),
+            BlocListener<ChannelsBloc, ChannelsState>(
+              listenWhen: (previous, current) {
+                if (current is! ChannelsLoadedDataState) {
+                  return false;
+                }
+
+                final previousLoadedState = switch (previous) {
+                  final ChannelsLoadedDataState loaded => loaded,
+                  _ => null,
+                };
+
+                if (previousLoadedState == null) {
+                  return current.selectedTextChannelId != null;
+                }
+
+                return previousLoadedState.selectedTextChannelId !=
+                        current.selectedTextChannelId ||
+                    previousLoadedState.serverId != current.serverId;
+              },
+              listener: (context, state) {
+                if (state is! ChannelsLoadedDataState) {
+                  return;
+                }
+
+                final selectedTextChannelId = state.selectedTextChannelId;
+                if (selectedTextChannelId == null) {
+                  return;
+                }
+
+                unawaited(
+                  _markChannelNotificationsRead(selectedTextChannelId),
+                );
+              },
+            ),
             BlocListener<MessagesBloc, MessagesState>(
               listenWhen: (_, current) {
                 return current is MessagesExceptionState ||
                     current is MessagesLoadedDataState;
               },
               listener: (context, state) {
-                context.read<NotificationUnreadCountBloc>().add(
-                      const LoadNotificationUnreadCountRequested(),
-                    );
-
                 if (state is! MessagesExceptionState) {
                   return;
                 }

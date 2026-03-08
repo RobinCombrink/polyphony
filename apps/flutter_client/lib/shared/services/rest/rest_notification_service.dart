@@ -18,6 +18,16 @@ class RestNotificationService implements NotificationService {
   }
 
   @override
+  Future<Result<void>> markChannelNotificationsRead({
+    required String channelId,
+  }) {
+    return _chatApi.markChannelNotificationsRead(
+      baseUrl: _baseUrl,
+      channelId: channelId,
+    );
+  }
+
+  @override
   Future<Result<ApiNotificationGlobalPreference>>
       getGlobalNotificationPreference() {
     return _chatApi.getGlobalNotificationPreference(baseUrl: _baseUrl);

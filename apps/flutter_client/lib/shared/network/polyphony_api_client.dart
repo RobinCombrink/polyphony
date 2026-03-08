@@ -282,6 +282,20 @@ class PolyphonyApiClient implements ChatApi {
   }
 
   @override
+  Future<Result<void>> markChannelNotificationsRead({
+    required String baseUrl,
+    required String channelId,
+  }) {
+    return _performPostRequestWithoutResponseBody(
+      baseUrl: baseUrl,
+      endpoint: "/api/v1/channels/$channelId/notifications/read",
+      operation: "mark channel notifications read",
+      body: const <String, dynamic>{},
+      expectedStatusCode: 204,
+    );
+  }
+
+  @override
   Future<Result<ApiNotificationGlobalPreference>>
       getGlobalNotificationPreference({
     required String baseUrl,
