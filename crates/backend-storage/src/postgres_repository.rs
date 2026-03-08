@@ -587,7 +587,7 @@ impl NotificationRepository for PostgresRepository {
 
     async fn total_unread_count_for_user(&self, user_id: UserId) -> u64 {
         sqlx::query_scalar::<_, i64>(
-            "SELECT COALESCE(SUM(unread_count), 0)
+            "SELECT COALESCE(SUM(unread_count), 0)::BIGINT
              FROM notification_unread_counts
              WHERE user_id = $1",
         )

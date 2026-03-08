@@ -1,9 +1,10 @@
 use axum::{
     Json,
     extract::{
-        Path, State, WebSocketUpgrade,
+        Path, Query, State, WebSocketUpgrade,
         ws::{Message, WebSocket},
     },
+    http::HeaderMap,
     http::StatusCode,
     response::IntoResponse,
 };
@@ -14,7 +15,7 @@ use backend_storage::{
 
 use crate::{
     ApiState,
-    auth::{AuthenticatedUser, TokenVerifier},
+    auth::{AuthError, AuthenticatedUser, TokenVerifier},
     dto::{
         ApiErrorResponse, MuteChannelNotificationsRequest, NotificationChannelPreferenceResponse,
         NotificationGlobalPreferenceResponse, NotificationServerPreferenceResponse,
@@ -22,6 +23,7 @@ use crate::{
         UpdateNotificationGlobalPreferenceRequest, UpdateNotificationServerPreferenceRequest,
     },
 };
+use serde::Deserialize;
 
 #[utoipa::path(
     get,
@@ -623,7 +625,8 @@ pub(crate) async fn websocket_notifications<
 >(
     ws: WebSocketUpgrade,
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
-    authenticated_user: AuthenticatedUser,
+    headers: HeaderMap,
+    query: Query<WebSocketNotificationsQuery>,
 ) -> impl IntoResponse
 where
     UserRepo: UserRepository + Send + Sync + 'static,
@@ -632,9 +635,79 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
+    let bearer_token = match websocket_bearer_token(&headers, query.0) {
+        Ok(value) => value,
+        Err(error) => return error.into_response(),
+    };
+
+    let authenticated_user = match resolve_authenticated_user(&state, &bearer_token).await {
+        Ok(value) => value,
+        Err(error) => return error.into_response(),
+    };
+
     ws.on_upgrade(move |socket| async move {
         forward_notifications(socket, state, authenticated_user).await;
     })
+}
+
+#[derive(Deserialize)]
+pub(crate) struct WebSocketNotificationsQuery {
+    access_token: Option<String>,
+}
+
+fn websocket_bearer_token(
+    headers: &HeaderMap,
+    query: WebSocketNotificationsQuery,
+) -> Result<String, AuthError> {
+    if let Some(header_value) = headers.get("Authorization") {
+        let raw_header_value = header_value
+            .to_str()
+            .map_err(|_| AuthError::NonBearerAuthorization)?;
+        return parse_bearer_token(raw_header_value);
+    }
+
+    let token_from_query = query
+        .access_token
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .ok_or(AuthError::MissingAuthorizationHeader)?;
+
+    Ok(token_from_query)
+}
+
+async fn resolve_authenticated_user<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    state: &ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>,
+    bearer_token: &str,
+) -> Result<AuthenticatedUser, AuthError>
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository + NotificationRepository,
+    Verifier: TokenVerifier,
+{
+    let verified_user = state.auth_state.token_verifier.verify(bearer_token).await?;
+    let user = state
+        .user_repository
+        .get_or_create_user_by_external_reference(&verified_user.external_reference)
+        .await;
+
+    Ok(AuthenticatedUser {
+        user_id: user.id,
+        external_reference: verified_user.external_reference,
+    })
+}
+
+fn parse_bearer_token(authorization_value: &str) -> Result<String, AuthError> {
+    let bearer_prefix = "Bearer ";
+
+    if !authorization_value.starts_with(bearer_prefix) {
+        return Err(AuthError::NonBearerAuthorization);
+    }
+
+    Ok(authorization_value
+        .trim_start_matches(bearer_prefix)
+        .to_owned())
 }
 
 async fn forward_notifications<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
