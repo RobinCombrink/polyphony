@@ -13,3 +13,12 @@ final class SettingsDarkModeToggledRequested extends SettingsEvent {
 
   final bool enabled;
 }
+
+final class SettingsChannelJoinNotificationsToggledRequested
+    extends SettingsEvent {
+  const SettingsChannelJoinNotificationsToggledRequested({
+    required this.enabled,
+  });
+
+  final bool enabled;
+}

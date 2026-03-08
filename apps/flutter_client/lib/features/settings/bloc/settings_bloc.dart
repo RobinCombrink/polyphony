@@ -13,6 +13,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       _onSettingsPreferencesRestoreRequested,
     );
     on<SettingsDarkModeToggledRequested>(_onSettingsDarkModeToggledRequested);
+    on<SettingsChannelJoinNotificationsToggledRequested>(
+      _onSettingsChannelJoinNotificationsToggledRequested,
+    );
   }
 
   final PreferencesStore _preferencesStore;
@@ -26,15 +29,31 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       SettingsExceptionState(:final isDarkModeEnabled) => isDarkModeEnabled,
       _ => false,
     };
+    final previousChannelJoinNotificationsEnabled = switch (state) {
+      SettingsLoadedState(:final isChannelJoinNotificationsEnabled) =>
+        isChannelJoinNotificationsEnabled,
+      SettingsExceptionState(:final isChannelJoinNotificationsEnabled) =>
+        isChannelJoinNotificationsEnabled,
+      _ => false,
+    };
 
     try {
       final isDarkModeEnabled = await _preferencesStore.readDarkModeEnabled();
-      emit(SettingsLoadedState(isDarkModeEnabled: isDarkModeEnabled));
+      final isChannelJoinNotificationsEnabled =
+          await _preferencesStore.readChannelJoinNotificationsEnabled();
+      emit(
+        SettingsLoadedState(
+          isDarkModeEnabled: isDarkModeEnabled,
+          isChannelJoinNotificationsEnabled: isChannelJoinNotificationsEnabled,
+        ),
+      );
     } on Exception catch (error) {
       emit(
         SettingsExceptionState(
           error: error,
           isDarkModeEnabled: previousDarkModeEnabled,
+          isChannelJoinNotificationsEnabled:
+              previousChannelJoinNotificationsEnabled,
         ),
       );
     }
@@ -45,8 +64,21 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     final nextDarkModeEnabled = event.enabled;
+    final currentChannelJoinNotificationsEnabled = switch (state) {
+      SettingsLoadedState(:final isChannelJoinNotificationsEnabled) =>
+        isChannelJoinNotificationsEnabled,
+      SettingsExceptionState(:final isChannelJoinNotificationsEnabled) =>
+        isChannelJoinNotificationsEnabled,
+      _ => false,
+    };
 
-    emit(SettingsLoadedState(isDarkModeEnabled: nextDarkModeEnabled));
+    emit(
+      SettingsLoadedState(
+        isDarkModeEnabled: nextDarkModeEnabled,
+        isChannelJoinNotificationsEnabled:
+            currentChannelJoinNotificationsEnabled,
+      ),
+    );
 
     try {
       await _preferencesStore.writeDarkModeEnabled(nextDarkModeEnabled);
@@ -55,6 +87,42 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         SettingsExceptionState(
           error: error,
           isDarkModeEnabled: nextDarkModeEnabled,
+          isChannelJoinNotificationsEnabled:
+              currentChannelJoinNotificationsEnabled,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onSettingsChannelJoinNotificationsToggledRequested(
+    SettingsChannelJoinNotificationsToggledRequested event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final nextChannelJoinNotificationsEnabled = event.enabled;
+    final currentDarkModeEnabled = switch (state) {
+      SettingsLoadedState(:final isDarkModeEnabled) => isDarkModeEnabled,
+      SettingsExceptionState(:final isDarkModeEnabled) => isDarkModeEnabled,
+      _ => false,
+    };
+
+    emit(
+      SettingsLoadedState(
+        isDarkModeEnabled: currentDarkModeEnabled,
+        isChannelJoinNotificationsEnabled: nextChannelJoinNotificationsEnabled,
+      ),
+    );
+
+    try {
+      await _preferencesStore.writeChannelJoinNotificationsEnabled(
+        nextChannelJoinNotificationsEnabled,
+      );
+    } on Exception catch (error) {
+      emit(
+        SettingsExceptionState(
+          error: error,
+          isDarkModeEnabled: currentDarkModeEnabled,
+          isChannelJoinNotificationsEnabled:
+              nextChannelJoinNotificationsEnabled,
         ),
       );
     }

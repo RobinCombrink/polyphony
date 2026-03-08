@@ -7,6 +7,7 @@ final class _TestPreferencesStore implements PreferencesStore {
   _TestPreferencesStore();
 
   var darkModeEnabled = false;
+  var channelJoinNotificationsEnabled = false;
 
   @override
   Future<bool> readDarkModeEnabled() async {
@@ -16,6 +17,16 @@ final class _TestPreferencesStore implements PreferencesStore {
   @override
   Future<void> writeDarkModeEnabled(bool enabled) async {
     darkModeEnabled = enabled;
+  }
+
+  @override
+  Future<bool> readChannelJoinNotificationsEnabled() async {
+    return channelJoinNotificationsEnabled;
+  }
+
+  @override
+  Future<void> writeChannelJoinNotificationsEnabled(bool enabled) async {
+    channelJoinNotificationsEnabled = enabled;
   }
 
   @override
@@ -70,10 +81,31 @@ void main() {
       },
       act: (bloc) => bloc.add(const SettingsPreferencesRestoreRequested()),
       expect: () => <Matcher>[
+        isA<SettingsLoadedState>()
+            .having(
+              (state) => state.isDarkModeEnabled,
+              "isDarkModeEnabled",
+              isTrue,
+            )
+            .having(
+              (state) => state.isChannelJoinNotificationsEnabled,
+              "isChannelJoinNotificationsEnabled",
+              isFalse,
+            ),
+      ],
+    );
+
+    blocTest<SettingsBloc, SettingsState>(
+      "restores channel join notifications disabled by default",
+      build: () {
+        return SettingsBloc(preferencesStore: preferencesStore);
+      },
+      act: (bloc) => bloc.add(const SettingsPreferencesRestoreRequested()),
+      expect: () => <Matcher>[
         isA<SettingsLoadedState>().having(
-          (state) => state.isDarkModeEnabled,
-          "isDarkModeEnabled",
-          isTrue,
+          (state) => state.isChannelJoinNotificationsEnabled,
+          "isChannelJoinNotificationsEnabled",
+          isFalse,
         ),
       ],
     );
@@ -87,14 +119,40 @@ void main() {
         const SettingsDarkModeToggledRequested(enabled: true),
       ),
       expect: () => <Matcher>[
+        isA<SettingsLoadedState>()
+            .having(
+              (state) => state.isDarkModeEnabled,
+              "isDarkModeEnabled",
+              isTrue,
+            )
+            .having(
+              (state) => state.isChannelJoinNotificationsEnabled,
+              "isChannelJoinNotificationsEnabled",
+              isFalse,
+            ),
+      ],
+      verify: (_) {
+        expect(preferencesStore.darkModeEnabled, isTrue);
+      },
+    );
+
+    blocTest<SettingsBloc, SettingsState>(
+      "emits loaded state and persists channel join notifications toggle",
+      build: () {
+        return SettingsBloc(preferencesStore: preferencesStore);
+      },
+      act: (bloc) => bloc.add(
+        const SettingsChannelJoinNotificationsToggledRequested(enabled: true),
+      ),
+      expect: () => <Matcher>[
         isA<SettingsLoadedState>().having(
-          (state) => state.isDarkModeEnabled,
-          "isDarkModeEnabled",
+          (state) => state.isChannelJoinNotificationsEnabled,
+          "isChannelJoinNotificationsEnabled",
           isTrue,
         ),
       ],
       verify: (_) {
-        expect(preferencesStore.darkModeEnabled, isTrue);
+        expect(preferencesStore.channelJoinNotificationsEnabled, isTrue);
       },
     );
   });

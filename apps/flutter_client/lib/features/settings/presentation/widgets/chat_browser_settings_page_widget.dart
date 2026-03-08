@@ -6,6 +6,7 @@ import "package:polyphony_flutter_client/features/settings/presentation/widgets/
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_developer_options_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_keybindings_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_notification_preferences_section_widget.dart";
+import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_voice_notifications_section_widget.dart";
 
 class ChatBrowserSettingsPageWidget extends StatefulWidget {
   const ChatBrowserSettingsPageWidget({
@@ -75,6 +76,9 @@ class _ChatBrowserSettingsPageWidgetState
             showChannel: false,
             description: "Control global notification behavior.",
           )),
+          const SizedBox(height: 16),
+          const _SettingsSectionWidget(
+              child: SettingsVoiceNotificationsSectionWidget()),
           const SizedBox(height: 16),
           _SettingsSectionWidget(
               child: SettingsDeveloperOptionsSectionWidget(

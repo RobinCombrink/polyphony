@@ -91,6 +91,8 @@ final class KeybindingsPreferences {
 abstract interface class PreferencesStore {
   Future<bool> readDarkModeEnabled();
   Future<void> writeDarkModeEnabled(bool enabled);
+  Future<bool> readChannelJoinNotificationsEnabled();
+  Future<void> writeChannelJoinNotificationsEnabled(bool enabled);
   Future<bool> readRememberEmailEnabled();
   Future<void> writeRememberEmailEnabled(bool enabled);
   Future<String?> readRememberedEmailAddress();
@@ -103,11 +105,14 @@ abstract interface class PreferencesStore {
 final class SharedPreferencesBackedPreferencesStore
     implements PreferencesStore {
   static const _darkModeEnabledKey = "settings.dark_mode_enabled";
+  static const _channelJoinNotificationsEnabledKey =
+      "settings.channel_join_notifications_enabled";
   static const _rememberEmailKey = "auth.remember_email";
   static const _rememberedEmailAddressKey = "auth.remembered_email_address";
   static const _keybindingsKey = "settings.keybindings";
   static const _allowList = <String>{
     _darkModeEnabledKey,
+    _channelJoinNotificationsEnabledKey,
     _rememberEmailKey,
     _rememberedEmailAddressKey,
     _keybindingsKey,
@@ -132,6 +137,20 @@ final class SharedPreferencesBackedPreferencesStore
   Future<void> writeDarkModeEnabled(bool enabled) async {
     final sharedPreferences = await _sharedPreferencesWithCacheFuture;
     await sharedPreferences.setBool(_darkModeEnabledKey, enabled);
+  }
+
+  @override
+  Future<bool> readChannelJoinNotificationsEnabled() async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    return sharedPreferences.getBool(_channelJoinNotificationsEnabledKey) ??
+        false;
+  }
+
+  @override
+  Future<void> writeChannelJoinNotificationsEnabled(bool enabled) async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    await sharedPreferences.setBool(
+        _channelJoinNotificationsEnabledKey, enabled);
   }
 
   @override
@@ -204,6 +223,7 @@ final class SharedPreferencesBackedPreferencesStore
 
 final class InMemoryPreferencesStore implements PreferencesStore {
   var _darkModeEnabled = false;
+  var _channelJoinNotificationsEnabled = false;
   var _rememberEmailEnabled = false;
   String? _rememberedEmailAddress;
   var _keybindingsPreferences = const KeybindingsPreferences.unset();
@@ -216,6 +236,16 @@ final class InMemoryPreferencesStore implements PreferencesStore {
   @override
   Future<void> writeDarkModeEnabled(bool enabled) async {
     _darkModeEnabled = enabled;
+  }
+
+  @override
+  Future<bool> readChannelJoinNotificationsEnabled() async {
+    return _channelJoinNotificationsEnabled;
+  }
+
+  @override
+  Future<void> writeChannelJoinNotificationsEnabled(bool enabled) async {
+    _channelJoinNotificationsEnabled = enabled;
   }
 
   @override
@@ -266,6 +296,16 @@ final class WebPreferencesStore implements PreferencesStore {
 
   @override
   Future<void> writeDarkModeEnabled(bool enabled) async {
+    return;
+  }
+
+  @override
+  Future<bool> readChannelJoinNotificationsEnabled() async {
+    return false;
+  }
+
+  @override
+  Future<void> writeChannelJoinNotificationsEnabled(bool enabled) async {
     return;
   }
 
