@@ -28,37 +28,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install semantic-release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-            # prevent incorrect usage of GITHUB_TOKEN by node
-            GITHUB_TOKEN: "wrong-token"
-        run: |
-          npm install --no-save semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator
-
       - name: Compute semantic version
-        id: semantic_release
+        id: semantic_version
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-            # prevent incorrect usage of GITHUB_TOKEN by semantic-release plugins during dry run
-            GITHUB_TOKEN: "wrong-token"
-        run: |
-          node -e "const fs = require('fs'); (async () => { const semanticRelease = require('semantic-release'); const result = await semanticRelease({ dryRun: true, ci: false }, { cwd: process.cwd(), env: process.env, stdout: process.stdout, stderr: process.stderr }); const version = result && result.nextRelease ? result.nextRelease.version : ''; const tag = result && result.nextRelease ? result.nextRelease.gitTag : ''; fs.appendFileSync(process.env.GITHUB_OUTPUT, `next_version=${version}\nnext_tag=${tag}\n`); })().catch((error) => { console.error(error); process.exit(1); });"
+        uses: paulhatch/semantic-version@v5.4.0
+        with:
+          branch: main
+          version_format: "${major}.${minor}.${patch}"
+          tag_prefix: "frontend"
 
       - name: Resolve version outputs
         id: version_output
         shell: bash
-        env:
-            # prevent incorrect usage of GITHUB_TOKEN by node
-            GITHUB_TOKEN: "wrong-token"
         run: |
-            VERSION="${{ steps.semantic_release.outputs.next_version }}"
-            TAG="${{ steps.semantic_release.outputs.next_tag }}"
+            VERSION="${{ steps.semantic_version.outputs.version }}"
+            TAG="${{ steps.semantic_version.outputs.version_tag }}"
+
+            if [ -z "$VERSION" ]; then
+                echo "No version determined from semantic versioning action"
+                exit 1
+            fi
+
+            if [ -z "$TAG" ]; then
+              TAG="frontend-${VERSION}"
+            fi
 
             echo "installer_version=${VERSION}" >> "$GITHUB_OUTPUT"
             echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"
