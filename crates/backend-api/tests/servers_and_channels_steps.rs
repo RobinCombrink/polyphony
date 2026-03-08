@@ -7,13 +7,13 @@ use axum::http::StatusCode;
 use common::{
     bdd_support::{
         Actor, ChannelId, ServerId, SharedTestStore, UserId, add_server_member,
-        add_server_member_with_token, create_actor, create_channel, create_channel_with_token,
-        create_server, create_server_with_token, default_shared_store, delete_channel,
-        delete_channel_with_token, delete_server, delete_server_with_token, fresh_shared_store,
-        list_channels, list_channels_with_token, list_servers, list_servers_with_token,
-        payload_channel_id, payload_server_id, payload_user_id, prime_feature_test_store,
-        response_payload_json, seeded_app_with_store, shutdown_feature_test_store, update_channel,
-        update_channel_with_token,
+        add_server_member_with_raw_user_id, add_server_member_with_token, create_actor,
+        create_channel, create_channel_with_token, create_server, create_server_with_token,
+        default_shared_store, delete_channel, delete_channel_with_token, delete_server,
+        delete_server_with_token, fresh_shared_store, list_channels, list_channels_with_token,
+        list_servers, list_servers_with_token, payload_channel_id, payload_server_id,
+        payload_user_id, prime_feature_test_store, response_payload_json, seeded_app_with_store,
+        shutdown_feature_test_store, update_channel, update_channel_with_token,
     },
     entity_seeder::EntitySeeder,
 };
@@ -475,6 +475,24 @@ async fn the_server_owner_adds_another_user_as_a_member(world: &mut ServersAndCh
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
+#[when("the server owner adds a member with an invalid user id")]
+async fn the_server_owner_adds_a_member_with_an_invalid_user_id(
+    world: &mut ServersAndChannelsWorld,
+) {
+    world.ensure_owner_server().await;
+
+    let response = add_server_member_with_raw_user_id(
+        world.owner_app_ref(),
+        world.server_id_ref(),
+        "not-a-uuid",
+        world.owner_actor_ref().token.as_str(),
+    )
+    .await;
+
+    world.latest_status = Some(response.status());
+    world.latest_payload = None;
+}
+
 async fn second_user_lists_their_servers(world: &mut ServersAndChannelsWorld) {
     let response = list_servers_with_token(world.second_app_ref(), "member-token").await;
     world.latest_status = Some(response.status());
@@ -747,6 +765,11 @@ async fn channel_listing_is_denied(world: &mut ServersAndChannelsWorld) {
 #[then("adding a member is denied")]
 async fn adding_a_member_is_denied(world: &mut ServersAndChannelsWorld) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
+}
+
+#[then("adding a member fails with invalid input")]
+async fn adding_a_member_fails_with_invalid_input(world: &mut ServersAndChannelsWorld) {
+    assert_eq!(world.latest_status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
 
 #[then("the delete succeeds")]

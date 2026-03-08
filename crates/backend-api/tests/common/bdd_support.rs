@@ -287,6 +287,28 @@ pub(crate) async fn add_server_member_with_token(
         .expect("add server member response from app")
 }
 
+pub(crate) async fn add_server_member_with_raw_user_id(
+    app: &axum::Router,
+    server_id: &ServerId,
+    raw_user_id: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/servers/{server_id}/members"))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "user_id": raw_user_id }).to_string(),
+                ))
+                .expect("add server member request to be valid"),
+        )
+        .await
+        .expect("add server member response from app")
+}
+
 pub(crate) async fn delete_server(
     app: &axum::Router,
     server_id: &ServerId,
