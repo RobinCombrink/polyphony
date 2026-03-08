@@ -8,8 +8,8 @@ use std::time::Duration;
 use axum::http::StatusCode;
 use backend_api::notification_hub::NotificationHub;
 use common::bdd_support::{
-    Actor, ChannelId, MessageId, NotificationMuteState, ServerId, SharedTestStore,
-    add_server_member_with_token, channel_notification_preference_with_token,
+    Actor, ChannelId, MessageId, NotificationCategoryPreference, NotificationMuteState, ServerId,
+    SharedTestStore, add_server_member_with_token, channel_notification_preference_with_token,
     connect_voice_session_with_token, create_actor_with_notification_hub,
     create_channel_with_token, create_message_with_token, create_message_with_token_and_mention,
     create_server_with_token, global_notification_preference_with_token,
@@ -18,7 +18,10 @@ use common::bdd_support::{
     payload_message_id, payload_server_id, prime_feature_test_store, response_payload_json,
     server_notification_preference_with_token, shutdown_feature_test_store,
     unmute_channel_notifications_with_token, unread_count_for_channel,
-    unread_notifications_count_with_token, update_global_notification_preference_with_token,
+    unread_notifications_count_with_token,
+    update_global_channel_default_notification_preference_with_token,
+    update_global_notification_category_preference_with_token,
+    update_global_notification_preference_with_token,
     update_server_notification_preference_with_token,
 };
 use cucumber::{World as _, given, then, when};
@@ -382,12 +385,87 @@ async fn named_user_has_temporarily_muted_named_channel_for_minutes(
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
-#[given(regex = r#"^"([^"]+)" is connected to notifications websocket$"#)]
-async fn named_user_is_connected_to_notifications_websocket(
+#[given(regex = r#"^"([^"]+)" is subscribed to live notifications$"#)]
+async fn named_user_is_subscribed_to_live_notifications(
     world: &mut NotificationsWorld,
     actor_name: String,
 ) {
     world.connect_actor_ws_notifications(&actor_name).await;
+}
+
+#[given(regex = r#"^"([^"]+)" has all-messages channel default notifications$"#)]
+async fn named_user_has_all_messages_channel_default_notifications(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let global_category_response = update_global_notification_category_preference_with_token(
+        &actor.app,
+        NotificationCategoryPreference::AllMessages,
+        &actor.token,
+    )
+    .await;
+    assert_eq!(global_category_response.status(), StatusCode::NO_CONTENT);
+
+    let channel_default_response =
+        update_global_channel_default_notification_preference_with_token(
+            &actor.app,
+            NotificationCategoryPreference::AllMessages,
+            &actor.token,
+        )
+        .await;
+
+    assert_eq!(channel_default_response.status(), StatusCode::NO_CONTENT);
+}
+
+#[given(regex = r#"^"([^"]+)" has only-mentions channel default notifications$"#)]
+async fn named_user_has_only_mentions_channel_default_notifications(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let global_category_response = update_global_notification_category_preference_with_token(
+        &actor.app,
+        NotificationCategoryPreference::OnlyMentions,
+        &actor.token,
+    )
+    .await;
+    assert_eq!(global_category_response.status(), StatusCode::NO_CONTENT);
+
+    let channel_default_response =
+        update_global_channel_default_notification_preference_with_token(
+            &actor.app,
+            NotificationCategoryPreference::OnlyMentions,
+            &actor.token,
+        )
+        .await;
+
+    assert_eq!(channel_default_response.status(), StatusCode::NO_CONTENT);
+}
+
+#[given(regex = r#"^"([^"]+)" has none channel default notifications$"#)]
+async fn named_user_has_none_channel_default_notifications(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let global_category_response = update_global_notification_category_preference_with_token(
+        &actor.app,
+        NotificationCategoryPreference::None,
+        &actor.token,
+    )
+    .await;
+    assert_eq!(global_category_response.status(), StatusCode::NO_CONTENT);
+
+    let channel_default_response =
+        update_global_channel_default_notification_preference_with_token(
+            &actor.app,
+            NotificationCategoryPreference::None,
+            &actor.token,
+        )
+        .await;
+
+    assert_eq!(channel_default_response.status(), StatusCode::NO_CONTENT);
 }
 
 #[when(regex = r#"^"([^"]+)" posts a message in channel "([^"]+)"$"#)]
@@ -404,6 +482,67 @@ async fn named_user_posts_a_message_in_channel_named(
         *world.channel_id_by_name_ref(&channel_name),
     )
     .await;
+}
+
+#[when(regex = r#"^"([^"]+)" posts a plain message in channel "([^"]+)"$"#)]
+async fn named_user_posts_a_plain_message_in_channel_named(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+) {
+    track_outbox_totals_before_post(world).await;
+
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let response = create_message_with_token(
+        &actor.app,
+        &channel_id,
+        "plain notification-message",
+        &actor.token,
+    )
+    .await;
+
+    world.latest_status = Some(response.status());
+    if response.status() == StatusCode::CREATED {
+        let payload = response_payload_json(response).await;
+        world.latest_message_id = Some(payload_message_id(&payload, "id"));
+        world.latest_payload = Some(payload);
+    } else {
+        world.latest_message_id = None;
+        world.latest_payload = None;
+    }
+}
+
+#[when(regex = r#"^"([^"]+)" posts a message mentioning "([^"]+)" in channel "([^"]+)"$"#)]
+async fn named_user_posts_a_message_mentioning_named_user_in_channel_named(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    mentioned_user_name: String,
+    channel_name: String,
+) {
+    track_outbox_totals_before_post(world).await;
+
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let mentioned_user_id = world.actor_ref(&mentioned_user_name).user_id;
+    let response = create_message_with_token_and_mention(
+        &actor.app,
+        &channel_id,
+        "@mention notification-message",
+        &mentioned_user_id,
+        &actor.token,
+    )
+    .await;
+
+    world.latest_status = Some(response.status());
+    if response.status() == StatusCode::CREATED {
+        let payload = response_payload_json(response).await;
+        world.latest_message_id = Some(payload_message_id(&payload, "id"));
+        world.latest_payload = Some(payload);
+    } else {
+        world.latest_message_id = None;
+        world.latest_payload = None;
+    }
 }
 
 #[when(regex = r#"^"([^"]+)" connects to voice for channel "([^"]+)"$"#)]
@@ -665,10 +804,8 @@ async fn named_user_sees_named_channel_mute_expiry_timestamp_is(
     }
 }
 
-#[then(
-    regex = r#"^"([^"]+)" receives a message-created websocket notification for channel "([^"]+)"$"#
-)]
-async fn named_user_receives_message_created_websocket_notification_for_named_channel(
+#[then(regex = r#"^"([^"]+)" receives a message-created live notification for channel "([^"]+)"$"#)]
+async fn named_user_receives_message_created_live_notification_for_named_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
     channel_name: String,
@@ -676,7 +813,7 @@ async fn named_user_receives_message_created_websocket_notification_for_named_ch
     let event = world
         .next_ws_event(Duration::from_secs(2))
         .await
-        .expect("websocket notification event to be received");
+        .expect("live notification event to be received");
 
     assert_eq!(world.latest_status(), StatusCode::CREATED);
     assert_eq!(event["event_type"].as_str(), Some("mentioned"));
@@ -687,7 +824,7 @@ async fn named_user_receives_message_created_websocket_notification_for_named_ch
     );
     assert!(
         event["server_name"].as_str().is_some(),
-        "expected server_name in websocket notification event"
+        "expected server_name in live notification event"
     );
     let expected_channel_id = world.channel_id_by_name_ref(&channel_name).to_string();
     assert_eq!(
@@ -695,18 +832,108 @@ async fn named_user_receives_message_created_websocket_notification_for_named_ch
         Some(expected_channel_id.as_str())
     );
     assert_eq!(event["channel_name"].as_str(), Some(channel_name.as_str()));
+    assert!(
+        event["message_id"].as_str().is_some(),
+        "expected message_id in message-created live notification event"
+    );
+    assert!(
+        event["joined_user_id"].is_null(),
+        "expected joined_user_id to be absent for message-created live notification event"
+    );
+    assert!(
+        event["joined_user_display_name"].is_null(),
+        "expected joined_user_display_name to be absent for message-created live notification event"
+    );
 
     let ws_connection = world
         .active_ws_connection
         .as_ref()
-        .expect("active websocket connection to be set");
+        .expect("active live notification stream connection to be set");
+    assert_eq!(ws_connection.actor_name, actor_name);
+}
+
+#[then(regex = r#"^"([^"]+)" receives a mentioned live notification for channel "([^"]+)"$"#)]
+async fn named_user_receives_mentioned_live_notification_for_named_channel(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+) {
+    let event = world
+        .next_ws_event(Duration::from_secs(2))
+        .await
+        .expect("live notification event to be received");
+
+    assert_eq!(world.latest_status(), StatusCode::CREATED);
+    assert_eq!(event["event_type"].as_str(), Some("mentioned"));
+    let expected_channel_id = world.channel_id_by_name_ref(&channel_name).to_string();
+    assert_eq!(
+        event["channel_id"].as_str(),
+        Some(expected_channel_id.as_str())
+    );
+    assert_eq!(event["channel_name"].as_str(), Some(channel_name.as_str()));
+    assert!(
+        event["message_id"].as_str().is_some(),
+        "expected message_id in mentioned live notification event"
+    );
+    assert!(
+        event["joined_user_id"].is_null(),
+        "expected joined_user_id to be absent for mentioned live notification event"
+    );
+    assert!(
+        event["joined_user_display_name"].is_null(),
+        "expected joined_user_display_name to be absent for mentioned live notification event"
+    );
+
+    let ws_connection = world
+        .active_ws_connection
+        .as_ref()
+        .expect("active live notification stream connection to be set");
+    assert_eq!(ws_connection.actor_name, actor_name);
+}
+
+#[then(regex = r#"^"([^"]+)" receives an unread-message live notification for channel "([^"]+)"$"#)]
+async fn named_user_receives_unread_message_live_notification_for_named_channel(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+) {
+    let event = world
+        .next_ws_event(Duration::from_secs(2))
+        .await
+        .expect("live notification event to be received");
+
+    assert_eq!(world.latest_status(), StatusCode::CREATED);
+    assert_eq!(event["event_type"].as_str(), Some("unread_message"));
+    let expected_channel_id = world.channel_id_by_name_ref(&channel_name).to_string();
+    assert_eq!(
+        event["channel_id"].as_str(),
+        Some(expected_channel_id.as_str())
+    );
+    assert_eq!(event["channel_name"].as_str(), Some(channel_name.as_str()));
+    assert!(
+        event["message_id"].as_str().is_some(),
+        "expected message_id in unread-message live notification event"
+    );
+    assert!(
+        event["joined_user_id"].is_null(),
+        "expected joined_user_id to be absent for unread-message live notification event"
+    );
+    assert!(
+        event["joined_user_display_name"].is_null(),
+        "expected joined_user_display_name to be absent for unread-message live notification event"
+    );
+
+    let ws_connection = world
+        .active_ws_connection
+        .as_ref()
+        .expect("active live notification stream connection to be set");
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
 #[then(
-    regex = r#"^"([^"]+)" receives a friend-joined-voice websocket notification for channel "([^"]+)" from "([^"]+)"$"#
+    regex = r#"^"([^"]+)" receives a friend-joined-voice live notification for channel "([^"]+)" from "([^"]+)"$"#
 )]
-async fn named_user_receives_friend_joined_voice_websocket_notification_for_named_channel_from_named_user(
+async fn named_user_receives_friend_joined_voice_live_notification_for_named_channel_from_named_user(
     world: &mut NotificationsWorld,
     actor_name: String,
     channel_name: String,
@@ -715,7 +942,7 @@ async fn named_user_receives_friend_joined_voice_websocket_notification_for_name
     let event = world
         .next_ws_event(Duration::from_secs(2))
         .await
-        .expect("websocket notification event to be received");
+        .expect("live notification event to be received");
 
     assert_eq!(world.latest_status(), StatusCode::OK);
     assert_eq!(event["event_type"].as_str(), Some("friend_joined_voice"));
@@ -732,6 +959,10 @@ async fn named_user_receives_friend_joined_voice_websocket_notification_for_name
         Some(expected_channel_id.as_str())
     );
     assert_eq!(event["channel_name"].as_str(), Some(channel_name.as_str()));
+    assert!(
+        event["message_id"].is_null(),
+        "expected message_id to be absent for friend-joined-voice live notification event"
+    );
 
     let expected_joined_user_id = world.actor_ref(&joined_user_name).user_id.to_string();
     assert_eq!(
@@ -750,34 +981,31 @@ async fn named_user_receives_friend_joined_voice_websocket_notification_for_name
     let ws_connection = world
         .active_ws_connection
         .as_ref()
-        .expect("active websocket connection to be set");
+        .expect("active live notification stream connection to be set");
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
-async fn named_user_does_not_receive_websocket_notification_events_for_that_channel(
+async fn named_user_does_not_receive_live_notification_events_for_that_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
 ) {
     let event = world.next_ws_event(Duration::from_millis(600)).await;
-    assert!(event.is_none(), "unexpected websocket notification payload");
+    assert!(event.is_none(), "unexpected live notification payload");
 
     let ws_connection = world
         .active_ws_connection
         .as_ref()
-        .expect("active websocket connection to be set");
+        .expect("active live notification stream connection to be set");
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
-#[then(
-    regex = r#"^"([^"]+)" does not receive websocket notification events for channel "([^"]+)"$"#
-)]
-async fn named_user_does_not_receive_websocket_notification_events_for_named_channel(
+#[then(regex = r#"^"([^"]+)" does not receive live notification events for channel "([^"]+)"$"#)]
+async fn named_user_does_not_receive_live_notification_events_for_named_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
     _channel_name: String,
 ) {
-    named_user_does_not_receive_websocket_notification_events_for_that_channel(world, actor_name)
-        .await;
+    named_user_does_not_receive_live_notification_events_for_that_channel(world, actor_name).await;
 }
 
 async fn posting_is_denied_because_that_channel_does_not_support_messaging(

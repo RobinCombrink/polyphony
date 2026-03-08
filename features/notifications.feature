@@ -27,37 +27,187 @@ Feature: Notifications
       Then posting is denied because channel "voice-alerts" does not support messaging
       And no notification outbox event is recorded for "Noah"
 
-  Rule: Websocket delivery mirrors durable unread updates for connected clients
+  Rule: Live message delivery follows category preferences for connected authorized recipients
+    Background:
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And a server named "Test" owned by "Olivia" exists
+      And a text channel named "general" exists in server "Test" created by "Olivia"
+      And "Olivia" adds "Noah" to server "Test"
+      And "Noah" is subscribed to live notifications
+
+    Scenario: Connected recipient receives message-created notification event
+      When "Olivia" posts a message in channel "general"
+      Then "Noah" receives a message-created live notification for channel "general"
+
+    Scenario: Connected recipient receives mentioned notification event
+      When "Olivia" posts a message mentioning "Noah" in channel "general"
+      Then "Noah" receives a mentioned live notification for channel "general"
+
+    Scenario: Connected recipient receives unread message notification event
+      Given "Noah" has all-messages channel default notifications
+      When "Olivia" posts a plain message in channel "general"
+      Then "Noah" receives an unread-message live notification for channel "general"
+
+    Scenario: Connected recipient with all-messages default receives mentioned notification event
+      Given "Noah" has all-messages channel default notifications
+      When "Olivia" posts a message mentioning "Noah" in channel "general"
+      Then "Noah" receives a mentioned live notification for channel "general"
+
+    Scenario: Connected recipient with only-mentions default does not receive unread message notification event
+      Given "Noah" has only-mentions channel default notifications
+      When "Olivia" posts a plain message in channel "general"
+      Then "Noah" does not receive live notification events for channel "general"
+
+    Scenario: Connected recipient with only-mentions default receives mentioned notification event
+      Given "Noah" has only-mentions channel default notifications
+      When "Olivia" posts a message mentioning "Noah" in channel "general"
+      Then "Noah" receives a mentioned live notification for channel "general"
+
+    Scenario: Connected recipient with none default does not receive unread message notification event
+      Given "Noah" has none channel default notifications
+      When "Olivia" posts a plain message in channel "general"
+      Then "Noah" does not receive live notification events for channel "general"
+
+    Scenario: Connected recipient with none default does not receive mentioned notification event
+      Given "Noah" has none channel default notifications
+      When "Olivia" posts a message mentioning "Noah" in channel "general"
+      Then "Noah" does not receive live notification events for channel "general"
+
+  Rule: Live message delivery respects mute precedence for connected authorized recipients
+    Background:
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And a server named "Test" owned by "Olivia" exists
+      And a text channel named "general" exists in server "Test" created by "Olivia"
+      And "Olivia" adds "Noah" to server "Test"
+      And "Noah" has all-messages channel default notifications
+      And "Noah" is subscribed to live notifications
+
+    Scenario: Globally muted recipient does not receive mentioned live notification event
+      Given "Noah" has globally muted notifications
+      When "Olivia" posts a message mentioning "Noah" in channel "general"
+      Then "Noah" does not receive live notification events for channel "general"
+
+    Scenario: Globally muted recipient does not receive unread message live notification event
+      Given "Noah" has globally muted notifications
+      When "Olivia" posts a plain message in channel "general"
+      Then "Noah" does not receive live notification events for channel "general"
+
+    Scenario: Muted server recipient does not receive mentioned live notification event
+      Given "Noah" has muted server "Test"
+      When "Olivia" posts a message mentioning "Noah" in channel "general"
+      Then "Noah" does not receive live notification events for channel "general"
+
+    Scenario: Muted server recipient does not receive unread message live notification event
+      Given "Noah" has muted server "Test"
+      When "Olivia" posts a plain message in channel "general"
+      Then "Noah" does not receive live notification events for channel "general"
+
+    Scenario: Temporarily muted channel recipient does not receive unread message live notification event until unmuted
+      Given "Noah" has temporarily muted channel "general" for 30 minutes
+      When "Olivia" posts a plain message in channel "general"
+      Then "Noah" does not receive live notification events for channel "general"
+      When the temporary mute expires for "Noah" in channel "general"
+      And "Olivia" posts a plain message in channel "general"
+      Then "Noah" receives an unread-message live notification for channel "general"
+
+  Rule: Live message delivery recovers by category after temporary channel mute expires
+    Background:
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And a server named "Test" owned by "Olivia" exists
+      And a text channel named "general" exists in server "Test" created by "Olivia"
+      And "Olivia" adds "Noah" to server "Test"
+      And "Noah" is subscribed to live notifications
+
+    Scenario: Temporarily muted channel recipient does not receive mentioned live notification event until unmuted
+      Given "Noah" has only-mentions channel default notifications
+      And "Noah" has temporarily muted channel "general" for 30 minutes
+      When "Olivia" posts a message mentioning "Noah" in channel "general"
+      Then "Noah" does not receive live notification events for channel "general"
+      When the temporary mute expires for "Noah" in channel "general"
+      And "Olivia" posts a message mentioning "Noah" in channel "general"
+      Then "Noah" receives a mentioned live notification for channel "general"
+
+  Rule: Live delivery only targets authorized recipients
     Background:
       Given a user named "Olivia" exists
       And a user named "Noah" exists
       And a server named "Test" owned by "Olivia" exists
       And a text channel named "general" exists in server "Test" created by "Olivia"
 
-    Scenario: Connected websocket recipient receives message-created notification event
-      Given "Olivia" adds "Noah" to server "Test"
-      And "Noah" is connected to notifications websocket
+    Scenario: Live delivery does not include unauthorized channels
+      Given "Noah" is subscribed to live notifications
       When "Olivia" posts a message in channel "general"
-      Then "Noah" receives a message-created websocket notification for channel "general"
+      Then "Noah" does not receive live notification events for channel "general"
 
-    Scenario: Websocket does not deliver notifications for unauthorized channels
-      Given "Noah" is connected to notifications websocket
-      When "Olivia" posts a message in channel "general"
-      Then "Noah" does not receive websocket notification events for channel "general"
-
-    Scenario: Connected websocket recipient receives friend joined voice notification event
-      Given a voice channel named "voice-lobby" exists in server "Test" created by "Olivia"
+  Rule: Live voice events are delivered to other members and not echoed to the joining user
+    Background:
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And a server named "Test" owned by "Olivia" exists
+      And a text channel named "general" exists in server "Test" created by "Olivia"
+      And a voice channel named "voice-lobby" exists in server "Test" created by "Olivia"
       And "Olivia" adds "Noah" to server "Test"
-      And "Noah" is connected to notifications websocket
-      When "Olivia" connects to voice for channel "voice-lobby"
-      Then "Noah" receives a friend-joined-voice websocket notification for channel "voice-lobby" from "Olivia"
 
-    Scenario: Joining user does not receive their own friend joined voice websocket notification event
-      Given a voice channel named "voice-lobby" exists in server "Test" created by "Olivia"
-      And "Olivia" adds "Noah" to server "Test"
-      And "Olivia" is connected to notifications websocket
+    Scenario: Connected recipient receives friend joined voice notification event
+      Given "Noah" is subscribed to live notifications
       When "Olivia" connects to voice for channel "voice-lobby"
-      Then "Olivia" does not receive websocket notification events for channel "voice-lobby"
+      Then "Noah" receives a friend-joined-voice live notification for channel "voice-lobby" from "Olivia"
+
+    Scenario: Joining user does not receive their own friend joined voice notification event
+      Given "Olivia" is subscribed to live notifications
+      When "Olivia" connects to voice for channel "voice-lobby"
+      Then "Olivia" does not receive live notification events for channel "voice-lobby"
+
+    Scenario: Connected recipient with all-messages default receives friend joined voice notification event
+      Given "Noah" has all-messages channel default notifications
+      And "Noah" is subscribed to live notifications
+      When "Olivia" connects to voice for channel "voice-lobby"
+      Then "Noah" receives a friend-joined-voice live notification for channel "voice-lobby" from "Olivia"
+
+    Scenario: Connected recipient with only-mentions default receives friend joined voice notification event
+      Given "Noah" has only-mentions channel default notifications
+      And "Noah" is subscribed to live notifications
+      When "Olivia" connects to voice for channel "voice-lobby"
+      Then "Noah" receives a friend-joined-voice live notification for channel "voice-lobby" from "Olivia"
+
+    Scenario: Connected recipient with none default receives friend joined voice notification event
+      Given "Noah" has none channel default notifications
+      And "Noah" is subscribed to live notifications
+      When "Olivia" connects to voice for channel "voice-lobby"
+      Then "Noah" receives a friend-joined-voice live notification for channel "voice-lobby" from "Olivia"
+
+    Scenario: Globally muted recipient still receives friend joined voice notification event
+      Given "Noah" has globally muted notifications
+      And "Noah" is subscribed to live notifications
+      When "Olivia" connects to voice for channel "voice-lobby"
+      Then "Noah" receives a friend-joined-voice live notification for channel "voice-lobby" from "Olivia"
+
+    Scenario: Muted server recipient still receives friend joined voice notification event
+      Given "Noah" has muted server "Test"
+      And "Noah" is subscribed to live notifications
+      When "Olivia" connects to voice for channel "voice-lobby"
+      Then "Noah" receives a friend-joined-voice live notification for channel "voice-lobby" from "Olivia"
+
+    Scenario: Temporarily muted voice channel recipient still receives friend joined voice notification event
+      Given "Noah" has temporarily muted channel "voice-lobby" for 30 minutes
+      And "Noah" is subscribed to live notifications
+      When "Olivia" connects to voice for channel "voice-lobby"
+      Then "Noah" receives a friend-joined-voice live notification for channel "voice-lobby" from "Olivia"
+
+  Rule: Live voice events only target authorized server members
+    Background:
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And a server named "Test" owned by "Olivia" exists
+      And a voice channel named "voice-lobby" exists in server "Test" created by "Olivia"
+
+    Scenario: Unauthorized recipient does not receive friend joined voice notification event
+      Given "Noah" is subscribed to live notifications
+      When "Olivia" connects to voice for channel "voice-lobby"
+      Then "Noah" does not receive live notification events for channel "voice-lobby"
 
   Rule: Unread count aggregation and mark-read lifecycle stay consistent
     Background:

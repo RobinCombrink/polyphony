@@ -25,7 +25,8 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 pub(crate) use backend_api::domain::{
-    ChannelId, ExternalReference, MessageId, NotificationMuteState, ServerId, UserId,
+    ChannelId, ExternalReference, MessageId, NotificationCategoryPreference, NotificationMuteState,
+    ServerId, UserId,
 };
 
 #[derive(Debug)]
@@ -723,6 +724,52 @@ pub(crate) async fn update_global_notification_preference_with_token(
         )
         .await
         .expect("update global notification preference response from app")
+}
+
+pub(crate) async fn update_global_channel_default_notification_preference_with_token(
+    app: &axum::Router,
+    channel_default_category: NotificationCategoryPreference,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications/preferences/global")
+                .method("PATCH")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "channel_default_category": channel_default_category })
+                        .to_string(),
+                ))
+                .expect(
+                    "update global channel default notification preference request to be valid",
+                ),
+        )
+        .await
+        .expect("update global channel default notification preference response from app")
+}
+
+pub(crate) async fn update_global_notification_category_preference_with_token(
+    app: &axum::Router,
+    notification_category: NotificationCategoryPreference,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/notifications/preferences/global")
+                .method("PATCH")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "notification_category": notification_category })
+                        .to_string(),
+                ))
+                .expect("update global notification category preference request to be valid"),
+        )
+        .await
+        .expect("update global notification category preference response from app")
 }
 
 pub(crate) async fn global_notification_preference_with_token(
