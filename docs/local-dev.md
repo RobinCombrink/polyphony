@@ -127,6 +127,41 @@ Package notes:
 - The Flutter client uses `auth0_flutter` SDK for web and mobile/macOS auth flows.
 - Windows and Linux keep a desktop fallback OAuth flow with `flutter_web_auth_2`.
 
+## Windows Installer Local Testing (MSI)
+To validate Windows distribution locally (including the executable, all required DLL files, and the `data` directory), build and test the MSI installer from `apps/flutter_client`.
+
+1. Install WiX Toolset 3 if missing:
+```powershell
+choco install wixtoolset --yes --no-progress
+```
+
+2. Build the release executable:
+```powershell
+cd apps/flutter_client
+flutter pub get
+flutter build windows --release
+```
+
+3. Build the MSI package from the generated release folder:
+```powershell
+./package_msi.ps1 -ProductVersion "0.1.0"
+```
+
+4. Install and smoke-test the installer:
+```powershell
+msiexec /i "build/polyphony-installer-local.msi"
+```
+
+5. Optional unattended install/uninstall checks:
+```powershell
+msiexec /i "build/polyphony-installer-local.msi" /qn /L*v "build/msi-install.log"
+msiexec /x "build/polyphony-installer-local.msi" /qn /L*v "build/msi-uninstall.log"
+```
+
+Notes:
+- The MSI harvest step takes everything in `build/windows/x64/runner/Release`, so the installer includes the app executable, Flutter/runtime DLL files, and `data` assets.
+- This MSI flow does not require a signing certificate for local testing. Sign the MSI separately for public distribution.
+
 ## Test Strategy
 - BDD-style acceptance tests live under `features/` and backend integration tests.
 - Entity creation in tests should use `EntitySeeder` types to hide implementation details.

@@ -17,6 +17,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  semantic-version:
+    name: Determine semantic version
+    runs-on: ubuntu-latest
+    outputs:
+      installer_version: ${{ steps.version_output.outputs.installer_version }}
+      release_tag: ${{ steps.version_output.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install semantic-release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+            # prevent incorrect usage of GITHUB_TOKEN by node
+            GITHUB_TOKEN: "wrong-token"
+        run: |
+          npm install --no-save semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator
+
+      - name: Compute semantic version
+        id: semantic_release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+            # prevent incorrect usage of GITHUB_TOKEN by semantic-release plugins during dry run
+            GITHUB_TOKEN: "wrong-token"
+        run: |
+          node -e "const fs = require('fs'); (async () => { const semanticRelease = require('semantic-release'); const result = await semanticRelease({ dryRun: true, ci: false }, { cwd: process.cwd(), env: process.env, stdout: process.stdout, stderr: process.stderr }); const version = result && result.nextRelease ? result.nextRelease.version : ''; const tag = result && result.nextRelease ? result.nextRelease.gitTag : ''; fs.appendFileSync(process.env.GITHUB_OUTPUT, `next_version=${version}\nnext_tag=${tag}\n`); })().catch((error) => { console.error(error); process.exit(1); });"
+
+      - name: Resolve version outputs
+        id: version_output
+        shell: bash
+        env:
+            # prevent incorrect usage of GITHUB_TOKEN by node
+            GITHUB_TOKEN: "wrong-token"
+        run: |
+            VERSION="${{ steps.semantic_release.outputs.next_version }}"
+            TAG="${{ steps.semantic_release.outputs.next_tag }}"
+
+            echo "installer_version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"
+
   flutter-analyze:
     name: Flutter analyze
     runs-on: ubuntu-latest
@@ -84,13 +130,11 @@ jobs:
         run: flutter test
 
   flutter-build:
-    name: Flutter Windows build artifact
+    name: Flutter Windows build artifacts
     runs-on: windows-latest
     timeout-minutes: 20
     needs:
-      - flutter-analyze
-      - flutter-format
-      - flutter-tests
+      - semantic-version
     defaults:
       run:
         working-directory: apps/flutter_client
@@ -109,20 +153,38 @@ jobs:
       - name: Build Windows executable
         run: flutter build windows --release
 
+      - name: Install WiX Toolset
+        shell: pwsh
+        run: |
+          choco install wixtoolset --yes --no-progress
+          $env:PATH += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
+          "C:\Program Files (x86)\WiX Toolset v3.11\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build MSI installer
+        shell: pwsh
+        run: |
+          ./package_msi.ps1 -ProductVersion "${{ needs.semantic-version.outputs.installer_version }}" -OutputPath "build/polyphony-installer-${{ github.run_id }}-${{ github.run_attempt }}.msi"
+
       - name: Package Windows build
         run: Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "build/polyphony-windows-${{ github.run_id }}-${{ github.run_attempt }}.zip"
 
-      - name: Upload Windows build artifact
+      - name: Upload Windows build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: flutter-windows-build-${{ github.run_id }}-${{ github.run_attempt }}
-          path: apps/flutter_client/build/polyphony-windows-${{ github.run_id }}-${{ github.run_attempt }}.zip
+          path: |
+            apps/flutter_client/build/polyphony-windows-${{ github.run_id }}-${{ github.run_attempt }}.zip
+            apps/flutter_client/build/polyphony-installer-${{ github.run_id }}-${{ github.run_attempt }}.msi
 
   release:
     name: Create GitHub release
     runs-on: ubuntu-latest
     needs:
+      - flutter-analyze
       - flutter-build
+      - flutter-format
+      - flutter-tests
+      - semantic-version
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
@@ -136,14 +198,14 @@ jobs:
       - name: Generate release metadata
         id: release_meta
         run: |
-          echo "tag=frontend-0.0.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "tag=${{ needs.semantic-version.outputs.release_tag }}" >> "$GITHUB_OUTPUT"
 
       - name: Publish release
         uses: actions/github-script@v7
         env:
           RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
           RELEASE_NAME: Frontend ${{ steps.release_meta.outputs.tag }}
-          ASSET_PATH: release-assets/polyphony-windows-${{ github.run_id }}-${{ github.run_attempt }}.zip
+          ASSET_DIR: release-assets
         with:
           script: |
             const fs = require('fs');
@@ -151,10 +213,20 @@ jobs:
 
             const tag = process.env.RELEASE_TAG;
             const name = process.env.RELEASE_NAME;
-            const assetPath = process.env.ASSET_PATH;
+            const assetDir = process.env.ASSET_DIR;
 
-            if (!fs.existsSync(assetPath)) {
-              core.setFailed(`Release asset not found: ${assetPath}`);
+            if (!fs.existsSync(assetDir)) {
+              core.setFailed(`Release asset directory not found: ${assetDir}`);
+              return;
+            }
+
+            const assets = fs
+              .readdirSync(assetDir)
+              .filter((file) => file.endsWith('.zip') || file.endsWith('.msi'))
+              .map((file) => path.join(assetDir, file));
+
+            if (assets.length === 0) {
+              core.setFailed(`No release assets found in: ${assetDir}`);
               return;
             }
 
@@ -166,16 +238,21 @@ jobs:
               generate_release_notes: true
             });
 
-            const assetData = fs.readFileSync(assetPath);
+            for (const assetPath of assets) {
+              const assetData = fs.readFileSync(assetPath);
+              const contentType = assetPath.endsWith('.msi')
+                ? 'application/x-msi'
+                : 'application/zip';
 
-            await github.rest.repos.uploadReleaseAsset({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: release.data.id,
-              name: path.basename(assetPath),
-              data: assetData,
-              headers: {
-                'content-type': 'application/zip',
-                'content-length': assetData.length
-              }
-            });
+              await github.rest.repos.uploadReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: release.data.id,
+                name: path.basename(assetPath),
+                data: assetData,
+                headers: {
+                  'content-type': contentType,
+                  'content-length': assetData.length
+                }
+              });
+            }

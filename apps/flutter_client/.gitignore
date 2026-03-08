@@ -135,6 +135,10 @@ local.properties
 **/windows/flutter/generated_plugin_registrant.h
 **/windows/flutter/generated_plugins.cmake
 
+# WiX local packaging byproducts (legacy/root-level output)
+*.wixobj
+*.wixpdb
+
 # Linux
 **/linux/flutter/ephemeral/
 **/linux/flutter/generated_plugin_registrant.cc
