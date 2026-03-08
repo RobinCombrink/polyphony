@@ -334,6 +334,7 @@ final class _AuthenticatedShell extends StatelessWidget {
               notificationRepo: context.read<NotificationRepo>(),
               notificationRuntimeService:
                   context.read<NotificationRuntimeService>(),
+              preferencesStore: context.read<PreferencesStore>(),
             )..add(
                 NotificationCenterStartedRequested(
                   backendBaseUrl: PolyphonyConfig.backendBaseUrl,

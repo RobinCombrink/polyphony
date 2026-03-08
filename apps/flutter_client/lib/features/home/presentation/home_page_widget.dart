@@ -573,6 +573,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     return switch (entry.event) {
       UnreadMessageRuntimeNotificationEvent() => "New unread message",
       MentionedRuntimeNotificationEvent() => "You were mentioned",
+      FriendJoinedVoiceRuntimeNotificationEvent(:final joinedUserDisplayName) =>
+        "$joinedUserDisplayName joined voice",
     };
   }
 

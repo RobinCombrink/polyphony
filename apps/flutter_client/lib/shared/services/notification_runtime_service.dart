@@ -6,14 +6,12 @@ sealed class RuntimeNotificationEvent {
     required this.serverName,
     required this.channelId,
     required this.channelName,
-    required this.messageId,
   });
 
   final String serverId;
   final String serverName;
   final String channelId;
   final String channelName;
-  final String messageId;
 }
 
 final class UnreadMessageRuntimeNotificationEvent
@@ -23,8 +21,10 @@ final class UnreadMessageRuntimeNotificationEvent
     required super.serverName,
     required super.channelId,
     required super.channelName,
-    required super.messageId,
+    required this.messageId,
   });
+
+  final String messageId;
 }
 
 final class MentionedRuntimeNotificationEvent extends RuntimeNotificationEvent {
@@ -33,8 +33,25 @@ final class MentionedRuntimeNotificationEvent extends RuntimeNotificationEvent {
     required super.serverName,
     required super.channelId,
     required super.channelName,
-    required super.messageId,
+    required this.messageId,
   });
+
+  final String messageId;
+}
+
+final class FriendJoinedVoiceRuntimeNotificationEvent
+    extends RuntimeNotificationEvent {
+  const FriendJoinedVoiceRuntimeNotificationEvent({
+    required super.serverId,
+    required super.serverName,
+    required super.channelId,
+    required super.channelName,
+    required this.joinedUserId,
+    required this.joinedUserDisplayName,
+  });
+
+  final String joinedUserId;
+  final String joinedUserDisplayName;
 }
 
 abstract interface class NotificationRuntimeService {

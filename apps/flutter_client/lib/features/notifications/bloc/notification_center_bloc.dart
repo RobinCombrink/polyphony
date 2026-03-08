@@ -5,6 +5,7 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
 part "notification_center_event.dart";
 part "notification_center_state.dart";
@@ -14,8 +15,10 @@ class NotificationCenterBloc
   NotificationCenterBloc({
     required NotificationRepo notificationRepo,
     required NotificationRuntimeService notificationRuntimeService,
+    PreferencesStore? preferencesStore,
   })  : _notificationRepo = notificationRepo,
         _notificationRuntimeService = notificationRuntimeService,
+        _preferencesStore = preferencesStore ?? const WebPreferencesStore(),
         super(const NotificationCenterInitialState()) {
     on<NotificationCenterEvent>(
       _onEvent,
@@ -27,6 +30,7 @@ class NotificationCenterBloc
 
   final NotificationRepo _notificationRepo;
   final NotificationRuntimeService _notificationRuntimeService;
+  final PreferencesStore _preferencesStore;
   StreamSubscription<RuntimeNotificationEvent>? _runtimeSubscription;
 
   @override
@@ -106,6 +110,14 @@ class NotificationCenterBloc
     _NotificationCenterRuntimeEventReceived event,
     Emitter<NotificationCenterState> emit,
   ) async {
+    if (event.event is FriendJoinedVoiceRuntimeNotificationEvent) {
+      final isEnabled =
+          await _preferencesStore.readChannelJoinNotificationsEnabled();
+      if (!isEnabled) {
+        return;
+      }
+    }
+
     final nextEntries = <NotificationCenterEntry>[
       NotificationCenterEntry(
         event: event.event,

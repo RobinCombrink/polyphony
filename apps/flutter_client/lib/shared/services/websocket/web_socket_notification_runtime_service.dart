@@ -6,6 +6,89 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:web_socket_channel/web_socket_channel.dart";
 
+RuntimeNotificationEvent? parseRuntimeNotificationEventPayload(
+  Map<String, dynamic> payload,
+) {
+  final eventTypeRaw = payload["event_type"];
+  final serverIdRaw = payload["server_id"];
+  final serverNameRaw = payload["server_name"];
+  final channelIdRaw = payload["channel_id"];
+  final channelNameRaw = payload["channel_name"];
+  final messageIdRaw = payload["message_id"];
+  final joinedUserIdRaw = payload["joined_user_id"];
+  final joinedUserDisplayNameRaw = payload["joined_user_display_name"];
+
+  if (eventTypeRaw is! String ||
+      serverIdRaw is! String ||
+      serverNameRaw is! String ||
+      channelIdRaw is! String ||
+      channelNameRaw is! String) {
+    return null;
+  }
+
+  final serverId = serverIdRaw.trim();
+  final serverName = serverNameRaw.trim();
+  final channelId = channelIdRaw.trim();
+  final channelName = channelNameRaw.trim();
+  if (serverId.isEmpty ||
+      serverName.isEmpty ||
+      channelId.isEmpty ||
+      channelName.isEmpty) {
+    return null;
+  }
+
+  final parsedEvent = switch (eventTypeRaw) {
+    "unread_message" when messageIdRaw is String =>
+      UnreadMessageRuntimeNotificationEvent(
+        serverId: serverId,
+        serverName: serverName,
+        channelId: channelId,
+        channelName: channelName,
+        messageId: messageIdRaw.trim(),
+      ),
+    "mentioned" when messageIdRaw is String =>
+      MentionedRuntimeNotificationEvent(
+        serverId: serverId,
+        serverName: serverName,
+        channelId: channelId,
+        channelName: channelName,
+        messageId: messageIdRaw.trim(),
+      ),
+    "friend_joined_voice"
+        when joinedUserIdRaw is String && joinedUserDisplayNameRaw is String =>
+      FriendJoinedVoiceRuntimeNotificationEvent(
+        serverId: serverId,
+        serverName: serverName,
+        channelId: channelId,
+        channelName: channelName,
+        joinedUserId: joinedUserIdRaw.trim(),
+        joinedUserDisplayName: joinedUserDisplayNameRaw.trim(),
+      ),
+    _ => null,
+  };
+
+  if (parsedEvent == null) {
+    return null;
+  }
+
+  final hasEventSpecificFields = switch (parsedEvent) {
+    UnreadMessageRuntimeNotificationEvent(:final messageId) =>
+      messageId.isNotEmpty,
+    MentionedRuntimeNotificationEvent(:final messageId) => messageId.isNotEmpty,
+    FriendJoinedVoiceRuntimeNotificationEvent(
+      :final joinedUserId,
+      :final joinedUserDisplayName,
+    ) =>
+      joinedUserId.isNotEmpty && joinedUserDisplayName.isNotEmpty,
+  };
+
+  if (!hasEventSpecificFields) {
+    return null;
+  }
+
+  return parsedEvent;
+}
+
 class WebSocketNotificationRuntimeService
     implements NotificationRuntimeService {
   WebSocketNotificationRuntimeService({
@@ -163,53 +246,7 @@ class WebSocketNotificationRuntimeService
   RuntimeNotificationEvent? _parseNotificationEvent(
     Map<String, dynamic> payload,
   ) {
-    final eventTypeRaw = payload["event_type"];
-    final serverIdRaw = payload["server_id"];
-    final serverNameRaw = payload["server_name"];
-    final channelIdRaw = payload["channel_id"];
-    final channelNameRaw = payload["channel_name"];
-    final messageIdRaw = payload["message_id"];
-
-    if (eventTypeRaw is! String ||
-        serverIdRaw is! String ||
-        serverNameRaw is! String ||
-        channelIdRaw is! String ||
-        channelNameRaw is! String ||
-        messageIdRaw is! String) {
-      return null;
-    }
-
-    final serverId = serverIdRaw.trim();
-    final serverName = serverNameRaw.trim();
-    final channelId = channelIdRaw.trim();
-    final channelName = channelNameRaw.trim();
-    final messageId = messageIdRaw.trim();
-
-    if (serverId.isEmpty ||
-        serverName.isEmpty ||
-        channelId.isEmpty ||
-        channelName.isEmpty ||
-        messageId.isEmpty) {
-      return null;
-    }
-
-    return switch (eventTypeRaw) {
-      "unread_message" => UnreadMessageRuntimeNotificationEvent(
-          serverId: serverId,
-          serverName: serverName,
-          channelId: channelId,
-          channelName: channelName,
-          messageId: messageId,
-        ),
-      "mentioned" => MentionedRuntimeNotificationEvent(
-          serverId: serverId,
-          serverName: serverName,
-          channelId: channelId,
-          channelName: channelName,
-          messageId: messageId,
-        ),
-      _ => null,
-    };
+    return parseRuntimeNotificationEventPayload(payload);
   }
 
   void _onSocketDone() {
