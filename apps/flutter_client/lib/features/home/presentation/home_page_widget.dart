@@ -22,6 +22,7 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
+import "package:provider/provider.dart";
 
 class HomePageWidget extends StatefulWidget {
   const HomePageWidget({super.key});
@@ -149,6 +150,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
               final currentProfileState = context.read<ProfileBloc>().state;
               final channelsBloc = context.read<ChannelsBloc>();
               final profileService = context.read<ProfileService>();
+              final backendBaseUrlNotifier =
+                  context.read<ValueNotifier<String>>();
               final notificationPreferencesBloc =
                   context.read<NotificationPreferencesBloc>();
               final currentDisplayName = switch (currentProfileState) {
@@ -159,20 +162,25 @@ class _HomePageWidgetState extends State<HomePageWidget> {
               await Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (settingsContext) =>
-                      RepositoryProvider<ProfileService>.value(
-                    value: profileService,
-                    child: MultiBlocProvider(
-                      providers: <BlocProvider<dynamic>>[
-                        BlocProvider<ChannelsBloc>.value(value: channelsBloc),
-                        BlocProvider<NotificationPreferencesBloc>.value(
-                          value: notificationPreferencesBloc,
+                      ListenableProvider<ValueNotifier<String>>.value(
+                    value: backendBaseUrlNotifier,
+                    child: RepositoryProvider<ProfileService>.value(
+                      value: profileService,
+                      child: MultiBlocProvider(
+                        providers: <BlocProvider<dynamic>>[
+                          BlocProvider<ChannelsBloc>.value(
+                            value: channelsBloc,
+                          ),
+                          BlocProvider<NotificationPreferencesBloc>.value(
+                            value: notificationPreferencesBloc,
+                          ),
+                        ],
+                        child: ChatBrowserSettingsPageWidget(
+                          bearerToken: bearerToken,
+                          initialDisplayName: currentDisplayName,
+                          onSaveDisplayName: (displayName) =>
+                              _requestUpdateDisplayName(context, displayName),
                         ),
-                      ],
-                      child: ChatBrowserSettingsPageWidget(
-                        bearerToken: bearerToken,
-                        initialDisplayName: currentDisplayName,
-                        onSaveDisplayName: (displayName) =>
-                            _requestUpdateDisplayName(context, displayName),
                       ),
                     ),
                   ),

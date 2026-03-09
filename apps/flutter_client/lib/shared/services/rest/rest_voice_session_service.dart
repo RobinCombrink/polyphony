@@ -1,33 +1,32 @@
-import "package:polyphony_flutter_client/shared/config/backend_base_url_resolver.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
-import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
-import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
+import "package:polyphony_flutter_client/shared/services/rest/rest_request_service_base.dart";
 import "package:polyphony_flutter_client/shared/services/voice_session_service.dart";
 
-final class RestVoiceSessionService implements VoiceSessionService {
+final class RestVoiceSessionService extends RestRequestServiceBase
+    implements VoiceSessionService {
   RestVoiceSessionService({
-    required ChatApi chatApi,
-    required PreferencesStore preferencesStore,
-  })  : _chatApi = chatApi,
-        _preferencesStore = preferencesStore;
-
-  final ChatApi _chatApi;
-  final PreferencesStore _preferencesStore;
-
-  Future<String> _baseUrl() {
-    return resolveBackendBaseUrl(preferencesStore: _preferencesStore);
-  }
+    required super.dio,
+  });
 
   @override
   Future<Result<ApiVoiceConnectSession>> connectVoiceSession({
     required String channelId,
     String? participantInstanceId,
-  }) async {
-    return _chatApi.connectVoiceSession(
-      baseUrl: await _baseUrl(),
-      channelId: channelId,
-      participantInstanceId: participantInstanceId,
+  }) {
+    final trimmedParticipantInstanceId = participantInstanceId?.trim();
+
+    return performPostRequest<ApiVoiceConnectSession>(
+      endpoint: "/api/v1/channels/$channelId/session",
+      operation: "connect voice session",
+      body: <String, dynamic>{
+        "session_type": "voice",
+        if (trimmedParticipantInstanceId != null &&
+            trimmedParticipantInstanceId.isNotEmpty)
+          "participant_instance_id": trimmedParticipantInstanceId,
+      },
+      expectedStatusCode: 200,
+      decodeItem: ApiVoiceConnectSession.fromJson,
     );
   }
 }

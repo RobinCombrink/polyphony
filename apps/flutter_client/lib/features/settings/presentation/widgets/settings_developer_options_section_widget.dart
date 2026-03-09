@@ -109,6 +109,7 @@ class _SettingsDeveloperOptionsSectionWidgetState
     try {
       final normalizedBaseUrl = normalizeBackendBaseUrl(rawBaseUrl);
       await preferencesStore.writeBackendBaseUrlOverride(normalizedBaseUrl);
+      _updateBackendBaseUrlInDi(normalizedBaseUrl);
 
       if (!mounted) {
         return;
@@ -149,14 +150,18 @@ class _SettingsDeveloperOptionsSectionWidgetState
 
     try {
       await preferencesStore.clearBackendBaseUrlOverride();
+      final defaultBaseUrl = normalizeBackendBaseUrl(
+        PolyphonyConfig.backendBaseUrl,
+      );
+      _updateBackendBaseUrlInDi(defaultBaseUrl);
 
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _effectiveBackendBaseUrl = PolyphonyConfig.backendBaseUrl;
-        _backendBaseUrlController.text = PolyphonyConfig.backendBaseUrl;
+        _effectiveBackendBaseUrl = defaultBaseUrl;
+        _backendBaseUrlController.text = defaultBaseUrl;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -179,6 +184,10 @@ class _SettingsDeveloperOptionsSectionWidgetState
         });
       }
     }
+  }
+
+  void _updateBackendBaseUrlInDi(String backendBaseUrl) {
+    context.read<ValueNotifier<String>>().value = backendBaseUrl;
   }
 
   Future<void> _copyToken() async {

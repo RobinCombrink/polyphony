@@ -10,6 +10,7 @@ dependencies:
   bloc_concurrency: ^0.3.0
   collection: ^1.19.1
   crypto: ^3.0.6
+  dio: ^5.7.0
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.1

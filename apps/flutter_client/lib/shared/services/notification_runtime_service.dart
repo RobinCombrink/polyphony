@@ -56,7 +56,6 @@ final class FriendJoinedVoiceRuntimeNotificationEvent
 
 abstract interface class NotificationRuntimeService {
   Future<Result<void>> connect({
-    required String notificationsWebSocketUrl,
     required String bearerToken,
   });
 

@@ -622,7 +622,6 @@ class FakeNotificationRuntimeService implements NotificationRuntimeService {
 
   @override
   Future<Result<void>> connect({
-    required String notificationsWebSocketUrl,
     required String bearerToken,
   }) async {
     if (forceConnectError) {

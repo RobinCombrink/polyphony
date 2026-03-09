@@ -6,11 +6,9 @@ sealed class NotificationCenterEvent {
 
 final class NotificationCenterStartedRequested extends NotificationCenterEvent {
   const NotificationCenterStartedRequested({
-    required this.backendBaseUrl,
     required this.bearerToken,
   });
 
-  final String backendBaseUrl;
   final String bearerToken;
 }
 

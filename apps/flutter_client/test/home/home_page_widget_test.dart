@@ -236,7 +236,6 @@ void main() {
         preferencesStore: InMemoryPreferencesStore(),
       )..add(
           const NotificationCenterStartedRequested(
-            backendBaseUrl: "http://localhost:3000",
             bearerToken: "test-token",
           ),
         );
@@ -351,7 +350,6 @@ void main() {
         preferencesStore: InMemoryPreferencesStore(),
       )..add(
           const NotificationCenterStartedRequested(
-            backendBaseUrl: "http://localhost:3000",
             bearerToken: "test-token",
           ),
         );
@@ -451,7 +449,6 @@ void main() {
         preferencesStore: InMemoryPreferencesStore(),
       )..add(
           const NotificationCenterStartedRequested(
-            backendBaseUrl: "http://localhost:3000",
             bearerToken: "test-token",
           ),
         );
@@ -555,7 +552,6 @@ void main() {
         preferencesStore: preferencesStore,
       )..add(
           const NotificationCenterStartedRequested(
-            backendBaseUrl: "http://localhost:3000",
             bearerToken: "test-token",
           ),
         );
@@ -673,7 +669,6 @@ void main() {
         preferencesStore: InMemoryPreferencesStore(),
       )..add(
           const NotificationCenterStartedRequested(
-            backendBaseUrl: "http://localhost:3000",
             bearerToken: "test-token",
           ),
         );
@@ -805,7 +800,6 @@ void main() {
         preferencesStore: InMemoryPreferencesStore(),
       )..add(
           const NotificationCenterStartedRequested(
-            backendBaseUrl: "http://localhost:3000",
             bearerToken: "test-token",
           ),
         );

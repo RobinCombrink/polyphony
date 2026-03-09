@@ -1,9 +1,9 @@
 import "dart:async";
 
+import "package:dio/dio.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
-import "package:http/http.dart" as http;
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
@@ -14,10 +14,8 @@ import "package:polyphony_flutter_client/features/notifications/bloc/notificatio
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/shared/config/backend_base_url_resolver.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
-import "package:polyphony_flutter_client/shared/network/authenticated_http_client.dart";
-import "package:polyphony_flutter_client/shared/network/chat_api.dart";
-import "package:polyphony_flutter_client/shared/network/polyphony_api_client.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
@@ -53,6 +51,7 @@ import "package:polyphony_flutter_client/shared/services/rest/rest_voice_session
 import "package:polyphony_flutter_client/shared/services/server_service.dart";
 import "package:polyphony_flutter_client/shared/services/text_session_service.dart";
 import "package:polyphony_flutter_client/shared/services/voice_session_service.dart";
+import "package:polyphony_flutter_client/shared/services/websocket/web_socket_notification_runtime_service.dart";
 import "package:provider/provider.dart";
 
 class AuthenticationGateWidget extends StatefulWidget {
@@ -214,170 +213,211 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
   }
 }
 
-final class _AuthenticatedShell extends StatelessWidget {
+final class _AuthenticatedShell extends StatefulWidget {
   const _AuthenticatedShell({required this.metadata});
 
   final AuthenticationMetadata metadata;
 
   @override
+  State<_AuthenticatedShell> createState() => _AuthenticatedShellState();
+}
+
+final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
+  late final ValueNotifier<String> _backendBaseUrlNotifier;
+
+  @override
+  void initState() {
+    super.initState();
+    _backendBaseUrlNotifier = ValueNotifier<String>(
+      normalizeBackendBaseUrl(PolyphonyConfig.backendBaseUrl),
+    );
+    unawaited(_restoreBackendBaseUrlOverride());
+  }
+
+  @override
+  void dispose() {
+    _backendBaseUrlNotifier.dispose();
+    super.dispose();
+  }
+
+  Future<void> _restoreBackendBaseUrlOverride() async {
+    final resolvedBaseUrl = await resolveBackendBaseUrl(
+      preferencesStore: context.read<PreferencesStore>(),
+    );
+
+    if (!mounted || _backendBaseUrlNotifier.value == resolvedBaseUrl) {
+      return;
+    }
+
+    _backendBaseUrlNotifier.value = resolvedBaseUrl;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      key: ValueKey<String>("${metadata.userId}:${metadata.bearerToken}"),
-      providers: [
-        Provider<http.Client>(
-          create: (_) => AuthenticatedHttpClient(
-            innerClient: http.Client(),
-            bearerToken: metadata.bearerToken,
-          ),
-          dispose: (_, client) => client.close(),
+    return ValueListenableBuilder<String>(
+      valueListenable: _backendBaseUrlNotifier,
+      builder: (context, backendBaseUrl, _) => MultiProvider(
+        key: ValueKey<String>(
+          "${widget.metadata.userId}:${widget.metadata.bearerToken}:$backendBaseUrl",
         ),
-        Provider<ChatApi>(
-          create: (context) => PolyphonyApiClient(
-            httpClient: context.read<http.Client>(),
-          ),
-        ),
-        Provider<ServerService>(
-          create: (context) => RestServerService(
-            chatApi: context.read<ChatApi>(),
-            preferencesStore: context.read<PreferencesStore>(),
-          ),
-        ),
-        Provider<ChannelService>(
-          create: (context) => RestChannelService(
-            chatApi: context.read<ChatApi>(),
-            preferencesStore: context.read<PreferencesStore>(),
-          ),
-        ),
-        Provider<MessageService>(
-          create: (context) => RestMessageService(
-            chatApi: context.read<ChatApi>(),
-            preferencesStore: context.read<PreferencesStore>(),
-          ),
-        ),
-        Provider<NotificationService>(
-          create: (context) => RestNotificationService(
-            chatApi: context.read<ChatApi>(),
-            preferencesStore: context.read<PreferencesStore>(),
-          ),
-        ),
-        Provider<ProfileService>(
-          create: (context) => RestProfileService(
-            chatApi: context.read<ChatApi>(),
-            preferencesStore: context.read<PreferencesStore>(),
-          ),
-        ),
-        Provider<VoiceSessionService>(
-          create: (context) => RestVoiceSessionService(
-            chatApi: context.read<ChatApi>(),
-            preferencesStore: context.read<PreferencesStore>(),
-          ),
-        ),
-        Provider<TextSessionService>(
-          create: (context) => RestTextSessionService(
-            chatApi: context.read<ChatApi>(),
-            preferencesStore: context.read<PreferencesStore>(),
-          ),
-        ),
-        Provider<ServerRepo>(
-          create: (context) => ServerRepository(
-            serverService: context.read<ServerService>(),
-          ),
-        ),
-        Provider<ChannelRepo>(
-          create: (context) => ChannelRepository(
-            channelService: context.read<ChannelService>(),
-          ),
-        ),
-        Provider<MessageRepo>(
-          create: (context) => MessageRepository(
-            messageService: context.read<MessageService>(),
-          ),
-        ),
-        Provider<NotificationRepo>(
-          create: (context) => NotificationRepository(
-            notificationService: context.read<NotificationService>(),
-          ),
-        ),
-        Provider<ProfileRepo>(
-          create: (context) => ProfileRepository(
-            profileService: context.read<ProfileService>(),
-          ),
-        ),
-        Provider<ServerMemberRepo>(
-          create: (context) => ServerMemberRepository(
-            serverService: context.read<ServerService>(),
-          ),
-        ),
-        Provider<VoiceSessionRepo>(
-          create: (context) => VoiceSessionRepository(
-            voiceSessionService: context.read<VoiceSessionService>(),
-          ),
-        ),
-        Provider<TextSessionRepo>(
-          create: (context) => TextSessionRepository(
-            textSessionService: context.read<TextSessionService>(),
-          ),
-        ),
-      ],
-      child: MultiBlocProvider(
         providers: [
-          BlocProvider<ServersBloc>(
-            create: (context) =>
-                ServersBloc(serverRepo: context.read<ServerRepo>()),
+          ListenableProvider<ValueNotifier<String>>.value(
+            value: _backendBaseUrlNotifier,
           ),
-          BlocProvider<ChannelsBloc>(
-            create: (context) =>
-                ChannelsBloc(channelRepo: context.read<ChannelRepo>()),
-          ),
-          BlocProvider<MessagesBloc>(
-            create: (context) => MessagesBloc(
-              messageRepo: context.read<MessageRepo>(),
-              profileRepo: context.read<ProfileRepo>(),
-              textSessionRepo: context.read<TextSessionRepo>(),
-              messageRuntimeService: context.read<MessageRuntimeService>(),
+          Provider<NotificationRuntimeService>(
+            create: (_) => WebSocketNotificationRuntimeService(
+              backendBaseUrl: backendBaseUrl,
             ),
           ),
-          BlocProvider<NotificationCenterBloc>(
-            create: (context) => NotificationCenterBloc(
-              notificationRepo: context.read<NotificationRepo>(),
-              notificationRuntimeService:
-                  context.read<NotificationRuntimeService>(),
-              notificationBadgeService:
-                  context.read<NotificationBadgeService>(),
-              preferencesStore: context.read<PreferencesStore>(),
-            )..add(
-                NotificationCenterStartedRequested(
-                  backendBaseUrl: PolyphonyConfig.backendBaseUrl,
-                  bearerToken: metadata.bearerToken,
-                ),
+          Provider<Dio>(
+            create: (_) => Dio(
+              BaseOptions(
+                baseUrl: backendBaseUrl,
+                headers: <String, String>{
+                  "Authorization": "Bearer ${widget.metadata.bearerToken}",
+                  "Content-Type": "application/json",
+                },
+                // Let services evaluate status-code semantics per operation.
+                validateStatus: (statusCode) => statusCode != null,
               ),
+            ),
+            dispose: (_, client) => client.close(),
           ),
-          BlocProvider<NotificationPreferencesBloc>(
-            create: (context) => NotificationPreferencesBloc(
+          Provider<ServerService>(
+            create: (context) => RestServerService(
+              dio: context.read<Dio>(),
+            ),
+          ),
+          Provider<ChannelService>(
+            create: (context) => RestChannelService(
+              dio: context.read<Dio>(),
+            ),
+          ),
+          Provider<MessageService>(
+            create: (context) => RestMessageService(
+              dio: context.read<Dio>(),
+            ),
+          ),
+          Provider<NotificationService>(
+            create: (context) => RestNotificationService(
+              dio: context.read<Dio>(),
+            ),
+          ),
+          Provider<ProfileService>(
+            create: (context) => RestProfileService(
+              dio: context.read<Dio>(),
+            ),
+          ),
+          Provider<VoiceSessionService>(
+            create: (context) => RestVoiceSessionService(
+              dio: context.read<Dio>(),
+            ),
+          ),
+          Provider<TextSessionService>(
+            create: (context) => RestTextSessionService(
+              dio: context.read<Dio>(),
+            ),
+          ),
+          Provider<ServerRepo>(
+            create: (context) => ServerRepository(
+              serverService: context.read<ServerService>(),
+            ),
+          ),
+          Provider<ChannelRepo>(
+            create: (context) => ChannelRepository(
+              channelService: context.read<ChannelService>(),
+            ),
+          ),
+          Provider<MessageRepo>(
+            create: (context) => MessageRepository(
+              messageService: context.read<MessageService>(),
+            ),
+          ),
+          Provider<NotificationRepo>(
+            create: (context) => NotificationRepository(
               notificationService: context.read<NotificationService>(),
             ),
           ),
-          BlocProvider<ProfileBloc>(
-            create: (context) => ProfileBloc(
-              profileRepo: context.read<ProfileRepo>(),
-              currentUserId: metadata.userId,
+          Provider<ProfileRepo>(
+            create: (context) => ProfileRepository(
+              profileService: context.read<ProfileService>(),
             ),
           ),
-          BlocProvider<ServerMembersBloc>(
-            create: (context) => ServerMembersBloc(
-              serverMemberRepo: context.read<ServerMemberRepo>(),
-              profileRepo: context.read<ProfileRepo>(),
+          Provider<ServerMemberRepo>(
+            create: (context) => ServerMemberRepository(
+              serverService: context.read<ServerService>(),
             ),
           ),
-          BlocProvider<VoiceSessionsBloc>(
-            create: (context) => VoiceSessionsBloc(
-              voiceSessionRepo: context.read<VoiceSessionRepo>(),
-              voiceRuntimeService: context.read<MediaRuntimeService>(),
-              profileRepo: context.read<ProfileRepo>(),
+          Provider<VoiceSessionRepo>(
+            create: (context) => VoiceSessionRepository(
+              voiceSessionService: context.read<VoiceSessionService>(),
+            ),
+          ),
+          Provider<TextSessionRepo>(
+            create: (context) => TextSessionRepository(
+              textSessionService: context.read<TextSessionService>(),
             ),
           ),
         ],
-        child: const HomePageWidget(),
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<ServersBloc>(
+              create: (context) =>
+                  ServersBloc(serverRepo: context.read<ServerRepo>()),
+            ),
+            BlocProvider<ChannelsBloc>(
+              create: (context) =>
+                  ChannelsBloc(channelRepo: context.read<ChannelRepo>()),
+            ),
+            BlocProvider<MessagesBloc>(
+              create: (context) => MessagesBloc(
+                messageRepo: context.read<MessageRepo>(),
+                profileRepo: context.read<ProfileRepo>(),
+                textSessionRepo: context.read<TextSessionRepo>(),
+                messageRuntimeService: context.read<MessageRuntimeService>(),
+              ),
+            ),
+            BlocProvider<NotificationCenterBloc>(
+              create: (context) => NotificationCenterBloc(
+                notificationRepo: context.read<NotificationRepo>(),
+                notificationRuntimeService:
+                    context.read<NotificationRuntimeService>(),
+                notificationBadgeService:
+                    context.read<NotificationBadgeService>(),
+                preferencesStore: context.read<PreferencesStore>(),
+              )..add(
+                  NotificationCenterStartedRequested(
+                    bearerToken: widget.metadata.bearerToken,
+                  ),
+                ),
+            ),
+            BlocProvider<NotificationPreferencesBloc>(
+              create: (context) => NotificationPreferencesBloc(
+                notificationService: context.read<NotificationService>(),
+              ),
+            ),
+            BlocProvider<ProfileBloc>(
+              create: (context) => ProfileBloc(
+                profileRepo: context.read<ProfileRepo>(),
+                currentUserId: widget.metadata.userId,
+              ),
+            ),
+            BlocProvider<ServerMembersBloc>(
+              create: (context) => ServerMembersBloc(
+                serverMemberRepo: context.read<ServerMemberRepo>(),
+                profileRepo: context.read<ProfileRepo>(),
+              ),
+            ),
+            BlocProvider<VoiceSessionsBloc>(
+              create: (context) => VoiceSessionsBloc(
+                voiceSessionRepo: context.read<VoiceSessionRepo>(),
+                voiceRuntimeService: context.read<MediaRuntimeService>(),
+                profileRepo: context.read<ProfileRepo>(),
+              ),
+            ),
+          ],
+          child: const HomePageWidget(),
+        ),
       ),
     );
   }

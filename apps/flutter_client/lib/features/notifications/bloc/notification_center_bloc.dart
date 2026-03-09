@@ -2,7 +2,6 @@ import "dart:async";
 
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
-import "package:polyphony_flutter_client/shared/config/backend_base_url_resolver.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
@@ -82,15 +81,7 @@ class NotificationCenterBloc
       return;
     }
 
-    final backendBaseUrl = await resolveBackendBaseUrl(
-      preferencesStore: _preferencesStore,
-      fallback: event.backendBaseUrl,
-    );
-
     final connectResult = await _notificationRuntimeService.connect(
-      notificationsWebSocketUrl: _notificationWebSocketUrlFromBaseUrl(
-        backendBaseUrl,
-      ),
       bearerToken: event.bearerToken,
     );
 
@@ -185,23 +176,5 @@ class NotificationCenterBloc
           ),
         );
     }
-  }
-
-  String _notificationWebSocketUrlFromBaseUrl(String baseUrl) {
-    final baseUri = Uri.parse(baseUrl);
-    final notificationsPath =
-        "${baseUri.path.endsWith("/") ? baseUri.path.substring(0, baseUri.path.length - 1) : baseUri.path}/api/v1/notifications/ws";
-
-    final websocketScheme = switch (baseUri.scheme) {
-      "https" => "wss",
-      _ => "ws",
-    };
-
-    return baseUri
-        .replace(
-          scheme: websocketScheme,
-          path: notificationsPath,
-        )
-        .toString();
   }
 }

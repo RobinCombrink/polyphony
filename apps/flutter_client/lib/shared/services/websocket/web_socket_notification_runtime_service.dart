@@ -92,8 +92,11 @@ RuntimeNotificationEvent? parseRuntimeNotificationEventPayload(
 class WebSocketNotificationRuntimeService
     implements NotificationRuntimeService {
   WebSocketNotificationRuntimeService({
+    required String backendBaseUrl,
     this.reconnectDelay = const Duration(seconds: 2),
-  });
+  }) : _notificationsWebSocketUrl = _notificationWebSocketUrlFromBaseUrl(
+          backendBaseUrl,
+        );
 
   final Duration reconnectDelay;
   final _notificationEventsController =
@@ -101,7 +104,7 @@ class WebSocketNotificationRuntimeService
 
   WebSocketChannel? _socket;
   Timer? _reconnectTimer;
-  String? _notificationsWebSocketUrl;
+  final String _notificationsWebSocketUrl;
   String? _bearerToken;
   var _isConnecting = false;
   var _isConnected = false;
@@ -109,10 +112,8 @@ class WebSocketNotificationRuntimeService
 
   @override
   Future<Result<void>> connect({
-    required String notificationsWebSocketUrl,
     required String bearerToken,
   }) {
-    _notificationsWebSocketUrl = notificationsWebSocketUrl;
     _bearerToken = bearerToken;
     _manualDisconnectRequested = false;
 
@@ -156,15 +157,13 @@ class WebSocketNotificationRuntimeService
       return const Ok<void>(null);
     }
 
-    final resolvedNotificationsWebSocketUrl = _notificationsWebSocketUrl;
     final resolvedBearerToken = _bearerToken;
 
-    if (resolvedNotificationsWebSocketUrl == null ||
-        resolvedBearerToken == null) {
+    if (resolvedBearerToken == null) {
       return Error<void>(
         RuntimeConnectionException(
           operation: "connect notifications websocket",
-          cause: Exception("Notifications runtime configuration missing."),
+          cause: Exception("Notifications bearer token missing."),
         ),
       );
     }
@@ -173,7 +172,7 @@ class WebSocketNotificationRuntimeService
 
     try {
       final socketConnectionUri = _socketConnectionUri(
-        notificationsWebSocketUrl: resolvedNotificationsWebSocketUrl,
+        notificationsWebSocketUrl: _notificationsWebSocketUrl,
         bearerToken: resolvedBearerToken,
       );
 
@@ -218,6 +217,24 @@ class WebSocketNotificationRuntimeService
     existingQueryParameters["access_token"] = bearerToken;
 
     return parsedBaseUri.replace(queryParameters: existingQueryParameters);
+  }
+
+  static String _notificationWebSocketUrlFromBaseUrl(String baseUrl) {
+    final baseUri = Uri.parse(baseUrl);
+    final notificationsPath =
+        "${baseUri.path.endsWith("/") ? baseUri.path.substring(0, baseUri.path.length - 1) : baseUri.path}/api/v1/notifications/ws";
+
+    final websocketScheme = switch (baseUri.scheme) {
+      "https" => "wss",
+      _ => "ws",
+    };
+
+    return baseUri
+        .replace(
+          scheme: websocketScheme,
+          path: notificationsPath,
+        )
+        .toString();
   }
 
   void _onSocketData(Object? payload) {

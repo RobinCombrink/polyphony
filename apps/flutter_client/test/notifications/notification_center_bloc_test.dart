@@ -56,7 +56,6 @@ void main() {
     },
     act: (bloc) => bloc.add(
       const NotificationCenterStartedRequested(
-        backendBaseUrl: "http://localhost:3000",
         bearerToken: "token",
       ),
     ),
@@ -85,7 +84,6 @@ void main() {
     act: (bloc) async {
       bloc.add(
         const NotificationCenterStartedRequested(
-          backendBaseUrl: "http://localhost:3000",
           bearerToken: "token",
         ),
       );
@@ -131,7 +129,6 @@ void main() {
     act: (bloc) async {
       bloc.add(
         const NotificationCenterStartedRequested(
-          backendBaseUrl: "http://localhost:3000",
           bearerToken: "token",
         ),
       );
@@ -174,7 +171,6 @@ void main() {
 
       bloc.add(
         const NotificationCenterStartedRequested(
-          backendBaseUrl: "http://localhost:3000",
           bearerToken: "token",
         ),
       );
@@ -226,7 +222,6 @@ void main() {
 
       bloc.add(
         const NotificationCenterStartedRequested(
-          backendBaseUrl: "http://localhost:3000",
           bearerToken: "token",
         ),
       );
@@ -272,7 +267,6 @@ void main() {
 
       bloc.add(
         const NotificationCenterStartedRequested(
-          backendBaseUrl: "http://localhost:3000",
           bearerToken: "token",
         ),
       );
