@@ -144,7 +144,6 @@ jobs:
         run: flutter pub get
 
       - name: Build Windows executable
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           POLYPHONY_BACKEND_BASE_URL: ${{ vars.POLYPHONY_BACKEND_BASE_URL }}
