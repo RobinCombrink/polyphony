@@ -85,7 +85,7 @@ void main() {
       expect(find.text("/me response"), findsNothing);
       expect(
         find.text(
-          "POLYPHONY_BACKEND_BASE_URL: ${PolyphonyConfig.backendBaseUrl}",
+          "EFFECTIVE_BACKEND_BASE_URL: ${PolyphonyConfig.backendBaseUrl}",
         ),
         findsNothing,
       );
@@ -115,7 +115,13 @@ void main() {
       expect(find.text("Configuration"), findsOneWidget);
       expect(
         find.text(
-          "POLYPHONY_BACKEND_BASE_URL: ${PolyphonyConfig.backendBaseUrl}",
+          "EFFECTIVE_BACKEND_BASE_URL: ${PolyphonyConfig.backendBaseUrl}",
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          "POLYPHONY_BACKEND_BASE_URL (build-time): ${PolyphonyConfig.backendBaseUrl}",
         ),
         findsOneWidget,
       );

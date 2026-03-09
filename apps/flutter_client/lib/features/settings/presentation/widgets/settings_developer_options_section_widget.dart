@@ -43,7 +43,9 @@ class _SettingsDeveloperOptionsSectionWidgetState
   }
 
   Map<String, String> get _configValues => <String, String>{
-        "POLYPHONY_BACKEND_BASE_URL": _effectiveBackendBaseUrl,
+        "EFFECTIVE_BACKEND_BASE_URL": _effectiveBackendBaseUrl,
+        "POLYPHONY_BACKEND_BASE_URL (build-time)":
+            PolyphonyConfig.backendBaseUrl,
         "AUTH0_DOMAIN": PolyphonyConfig.auth0Domain,
         "AUTH0_NATIVE_CLIENT_ID": PolyphonyConfig.auth0NativeClientId,
         "AUTH0_WEB_CLIENT_ID": PolyphonyConfig.auth0WebClientId,
