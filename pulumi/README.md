@@ -11,6 +11,7 @@ This Pulumi project manages Auth0 baseline resources for Polyphony using C#/.NET
 - API machine-to-machine client (`Client`, Non-interactive)
 - Client grants for app/api M2M clients to their corresponding resource servers (`ClientGrant`)
 - Database connection to application-client mapping (`ConnectionClients`)
+- GitHub Actions repository secrets for frontend release builds (`ActionsSecret`)
 
 ## Current Auth0 model
 
@@ -105,6 +106,21 @@ Required Pulumi config values for this project:
 - `flutterWebLogoutUrls`
 - `flutterWebOrigins`
 - `backendApiBaseUrls`
+- `frontendBackendBaseUrl`
+
+Optional Pulumi config values:
+- `githubOwner` (defaults to `polyphony-org`)
+- `githubRepository` (defaults to `polyphony`)
+
+Pulumi uses the GitHub provider to create these repository Actions variables for frontend release builds:
+- `POLYPHONY_BACKEND_BASE_URL`
+- `AUTH0_DOMAIN`
+
+Use the pulumi 
+
+```powershell
+gh auth login
+```
 
 ## 3) Create stack and attach ESC environment
 
@@ -157,3 +173,5 @@ Current outputs:
 - `appClientGrantId`
 - `apiClientGrantId`
 - `databaseConnectionClientsId`
+- `frontendBackendBaseUrlVariableName`
+- `frontendAuth0DomainVariableName`
