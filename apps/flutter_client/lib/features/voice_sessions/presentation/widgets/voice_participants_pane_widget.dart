@@ -537,6 +537,7 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
             displayName: displayName,
             isSelfParticipant: isSelfParticipant,
             statusText: statusText,
+            isSpeaking: isSpeaking,
             videoTrack: videoTrack,
             isPoppedOut:
                 _poppedOutParticipantUserIds.contains(participantUserId),
@@ -582,6 +583,7 @@ class _VoiceStreamItemData {
     required this.displayName,
     required this.isSelfParticipant,
     required this.statusText,
+    required this.isSpeaking,
     required this.videoTrack,
     required this.isPoppedOut,
   });
@@ -590,6 +592,7 @@ class _VoiceStreamItemData {
   final String displayName;
   final bool isSelfParticipant;
   final String statusText;
+  final bool isSpeaking;
   final VideoTrack? videoTrack;
   final bool isPoppedOut;
 }
@@ -740,19 +743,33 @@ class _VoiceStreamPreviewSelectorItem extends StatelessWidget {
                 width: 92,
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: isPoppedOut
-                      ? DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.open_in_new_off, size: 18),
-                          ),
-                        )
-                      : (streamItem.videoTrack == null
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: streamItem.isSpeaking
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                      boxShadow: streamItem.isSpeaking
+                          ? <BoxShadow>[
+                              BoxShadow(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : const <BoxShadow>[],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(1),
+                      child: isPoppedOut
                           ? DecoratedBox(
                               decoration: BoxDecoration(
                                 color: Theme.of(context)
@@ -761,13 +778,27 @@ class _VoiceStreamPreviewSelectorItem extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Center(
-                                child: Icon(Icons.videocam_off, size: 18),
+                                child: Icon(Icons.open_in_new_off, size: 18),
                               ),
                             )
-                          : _VoiceVideoTileWidget(
-                              displayName: streamItem.displayName,
-                              videoTrack: streamItem.videoTrack!,
-                            )),
+                          : (streamItem.videoTrack == null
+                              ? DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(Icons.videocam_off, size: 18),
+                                  ),
+                                )
+                              : _VoiceVideoTileWidget(
+                                  displayName: streamItem.displayName,
+                                  videoTrack: streamItem.videoTrack!,
+                                )),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
