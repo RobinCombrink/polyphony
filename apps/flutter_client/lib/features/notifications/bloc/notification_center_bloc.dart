@@ -2,6 +2,7 @@ import "dart:async";
 
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
+import "package:polyphony_flutter_client/shared/config/backend_base_url_resolver.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
@@ -81,9 +82,14 @@ class NotificationCenterBloc
       return;
     }
 
+    final backendBaseUrl = await resolveBackendBaseUrl(
+      preferencesStore: _preferencesStore,
+      fallback: event.backendBaseUrl,
+    );
+
     final connectResult = await _notificationRuntimeService.connect(
       notificationsWebSocketUrl: _notificationWebSocketUrlFromBaseUrl(
-        event.backendBaseUrl,
+        backendBaseUrl,
       ),
       bearerToken: event.bearerToken,
     );

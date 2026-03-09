@@ -102,6 +102,9 @@ abstract interface class PreferencesStore {
   Future<void> clearRememberedEmailAddress();
   Future<KeybindingsPreferences> readKeybindingsPreferences();
   Future<void> writeKeybindingsPreferences(KeybindingsPreferences value);
+  Future<String?> readBackendBaseUrlOverride();
+  Future<void> writeBackendBaseUrlOverride(String baseUrl);
+  Future<void> clearBackendBaseUrlOverride();
 }
 
 final class SharedPreferencesBackedPreferencesStore
@@ -114,6 +117,7 @@ final class SharedPreferencesBackedPreferencesStore
   static const _rememberEmailKey = "auth.remember_email";
   static const _rememberedEmailAddressKey = "auth.remembered_email_address";
   static const _keybindingsKey = "settings.keybindings";
+  static const _backendBaseUrlOverrideKey = "settings.backend_base_url";
   static const _allowList = <String>{
     _darkModeEnabledKey,
     _channelJoinNotificationsEnabledKey,
@@ -121,6 +125,7 @@ final class SharedPreferencesBackedPreferencesStore
     _rememberEmailKey,
     _rememberedEmailAddressKey,
     _keybindingsKey,
+    _backendBaseUrlOverrideKey,
   };
 
   SharedPreferencesBackedPreferencesStore()
@@ -259,6 +264,33 @@ final class SharedPreferencesBackedPreferencesStore
       jsonEncode(value.toJson()),
     );
   }
+
+  @override
+  Future<String?> readBackendBaseUrlOverride() async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    final baseUrl = sharedPreferences.getString(_backendBaseUrlOverrideKey);
+    if (baseUrl == null) {
+      return null;
+    }
+
+    final trimmedBaseUrl = baseUrl.trim();
+    return trimmedBaseUrl.isEmpty ? null : trimmedBaseUrl;
+  }
+
+  @override
+  Future<void> writeBackendBaseUrlOverride(String baseUrl) async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    await sharedPreferences.setString(
+      _backendBaseUrlOverrideKey,
+      baseUrl.trim(),
+    );
+  }
+
+  @override
+  Future<void> clearBackendBaseUrlOverride() async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    await sharedPreferences.remove(_backendBaseUrlOverrideKey);
+  }
 }
 
 final class InMemoryPreferencesStore implements PreferencesStore {
@@ -268,6 +300,7 @@ final class InMemoryPreferencesStore implements PreferencesStore {
   var _rememberEmailEnabled = false;
   String? _rememberedEmailAddress;
   var _keybindingsPreferences = const KeybindingsPreferences.unset();
+  String? _backendBaseUrlOverride;
 
   @override
   Future<bool> readDarkModeEnabled() async {
@@ -341,6 +374,22 @@ final class InMemoryPreferencesStore implements PreferencesStore {
   Future<void> writeKeybindingsPreferences(KeybindingsPreferences value) async {
     _keybindingsPreferences = value;
   }
+
+  @override
+  Future<String?> readBackendBaseUrlOverride() async {
+    return _backendBaseUrlOverride;
+  }
+
+  @override
+  Future<void> writeBackendBaseUrlOverride(String baseUrl) async {
+    final trimmedBaseUrl = baseUrl.trim();
+    _backendBaseUrlOverride = trimmedBaseUrl.isEmpty ? null : trimmedBaseUrl;
+  }
+
+  @override
+  Future<void> clearBackendBaseUrlOverride() async {
+    _backendBaseUrlOverride = null;
+  }
 }
 
 final class WebPreferencesStore implements PreferencesStore {
@@ -410,6 +459,21 @@ final class WebPreferencesStore implements PreferencesStore {
 
   @override
   Future<void> writeKeybindingsPreferences(KeybindingsPreferences value) async {
+    return;
+  }
+
+  @override
+  Future<String?> readBackendBaseUrlOverride() async {
+    return null;
+  }
+
+  @override
+  Future<void> writeBackendBaseUrlOverride(String baseUrl) async {
+    return;
+  }
+
+  @override
+  Future<void> clearBackendBaseUrlOverride() async {
     return;
   }
 }

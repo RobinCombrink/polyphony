@@ -239,36 +239,43 @@ final class _AuthenticatedShell extends StatelessWidget {
         Provider<ServerService>(
           create: (context) => RestServerService(
             chatApi: context.read<ChatApi>(),
+            preferencesStore: context.read<PreferencesStore>(),
           ),
         ),
         Provider<ChannelService>(
           create: (context) => RestChannelService(
             chatApi: context.read<ChatApi>(),
+            preferencesStore: context.read<PreferencesStore>(),
           ),
         ),
         Provider<MessageService>(
           create: (context) => RestMessageService(
             chatApi: context.read<ChatApi>(),
+            preferencesStore: context.read<PreferencesStore>(),
           ),
         ),
         Provider<NotificationService>(
           create: (context) => RestNotificationService(
             chatApi: context.read<ChatApi>(),
+            preferencesStore: context.read<PreferencesStore>(),
           ),
         ),
         Provider<ProfileService>(
           create: (context) => RestProfileService(
             chatApi: context.read<ChatApi>(),
+            preferencesStore: context.read<PreferencesStore>(),
           ),
         ),
         Provider<VoiceSessionService>(
           create: (context) => RestVoiceSessionService(
             chatApi: context.read<ChatApi>(),
+            preferencesStore: context.read<PreferencesStore>(),
           ),
         ),
         Provider<TextSessionService>(
           create: (context) => RestTextSessionService(
             chatApi: context.read<ChatApi>(),
+            preferencesStore: context.read<PreferencesStore>(),
           ),
         ),
         Provider<ServerRepo>(

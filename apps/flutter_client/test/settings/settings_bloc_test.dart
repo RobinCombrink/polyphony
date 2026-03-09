@@ -9,6 +9,7 @@ final class _TestPreferencesStore implements PreferencesStore {
   var darkModeEnabled = false;
   var channelJoinNotificationsEnabled = false;
   var channelJoinNotificationChannelIds = const <String>[];
+  String? backendBaseUrlOverride;
 
   @override
   Future<bool> readDarkModeEnabled() async {
@@ -75,6 +76,21 @@ final class _TestPreferencesStore implements PreferencesStore {
   @override
   Future<void> writeKeybindingsPreferences(KeybindingsPreferences value) async {
     return;
+  }
+
+  @override
+  Future<String?> readBackendBaseUrlOverride() async {
+    return backendBaseUrlOverride;
+  }
+
+  @override
+  Future<void> writeBackendBaseUrlOverride(String baseUrl) async {
+    backendBaseUrlOverride = baseUrl;
+  }
+
+  @override
+  Future<void> clearBackendBaseUrlOverride() async {
+    backendBaseUrlOverride = null;
   }
 }
 

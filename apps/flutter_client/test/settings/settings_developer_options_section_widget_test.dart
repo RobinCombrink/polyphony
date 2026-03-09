@@ -6,7 +6,9 @@ import "package:polyphony_flutter_client/features/settings/presentation/widgets/
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
+import "package:provider/provider.dart";
 
 class _FakeProfileService implements ProfileService {
   const _FakeProfileService({required this.meResult});
@@ -32,15 +34,21 @@ class _FakeProfileService implements ProfileService {
 Widget _buildTestApp({
   required String token,
   required ProfileService profileService,
+  PreferencesStore? preferencesStore,
 }) {
   return MaterialApp(
     home: Scaffold(
-      body: BlocProvider<SettingsDeveloperProfileBloc>(
-        create: (_) => SettingsDeveloperProfileBloc(
-          profileService: profileService,
-        ),
-        child: SettingsDeveloperOptionsSectionWidget(
-          bearerToken: token,
+      body: SingleChildScrollView(
+        child: Provider<PreferencesStore>(
+          create: (_) => preferencesStore ?? InMemoryPreferencesStore(),
+          child: BlocProvider<SettingsDeveloperProfileBloc>(
+            create: (_) => SettingsDeveloperProfileBloc(
+              profileService: profileService,
+            ),
+            child: SettingsDeveloperOptionsSectionWidget(
+              bearerToken: token,
+            ),
+          ),
         ),
       ),
     ),

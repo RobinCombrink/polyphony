@@ -4,8 +4,10 @@ import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_developer_profile_bloc.dart";
+import "package:polyphony_flutter_client/shared/config/backend_base_url_resolver.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
+import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
 class SettingsDeveloperOptionsSectionWidget extends StatefulWidget {
   const SettingsDeveloperOptionsSectionWidget({
@@ -23,9 +25,25 @@ class SettingsDeveloperOptionsSectionWidget extends StatefulWidget {
 class _SettingsDeveloperOptionsSectionWidgetState
     extends State<SettingsDeveloperOptionsSectionWidget> {
   var _developerOptionsEnabled = false;
+  late final TextEditingController _backendBaseUrlController;
+  String _effectiveBackendBaseUrl = PolyphonyConfig.backendBaseUrl;
+  var _isSavingBackendBaseUrl = false;
 
-  Map<String, String> get _configValues => const <String, String>{
-        "POLYPHONY_BACKEND_BASE_URL": PolyphonyConfig.backendBaseUrl,
+  @override
+  void initState() {
+    super.initState();
+    _backendBaseUrlController = TextEditingController();
+    unawaited(_restoreBackendBaseUrl());
+  }
+
+  @override
+  void dispose() {
+    _backendBaseUrlController.dispose();
+    super.dispose();
+  }
+
+  Map<String, String> get _configValues => <String, String>{
+        "POLYPHONY_BACKEND_BASE_URL": _effectiveBackendBaseUrl,
         "AUTH0_DOMAIN": PolyphonyConfig.auth0Domain,
         "AUTH0_NATIVE_CLIENT_ID": PolyphonyConfig.auth0NativeClientId,
         "AUTH0_WEB_CLIENT_ID": PolyphonyConfig.auth0WebClientId,
@@ -34,6 +52,134 @@ class _SettingsDeveloperOptionsSectionWidgetState
         "AUTH0_MOBILE_REDIRECT_URI": PolyphonyConfig.auth0MobileRedirectUri,
         "AUTH0_DESKTOP_REDIRECT_URI": PolyphonyConfig.auth0DesktopRedirectUri,
       };
+
+  Future<void> _restoreBackendBaseUrl() async {
+    final preferencesStore = context.read<PreferencesStore>();
+    final resolvedBaseUrl = await resolveBackendBaseUrl(
+      preferencesStore: preferencesStore,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _effectiveBackendBaseUrl = resolvedBaseUrl;
+      _backendBaseUrlController.text = resolvedBaseUrl;
+    });
+  }
+
+  Future<void> _saveBackendBaseUrl() async {
+    final preferencesStore = context.read<PreferencesStore>();
+    final rawBaseUrl = _backendBaseUrlController.text.trim();
+
+    if (rawBaseUrl.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Backend URL cannot be empty.")),
+      );
+      return;
+    }
+
+    final parsedUri = Uri.tryParse(rawBaseUrl);
+    final hasValidScheme = parsedUri != null &&
+        (parsedUri.scheme == "http" || parsedUri.scheme == "https") &&
+        parsedUri.hasAuthority;
+
+    if (!hasValidScheme) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Backend URL must be an absolute http/https URL."),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSavingBackendBaseUrl = true;
+    });
+
+    try {
+      final normalizedBaseUrl = normalizeBackendBaseUrl(rawBaseUrl);
+      await preferencesStore.writeBackendBaseUrlOverride(normalizedBaseUrl);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _effectiveBackendBaseUrl = normalizedBaseUrl;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Backend URL saved for this device profile."),
+        ),
+      );
+    } on Exception catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to save backend URL: $error")),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingBackendBaseUrl = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _resetBackendBaseUrl() async {
+    final preferencesStore = context.read<PreferencesStore>();
+
+    setState(() {
+      _isSavingBackendBaseUrl = true;
+    });
+
+    try {
+      await preferencesStore.clearBackendBaseUrlOverride();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _effectiveBackendBaseUrl = PolyphonyConfig.backendBaseUrl;
+        _backendBaseUrlController.text = PolyphonyConfig.backendBaseUrl;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Backend URL reset to build-time default."),
+        ),
+      );
+    } on Exception catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to reset backend URL: $error")),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingBackendBaseUrl = false;
+        });
+      }
+    }
+  }
 
   Future<void> _copyToken() async {
     await Clipboard.setData(ClipboardData(text: widget.bearerToken));
@@ -110,6 +256,43 @@ class _SettingsDeveloperOptionsSectionWidgetState
           ),
         ),
         if (_developerOptionsEnabled) ...<Widget>[
+          const SizedBox(height: 16),
+          SelectableText(
+            "Backend endpoint",
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _backendBaseUrlController,
+            enabled: !_isSavingBackendBaseUrl,
+            decoration: const InputDecoration(
+              labelText: "Backend base URL",
+              hintText: "https://api.example.com",
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.url,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => unawaited(_saveBackendBaseUrl()),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              FilledButton(
+                onPressed: _isSavingBackendBaseUrl
+                    ? null
+                    : () => unawaited(_saveBackendBaseUrl()),
+                child: const Text("Save backend URL"),
+              ),
+              OutlinedButton(
+                onPressed: _isSavingBackendBaseUrl
+                    ? null
+                    : () => unawaited(_resetBackendBaseUrl()),
+                child: const Text("Reset to default"),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           SelectableText(
             "Configuration",

@@ -1,36 +1,46 @@
-import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
+import "package:polyphony_flutter_client/shared/config/backend_base_url_resolver.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/network/chat_api.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
+import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
 class RestNotificationService implements NotificationService {
-  const RestNotificationService({
+  RestNotificationService({
     required ChatApi chatApi,
-  }) : _chatApi = chatApi;
+    required PreferencesStore preferencesStore,
+  })  : _chatApi = chatApi,
+        _preferencesStore = preferencesStore;
 
   final ChatApi _chatApi;
-  final String _baseUrl = PolyphonyConfig.backendBaseUrl;
+  final PreferencesStore _preferencesStore;
+
+  Future<String> _baseUrl() {
+    return resolveBackendBaseUrl(preferencesStore: _preferencesStore);
+  }
 
   @override
-  Future<Result<ApiNotificationUnreadCount>> getUnreadNotificationCount() {
-    return _chatApi.getUnreadNotificationCount(baseUrl: _baseUrl);
+  Future<Result<ApiNotificationUnreadCount>>
+      getUnreadNotificationCount() async {
+    return _chatApi.getUnreadNotificationCount(baseUrl: await _baseUrl());
   }
 
   @override
   Future<Result<void>> markChannelNotificationsRead({
     required String channelId,
-  }) {
+  }) async {
     return _chatApi.markChannelNotificationsRead(
-      baseUrl: _baseUrl,
+      baseUrl: await _baseUrl(),
       channelId: channelId,
     );
   }
 
   @override
   Future<Result<ApiNotificationGlobalPreference>>
-      getGlobalNotificationPreference() {
-    return _chatApi.getGlobalNotificationPreference(baseUrl: _baseUrl);
+      getGlobalNotificationPreference() async {
+    return _chatApi.getGlobalNotificationPreference(
+      baseUrl: await _baseUrl(),
+    );
   }
 
   @override
@@ -38,9 +48,9 @@ class RestNotificationService implements NotificationService {
     ApiNotificationMuteState? muteState,
     ApiNotificationCategoryPreference? notificationCategory,
     ApiNotificationCategoryPreference? channelDefaultCategory,
-  }) {
+  }) async {
     return _chatApi.updateGlobalNotificationPreference(
-      baseUrl: _baseUrl,
+      baseUrl: await _baseUrl(),
       muteState: muteState,
       notificationCategory: notificationCategory,
       channelDefaultCategory: channelDefaultCategory,
@@ -51,9 +61,9 @@ class RestNotificationService implements NotificationService {
   Future<Result<ApiNotificationServerPreference>>
       getServerNotificationPreference({
     required String serverId,
-  }) {
+  }) async {
     return _chatApi.getServerNotificationPreference(
-      baseUrl: _baseUrl,
+      baseUrl: await _baseUrl(),
       serverId: serverId,
     );
   }
@@ -63,9 +73,9 @@ class RestNotificationService implements NotificationService {
     required String serverId,
     ApiNotificationMuteState? muteState,
     ApiNotificationCategoryPreference? notificationCategory,
-  }) {
+  }) async {
     return _chatApi.updateServerNotificationPreference(
-      baseUrl: _baseUrl,
+      baseUrl: await _baseUrl(),
       serverId: serverId,
       muteState: muteState,
       notificationCategory: notificationCategory,
@@ -76,9 +86,9 @@ class RestNotificationService implements NotificationService {
   Future<Result<ApiNotificationChannelPreference>>
       getChannelNotificationPreference({
     required String channelId,
-  }) {
+  }) async {
     return _chatApi.getChannelNotificationPreference(
-      baseUrl: _baseUrl,
+      baseUrl: await _baseUrl(),
       channelId: channelId,
     );
   }
@@ -87,9 +97,9 @@ class RestNotificationService implements NotificationService {
   Future<Result<void>> updateChannelNotificationPreference({
     required String channelId,
     required ApiNotificationCategoryPreference notificationCategory,
-  }) {
+  }) async {
     return _chatApi.updateChannelNotificationPreference(
-      baseUrl: _baseUrl,
+      baseUrl: await _baseUrl(),
       channelId: channelId,
       notificationCategory: notificationCategory,
     );
@@ -99,9 +109,9 @@ class RestNotificationService implements NotificationService {
   Future<Result<void>> muteChannelNotifications({
     required String channelId,
     required int durationMinutes,
-  }) {
+  }) async {
     return _chatApi.muteChannelNotifications(
-      baseUrl: _baseUrl,
+      baseUrl: await _baseUrl(),
       channelId: channelId,
       durationMinutes: durationMinutes,
     );
@@ -110,9 +120,9 @@ class RestNotificationService implements NotificationService {
   @override
   Future<Result<void>> unmuteChannelNotifications({
     required String channelId,
-  }) {
+  }) async {
     return _chatApi.unmuteChannelNotifications(
-      baseUrl: _baseUrl,
+      baseUrl: await _baseUrl(),
       channelId: channelId,
     );
   }
