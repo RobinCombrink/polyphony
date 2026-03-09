@@ -1,2 +1,4 @@
 environment:
   - polyphony/dev
+config:
+  github:owner: polyphony-org

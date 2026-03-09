@@ -5,8 +5,9 @@ using Pulumi.Auth0.Inputs;
 return await Deployment.RunAsync(() =>
 {
     var config = new Pulumi.Config();
+    var auth0Config = new Pulumi.Config("auth0");
 
-    var auth0DatabaseConnectionName = "polyphony-users";
+    const string auth0DatabaseConnectionName = "polyphony-users";
 
     List<string> RequireStringList(string key)
     {
@@ -20,9 +21,7 @@ return await Deployment.RunAsync(() =>
 
         if (normalized.Count == 0)
         {
-            throw new RunException(
-                $"Missing required Pulumi config list '{key}'."
-            );
+            throw new RunException($"Missing required Pulumi config list '{key}'.");
         }
 
         return normalized;
@@ -33,6 +32,12 @@ return await Deployment.RunAsync(() =>
     var flutterWebLogoutUrls = RequireStringList("flutterWebLogoutUrls");
     var flutterWebOrigins = RequireStringList("flutterWebOrigins");
     var backendApiBaseUrls = RequireStringList("backendApiBaseUrls");
+
+    var githubOwner = "polyphony-org";
+    var githubRepository = "polyphony";
+
+    var frontendBackendBaseUrl = config.Require("frontendBackendBaseUrl");
+    var frontendAuth0Domain = auth0Config.Require("domain");
 
     var apiResourceServer = new ResourceServer("polyphony-api", new ResourceServerArgs
     {
@@ -74,10 +79,10 @@ return await Deployment.RunAsync(() =>
         AllowedLogoutUrls = flutterWebLogoutUrls.ToArray(),
         WebOrigins = flutterWebOrigins.ToArray(),
         AllowedOrigins = flutterWebOrigins.ToArray(),
-        GrantTypes = new[]
-        {
+        GrantTypes =
+        [
             "authorization_code",
-        },
+        ],
         ResourceServerIdentifier = appResourceServer.Identifier,
     });
 
@@ -99,11 +104,11 @@ return await Deployment.RunAsync(() =>
             IdleTokenLifetime = 60 * 60 * 24 * 30, // 30 days
             Leeway = 60, // 1 minute
         },
-        GrantTypes = new[]
-        {
+        GrantTypes =
+        [
             "authorization_code",
             "refresh_token",
-        },
+        ],
         ResourceServerIdentifier = appResourceServer.Identifier,
     });
 
@@ -114,18 +119,18 @@ return await Deployment.RunAsync(() =>
         AppType = "non_interactive",
         OidcConformant = true,
         IsFirstParty = true,
-        GrantTypes = new[] { "client_credentials" },
+        GrantTypes = ["client_credentials"],
         AllowedOrigins = backendApiBaseUrls.ToArray(),
     });
 
     var databaseConnectionClients = new ConnectionClients("polyphony-database-clients", new ConnectionClientsArgs
     {
         ConnectionId = databaseConnection.Id,
-        EnabledClients = new[]
-        {
+        EnabledClients =
+        [
             webClient.ClientId,
             nativeClient.ClientId,
-        },
+        ],
     });
 
     var apiClientGrant = new ClientGrant("polyphony-api-client-grant", new ClientGrantArgs
@@ -152,9 +157,24 @@ return await Deployment.RunAsync(() =>
         Scopes = [],
     });
 
+    var frontendBackendBaseUrlVariable = new Pulumi.Github.ActionsVariable("frontend-backend-base-url", new Pulumi.Github.ActionsVariableArgs
+    {
+        Repository = githubRepository,
+        VariableName = "POLYPHONY_BACKEND_BASE_URL",
+        Value = frontendBackendBaseUrl,
+    });
+
+    var frontendAuth0DomainVariable = new Pulumi.Github.ActionsVariable("frontend-auth0-domain", new Pulumi.Github.ActionsVariableArgs
+    {
+        Repository = githubRepository,
+        VariableName = "AUTH0_DOMAIN",
+        Value = frontendAuth0Domain,
+    });
 
     return new Dictionary<string, object?>
     {
+        ["githubOwner"] = githubOwner,
+        ["githubRepository"] = githubRepository,
         ["auth0ApiIdentifier"] = apiResourceServer.Identifier,
         ["auth0ApiId"] = apiResourceServer.Id,
         ["auth0AppIdentifier"] = appResourceServer.Identifier,
@@ -166,5 +186,7 @@ return await Deployment.RunAsync(() =>
         ["backendM2mClientId"] = apiMachineClient.ClientId,
         ["apiClientGrantId"] = apiClientGrant.Id,
         ["databaseConnectionClientsId"] = databaseConnectionClients.Id,
+        ["frontendBackendBaseUrlVariableName"] = frontendBackendBaseUrlVariable.VariableName,
+        ["frontendAuth0DomainVariableName"] = frontendAuth0DomainVariable.VariableName,
     };
 });

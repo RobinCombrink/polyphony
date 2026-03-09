@@ -144,7 +144,15 @@ jobs:
         run: flutter pub get
 
       - name: Build Windows executable
-        run: flutter build windows --release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          POLYPHONY_BACKEND_BASE_URL: ${{ vars.POLYPHONY_BACKEND_BASE_URL }}
+          AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
+        run: |
+          flutter build windows --release `
+            --dart-define=POLYPHONY_BACKEND_BASE_URL=$env:POLYPHONY_BACKEND_BASE_URL `
+            --dart-define=AUTH0_DOMAIN=$env:AUTH0_DOMAIN
 
       - name: Install WiX Toolset
         shell: pwsh
