@@ -102,6 +102,7 @@ class PolyphonyApp extends StatelessWidget {
         BlocProvider<SettingsBloc>(
           create: (context) => SettingsBloc(
             preferencesStore: context.read<PreferencesStore>(),
+            mediaRuntimeService: context.read<MediaRuntimeService>(),
           )..add(const SettingsPreferencesRestoreRequested()),
         ),
       ],

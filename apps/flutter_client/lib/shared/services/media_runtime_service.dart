@@ -7,6 +7,16 @@ enum RuntimeAudioChannel {
   livestream,
 }
 
+final class RuntimeAudioDevice {
+  const RuntimeAudioDevice({
+    required this.id,
+    required this.label,
+  });
+
+  final String id;
+  final String label;
+}
+
 sealed class ParticipantStatusUpdate {
   const ParticipantStatusUpdate({
     required this.participantUserId,
@@ -68,6 +78,20 @@ abstract interface class MediaRuntimeService {
     required String participantUserId,
     required RuntimeAudioChannel channel,
   });
+
+  Future<Result<List<RuntimeAudioDevice>>> listAudioInputDevices();
+
+  Future<Result<List<RuntimeAudioDevice>>> listAudioOutputDevices();
+
+  Future<Result<void>> setSelectedAudioInputDeviceId(String? deviceId);
+
+  Future<Result<void>> setSelectedAudioOutputDeviceId(String? deviceId);
+
+  String? selectedAudioInputDeviceId();
+
+  String? selectedAudioOutputDeviceId();
+
+  Stream<void> audioDeviceChanges();
 
   bool isSelfMuted();
 

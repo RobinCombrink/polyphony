@@ -3,12 +3,16 @@ import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
+import "../test_doubles/chat_repository_fakes.dart";
+
 final class _TestPreferencesStore implements PreferencesStore {
   _TestPreferencesStore();
 
   var darkModeEnabled = false;
   var channelJoinNotificationsEnabled = false;
   var channelJoinNotificationChannelIds = const <String>[];
+  String? audioInputDeviceId;
+  String? audioOutputDeviceId;
   String? backendBaseUrlOverride;
 
   @override
@@ -41,6 +45,26 @@ final class _TestPreferencesStore implements PreferencesStore {
     List<String> channelIds,
   ) async {
     channelJoinNotificationChannelIds = channelIds;
+  }
+
+  @override
+  Future<String?> readAudioInputDeviceId() async {
+    return audioInputDeviceId;
+  }
+
+  @override
+  Future<void> writeAudioInputDeviceId(String? deviceId) async {
+    audioInputDeviceId = deviceId;
+  }
+
+  @override
+  Future<String?> readAudioOutputDeviceId() async {
+    return audioOutputDeviceId;
+  }
+
+  @override
+  Future<void> writeAudioOutputDeviceId(String? deviceId) async {
+    audioOutputDeviceId = deviceId;
   }
 
   @override
@@ -97,16 +121,21 @@ final class _TestPreferencesStore implements PreferencesStore {
 void main() {
   group("SettingsBloc", () {
     late _TestPreferencesStore preferencesStore;
+    late FakeVoiceRuntimeService mediaRuntimeService;
 
     setUp(() {
       preferencesStore = _TestPreferencesStore();
+      mediaRuntimeService = FakeVoiceRuntimeService();
     });
 
     blocTest<SettingsBloc, SettingsState>(
       "restores persisted dark mode preference",
       build: () {
         preferencesStore.darkModeEnabled = true;
-        return SettingsBloc(preferencesStore: preferencesStore);
+        return SettingsBloc(
+          preferencesStore: preferencesStore,
+          mediaRuntimeService: mediaRuntimeService,
+        );
       },
       act: (bloc) => bloc.add(const SettingsPreferencesRestoreRequested()),
       expect: () => <Matcher>[
@@ -125,6 +154,16 @@ void main() {
               (state) => state.channelJoinNotificationChannelIds,
               "channelJoinNotificationChannelIds",
               isEmpty,
+            )
+            .having(
+              (state) => state.selectedAudioInputDeviceId,
+              "selectedAudioInputDeviceId",
+              isNull,
+            )
+            .having(
+              (state) => state.selectedAudioOutputDeviceId,
+              "selectedAudioOutputDeviceId",
+              isNull,
             ),
       ],
     );
@@ -132,7 +171,10 @@ void main() {
     blocTest<SettingsBloc, SettingsState>(
       "restores channel join notifications disabled by default",
       build: () {
-        return SettingsBloc(preferencesStore: preferencesStore);
+        return SettingsBloc(
+          preferencesStore: preferencesStore,
+          mediaRuntimeService: mediaRuntimeService,
+        );
       },
       act: (bloc) => bloc.add(const SettingsPreferencesRestoreRequested()),
       expect: () => <Matcher>[
@@ -153,7 +195,10 @@ void main() {
     blocTest<SettingsBloc, SettingsState>(
       "emits loaded state and persists dark mode toggle",
       build: () {
-        return SettingsBloc(preferencesStore: preferencesStore);
+        return SettingsBloc(
+          preferencesStore: preferencesStore,
+          mediaRuntimeService: mediaRuntimeService,
+        );
       },
       act: (bloc) => bloc.add(
         const SettingsDarkModeToggledRequested(enabled: true),
@@ -184,7 +229,10 @@ void main() {
     blocTest<SettingsBloc, SettingsState>(
       "emits loaded state and persists channel join notifications toggle",
       build: () {
-        return SettingsBloc(preferencesStore: preferencesStore);
+        return SettingsBloc(
+          preferencesStore: preferencesStore,
+          mediaRuntimeService: mediaRuntimeService,
+        );
       },
       act: (bloc) => bloc.add(
         const SettingsChannelJoinNotificationsToggledRequested(enabled: true),
@@ -210,7 +258,10 @@ void main() {
     blocTest<SettingsBloc, SettingsState>(
       "emits loaded state and persists selected channel join notification channels",
       build: () {
-        return SettingsBloc(preferencesStore: preferencesStore);
+        return SettingsBloc(
+          preferencesStore: preferencesStore,
+          mediaRuntimeService: mediaRuntimeService,
+        );
       },
       act: (bloc) => bloc.add(
         const SettingsChannelJoinNotificationChannelsSetRequested(
@@ -229,6 +280,58 @@ void main() {
           preferencesStore.channelJoinNotificationChannelIds,
           const <String>["voice-1", "voice-2"],
         );
+      },
+    );
+
+    blocTest<SettingsBloc, SettingsState>(
+      "restores persisted audio device ids when available",
+      build: () {
+        preferencesStore
+          ..audioInputDeviceId = "mic-usb"
+          ..audioOutputDeviceId = "spk-usb";
+        return SettingsBloc(
+          preferencesStore: preferencesStore,
+          mediaRuntimeService: mediaRuntimeService,
+        );
+      },
+      act: (bloc) => bloc.add(const SettingsPreferencesRestoreRequested()),
+      expect: () => <Matcher>[
+        isA<SettingsLoadedState>()
+            .having(
+              (state) => state.selectedAudioInputDeviceId,
+              "selectedAudioInputDeviceId",
+              "mic-usb",
+            )
+            .having(
+              (state) => state.selectedAudioOutputDeviceId,
+              "selectedAudioOutputDeviceId",
+              "spk-usb",
+            ),
+      ],
+      verify: (_) {
+        expect(mediaRuntimeService.selectedAudioInputDeviceId(), "mic-usb");
+        expect(mediaRuntimeService.selectedAudioOutputDeviceId(), "spk-usb");
+      },
+    );
+
+    blocTest<SettingsBloc, SettingsState>(
+      "persists and applies selected audio input device",
+      build: () {
+        return SettingsBloc(
+          preferencesStore: preferencesStore,
+          mediaRuntimeService: mediaRuntimeService,
+        );
+      },
+      act: (bloc) async {
+        bloc.add(const SettingsPreferencesRestoreRequested());
+        await Future<void>.delayed(Duration.zero);
+        bloc.add(
+          const SettingsAudioInputDeviceSetRequested(deviceId: "mic-usb"),
+        );
+      },
+      verify: (_) {
+        expect(preferencesStore.audioInputDeviceId, "mic-usb");
+        expect(mediaRuntimeService.selectedAudioInputDeviceId(), "mic-usb");
       },
     );
   });

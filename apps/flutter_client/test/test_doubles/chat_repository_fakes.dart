@@ -331,9 +331,20 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
       StreamController<ParticipantStatusUpdate>.broadcast();
   final _participantVideoTracksController =
       StreamController<Map<String, Object>>.broadcast();
+  final _audioDeviceChangesController = StreamController<void>.broadcast();
   late var _currentParticipantUserIds =
       Set<String>.from(initialParticipantUserIds);
   final _currentParticipantVideoTracks = <String, Object>{};
+  var _audioInputDevices = const <RuntimeAudioDevice>[
+    RuntimeAudioDevice(id: "mic-default", label: "Default microphone"),
+    RuntimeAudioDevice(id: "mic-usb", label: "USB microphone"),
+  ];
+  var _audioOutputDevices = const <RuntimeAudioDevice>[
+    RuntimeAudioDevice(id: "spk-default", label: "Default speakers"),
+    RuntimeAudioDevice(id: "spk-usb", label: "USB headphones"),
+  ];
+  String? _selectedAudioInputDeviceId;
+  String? _selectedAudioOutputDeviceId;
   final _audioChannelByParticipantUserId = <String, RuntimeAudioChannel>{};
   final _audioChannelEnabled = <RuntimeAudioChannel, bool>{
     RuntimeAudioChannel.voice: true,
@@ -475,6 +486,71 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   }
 
   @override
+  Future<Result<List<RuntimeAudioDevice>>> listAudioInputDevices() async {
+    return Ok<List<RuntimeAudioDevice>>(
+      List<RuntimeAudioDevice>.from(_audioInputDevices),
+    );
+  }
+
+  @override
+  Future<Result<List<RuntimeAudioDevice>>> listAudioOutputDevices() async {
+    return Ok<List<RuntimeAudioDevice>>(
+      List<RuntimeAudioDevice>.from(_audioOutputDevices),
+    );
+  }
+
+  @override
+  Future<Result<void>> setSelectedAudioInputDeviceId(String? deviceId) async {
+    final normalizedDeviceId = _normalizeDeviceId(deviceId);
+    if (normalizedDeviceId == null) {
+      _selectedAudioInputDeviceId = null;
+      return const Ok<void>(null);
+    }
+
+    final hasMatch =
+        _audioInputDevices.any((device) => device.id == normalizedDeviceId);
+    if (!hasMatch) {
+      return Error<void>(Exception("Unknown audio input device id"));
+    }
+
+    _selectedAudioInputDeviceId = normalizedDeviceId;
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> setSelectedAudioOutputDeviceId(String? deviceId) async {
+    final normalizedDeviceId = _normalizeDeviceId(deviceId);
+    if (normalizedDeviceId == null) {
+      _selectedAudioOutputDeviceId = null;
+      return const Ok<void>(null);
+    }
+
+    final hasMatch =
+        _audioOutputDevices.any((device) => device.id == normalizedDeviceId);
+    if (!hasMatch) {
+      return Error<void>(Exception("Unknown audio output device id"));
+    }
+
+    _selectedAudioOutputDeviceId = normalizedDeviceId;
+    return const Ok<void>(null);
+  }
+
+  @override
+  String? selectedAudioInputDeviceId() {
+    return _selectedAudioInputDeviceId;
+  }
+
+  @override
+  String? selectedAudioOutputDeviceId() {
+    return _selectedAudioOutputDeviceId;
+  }
+
+  @override
+  Stream<void> audioDeviceChanges() {
+    return _audioDeviceChangesController.stream;
+  }
+
+  @override
   bool isAudioChannelEnabled(RuntimeAudioChannel channel) {
     return _audioChannelEnabled[channel] ?? true;
   }
@@ -553,6 +629,27 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
       ..addAll(videoTracks);
     _participantVideoTracksController
         .add(Map<String, Object>.from(videoTracks));
+  }
+
+  void emitAudioDevicesChanged({
+    List<RuntimeAudioDevice>? audioInputDevices,
+    List<RuntimeAudioDevice>? audioOutputDevices,
+  }) {
+    _audioInputDevices =
+        List<RuntimeAudioDevice>.from(audioInputDevices ?? _audioInputDevices);
+    _audioOutputDevices = List<RuntimeAudioDevice>.from(
+      audioOutputDevices ?? _audioOutputDevices,
+    );
+    _audioDeviceChangesController.add(null);
+  }
+
+  String? _normalizeDeviceId(String? deviceId) {
+    final trimmedDeviceId = deviceId?.trim();
+    if (trimmedDeviceId == null || trimmedDeviceId.isEmpty) {
+      return null;
+    }
+
+    return trimmedDeviceId;
   }
 }
 

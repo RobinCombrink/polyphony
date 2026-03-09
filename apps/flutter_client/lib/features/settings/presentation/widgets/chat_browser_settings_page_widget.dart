@@ -4,6 +4,7 @@ import "package:polyphony_flutter_client/features/identity/presentation/widgets/
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_developer_profile_bloc.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_appearance_section_widget.dart";
+import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_audio_devices_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_developer_options_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_keybindings_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_notification_preferences_section_widget.dart";
@@ -81,6 +82,9 @@ class _ChatBrowserSettingsPageWidgetState
           const SizedBox(height: 16),
           const _SettingsSectionWidget(
               child: SettingsVoiceNotificationsSectionWidget()),
+          const SizedBox(height: 16),
+          const _SettingsSectionWidget(
+              child: SettingsAudioDevicesSectionWidget()),
           const SizedBox(height: 16),
           _SettingsSectionWidget(
             child: BlocProvider<SettingsDeveloperProfileBloc>(

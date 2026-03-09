@@ -1,4 +1,8 @@
+import "dart:async";
+
 import "package:flutter_bloc/flutter_bloc.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
 part "settings_event.dart";
@@ -7,7 +11,9 @@ part "settings_state.dart";
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   SettingsBloc({
     required PreferencesStore preferencesStore,
+    required MediaRuntimeService mediaRuntimeService,
   })  : _preferencesStore = preferencesStore,
+        _mediaRuntimeService = mediaRuntimeService,
         super(const SettingsInitialState()) {
     on<SettingsPreferencesRestoreRequested>(
       _onSettingsPreferencesRestoreRequested,
@@ -19,33 +25,42 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<SettingsChannelJoinNotificationChannelsSetRequested>(
       _onSettingsChannelJoinNotificationChannelsSetRequested,
     );
+    on<SettingsAudioDevicesRefreshRequested>(
+      _onSettingsAudioDevicesRefreshRequested,
+    );
+    on<SettingsAudioInputDeviceSetRequested>(
+      _onSettingsAudioInputDeviceSetRequested,
+    );
+    on<SettingsAudioOutputDeviceSetRequested>(
+      _onSettingsAudioOutputDeviceSetRequested,
+    );
+
+    _audioDeviceChangesSubscription =
+        _mediaRuntimeService.audioDeviceChanges().listen((_) {
+      add(const SettingsAudioDevicesRefreshRequested());
+    });
   }
 
   final PreferencesStore _preferencesStore;
+  final MediaRuntimeService _mediaRuntimeService;
+  StreamSubscription<void>? _audioDeviceChangesSubscription;
+
+  @override
+  Future<void> close() async {
+    final audioDeviceChangesSubscription = _audioDeviceChangesSubscription;
+    _audioDeviceChangesSubscription = null;
+    if (audioDeviceChangesSubscription != null) {
+      await audioDeviceChangesSubscription.cancel();
+    }
+
+    return super.close();
+  }
 
   Future<void> _onSettingsPreferencesRestoreRequested(
     SettingsPreferencesRestoreRequested event,
     Emitter<SettingsState> emit,
   ) async {
-    final previousDarkModeEnabled = switch (state) {
-      SettingsLoadedState(:final isDarkModeEnabled) => isDarkModeEnabled,
-      SettingsExceptionState(:final isDarkModeEnabled) => isDarkModeEnabled,
-      _ => false,
-    };
-    final previousChannelJoinNotificationsEnabled = switch (state) {
-      SettingsLoadedState(:final isChannelJoinNotificationsEnabled) =>
-        isChannelJoinNotificationsEnabled,
-      SettingsExceptionState(:final isChannelJoinNotificationsEnabled) =>
-        isChannelJoinNotificationsEnabled,
-      _ => false,
-    };
-    final previousChannelJoinNotificationChannelIds = switch (state) {
-      SettingsLoadedState(:final channelJoinNotificationChannelIds) =>
-        channelJoinNotificationChannelIds,
-      SettingsExceptionState(:final channelJoinNotificationChannelIds) =>
-        channelJoinNotificationChannelIds,
-      _ => const <String>[],
-    };
+    final previousSnapshot = _snapshotFromState(state);
 
     try {
       final isDarkModeEnabled = await _preferencesStore.readDarkModeEnabled();
@@ -53,22 +68,55 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           await _preferencesStore.readChannelJoinNotificationsEnabled();
       final channelJoinNotificationChannelIds =
           await _preferencesStore.readChannelJoinNotificationChannelIds();
+      final persistedAudioInputDeviceId =
+          await _preferencesStore.readAudioInputDeviceId();
+      final persistedAudioOutputDeviceId =
+          await _preferencesStore.readAudioOutputDeviceId();
+
+      final audioInputDevices =
+          await _readAudioInputDevices(previousSnapshot.audioInputDevices);
+      final audioOutputDevices =
+          await _readAudioOutputDevices(previousSnapshot.audioOutputDevices);
+      final selectedAudioInputDeviceId = _normalizeSelectedAudioDeviceId(
+        selectedDeviceId: persistedAudioInputDeviceId,
+        devices: audioInputDevices,
+      );
+      final selectedAudioOutputDeviceId = _normalizeSelectedAudioDeviceId(
+        selectedDeviceId: persistedAudioOutputDeviceId,
+        devices: audioOutputDevices,
+      );
+
+      await _applyAudioSelections(
+        selectedAudioInputDeviceId: selectedAudioInputDeviceId,
+        selectedAudioOutputDeviceId: selectedAudioOutputDeviceId,
+      );
+
       emit(
         SettingsLoadedState(
           isDarkModeEnabled: isDarkModeEnabled,
           isChannelJoinNotificationsEnabled: isChannelJoinNotificationsEnabled,
           channelJoinNotificationChannelIds: channelJoinNotificationChannelIds,
+          audioInputDevices: audioInputDevices,
+          audioOutputDevices: audioOutputDevices,
+          selectedAudioInputDeviceId: selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId: selectedAudioOutputDeviceId,
         ),
       );
     } on Exception catch (error) {
       emit(
         SettingsExceptionState(
           error: error,
-          isDarkModeEnabled: previousDarkModeEnabled,
+          isDarkModeEnabled: previousSnapshot.isDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
-              previousChannelJoinNotificationsEnabled,
+              previousSnapshot.isChannelJoinNotificationsEnabled,
           channelJoinNotificationChannelIds:
-              previousChannelJoinNotificationChannelIds,
+              previousSnapshot.channelJoinNotificationChannelIds,
+          audioInputDevices: previousSnapshot.audioInputDevices,
+          audioOutputDevices: previousSnapshot.audioOutputDevices,
+          selectedAudioInputDeviceId:
+              previousSnapshot.selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId:
+              previousSnapshot.selectedAudioOutputDeviceId,
         ),
       );
     }
@@ -79,28 +127,20 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     final nextDarkModeEnabled = event.enabled;
-    final currentChannelJoinNotificationsEnabled = switch (state) {
-      SettingsLoadedState(:final isChannelJoinNotificationsEnabled) =>
-        isChannelJoinNotificationsEnabled,
-      SettingsExceptionState(:final isChannelJoinNotificationsEnabled) =>
-        isChannelJoinNotificationsEnabled,
-      _ => false,
-    };
-    final currentChannelJoinNotificationChannelIds = switch (state) {
-      SettingsLoadedState(:final channelJoinNotificationChannelIds) =>
-        channelJoinNotificationChannelIds,
-      SettingsExceptionState(:final channelJoinNotificationChannelIds) =>
-        channelJoinNotificationChannelIds,
-      _ => const <String>[],
-    };
+    final currentSnapshot = _snapshotFromState(state);
 
     emit(
       SettingsLoadedState(
         isDarkModeEnabled: nextDarkModeEnabled,
         isChannelJoinNotificationsEnabled:
-            currentChannelJoinNotificationsEnabled,
+            currentSnapshot.isChannelJoinNotificationsEnabled,
         channelJoinNotificationChannelIds:
-            currentChannelJoinNotificationChannelIds,
+            currentSnapshot.channelJoinNotificationChannelIds,
+        audioInputDevices: currentSnapshot.audioInputDevices,
+        audioOutputDevices: currentSnapshot.audioOutputDevices,
+        selectedAudioInputDeviceId: currentSnapshot.selectedAudioInputDeviceId,
+        selectedAudioOutputDeviceId:
+            currentSnapshot.selectedAudioOutputDeviceId,
       ),
     );
 
@@ -112,9 +152,15 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           error: error,
           isDarkModeEnabled: nextDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
-              currentChannelJoinNotificationsEnabled,
+              currentSnapshot.isChannelJoinNotificationsEnabled,
           channelJoinNotificationChannelIds:
-              currentChannelJoinNotificationChannelIds,
+              currentSnapshot.channelJoinNotificationChannelIds,
+          audioInputDevices: currentSnapshot.audioInputDevices,
+          audioOutputDevices: currentSnapshot.audioOutputDevices,
+          selectedAudioInputDeviceId:
+              currentSnapshot.selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId:
+              currentSnapshot.selectedAudioOutputDeviceId,
         ),
       );
     }
@@ -125,25 +171,19 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     final nextChannelJoinNotificationsEnabled = event.enabled;
-    final currentDarkModeEnabled = switch (state) {
-      SettingsLoadedState(:final isDarkModeEnabled) => isDarkModeEnabled,
-      SettingsExceptionState(:final isDarkModeEnabled) => isDarkModeEnabled,
-      _ => false,
-    };
-    final currentChannelJoinNotificationChannelIds = switch (state) {
-      SettingsLoadedState(:final channelJoinNotificationChannelIds) =>
-        channelJoinNotificationChannelIds,
-      SettingsExceptionState(:final channelJoinNotificationChannelIds) =>
-        channelJoinNotificationChannelIds,
-      _ => const <String>[],
-    };
+    final currentSnapshot = _snapshotFromState(state);
 
     emit(
       SettingsLoadedState(
-        isDarkModeEnabled: currentDarkModeEnabled,
+        isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
         isChannelJoinNotificationsEnabled: nextChannelJoinNotificationsEnabled,
         channelJoinNotificationChannelIds:
-            currentChannelJoinNotificationChannelIds,
+            currentSnapshot.channelJoinNotificationChannelIds,
+        audioInputDevices: currentSnapshot.audioInputDevices,
+        audioOutputDevices: currentSnapshot.audioOutputDevices,
+        selectedAudioInputDeviceId: currentSnapshot.selectedAudioInputDeviceId,
+        selectedAudioOutputDeviceId:
+            currentSnapshot.selectedAudioOutputDeviceId,
       ),
     );
 
@@ -155,11 +195,17 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       emit(
         SettingsExceptionState(
           error: error,
-          isDarkModeEnabled: currentDarkModeEnabled,
+          isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               nextChannelJoinNotificationsEnabled,
           channelJoinNotificationChannelIds:
-              currentChannelJoinNotificationChannelIds,
+              currentSnapshot.channelJoinNotificationChannelIds,
+          audioInputDevices: currentSnapshot.audioInputDevices,
+          audioOutputDevices: currentSnapshot.audioOutputDevices,
+          selectedAudioInputDeviceId:
+              currentSnapshot.selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId:
+              currentSnapshot.selectedAudioOutputDeviceId,
         ),
       );
     }
@@ -175,25 +221,19 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         .toSet()
         .toList(growable: false);
 
-    final currentDarkModeEnabled = switch (state) {
-      SettingsLoadedState(:final isDarkModeEnabled) => isDarkModeEnabled,
-      SettingsExceptionState(:final isDarkModeEnabled) => isDarkModeEnabled,
-      _ => false,
-    };
-    final currentChannelJoinNotificationsEnabled = switch (state) {
-      SettingsLoadedState(:final isChannelJoinNotificationsEnabled) =>
-        isChannelJoinNotificationsEnabled,
-      SettingsExceptionState(:final isChannelJoinNotificationsEnabled) =>
-        isChannelJoinNotificationsEnabled,
-      _ => false,
-    };
+    final currentSnapshot = _snapshotFromState(state);
 
     emit(
       SettingsLoadedState(
-        isDarkModeEnabled: currentDarkModeEnabled,
+        isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
         isChannelJoinNotificationsEnabled:
-            currentChannelJoinNotificationsEnabled,
+            currentSnapshot.isChannelJoinNotificationsEnabled,
         channelJoinNotificationChannelIds: nextChannelIds,
+        audioInputDevices: currentSnapshot.audioInputDevices,
+        audioOutputDevices: currentSnapshot.audioOutputDevices,
+        selectedAudioInputDeviceId: currentSnapshot.selectedAudioInputDeviceId,
+        selectedAudioOutputDeviceId:
+            currentSnapshot.selectedAudioOutputDeviceId,
       ),
     );
 
@@ -205,12 +245,294 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       emit(
         SettingsExceptionState(
           error: error,
-          isDarkModeEnabled: currentDarkModeEnabled,
+          isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
-              currentChannelJoinNotificationsEnabled,
+              currentSnapshot.isChannelJoinNotificationsEnabled,
           channelJoinNotificationChannelIds: nextChannelIds,
+          audioInputDevices: currentSnapshot.audioInputDevices,
+          audioOutputDevices: currentSnapshot.audioOutputDevices,
+          selectedAudioInputDeviceId:
+              currentSnapshot.selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId:
+              currentSnapshot.selectedAudioOutputDeviceId,
         ),
       );
     }
   }
+
+  Future<void> _onSettingsAudioDevicesRefreshRequested(
+    SettingsAudioDevicesRefreshRequested event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final currentSnapshot = _snapshotFromState(state);
+
+    try {
+      final audioInputDevices =
+          await _readAudioInputDevices(currentSnapshot.audioInputDevices);
+      final audioOutputDevices =
+          await _readAudioOutputDevices(currentSnapshot.audioOutputDevices);
+
+      final selectedAudioInputDeviceId = _normalizeSelectedAudioDeviceId(
+        selectedDeviceId: _mediaRuntimeService.selectedAudioInputDeviceId() ??
+            currentSnapshot.selectedAudioInputDeviceId,
+        devices: audioInputDevices,
+      );
+      final selectedAudioOutputDeviceId = _normalizeSelectedAudioDeviceId(
+        selectedDeviceId: _mediaRuntimeService.selectedAudioOutputDeviceId() ??
+            currentSnapshot.selectedAudioOutputDeviceId,
+        devices: audioOutputDevices,
+      );
+
+      emit(
+        SettingsLoadedState(
+          isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
+          isChannelJoinNotificationsEnabled:
+              currentSnapshot.isChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds:
+              currentSnapshot.channelJoinNotificationChannelIds,
+          audioInputDevices: audioInputDevices,
+          audioOutputDevices: audioOutputDevices,
+          selectedAudioInputDeviceId: selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId: selectedAudioOutputDeviceId,
+        ),
+      );
+    } on Exception catch (error) {
+      emit(
+        SettingsExceptionState(
+          error: error,
+          isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
+          isChannelJoinNotificationsEnabled:
+              currentSnapshot.isChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds:
+              currentSnapshot.channelJoinNotificationChannelIds,
+          audioInputDevices: currentSnapshot.audioInputDevices,
+          audioOutputDevices: currentSnapshot.audioOutputDevices,
+          selectedAudioInputDeviceId:
+              currentSnapshot.selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId:
+              currentSnapshot.selectedAudioOutputDeviceId,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onSettingsAudioInputDeviceSetRequested(
+    SettingsAudioInputDeviceSetRequested event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final currentSnapshot = _snapshotFromState(state);
+    final nextSelectedAudioInputDeviceId = _normalizeSelectedAudioDeviceId(
+      selectedDeviceId: event.deviceId,
+      devices: currentSnapshot.audioInputDevices,
+    );
+
+    emit(
+      SettingsLoadedState(
+        isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
+        isChannelJoinNotificationsEnabled:
+            currentSnapshot.isChannelJoinNotificationsEnabled,
+        channelJoinNotificationChannelIds:
+            currentSnapshot.channelJoinNotificationChannelIds,
+        audioInputDevices: currentSnapshot.audioInputDevices,
+        audioOutputDevices: currentSnapshot.audioOutputDevices,
+        selectedAudioInputDeviceId: nextSelectedAudioInputDeviceId,
+        selectedAudioOutputDeviceId:
+            currentSnapshot.selectedAudioOutputDeviceId,
+      ),
+    );
+
+    try {
+      final applyResult = await _mediaRuntimeService
+          .setSelectedAudioInputDeviceId(nextSelectedAudioInputDeviceId);
+      if (applyResult case Error<void>(:final error)) {
+        throw error;
+      }
+
+      await _preferencesStore
+          .writeAudioInputDeviceId(nextSelectedAudioInputDeviceId);
+    } on Exception catch (error) {
+      emit(
+        SettingsExceptionState(
+          error: error,
+          isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
+          isChannelJoinNotificationsEnabled:
+              currentSnapshot.isChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds:
+              currentSnapshot.channelJoinNotificationChannelIds,
+          audioInputDevices: currentSnapshot.audioInputDevices,
+          audioOutputDevices: currentSnapshot.audioOutputDevices,
+          selectedAudioInputDeviceId:
+              currentSnapshot.selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId:
+              currentSnapshot.selectedAudioOutputDeviceId,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onSettingsAudioOutputDeviceSetRequested(
+    SettingsAudioOutputDeviceSetRequested event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final currentSnapshot = _snapshotFromState(state);
+    final nextSelectedAudioOutputDeviceId = _normalizeSelectedAudioDeviceId(
+      selectedDeviceId: event.deviceId,
+      devices: currentSnapshot.audioOutputDevices,
+    );
+
+    emit(
+      SettingsLoadedState(
+        isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
+        isChannelJoinNotificationsEnabled:
+            currentSnapshot.isChannelJoinNotificationsEnabled,
+        channelJoinNotificationChannelIds:
+            currentSnapshot.channelJoinNotificationChannelIds,
+        audioInputDevices: currentSnapshot.audioInputDevices,
+        audioOutputDevices: currentSnapshot.audioOutputDevices,
+        selectedAudioInputDeviceId: currentSnapshot.selectedAudioInputDeviceId,
+        selectedAudioOutputDeviceId: nextSelectedAudioOutputDeviceId,
+      ),
+    );
+
+    try {
+      final applyResult = await _mediaRuntimeService
+          .setSelectedAudioOutputDeviceId(nextSelectedAudioOutputDeviceId);
+      if (applyResult case Error<void>(:final error)) {
+        throw error;
+      }
+
+      await _preferencesStore
+          .writeAudioOutputDeviceId(nextSelectedAudioOutputDeviceId);
+    } on Exception catch (error) {
+      emit(
+        SettingsExceptionState(
+          error: error,
+          isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
+          isChannelJoinNotificationsEnabled:
+              currentSnapshot.isChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds:
+              currentSnapshot.channelJoinNotificationChannelIds,
+          audioInputDevices: currentSnapshot.audioInputDevices,
+          audioOutputDevices: currentSnapshot.audioOutputDevices,
+          selectedAudioInputDeviceId:
+              currentSnapshot.selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId:
+              currentSnapshot.selectedAudioOutputDeviceId,
+        ),
+      );
+    }
+  }
+
+  Future<List<RuntimeAudioDevice>> _readAudioInputDevices(
+    List<RuntimeAudioDevice> fallback,
+  ) async {
+    final result = await _mediaRuntimeService.listAudioInputDevices();
+    return switch (result) {
+      Ok<List<RuntimeAudioDevice>>(:final value) => value,
+      Error<List<RuntimeAudioDevice>>() => fallback,
+    };
+  }
+
+  Future<List<RuntimeAudioDevice>> _readAudioOutputDevices(
+    List<RuntimeAudioDevice> fallback,
+  ) async {
+    final result = await _mediaRuntimeService.listAudioOutputDevices();
+    return switch (result) {
+      Ok<List<RuntimeAudioDevice>>(:final value) => value,
+      Error<List<RuntimeAudioDevice>>() => fallback,
+    };
+  }
+
+  String? _normalizeSelectedAudioDeviceId({
+    required String? selectedDeviceId,
+    required List<RuntimeAudioDevice> devices,
+  }) {
+    final trimmedSelectedDeviceId = selectedDeviceId?.trim();
+    if (trimmedSelectedDeviceId == null || trimmedSelectedDeviceId.isEmpty) {
+      return null;
+    }
+
+    final hasSelectedDevice =
+        devices.any((device) => device.id == trimmedSelectedDeviceId);
+    return hasSelectedDevice ? trimmedSelectedDeviceId : null;
+  }
+
+  Future<void> _applyAudioSelections({
+    required String? selectedAudioInputDeviceId,
+    required String? selectedAudioOutputDeviceId,
+  }) async {
+    final applyInputResult = await _mediaRuntimeService
+        .setSelectedAudioInputDeviceId(selectedAudioInputDeviceId);
+    if (applyInputResult case Error<void>(:final error)) {
+      throw error;
+    }
+
+    final applyOutputResult = await _mediaRuntimeService
+        .setSelectedAudioOutputDeviceId(selectedAudioOutputDeviceId);
+    if (applyOutputResult case Error<void>(:final error)) {
+      throw error;
+    }
+  }
+
+  _SettingsSnapshot _snapshotFromState(SettingsState currentState) {
+    return switch (currentState) {
+      SettingsLoadedState(
+        :final isDarkModeEnabled,
+        :final isChannelJoinNotificationsEnabled,
+        :final channelJoinNotificationChannelIds,
+        :final audioInputDevices,
+        :final audioOutputDevices,
+        :final selectedAudioInputDeviceId,
+        :final selectedAudioOutputDeviceId,
+      ) =>
+        _SettingsSnapshot(
+          isDarkModeEnabled: isDarkModeEnabled,
+          isChannelJoinNotificationsEnabled: isChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds: channelJoinNotificationChannelIds,
+          audioInputDevices: audioInputDevices,
+          audioOutputDevices: audioOutputDevices,
+          selectedAudioInputDeviceId: selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId: selectedAudioOutputDeviceId,
+        ),
+      SettingsExceptionState(
+        :final isDarkModeEnabled,
+        :final isChannelJoinNotificationsEnabled,
+        :final channelJoinNotificationChannelIds,
+        :final audioInputDevices,
+        :final audioOutputDevices,
+        :final selectedAudioInputDeviceId,
+        :final selectedAudioOutputDeviceId,
+      ) =>
+        _SettingsSnapshot(
+          isDarkModeEnabled: isDarkModeEnabled,
+          isChannelJoinNotificationsEnabled: isChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds: channelJoinNotificationChannelIds,
+          audioInputDevices: audioInputDevices,
+          audioOutputDevices: audioOutputDevices,
+          selectedAudioInputDeviceId: selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId: selectedAudioOutputDeviceId,
+        ),
+      SettingsInitialState() => const _SettingsSnapshot(),
+    };
+  }
+}
+
+final class _SettingsSnapshot {
+  const _SettingsSnapshot({
+    this.isDarkModeEnabled = false,
+    this.isChannelJoinNotificationsEnabled = false,
+    this.channelJoinNotificationChannelIds = const <String>[],
+    this.audioInputDevices = const <RuntimeAudioDevice>[],
+    this.audioOutputDevices = const <RuntimeAudioDevice>[],
+    this.selectedAudioInputDeviceId,
+    this.selectedAudioOutputDeviceId,
+  });
+
+  final bool isDarkModeEnabled;
+  final bool isChannelJoinNotificationsEnabled;
+  final List<String> channelJoinNotificationChannelIds;
+  final List<RuntimeAudioDevice> audioInputDevices;
+  final List<RuntimeAudioDevice> audioOutputDevices;
+  final String? selectedAudioInputDeviceId;
+  final String? selectedAudioOutputDeviceId;
 }

@@ -31,3 +31,23 @@ final class SettingsChannelJoinNotificationChannelsSetRequested
 
   final List<String> channelIds;
 }
+
+final class SettingsAudioDevicesRefreshRequested extends SettingsEvent {
+  const SettingsAudioDevicesRefreshRequested();
+}
+
+final class SettingsAudioInputDeviceSetRequested extends SettingsEvent {
+  const SettingsAudioInputDeviceSetRequested({
+    required this.deviceId,
+  });
+
+  final String? deviceId;
+}
+
+final class SettingsAudioOutputDeviceSetRequested extends SettingsEvent {
+  const SettingsAudioOutputDeviceSetRequested({
+    required this.deviceId,
+  });
+
+  final String? deviceId;
+}

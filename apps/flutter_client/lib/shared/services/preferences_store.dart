@@ -95,6 +95,10 @@ abstract interface class PreferencesStore {
   Future<void> writeChannelJoinNotificationsEnabled(bool enabled);
   Future<List<String>> readChannelJoinNotificationChannelIds();
   Future<void> writeChannelJoinNotificationChannelIds(List<String> channelIds);
+  Future<String?> readAudioInputDeviceId();
+  Future<void> writeAudioInputDeviceId(String? deviceId);
+  Future<String?> readAudioOutputDeviceId();
+  Future<void> writeAudioOutputDeviceId(String? deviceId);
   Future<bool> readRememberEmailEnabled();
   Future<void> writeRememberEmailEnabled(bool enabled);
   Future<String?> readRememberedEmailAddress();
@@ -114,6 +118,8 @@ final class SharedPreferencesBackedPreferencesStore
       "settings.channel_join_notifications_enabled";
   static const _channelJoinNotificationChannelIdsKey =
       "settings.channel_join_notification_channel_ids";
+  static const _audioInputDeviceIdKey = "settings.audio_input_device_id";
+  static const _audioOutputDeviceIdKey = "settings.audio_output_device_id";
   static const _rememberEmailKey = "auth.remember_email";
   static const _rememberedEmailAddressKey = "auth.remembered_email_address";
   static const _keybindingsKey = "settings.keybindings";
@@ -122,6 +128,8 @@ final class SharedPreferencesBackedPreferencesStore
     _darkModeEnabledKey,
     _channelJoinNotificationsEnabledKey,
     _channelJoinNotificationChannelIdsKey,
+    _audioInputDeviceIdKey,
+    _audioOutputDeviceIdKey,
     _rememberEmailKey,
     _rememberedEmailAddressKey,
     _keybindingsKey,
@@ -196,6 +204,54 @@ final class SharedPreferencesBackedPreferencesStore
       _channelJoinNotificationChannelIdsKey,
       normalizedChannelIds,
     );
+  }
+
+  @override
+  Future<String?> readAudioInputDeviceId() async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    final deviceId = sharedPreferences.getString(_audioInputDeviceIdKey);
+    if (deviceId == null) {
+      return null;
+    }
+
+    final trimmedDeviceId = deviceId.trim();
+    return trimmedDeviceId.isEmpty ? null : trimmedDeviceId;
+  }
+
+  @override
+  Future<void> writeAudioInputDeviceId(String? deviceId) async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    final trimmedDeviceId = deviceId?.trim();
+    if (trimmedDeviceId == null || trimmedDeviceId.isEmpty) {
+      await sharedPreferences.remove(_audioInputDeviceIdKey);
+      return;
+    }
+
+    await sharedPreferences.setString(_audioInputDeviceIdKey, trimmedDeviceId);
+  }
+
+  @override
+  Future<String?> readAudioOutputDeviceId() async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    final deviceId = sharedPreferences.getString(_audioOutputDeviceIdKey);
+    if (deviceId == null) {
+      return null;
+    }
+
+    final trimmedDeviceId = deviceId.trim();
+    return trimmedDeviceId.isEmpty ? null : trimmedDeviceId;
+  }
+
+  @override
+  Future<void> writeAudioOutputDeviceId(String? deviceId) async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    final trimmedDeviceId = deviceId?.trim();
+    if (trimmedDeviceId == null || trimmedDeviceId.isEmpty) {
+      await sharedPreferences.remove(_audioOutputDeviceIdKey);
+      return;
+    }
+
+    await sharedPreferences.setString(_audioOutputDeviceIdKey, trimmedDeviceId);
   }
 
   @override
@@ -297,6 +353,8 @@ final class InMemoryPreferencesStore implements PreferencesStore {
   var _darkModeEnabled = false;
   var _channelJoinNotificationsEnabled = false;
   var _channelJoinNotificationChannelIds = const <String>[];
+  String? _audioInputDeviceId;
+  String? _audioOutputDeviceId;
   var _rememberEmailEnabled = false;
   String? _rememberedEmailAddress;
   var _keybindingsPreferences = const KeybindingsPreferences.unset();
@@ -336,6 +394,32 @@ final class InMemoryPreferencesStore implements PreferencesStore {
         .where((channelId) => channelId.isNotEmpty)
         .toSet()
         .toList(growable: false);
+  }
+
+  @override
+  Future<String?> readAudioInputDeviceId() async {
+    return _audioInputDeviceId;
+  }
+
+  @override
+  Future<void> writeAudioInputDeviceId(String? deviceId) async {
+    final trimmedDeviceId = deviceId?.trim();
+    _audioInputDeviceId = trimmedDeviceId == null || trimmedDeviceId.isEmpty
+        ? null
+        : trimmedDeviceId;
+  }
+
+  @override
+  Future<String?> readAudioOutputDeviceId() async {
+    return _audioOutputDeviceId;
+  }
+
+  @override
+  Future<void> writeAudioOutputDeviceId(String? deviceId) async {
+    final trimmedDeviceId = deviceId?.trim();
+    _audioOutputDeviceId = trimmedDeviceId == null || trimmedDeviceId.isEmpty
+        ? null
+        : trimmedDeviceId;
   }
 
   @override
@@ -424,6 +508,26 @@ final class WebPreferencesStore implements PreferencesStore {
   Future<void> writeChannelJoinNotificationChannelIds(
     List<String> channelIds,
   ) async {
+    return;
+  }
+
+  @override
+  Future<String?> readAudioInputDeviceId() async {
+    return null;
+  }
+
+  @override
+  Future<void> writeAudioInputDeviceId(String? deviceId) async {
+    return;
+  }
+
+  @override
+  Future<String?> readAudioOutputDeviceId() async {
+    return null;
+  }
+
+  @override
+  Future<void> writeAudioOutputDeviceId(String? deviceId) async {
     return;
   }
 

@@ -17,10 +17,13 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       StreamController<ParticipantStatusUpdate>.broadcast();
   final _participantVideoTracksController =
       StreamController<Map<String, Object>>.broadcast();
+  final _audioDeviceChangesController = StreamController<void>.broadcast();
 
   var _isSelfMuted = false;
   var _isSelfDeafened = false;
   var _isSelfScreenShareEnabled = false;
+  String? _selectedAudioInputDeviceId;
+  String? _selectedAudioOutputDeviceId;
 
   final _participantAudioChannelByUserId =
       <ParticipantUserId, RuntimeAudioChannel>{};
@@ -35,6 +38,12 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   Set<ParticipantUserId>? _lastDeafenedParticipantUserIds;
   Map<String, Object>? _lastParticipantVideoTracks;
 
+  LivekitMediaRuntimeService() {
+    Hardware.instance.onDeviceChange.stream.listen((_) {
+      _audioDeviceChangesController.add(null);
+    });
+  }
+
   @override
   Future<Result<void>> connect({
     required String livekitUrl,
@@ -44,13 +53,20 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       await _disconnectCurrentRoom();
 
       final room = Room(
-        roomOptions: const RoomOptions(
+        roomOptions: RoomOptions(
           adaptiveStream: true,
           dynacast: true,
+          defaultAudioCaptureOptions: AudioCaptureOptions(
+            deviceId: _selectedAudioInputDeviceId,
+          ),
+          defaultAudioOutputOptions: AudioOutputOptions(
+            deviceId: _selectedAudioOutputDeviceId,
+          ),
         ),
       );
       await room.prepareConnection(livekitUrl, accessToken);
       await room.connect(livekitUrl, accessToken);
+      await _applyPreferredAudioDevices(room);
       await room.localParticipant?.setMicrophoneEnabled(true);
       await room.localParticipant?.setScreenShareEnabled(false);
       _setLocalParticipantDeafenedAttribute(
@@ -311,6 +327,137 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   }
 
   @override
+  Future<Result<List<RuntimeAudioDevice>>> listAudioInputDevices() async {
+    try {
+      final devices = await Hardware.instance.audioInputs();
+      return Ok<List<RuntimeAudioDevice>>(_toRuntimeAudioDevices(devices));
+    } on Exception catch (error) {
+      return Error<List<RuntimeAudioDevice>>(error);
+    }
+  }
+
+  @override
+  Future<Result<List<RuntimeAudioDevice>>> listAudioOutputDevices() async {
+    try {
+      final devices = await Hardware.instance.audioOutputs();
+      return Ok<List<RuntimeAudioDevice>>(_toRuntimeAudioDevices(devices));
+    } on Exception catch (error) {
+      return Error<List<RuntimeAudioDevice>>(error);
+    }
+  }
+
+  @override
+  Future<Result<void>> setSelectedAudioInputDeviceId(String? deviceId) async {
+    try {
+      final normalizedDeviceId = _normalizeDeviceId(deviceId);
+      _selectedAudioInputDeviceId = normalizedDeviceId;
+
+      if (normalizedDeviceId == null) {
+        return const Ok<void>(null);
+      }
+
+      final inputDevicesResult = await listAudioInputDevices();
+      if (inputDevicesResult
+          case Error<List<RuntimeAudioDevice>>(:final error)) {
+        return Error<void>(error);
+      }
+
+      final inputDevices =
+          (inputDevicesResult as Ok<List<RuntimeAudioDevice>>).value;
+      final selectedInputDevice = inputDevices
+          .where((device) => device.id == normalizedDeviceId)
+          .firstOrNull;
+      if (selectedInputDevice == null) {
+        return Error<void>(
+            Exception("Unknown audio input device id: $normalizedDeviceId"));
+      }
+
+      final activeRoom = _room;
+      if (activeRoom == null) {
+        return const Ok<void>(null);
+      }
+
+      await activeRoom.setAudioInputDevice(
+        MediaDevice(
+          selectedInputDevice.id,
+          selectedInputDevice.label,
+          "audioinput",
+          null,
+        ),
+      );
+      return const Ok<void>(null);
+    } on Exception catch (error) {
+      return Error<void>(error);
+    }
+  }
+
+  @override
+  Future<Result<void>> setSelectedAudioOutputDeviceId(String? deviceId) async {
+    try {
+      final normalizedDeviceId = _normalizeDeviceId(deviceId);
+      _selectedAudioOutputDeviceId = normalizedDeviceId;
+
+      if (normalizedDeviceId == null) {
+        return const Ok<void>(null);
+      }
+
+      final outputDevicesResult = await listAudioOutputDevices();
+      if (outputDevicesResult
+          case Error<List<RuntimeAudioDevice>>(:final error)) {
+        return Error<void>(error);
+      }
+
+      final outputDevices =
+          (outputDevicesResult as Ok<List<RuntimeAudioDevice>>).value;
+      final selectedOutputDevice = outputDevices
+          .where((device) => device.id == normalizedDeviceId)
+          .firstOrNull;
+      if (selectedOutputDevice == null) {
+        return Error<void>(
+          Exception("Unknown audio output device id: $normalizedDeviceId"),
+        );
+      }
+
+      final activeRoom = _room;
+      if (activeRoom == null) {
+        return const Ok<void>(null);
+      }
+
+      await activeRoom.setAudioOutputDevice(
+        MediaDevice(
+          selectedOutputDevice.id,
+          selectedOutputDevice.label,
+          "audiooutput",
+          null,
+        ),
+      );
+
+      return const Ok<void>(null);
+    } on Exception catch (error) {
+      return Error<void>(error);
+    }
+  }
+
+  @override
+  String? selectedAudioInputDeviceId() {
+    final activeRoom = _room;
+    return activeRoom?.selectedAudioInputDeviceId ??
+        _selectedAudioInputDeviceId;
+  }
+
+  @override
+  String? selectedAudioOutputDeviceId() {
+    final activeRoom = _room;
+    return activeRoom?.selectedAudioOutputDeviceId ??
+        _selectedAudioOutputDeviceId;
+  }
+
+  @override
+  Stream<void> audioDeviceChanges() {
+    return _audioDeviceChangesController.stream;
+  }
+
+  @override
   bool isAudioChannelEnabled(RuntimeAudioChannel channel) {
     return _audioChannelEnabled[channel] ?? true;
   }
@@ -403,6 +550,51 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     }
 
     await activeRoom.disconnect();
+  }
+
+  Future<void> _applyPreferredAudioDevices(Room room) async {
+    final selectedAudioInputDeviceId = _selectedAudioInputDeviceId;
+    if (selectedAudioInputDeviceId != null) {
+      final devices = await Hardware.instance.audioInputs();
+      final selectedInputDevice = devices
+          .where((device) => device.deviceId == selectedAudioInputDeviceId)
+          .firstOrNull;
+      if (selectedInputDevice != null) {
+        await room.setAudioInputDevice(selectedInputDevice);
+      }
+    }
+
+    final selectedAudioOutputDeviceId = _selectedAudioOutputDeviceId;
+    if (selectedAudioOutputDeviceId != null) {
+      final devices = await Hardware.instance.audioOutputs();
+      final selectedOutputDevice = devices
+          .where((device) => device.deviceId == selectedAudioOutputDeviceId)
+          .firstOrNull;
+      if (selectedOutputDevice != null) {
+        await room.setAudioOutputDevice(selectedOutputDevice);
+      }
+    }
+  }
+
+  List<RuntimeAudioDevice> _toRuntimeAudioDevices(
+      Iterable<MediaDevice> devices) {
+    return devices
+        .map(
+          (device) => RuntimeAudioDevice(
+            id: device.deviceId,
+            label: device.label.trim().isEmpty ? device.deviceId : device.label,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  String? _normalizeDeviceId(String? deviceId) {
+    final trimmedDeviceId = deviceId?.trim();
+    if (trimmedDeviceId == null || trimmedDeviceId.isEmpty) {
+      return null;
+    }
+
+    return trimmedDeviceId;
   }
 
   void _emitRoomSnapshot(Room room) {

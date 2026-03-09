@@ -35,8 +35,10 @@ void main() {
         (tester) async {
       final fixture = EntitySeeder().chatApiFixture();
       final preferencesStore = InMemoryPreferencesStore();
-      final settingsBloc = SettingsBloc(preferencesStore: preferencesStore)
-        ..add(const SettingsPreferencesRestoreRequested());
+      final settingsBloc = SettingsBloc(
+        preferencesStore: preferencesStore,
+        mediaRuntimeService: FakeVoiceRuntimeService(),
+      )..add(const SettingsPreferencesRestoreRequested());
       final channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),
       )..add(LoadChannelsRequested(serverId: fixture.listedServer.id));
@@ -60,8 +62,10 @@ void main() {
         (tester) async {
       final fixture = EntitySeeder().chatApiFixture();
       final preferencesStore = InMemoryPreferencesStore();
-      final settingsBloc = SettingsBloc(preferencesStore: preferencesStore)
-        ..add(const SettingsPreferencesRestoreRequested());
+      final settingsBloc = SettingsBloc(
+        preferencesStore: preferencesStore,
+        mediaRuntimeService: FakeVoiceRuntimeService(),
+      )..add(const SettingsPreferencesRestoreRequested());
       final channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),
       )..add(LoadChannelsRequested(serverId: fixture.listedServer.id));
@@ -99,8 +103,10 @@ void main() {
       await preferencesStore.writeChannelJoinNotificationChannelIds(
         const <String>["vch-1"],
       );
-      final settingsBloc = SettingsBloc(preferencesStore: preferencesStore)
-        ..add(const SettingsPreferencesRestoreRequested());
+      final settingsBloc = SettingsBloc(
+        preferencesStore: preferencesStore,
+        mediaRuntimeService: FakeVoiceRuntimeService(),
+      )..add(const SettingsPreferencesRestoreRequested());
       final channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),
       )..add(LoadChannelsRequested(serverId: fixture.listedServer.id));

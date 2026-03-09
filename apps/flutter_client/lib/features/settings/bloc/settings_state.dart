@@ -13,11 +13,19 @@ final class SettingsLoadedState extends SettingsState {
     required this.isDarkModeEnabled,
     required this.isChannelJoinNotificationsEnabled,
     required this.channelJoinNotificationChannelIds,
+    required this.audioInputDevices,
+    required this.audioOutputDevices,
+    required this.selectedAudioInputDeviceId,
+    required this.selectedAudioOutputDeviceId,
   });
 
   final bool isDarkModeEnabled;
   final bool isChannelJoinNotificationsEnabled;
   final List<String> channelJoinNotificationChannelIds;
+  final List<RuntimeAudioDevice> audioInputDevices;
+  final List<RuntimeAudioDevice> audioOutputDevices;
+  final String? selectedAudioInputDeviceId;
+  final String? selectedAudioOutputDeviceId;
 }
 
 final class SettingsExceptionState extends SettingsState {
@@ -26,10 +34,18 @@ final class SettingsExceptionState extends SettingsState {
     required this.isDarkModeEnabled,
     required this.isChannelJoinNotificationsEnabled,
     required this.channelJoinNotificationChannelIds,
+    required this.audioInputDevices,
+    required this.audioOutputDevices,
+    required this.selectedAudioInputDeviceId,
+    required this.selectedAudioOutputDeviceId,
   });
 
   final Exception error;
   final bool isDarkModeEnabled;
   final bool isChannelJoinNotificationsEnabled;
   final List<String> channelJoinNotificationChannelIds;
+  final List<RuntimeAudioDevice> audioInputDevices;
+  final List<RuntimeAudioDevice> audioOutputDevices;
+  final String? selectedAudioInputDeviceId;
+  final String? selectedAudioOutputDeviceId;
 }
