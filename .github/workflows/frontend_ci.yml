@@ -150,9 +150,7 @@ jobs:
           POLYPHONY_BACKEND_BASE_URL: ${{ vars.POLYPHONY_BACKEND_BASE_URL }}
           AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
         run: |
-          flutter build windows --release `
-            --dart-define=POLYPHONY_BACKEND_BASE_URL=$env:POLYPHONY_BACKEND_BASE_URL `
-            --dart-define=AUTH0_DOMAIN=$env:AUTH0_DOMAIN
+          flutter build windows --release --dart-define=POLYPHONY_BACKEND_BASE_URL=$env:POLYPHONY_BACKEND_BASE_URL --dart-define=AUTH0_DOMAIN=$env:AUTH0_DOMAIN
 
       - name: Install WiX Toolset
         shell: pwsh
