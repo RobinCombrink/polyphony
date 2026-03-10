@@ -137,12 +137,13 @@ class WebSocketNotificationRuntimeService
     try {
       await activeSocket.sink.close();
       return const Ok<void>(null);
-    } on Exception catch (exception) {
+    } on Exception catch (exception, stackTrace) {
       return Error<void>(
         RuntimeConnectionException(
           operation: "disconnect notifications websocket",
           cause: exception,
         ),
+        stackTrace: stackTrace,
       );
     }
   }
@@ -192,13 +193,14 @@ class WebSocketNotificationRuntimeService
       );
 
       return const Ok<void>(null);
-    } on Exception catch (exception) {
+    } on Exception catch (exception, stackTrace) {
       _scheduleReconnect();
       return Error<void>(
         RuntimeConnectionException(
           operation: "connect notifications websocket",
           cause: exception,
         ),
+        stackTrace: stackTrace,
       );
     } finally {
       _isConnecting = false;

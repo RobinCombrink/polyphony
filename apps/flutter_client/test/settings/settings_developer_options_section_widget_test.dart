@@ -83,6 +83,7 @@ void main() {
 
       expect(find.text("Configuration"), findsNothing);
       expect(find.text("/me response"), findsNothing);
+      expect(find.text("Verify Sentry Setup"), findsNothing);
       expect(
         find.text(
           "EFFECTIVE_BACKEND_BASE_URL: ${PolyphonyConfig.backendBaseUrl}",
@@ -159,6 +160,25 @@ void main() {
         ),
         findsOneWidget,
       );
+      expect(
+        find.text("SENTRY_ENABLED: ${PolyphonyConfig.sentryEnabled}"),
+        findsOneWidget,
+      );
+      expect(
+        find.text("SENTRY_ENVIRONMENT: ${PolyphonyConfig.sentryEnvironment}"),
+        findsOneWidget,
+      );
+      expect(
+        find.text("SENTRY_RELEASE: ${PolyphonyConfig.sentryRelease}"),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          "SENTRY_TRACES_SAMPLE_RATE: ${PolyphonyConfig.sentryTracesSampleRate()}",
+        ),
+        findsOneWidget,
+      );
+      expect(find.text("Verify Sentry Setup"), findsOneWidget);
       expect(find.text("/me response"), findsOneWidget);
       expect(find.text("user_id: auth0|user"), findsOneWidget);
       expect(find.text("display_name: Polyphony User"), findsOneWidget);

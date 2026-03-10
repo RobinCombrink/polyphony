@@ -65,8 +65,8 @@ class LivekitMessageRuntimeService implements MessageRuntimeService {
       _roomListener = listener;
       _room = room;
       return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
+    } on Exception catch (error, stackTrace) {
+      return Error<void>(error, stackTrace: stackTrace);
     }
   }
 
@@ -75,8 +75,8 @@ class LivekitMessageRuntimeService implements MessageRuntimeService {
     try {
       await _disconnectCurrentRoom();
       return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
+    } on Exception catch (error, stackTrace) {
+      return Error<void>(error, stackTrace: stackTrace);
     }
   }
 
@@ -121,8 +121,8 @@ class LivekitMessageRuntimeService implements MessageRuntimeService {
       );
 
       return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
+    } on Exception catch (error, stackTrace) {
+      return Error<void>(error, stackTrace: stackTrace);
     }
   }
 

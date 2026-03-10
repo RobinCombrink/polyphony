@@ -46,7 +46,7 @@ class AuthenticationSessionService {
     return switch (signInResult) {
       Ok<String>(:final value) => Ok<String>(value.trim()),
       Error<String>(:final error) when _isRedirectInProgressError(error) =>
-        const Error<String>(AuthenticationSignInRedirectInProgressException()),
+        Error<String>(const AuthenticationSignInRedirectInProgressException()),
       Error<String>(:final error) => Error<String>(error),
     };
   }

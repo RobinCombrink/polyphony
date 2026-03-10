@@ -148,8 +148,12 @@ jobs:
         env:
           POLYPHONY_BACKEND_BASE_URL: ${{ vars.POLYPHONY_BACKEND_BASE_URL }}
           AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
+          SENTRY_FRONTEND_DSN: ${{ vars.SENTRY_FRONTEND_DSN }}
+          SENTRY_TRACES_SAMPLE_RATE: ${{ vars.SENTRY_TRACES_SAMPLE_RATE }}
+          SENTRY_ENVIRONMENT: production
+          SENTRY_RELEASE: ${{ needs.semantic-version.outputs.release_tag }}
         run: |
-          flutter build windows --release --dart-define=POLYPHONY_BACKEND_BASE_URL=$env:POLYPHONY_BACKEND_BASE_URL --dart-define=AUTH0_DOMAIN=$env:AUTH0_DOMAIN
+          flutter build windows --release --obfuscate --split-debug-info=build/app/intermediates_symbol --dart-define=POLYPHONY_BACKEND_BASE_URL=$env:POLYPHONY_BACKEND_BASE_URL --dart-define=AUTH0_DOMAIN=$env:AUTH0_DOMAIN --dart-define=SENTRY_ENABLED=true --dart-define=SENTRY_FRONTEND_DSN=$env:SENTRY_FRONTEND_DSN --dart-define=SENTRY_TRACES_SAMPLE_RATE=$env:SENTRY_TRACES_SAMPLE_RATE --dart-define=SENTRY_ENVIRONMENT=$env:SENTRY_ENVIRONMENT --dart-define=SENTRY_RELEASE=$env:SENTRY_RELEASE
 
       - name: Install WiX Toolset
         shell: pwsh
@@ -173,6 +177,7 @@ jobs:
           path: |
             apps/flutter_client/build/polyphony-windows-${{ github.run_id }}-${{ github.run_attempt }}.zip
             apps/flutter_client/build/polyphony-installer-${{ github.run_id }}-${{ github.run_attempt }}.msi
+            apps/flutter_client/build/app/intermediates_symbol/**
 
   release:
     name: Create GitHub release
@@ -197,6 +202,44 @@ jobs:
         id: release_meta
         run: |
           echo "tag=${{ needs.semantic-version.outputs.release_tag }}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract Windows build archive
+        run: |
+          unzip -o "release-assets/polyphony-windows-${{ github.run_id }}-${{ github.run_attempt }}.zip" -d release-assets/windows-build
+
+      - name: Install Sentry CLI
+        run: |
+          curl -sL https://sentry.io/get-cli/ | bash
+
+      - name: Upload frontend source maps and debug symbols to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_FRONTEND_PROJECT }}
+          SENTRY_RELEASE: ${{ needs.semantic-version.outputs.release_tag }}
+        run: |
+          sentry-cli releases new "$SENTRY_RELEASE" --project "$SENTRY_PROJECT" || true
+          sentry-cli releases set-commits "$SENTRY_RELEASE" --auto
+          sentry-cli debug-files upload --include-sources release-assets/windows-build
+
+          split_debug_dir=$(find release-assets -type d -name "intermediates_symbol" | head -n 1)
+          if [ -n "$split_debug_dir" ]; then
+            sentry-cli debug-files upload --include-sources "$split_debug_dir"
+          else
+            echo "No split debug info directory found; skipping split debug symbol upload."
+          fi
+
+          map_files=$(find release-assets/windows-build -type f -name "*.map")
+          if [ -n "$map_files" ]; then
+            sentry-cli sourcemaps upload \
+              --release "$SENTRY_RELEASE" \
+              --url-prefix "~/" \
+              release-assets/windows-build
+          else
+            echo "No source maps found in Windows build artifact; skipping sourcemap upload."
+          fi
+
+          sentry-cli releases finalize "$SENTRY_RELEASE"
 
       - name: Publish release
         uses: actions/github-script@v7

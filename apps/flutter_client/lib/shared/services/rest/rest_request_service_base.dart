@@ -38,10 +38,14 @@ abstract class RestRequestServiceBase {
 
       final items = decodeList(response.data).map(decodeItem).toList();
       return Ok<List<T>>(items);
-    } on DioException catch (error) {
-      return _dioError<List<T>>(operation: operation, error: error);
-    } on Exception catch (error) {
-      return Error<List<T>>(error);
+    } on DioException catch (error, stackTrace) {
+      return _dioError<List<T>>(
+        operation: operation,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } on Exception catch (error, stackTrace) {
+      return Error<List<T>>(error, stackTrace: stackTrace);
     }
   }
 
@@ -72,10 +76,14 @@ abstract class RestRequestServiceBase {
       }
 
       return Ok<T>(decodeItem(decoded));
-    } on DioException catch (error) {
-      return _dioError<T>(operation: operation, error: error);
-    } on Exception catch (error) {
-      return Error<T>(error);
+    } on DioException catch (error, stackTrace) {
+      return _dioError<T>(
+        operation: operation,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } on Exception catch (error, stackTrace) {
+      return Error<T>(error, stackTrace: stackTrace);
     }
   }
 
@@ -108,10 +116,14 @@ abstract class RestRequestServiceBase {
       }
 
       return Ok<T>(decodeItem(decoded));
-    } on DioException catch (error) {
-      return _dioError<T>(operation: operation, error: error);
-    } on Exception catch (error) {
-      return Error<T>(error);
+    } on DioException catch (error, stackTrace) {
+      return _dioError<T>(
+        operation: operation,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } on Exception catch (error, stackTrace) {
+      return Error<T>(error, stackTrace: stackTrace);
     }
   }
 
@@ -144,10 +156,14 @@ abstract class RestRequestServiceBase {
       }
 
       return Ok<T>(decodeItem(decoded));
-    } on DioException catch (error) {
-      return _dioError<T>(operation: operation, error: error);
-    } on Exception catch (error) {
-      return Error<T>(error);
+    } on DioException catch (error, stackTrace) {
+      return _dioError<T>(
+        operation: operation,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } on Exception catch (error, stackTrace) {
+      return Error<T>(error, stackTrace: stackTrace);
     }
   }
 
@@ -172,10 +188,14 @@ abstract class RestRequestServiceBase {
       }
 
       return const Ok<void>(null);
-    } on DioException catch (error) {
-      return _dioError<void>(operation: operation, error: error);
-    } on Exception catch (error) {
-      return Error<void>(error);
+    } on DioException catch (error, stackTrace) {
+      return _dioError<void>(
+        operation: operation,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } on Exception catch (error, stackTrace) {
+      return Error<void>(error, stackTrace: stackTrace);
     }
   }
 
@@ -199,10 +219,14 @@ abstract class RestRequestServiceBase {
       }
 
       return const Ok<void>(null);
-    } on DioException catch (error) {
-      return _dioError<void>(operation: operation, error: error);
-    } on Exception catch (error) {
-      return Error<void>(error);
+    } on DioException catch (error, stackTrace) {
+      return _dioError<void>(
+        operation: operation,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } on Exception catch (error, stackTrace) {
+      return Error<void>(error, stackTrace: stackTrace);
     }
   }
 
@@ -227,10 +251,14 @@ abstract class RestRequestServiceBase {
       }
 
       return const Ok<void>(null);
-    } on DioException catch (error) {
-      return _dioError<void>(operation: operation, error: error);
-    } on Exception catch (error) {
-      return Error<void>(error);
+    } on DioException catch (error, stackTrace) {
+      return _dioError<void>(
+        operation: operation,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } on Exception catch (error, stackTrace) {
+      return Error<void>(error, stackTrace: stackTrace);
     }
   }
 
@@ -252,12 +280,13 @@ abstract class RestRequestServiceBase {
   Error<T> _dioError<T>({
     required String operation,
     required DioException error,
+    required StackTrace stackTrace,
   }) {
     final response = error.response;
     final statusCode = response?.statusCode;
 
     if (statusCode == null) {
-      return Error<T>(error);
+      return Error<T>(error, stackTrace: stackTrace);
     }
 
     return Error<T>(
@@ -266,6 +295,7 @@ abstract class RestRequestServiceBase {
         statusCode: statusCode,
         responseBody: responseBodyString(response?.data),
       ),
+      stackTrace: stackTrace,
     );
   }
 

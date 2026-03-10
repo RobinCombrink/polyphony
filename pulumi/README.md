@@ -122,6 +122,7 @@ Optional Pulumi config values for importing existing Sentry keys:
 Optional Pulumi config values:
 - `githubOwner` (defaults to `polyphony-org`)
 - `githubRepository` (defaults to `polyphony`)
+- `frontendSentryTracesSampleRate` (defaults to `1.0`)
 
 Pulumi uses the GitHub provider to create these repository Actions variables for frontend release builds:
 - `POLYPHONY_BACKEND_BASE_URL`
@@ -136,6 +137,7 @@ Pulumi also manages these Sentry GitHub Actions settings:
 	- `SENTRY_FRONTEND_PROJECT`
 	- `SENTRY_BACKEND_DSN`
 	- `SENTRY_FRONTEND_DSN`
+	- `SENTRY_TRACES_SAMPLE_RATE`
 
 Import IDs used by Pulumi resources in this project:
 - `github:index/actionsSecret:ActionsSecret`: `repository:secret_name` (for example `polyphony:SENTRY_ORG`)
@@ -208,3 +210,4 @@ Current outputs:
 - `sentryFrontendProjectVariableName`
 - `sentryBackendDsnVariableName`
 - `sentryFrontendDsnVariableName`
+- `sentryFrontendTracesSampleRateVariableName`

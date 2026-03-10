@@ -23,6 +23,33 @@ flutter run
 
 Default backend URL in the app is `http://127.0.0.1:5067`.
 
+### Sentry
+
+The Flutter client supports Sentry for crash/error capture and tracing via
+compile-time defines:
+
+- `SENTRY_ENABLED` (default: `true`)
+- `SENTRY_FRONTEND_DSN` (default: empty, disables Sentry when empty)
+- `SENTRY_TRACES_SAMPLE_RATE` (default: `1.0`)
+- `SENTRY_ENVIRONMENT` (default: `development`)
+- `SENTRY_RELEASE` (default: empty)
+
+Example local run:
+
+```bash
+flutter run \
+	--dart-define=SENTRY_ENABLED=true \
+	--dart-define=SENTRY_FRONTEND_DSN=https://<key>@o<org>.ingest.de.sentry.io/<project> \
+	--dart-define=SENTRY_TRACES_SAMPLE_RATE=1.0 \
+	--dart-define=SENTRY_ENVIRONMENT=development \
+	--dart-define=SENTRY_RELEASE=local-dev
+```
+
+Verification:
+- Open Settings > Developer options.
+- Enable developer options.
+- Use `Verify Sentry Setup` to throw a test exception.
+
 ## Authentication
 
 - The app signs in via Auth0 Authorization Code + PKCE.

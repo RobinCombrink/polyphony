@@ -131,9 +131,10 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         _emitRoomSnapshot(room);
         _emitSpeakingParticipantUserIds(room.activeSpeakers);
         return const Ok<void>(null);
-      } on Exception catch (error) {
+      } on Exception catch (error, stackTrace) {
         return Error<void>(
           RuntimeConnectionException(operation: "connect", cause: error),
+          stackTrace: stackTrace,
         );
       }
     });
@@ -163,9 +164,10 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         _emitParticipantVideoTracks(const <String, Object>{});
 
         return const Ok<void>(null);
-      } on Exception catch (error) {
+      } on Exception catch (error, stackTrace) {
         return Error<void>(
           RuntimeConnectionException(operation: "disconnect", cause: error),
+          stackTrace: stackTrace,
         );
       }
     });
@@ -185,8 +187,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         _emitMutedParticipantUserIds(
             _mutedParticipantUserIdsFromRoom(activeRoom));
         return const Ok<void>(null);
-      } on Exception catch (error) {
-        return Error<void>(error);
+      } on Exception catch (error, stackTrace) {
+        return Error<void>(error, stackTrace: stackTrace);
       }
     });
   }
@@ -227,8 +229,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         );
 
         return const Ok<void>(null);
-      } on Exception catch (error) {
-        return Error<void>(error);
+      } on Exception catch (error, stackTrace) {
+        return Error<void>(error, stackTrace: stackTrace);
       }
     });
   }
@@ -310,8 +312,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         _emitParticipantVideoTracks(
             _participantVideoTracksFromRoom(activeRoom));
         return const Ok<void>(null);
-      } on Exception catch (error) {
-        return Error<void>(error);
+      } on Exception catch (error, stackTrace) {
+        return Error<void>(error, stackTrace: stackTrace);
       }
     });
   }
@@ -336,8 +338,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         );
         await _applyRemoteAudioSubscriptions();
         return const Ok<void>(null);
-      } on Exception catch (error) {
-        return Error<void>(error);
+      } on Exception catch (error, stackTrace) {
+        return Error<void>(error, stackTrace: stackTrace);
       }
     });
   }
@@ -366,8 +368,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         );
         await _applyRemoteAudioSubscriptions();
         return const Ok<void>(null);
-      } on Exception catch (error) {
-        return Error<void>(error);
+      } on Exception catch (error, stackTrace) {
+        return Error<void>(error, stackTrace: stackTrace);
       }
     });
   }
@@ -912,8 +914,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       try {
         final result = await operation();
         completer.complete(result);
-      } on Exception catch (error) {
-        completer.complete(Error<T>(error));
+      } on Exception catch (error, stackTrace) {
+        completer.complete(Error<T>(error, stackTrace: stackTrace));
       }
     });
 

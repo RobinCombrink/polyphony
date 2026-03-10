@@ -53,6 +53,11 @@ class _SettingsDeveloperOptionsSectionWidgetState
         "AUTH0_SCOPES": PolyphonyConfig.auth0Scopes,
         "AUTH0_MOBILE_REDIRECT_URI": PolyphonyConfig.auth0MobileRedirectUri,
         "AUTH0_DESKTOP_REDIRECT_URI": PolyphonyConfig.auth0DesktopRedirectUri,
+        "SENTRY_ENABLED": PolyphonyConfig.sentryEnabled.toString(),
+        "SENTRY_ENVIRONMENT": PolyphonyConfig.sentryEnvironment,
+        "SENTRY_RELEASE": PolyphonyConfig.sentryRelease,
+        "SENTRY_TRACES_SAMPLE_RATE":
+            PolyphonyConfig.sentryTracesSampleRate().toString(),
       };
 
   Future<void> _restoreBackendBaseUrl() async {
@@ -301,6 +306,12 @@ class _SettingsDeveloperOptionsSectionWidgetState
                     ? null
                     : () => unawaited(_resetBackendBaseUrl()),
                 child: const Text("Reset to default"),
+              ),
+              OutlinedButton(
+                onPressed: () {
+                  throw StateError("This is test exception");
+                },
+                child: const Text("Verify Sentry Setup"),
               ),
             ],
           ),

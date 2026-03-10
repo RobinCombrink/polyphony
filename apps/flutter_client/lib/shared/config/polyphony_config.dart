@@ -38,4 +38,31 @@ abstract final class PolyphonyConfig {
     "AUTH0_DESKTOP_REDIRECT_URI",
     defaultValue: "http://localhost:4000",
   );
+
+  static const sentryDsn = String.fromEnvironment(
+    "SENTRY_FRONTEND_DSN",
+  );
+
+  static const sentryEnvironment = String.fromEnvironment(
+    "SENTRY_ENVIRONMENT",
+    defaultValue: "development",
+  );
+
+  static const sentryRelease = String.fromEnvironment(
+    "SENTRY_RELEASE",
+  );
+
+  static const sentryEnabled = bool.fromEnvironment(
+    "SENTRY_ENABLED",
+    defaultValue: true,
+  );
+
+  static const sentryTracesSampleRateRaw = String.fromEnvironment(
+    "SENTRY_TRACES_SAMPLE_RATE",
+    defaultValue: "1.0",
+  );
+
+  static double sentryTracesSampleRate() {
+    return double.tryParse(sentryTracesSampleRateRaw) ?? 1.0;
+  }
 }

@@ -39,6 +39,7 @@ return await Deployment.RunAsync(() =>
 
     var frontendBackendBaseUrl = config.Require("frontendBackendBaseUrl");
     var frontendAuth0Domain = auth0Config.Require("domain");
+    var frontendSentryTracesSampleRate = config.Get("frontendSentryTracesSampleRate") ?? "1.0";
 
     var sentryOrganization = config.Require("sentryOrganization");
     var sentryUploadAuthToken = config.RequireSecret("continuousIntegrationSecret");
@@ -253,6 +254,13 @@ return await Deployment.RunAsync(() =>
         Value = sentryFrontendKey.DsnPublic,
     });
 
+    var sentryFrontendTracesSampleRateVariable = new Pulumi.Github.ActionsVariable("sentry-frontend-traces-sample-rate", new Pulumi.Github.ActionsVariableArgs
+    {
+        Repository = githubRepository,
+        VariableName = "SENTRY_TRACES_SAMPLE_RATE",
+        Value = frontendSentryTracesSampleRate,
+    });
+
     return new Dictionary<string, object?>
     {
         ["githubOwner"] = githubOwner,
@@ -276,5 +284,6 @@ return await Deployment.RunAsync(() =>
         ["sentryFrontendProjectVariableName"] = sentryFrontendProjectSlugVariable.VariableName,
         ["sentryBackendDsnVariableName"] = sentryBackendDsnVariable.VariableName,
         ["sentryFrontendDsnVariableName"] = sentryFrontendDsnVariable.VariableName,
+        ["sentryFrontendTracesSampleRateVariableName"] = sentryFrontendTracesSampleRateVariable.VariableName,
     };
 });
