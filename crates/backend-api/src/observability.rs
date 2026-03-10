@@ -3,9 +3,24 @@ use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::config::{HttpRequestLoggingConfig, RuntimeEnvironment};
+use crate::config::{BackendApiConfig, HttpRequestLoggingConfig, RuntimeEnvironment};
 
-pub fn init_open_telemetry() -> Result<()> {
+pub struct TelemetryGuards {
+    _sentry_guard: Option<sentry::ClientInitGuard>,
+}
+
+pub fn init_open_telemetry(config: &BackendApiConfig) -> Result<TelemetryGuards> {
+    let sentry_guard = config.sentry.dsn.as_ref().map(|dsn| {
+        sentry::init((
+            dsn.as_str(),
+            sentry::ClientOptions {
+                release: sentry::release_name!(),
+                environment: Some(config.runtime_environment.as_sentry_environment().into()),
+                ..Default::default()
+            },
+        ))
+    });
+
     let tracer_provider = SdkTracerProvider::builder().build();
     let tracer = tracer_provider.tracer("backend-api");
 
@@ -32,8 +47,11 @@ pub fn init_open_telemetry() -> Result<()> {
     tracing_subscriber::registry()
         .with(filter_layer)
         .with(tracing_subscriber::fmt::layer())
+        .with(sentry_tracing::layer())
         .with(tracing_opentelemetry::layer().with_tracer(tracer))
         .init();
 
-    Ok(())
+    Ok(TelemetryGuards {
+        _sentry_guard: sentry_guard,
+    })
 }

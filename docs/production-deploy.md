@@ -71,6 +71,7 @@ Rollback should always target a previously verified immutable tag (for example `
 - `POSTGRES_PASSWORD`
 - `LIVEKIT_API_KEY`
 - `LIVEKIT_API_SECRET`
+- `SENTRY_BACKEND_DSN`
 
 ## Required runtime values
 - `BACKEND_API_IMAGE` (for example `ghcr.io/polyphony-org/polyphony/backend-api:latest`)
@@ -98,6 +99,7 @@ The backend container reads:
 - Postgres: `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DATABASE`, `POSTGRES_USERNAME`, `POSTGRES_PASSWORD`
 - Auth0: `AUTH0_ISSUER`, `AUTH0_AUDIENCE`
 - LiveKit: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`
+- Sentry: `SENTRY_BACKEND_DSN`
 - CORS: `BACKEND_API_CORS_ALLOWED_ORIGINS`
 - HTTP request logging: `BACKEND_API_HTTP_REQUEST_LOGGING_ENABLED`, `BACKEND_API_HTTP_REQUEST_LOGGING_LEVEL`
 

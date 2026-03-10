@@ -19,6 +19,8 @@ FROM chef AS builder
 WORKDIR /app
 
 ARG BUILD_PROFILE=release
+ARG SENTRY_RELEASE
+ENV SENTRY_RELEASE=${SENTRY_RELEASE}
 
 COPY --from=planner /app/recipe.json recipe.json
 

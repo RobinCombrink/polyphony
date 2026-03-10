@@ -29,6 +29,7 @@ services:
         - type=local,dest=.docker-cache/backend-api,mode=max
     environment:
       BACKEND_API_BIND: 0.0.0.0:5067
+      SENTRY_BACKEND_DSN: ${SENTRY_BACKEND_DSN:-}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DATABASE: polyphony

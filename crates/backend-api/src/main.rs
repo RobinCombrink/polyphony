@@ -6,7 +6,7 @@ async fn main() -> Result<()> {
     let backend_config =
         backend_api::config::BackendApiConfig::load_and_validate_from_environment()?;
 
-    backend_api::observability::init_open_telemetry()?;
+    let _telemetry_guards = backend_api::observability::init_open_telemetry(&backend_config)?;
 
     let bind_address = backend_config.bind_address;
     let app = backend_api::build_app_with_runtime_settings(

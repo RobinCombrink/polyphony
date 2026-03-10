@@ -21,6 +21,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  semantic-version:
+    name: Determine semantic version
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.version_output.outputs.release_tag }}
+      version: ${{ steps.version_output.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute semantic version
+        id: semantic_version
+        uses: paulhatch/semantic-version@v5.4.0
+        with:
+          branch: main
+          version_format: "${major}.${minor}.${patch}"
+          tag_prefix: "backend"
+
+      - name: Resolve version outputs
+        id: version_output
+        shell: bash
+        run: |
+          VERSION="${{ steps.semantic_version.outputs.version }}"
+          TAG="${{ steps.semantic_version.outputs.version_tag }}"
+
+          if [ -z "$VERSION" ]; then
+              echo "No version determined from semantic versioning action"
+              exit 1
+          fi
+
+          if [ -z "$TAG" ]; then
+            TAG="backend-${VERSION}"
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"
+
   rust-format:
     name: Rust format check
     runs-on: ubuntu-latest
@@ -90,6 +128,8 @@ jobs:
     name: Rust backend Docker image artifact
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs:
+      - semantic-version
     outputs:
       image_tags: ${{ steps.meta.outputs.tags }}
     steps:
@@ -108,6 +148,7 @@ jobs:
           file: crates/backend-api/Dockerfile
           build-args: |
             BUILD_PROFILE=release
+            SENTRY_RELEASE=${{ needs.semantic-version.outputs.release_tag }}
           tags: polyphony/backend-api:ci-${{ github.run_id }}-${{ github.run_attempt }}
           load: true
           cache-from: type=gha,scope=backend-api-image
@@ -164,22 +205,45 @@ jobs:
       - rust-lint
       - rust-tests
       - rust-postgres-bdd
+      - semantic-version
       - rust-image
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
       packages: write
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download backend build artifact
         uses: actions/download-artifact@v4
         with:
           name: rust-backend-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: release-assets
 
+      - name: Extract backend binary artifact
+        run: |
+          tar -xzf release-assets/polyphony-backend-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz -C release-assets
+
+      - name: Install Sentry CLI
+        run: |
+          curl -sL https://sentry.io/get-cli/ | bash
+
+      - name: Create and upload Sentry release artifacts
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_BACKEND_PROJECT }}
+          SENTRY_RELEASE: ${{ needs.semantic-version.outputs.release_tag }}
+        run: |
+          sentry-cli releases new "$SENTRY_RELEASE" --project "$SENTRY_PROJECT" || true
+          sentry-cli releases set-commits "$SENTRY_RELEASE" --auto
+          sentry-cli debug-files upload --include-sources release-assets/backend-api
+          sentry-cli releases finalize "$SENTRY_RELEASE"
+
       - name: Generate release metadata
         id: release_meta
         run: |
-          echo "tag=backend-0.0.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "tag=${{ needs.semantic-version.outputs.release_tag }}" >> "$GITHUB_OUTPUT"
       - name: Load prebuilt backend image
         run: docker load --input release-assets/backend-api-image.tar
 

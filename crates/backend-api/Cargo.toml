@@ -15,6 +15,8 @@ livekit-api = "0.4.14"
 opentelemetry = { version = "0.31", features = ["trace"] }
 opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
 rand = "0.9"
+sentry = "0.46.2"
+sentry-tracing = "0.46.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"

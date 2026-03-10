@@ -9,6 +9,7 @@ const ENV_BIND_ADDRESS: &str = "BACKEND_API_BIND";
 const ENV_CORS_ALLOWED_ORIGINS: &str = "BACKEND_API_CORS_ALLOWED_ORIGINS";
 const ENV_HTTP_REQUEST_LOGGING_ENABLED: &str = "BACKEND_API_HTTP_REQUEST_LOGGING_ENABLED";
 const ENV_HTTP_REQUEST_LOGGING_LEVEL: &str = "BACKEND_API_HTTP_REQUEST_LOGGING_LEVEL";
+const ENV_SENTRY_BACKEND_DSN: &str = "SENTRY_BACKEND_DSN";
 const ENV_AUTH0_ISSUER: &str = "AUTH0_ISSUER";
 const ENV_AUTH0_AUDIENCE: &str = "AUTH0_AUDIENCE";
 const ENV_POSTGRES_HOST: &str = "POSTGRES_HOST";
@@ -25,6 +26,7 @@ const REQUIRED_NON_LOCAL_ENV_VARS: &[&str] = &[
     ENV_RUNTIME,
     ENV_BIND_ADDRESS,
     ENV_CORS_ALLOWED_ORIGINS,
+    ENV_SENTRY_BACKEND_DSN,
     ENV_AUTH0_ISSUER,
     ENV_AUTH0_AUDIENCE,
     ENV_POSTGRES_HOST,
@@ -41,6 +43,7 @@ const REQUIRED_NON_LOCAL_ENV_VARS: &[&str] = &[
 pub struct BackendApiConfig {
     pub runtime_environment: RuntimeEnvironment,
     pub bind_address: SocketAddr,
+    pub sentry: SentryConfig,
     pub auth0: Auth0Config,
     pub livekit: LiveKitConfig,
     pub postgres: PostgresConfig,
@@ -52,6 +55,7 @@ impl Default for BackendApiConfig {
         Self {
             runtime_environment: RuntimeEnvironment::default(),
             bind_address: SocketAddr::from(([127, 0, 0, 1], 5067)),
+            sentry: SentryConfig::default(),
             auth0: Auth0Config::default(),
             livekit: LiveKitConfig::default(),
             postgres: PostgresConfig::default(),
@@ -70,6 +74,7 @@ impl BackendApiConfig {
             .and_then(|value| value.parse::<SocketAddr>().ok())
             .unwrap_or(default_config.bind_address);
 
+        let sentry = SentryConfig::from_environment();
         let auth0 = Auth0Config::from_environment();
         let livekit = LiveKitConfig::from_environment();
         let postgres = PostgresConfig::from_environment();
@@ -78,6 +83,7 @@ impl BackendApiConfig {
         Self {
             runtime_environment,
             bind_address,
+            sentry,
             auth0,
             livekit,
             postgres,
@@ -184,6 +190,16 @@ pub enum RuntimeEnvironment {
     Local,
     Dev,
     Production,
+}
+
+impl RuntimeEnvironment {
+    pub fn as_sentry_environment(self) -> &'static str {
+        match self {
+            Self::Local => "local",
+            Self::Dev => "development",
+            Self::Production => "production",
+        }
+    }
 }
 
 impl RuntimeEnvironment {
@@ -369,6 +385,22 @@ pub struct LiveKitConfig {
     pub token_ttl_seconds: u64,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct SentryConfig {
+    pub dsn: Option<String>,
+}
+
+impl SentryConfig {
+    pub fn from_environment() -> Self {
+        let dsn = std::env::var(ENV_SENTRY_BACKEND_DSN)
+            .ok()
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+
+        Self { dsn }
+    }
+}
+
 impl Default for LiveKitConfig {
     fn default() -> Self {
         let url = "ws://127.0.0.1:7880".to_owned();
@@ -411,8 +443,8 @@ mod tests {
         BackendApiConfig, ConfigValidationError, ENV_AUTH0_AUDIENCE, ENV_AUTH0_ISSUER,
         ENV_BIND_ADDRESS, ENV_CORS_ALLOWED_ORIGINS, ENV_LIVEKIT_API_KEY, ENV_LIVEKIT_API_SECRET,
         ENV_LIVEKIT_URL, ENV_POSTGRES_DATABASE, ENV_POSTGRES_HOST, ENV_POSTGRES_PASSWORD,
-        ENV_POSTGRES_PORT, ENV_POSTGRES_USERNAME, ENV_RUNTIME, HttpRequestLoggingConfig,
-        LiveKitConfig, PostgresConfig, RuntimeEnvironment,
+        ENV_POSTGRES_PORT, ENV_POSTGRES_USERNAME, ENV_RUNTIME, ENV_SENTRY_BACKEND_DSN,
+        HttpRequestLoggingConfig, LiveKitConfig, PostgresConfig, RuntimeEnvironment, SentryConfig,
     };
     use crate::auth::Auth0Config;
 
@@ -494,6 +526,9 @@ mod tests {
         BackendApiConfig {
             runtime_environment: RuntimeEnvironment::Production,
             bind_address: "0.0.0.0:5067".parse().expect("bind address should parse"),
+            sentry: SentryConfig {
+                dsn: Some("https://public@example.ingest.de.sentry.io/4511016474640464".to_owned()),
+            },
             auth0: Auth0Config {
                 issuer: "https://dev-polyphony.eu.auth0.com/"
                     .parse()
@@ -525,6 +560,10 @@ mod tests {
             (
                 ENV_CORS_ALLOWED_ORIGINS.to_owned(),
                 "https://app.polyphony.com".to_owned(),
+            ),
+            (
+                ENV_SENTRY_BACKEND_DSN.to_owned(),
+                "https://public@example.ingest.de.sentry.io/4511016474640464".to_owned(),
             ),
             (
                 ENV_AUTH0_ISSUER.to_owned(),
