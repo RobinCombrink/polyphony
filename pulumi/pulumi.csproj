@@ -13,5 +13,6 @@
     <PackageReference Include="Pulumi" Version="3.*" />
     <PackageReference Include="Pulumi.Auth0" Version="3.*" />
     <PackageReference Include="Pulumi.Github" Version="6.*" />
+    <PackageReference Include="Pulumiverse.Sentry" Version="0.*" />
   </ItemGroup>
 </Project>

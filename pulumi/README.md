@@ -108,6 +108,17 @@ Required Pulumi config values for this project:
 - `backendApiBaseUrls`
 - `frontendBackendBaseUrl`
 
+Required Pulumi provider config values for Sentry (in ESC/stack config):
+- `sentry:token` (secret)
+
+Required Pulumi project config values for Sentry:
+- `sentryOrganization`
+- `sentryUploadAuthToken` (secret used only for GitHub Actions uploads)
+
+Optional Pulumi config values for importing existing Sentry keys:
+- `sentry:backendKeyId` (used for `backend` project key import id)
+- `sentry:frontendKeyId` (used for `frontend` project key import id)
+
 Optional Pulumi config values:
 - `githubOwner` (defaults to `polyphony-org`)
 - `githubRepository` (defaults to `polyphony`)
@@ -115,6 +126,22 @@ Optional Pulumi config values:
 Pulumi uses the GitHub provider to create these repository Actions variables for frontend release builds:
 - `POLYPHONY_BACKEND_BASE_URL`
 - `AUTH0_DOMAIN`
+
+Pulumi also manages these Sentry GitHub Actions settings:
+- Secrets:
+	- `SENTRY_AUTH_TOKEN`
+	- `SENTRY_ORG`
+- Variables:
+	- `SENTRY_BACKEND_PROJECT`
+	- `SENTRY_FRONTEND_PROJECT`
+	- `SENTRY_BACKEND_DSN`
+	- `SENTRY_FRONTEND_DSN`
+
+Import IDs used by Pulumi resources in this project:
+- `github:index/actionsSecret:ActionsSecret`: `repository:secret_name` (for example `polyphony:SENTRY_ORG`)
+- `github:index/actionsVariable:ActionsVariable`: `repository:variable_name` (for example `polyphony:SENTRY_BACKEND_DSN`)
+- `sentry:index/sentryProject:SentryProject`: `organization/project_slug` (for example `my-org/backend`)
+- `sentry:index/sentryKey:SentryKey`: `organization/project_slug/key_id` (for example `my-org/backend/abc123def456`)
 
 Use the pulumi 
 
@@ -175,3 +202,9 @@ Current outputs:
 - `databaseConnectionClientsId`
 - `frontendBackendBaseUrlVariableName`
 - `frontendAuth0DomainVariableName`
+- `sentryOrganizationSecretName`
+- `sentryAuthTokenSecretName`
+- `sentryBackendProjectVariableName`
+- `sentryFrontendProjectVariableName`
+- `sentryBackendDsnVariableName`
+- `sentryFrontendDsnVariableName`

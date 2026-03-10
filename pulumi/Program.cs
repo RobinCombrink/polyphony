@@ -1,6 +1,7 @@
 using Pulumi;
 using Pulumi.Auth0;
 using Pulumi.Auth0.Inputs;
+using Pulumiverse.Sentry;
 
 return await Deployment.RunAsync(() =>
 {
@@ -38,6 +39,47 @@ return await Deployment.RunAsync(() =>
 
     var frontendBackendBaseUrl = config.Require("frontendBackendBaseUrl");
     var frontendAuth0Domain = auth0Config.Require("domain");
+
+    var sentryOrganization = config.Require("sentryOrganization");
+    var sentryUploadAuthToken = config.RequireSecret("continuousIntegrationSecret");
+    var sentryBackendKeyId = "dcc25d5045cf1655f7fbce3cba714ccc";
+    var sentryFrontendKeyId = "48c4bba887855ba1331cf9a3a9094353";
+
+    const string sentryBackendProjectSlug = "backend";
+    const string sentryFrontendProjectSlug = "frontend";
+    const string sentryTeamSlug = "polyphony";
+
+    var sentryBackendProject = new SentryProject("sentry-backend-project", new SentryProjectArgs
+    {
+        Organization = sentryOrganization,
+        Name = $"{sentryTeamSlug}-{sentryBackendProjectSlug}",
+        Slug = sentryBackendProjectSlug,
+        Platform = "rust",
+        Team = sentryTeamSlug,
+    });
+
+    var sentryFrontendProject = new SentryProject("sentry-frontend-project", new SentryProjectArgs
+    {
+        Organization = sentryOrganization,
+        Name = $"{sentryTeamSlug}-{sentryFrontendProjectSlug}",
+        Slug = sentryFrontendProjectSlug,
+        Platform = "flutter",
+        Team = sentryTeamSlug,
+    });
+
+    var sentryBackendKey = new SentryKey("sentry-backend-key", new SentryKeyArgs
+    {
+        Organization = sentryOrganization,
+        Project = sentryBackendProject.Slug,
+        Name = "backend-ingest-key",
+    });
+
+    var sentryFrontendKey = new SentryKey("sentry-frontend-key", new SentryKeyArgs
+    {
+        Organization = sentryOrganization,
+        Project = sentryFrontendProject.Slug,
+        Name = "frontend-ingest-key",
+    });
 
     var apiResourceServer = new ResourceServer("polyphony-api", new ResourceServerArgs
     {
@@ -171,6 +213,48 @@ return await Deployment.RunAsync(() =>
         Value = frontendAuth0Domain,
     });
 
+    var sentryOrganizationVariable = new Pulumi.Github.ActionsVariable("sentry-organization", new Pulumi.Github.ActionsVariableArgs
+    {
+        Repository = githubRepository,
+        VariableName = "SENTRY_ORG",
+        Value = sentryOrganization,
+    });
+
+    var sentryAuthTokenSecret = new Pulumi.Github.ActionsSecret("sentry-auth-token", new Pulumi.Github.ActionsSecretArgs
+    {
+        Repository = githubRepository,
+        SecretName = "SENTRY_AUTH_TOKEN",
+        PlaintextValue = sentryUploadAuthToken,
+    });
+
+    var sentryBackendProjectSlugVariable = new Pulumi.Github.ActionsVariable("sentry-backend-project-variable", new Pulumi.Github.ActionsVariableArgs
+    {
+        Repository = githubRepository,
+        VariableName = "SENTRY_BACKEND_PROJECT",
+        Value = sentryBackendProject.Slug,
+    });
+
+    var sentryFrontendProjectSlugVariable = new Pulumi.Github.ActionsVariable("sentry-frontend-project", new Pulumi.Github.ActionsVariableArgs
+    {
+        Repository = githubRepository,
+        VariableName = "SENTRY_FRONTEND_PROJECT",
+        Value = sentryFrontendProject.Slug,
+    });
+
+    var sentryBackendDsnVariable = new Pulumi.Github.ActionsVariable("sentry-backend-dsn", new Pulumi.Github.ActionsVariableArgs
+    {
+        Repository = githubRepository,
+        VariableName = "SENTRY_BACKEND_DSN",
+        Value = sentryBackendKey.DsnPublic,
+    });
+
+    var sentryFrontendDsnVariable = new Pulumi.Github.ActionsVariable("sentry-frontend-dsn", new Pulumi.Github.ActionsVariableArgs
+    {
+        Repository = githubRepository,
+        VariableName = "SENTRY_FRONTEND_DSN",
+        Value = sentryFrontendKey.DsnPublic,
+    });
+
     return new Dictionary<string, object?>
     {
         ["githubOwner"] = githubOwner,
@@ -188,5 +272,11 @@ return await Deployment.RunAsync(() =>
         ["databaseConnectionClientsId"] = databaseConnectionClients.Id,
         ["frontendBackendBaseUrlVariableName"] = frontendBackendBaseUrlVariable.VariableName,
         ["frontendAuth0DomainVariableName"] = frontendAuth0DomainVariable.VariableName,
+        ["sentryOrganizationVariableName"] = sentryOrganizationVariable.Value,
+        ["sentryAuthTokenSecretName"] = sentryAuthTokenSecret.SecretName,
+        ["sentryBackendProjectVariableName"] = sentryBackendProjectSlugVariable.VariableName,
+        ["sentryFrontendProjectVariableName"] = sentryFrontendProjectSlugVariable.VariableName,
+        ["sentryBackendDsnVariableName"] = sentryBackendDsnVariable.VariableName,
+        ["sentryFrontendDsnVariableName"] = sentryFrontendDsnVariable.VariableName,
     };
 });

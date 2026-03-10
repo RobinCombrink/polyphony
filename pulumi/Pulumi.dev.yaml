@@ -2,3 +2,4 @@ environment:
   - polyphony/dev
 config:
   github:owner: polyphony-org
+  polyphony-infrastructure:sentryOrganization: polyphony-ez
