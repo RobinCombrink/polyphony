@@ -42,8 +42,6 @@ return await Deployment.RunAsync(() =>
 
     var sentryOrganization = config.Require("sentryOrganization");
     var sentryUploadAuthToken = config.RequireSecret("continuousIntegrationSecret");
-    var sentryBackendKeyId = "dcc25d5045cf1655f7fbce3cba714ccc";
-    var sentryFrontendKeyId = "48c4bba887855ba1331cf9a3a9094353";
 
     const string sentryBackendProjectSlug = "backend";
     const string sentryFrontendProjectSlug = "frontend";
