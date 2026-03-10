@@ -121,11 +121,11 @@ final class _TestPreferencesStore implements PreferencesStore {
 void main() {
   group("SettingsBloc", () {
     late _TestPreferencesStore preferencesStore;
-    late FakeVoiceRuntimeService mediaRuntimeService;
+    late FakeAudioDeviceRuntimeService audioDeviceRuntimeService;
 
     setUp(() {
       preferencesStore = _TestPreferencesStore();
-      mediaRuntimeService = FakeVoiceRuntimeService();
+      audioDeviceRuntimeService = FakeAudioDeviceRuntimeService();
     });
 
     blocTest<SettingsBloc, SettingsState>(
@@ -134,7 +134,7 @@ void main() {
         preferencesStore.darkModeEnabled = true;
         return SettingsBloc(
           preferencesStore: preferencesStore,
-          mediaRuntimeService: mediaRuntimeService,
+          audioDeviceRuntimeService: audioDeviceRuntimeService,
         );
       },
       act: (bloc) => bloc.add(const SettingsPreferencesRestoreRequested()),
@@ -173,7 +173,7 @@ void main() {
       build: () {
         return SettingsBloc(
           preferencesStore: preferencesStore,
-          mediaRuntimeService: mediaRuntimeService,
+          audioDeviceRuntimeService: audioDeviceRuntimeService,
         );
       },
       act: (bloc) => bloc.add(const SettingsPreferencesRestoreRequested()),
@@ -197,7 +197,7 @@ void main() {
       build: () {
         return SettingsBloc(
           preferencesStore: preferencesStore,
-          mediaRuntimeService: mediaRuntimeService,
+          audioDeviceRuntimeService: audioDeviceRuntimeService,
         );
       },
       act: (bloc) => bloc.add(
@@ -231,7 +231,7 @@ void main() {
       build: () {
         return SettingsBloc(
           preferencesStore: preferencesStore,
-          mediaRuntimeService: mediaRuntimeService,
+          audioDeviceRuntimeService: audioDeviceRuntimeService,
         );
       },
       act: (bloc) => bloc.add(
@@ -260,7 +260,7 @@ void main() {
       build: () {
         return SettingsBloc(
           preferencesStore: preferencesStore,
-          mediaRuntimeService: mediaRuntimeService,
+          audioDeviceRuntimeService: audioDeviceRuntimeService,
         );
       },
       act: (bloc) => bloc.add(
@@ -291,7 +291,7 @@ void main() {
           ..audioOutputDeviceId = "spk-usb";
         return SettingsBloc(
           preferencesStore: preferencesStore,
-          mediaRuntimeService: mediaRuntimeService,
+          audioDeviceRuntimeService: audioDeviceRuntimeService,
         );
       },
       act: (bloc) => bloc.add(const SettingsPreferencesRestoreRequested()),
@@ -309,8 +309,14 @@ void main() {
             ),
       ],
       verify: (_) {
-        expect(mediaRuntimeService.selectedAudioInputDeviceId(), "mic-usb");
-        expect(mediaRuntimeService.selectedAudioOutputDeviceId(), "spk-usb");
+        expect(
+          audioDeviceRuntimeService.selectedAudioInputDeviceId(),
+          "mic-usb",
+        );
+        expect(
+          audioDeviceRuntimeService.selectedAudioOutputDeviceId(),
+          "spk-usb",
+        );
       },
     );
 
@@ -319,7 +325,7 @@ void main() {
       build: () {
         return SettingsBloc(
           preferencesStore: preferencesStore,
-          mediaRuntimeService: mediaRuntimeService,
+          audioDeviceRuntimeService: audioDeviceRuntimeService,
         );
       },
       act: (bloc) async {
@@ -331,7 +337,10 @@ void main() {
       },
       verify: (_) {
         expect(preferencesStore.audioInputDeviceId, "mic-usb");
-        expect(mediaRuntimeService.selectedAudioInputDeviceId(), "mic-usb");
+        expect(
+          audioDeviceRuntimeService.selectedAudioInputDeviceId(),
+          "mic-usb",
+        );
       },
     );
   });

@@ -10,6 +10,7 @@ import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/audio_device_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
@@ -336,11 +337,19 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
       Set<String>.from(initialParticipantUserIds);
   final _currentParticipantVideoTracks = <String, Object>{};
   var _audioInputDevices = const <RuntimeAudioDevice>[
-    RuntimeAudioDevice(id: "mic-default", label: "Default microphone"),
+    RuntimeAudioDevice(
+      id: "mic-default",
+      label: "Default microphone",
+      isSystemDefault: true,
+    ),
     RuntimeAudioDevice(id: "mic-usb", label: "USB microphone"),
   ];
   var _audioOutputDevices = const <RuntimeAudioDevice>[
-    RuntimeAudioDevice(id: "spk-default", label: "Default speakers"),
+    RuntimeAudioDevice(
+      id: "spk-default",
+      label: "Default speakers",
+      isSystemDefault: true,
+    ),
     RuntimeAudioDevice(id: "spk-usb", label: "USB headphones"),
   ];
   String? _selectedAudioInputDeviceId;
@@ -357,6 +366,14 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   var _isSelfMuted = false;
   var _isSelfDeafened = false;
   var _isSelfScreenShareEnabled = false;
+
+  @override
+  Future<void> close() async {
+    await _participantUserIdsController.close();
+    await _participantStatusUpdatesController.close();
+    await _participantVideoTracksController.close();
+    await _audioDeviceChangesController.close();
+  }
 
   @override
   Future<Result<void>> connect({
@@ -629,6 +646,124 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
       ..addAll(videoTracks);
     _participantVideoTracksController
         .add(Map<String, Object>.from(videoTracks));
+  }
+
+  void emitAudioDevicesChanged({
+    List<RuntimeAudioDevice>? audioInputDevices,
+    List<RuntimeAudioDevice>? audioOutputDevices,
+  }) {
+    _audioInputDevices =
+        List<RuntimeAudioDevice>.from(audioInputDevices ?? _audioInputDevices);
+    _audioOutputDevices = List<RuntimeAudioDevice>.from(
+      audioOutputDevices ?? _audioOutputDevices,
+    );
+    _audioDeviceChangesController.add(null);
+  }
+
+  String? _normalizeDeviceId(String? deviceId) {
+    final trimmedDeviceId = deviceId?.trim();
+    if (trimmedDeviceId == null || trimmedDeviceId.isEmpty) {
+      return null;
+    }
+
+    return trimmedDeviceId;
+  }
+}
+
+class FakeAudioDeviceRuntimeService implements AudioDeviceRuntimeService {
+  final _audioDeviceChangesController = StreamController<void>.broadcast();
+  var _audioInputDevices = const <RuntimeAudioDevice>[
+    RuntimeAudioDevice(
+      id: "mic-default",
+      label: "Default microphone",
+      isSystemDefault: true,
+    ),
+    RuntimeAudioDevice(id: "mic-usb", label: "USB microphone"),
+  ];
+  var _audioOutputDevices = const <RuntimeAudioDevice>[
+    RuntimeAudioDevice(
+      id: "spk-default",
+      label: "Default speakers",
+      isSystemDefault: true,
+    ),
+    RuntimeAudioDevice(id: "spk-usb", label: "USB headphones"),
+  ];
+  String? _selectedAudioInputDeviceId;
+  String? _selectedAudioOutputDeviceId;
+
+  @override
+  Future<Result<List<RuntimeAudioDevice>>> listAudioInputDevices() async {
+    return Ok<List<RuntimeAudioDevice>>(
+      List<RuntimeAudioDevice>.from(_audioInputDevices),
+    );
+  }
+
+  @override
+  Future<Result<List<RuntimeAudioDevice>>> listAudioOutputDevices() async {
+    return Ok<List<RuntimeAudioDevice>>(
+      List<RuntimeAudioDevice>.from(_audioOutputDevices),
+    );
+  }
+
+  @override
+  Future<Result<void>> setSelectedAudioInputDeviceId(String? deviceId) async {
+    final normalizedDeviceId = _normalizeDeviceId(deviceId);
+    if (normalizedDeviceId == null) {
+      _selectedAudioInputDeviceId = null;
+      return const Ok<void>(null);
+    }
+
+    final hasMatch =
+        _audioInputDevices.any((device) => device.id == normalizedDeviceId);
+    if (!hasMatch) {
+      return Error<void>(Exception("Unknown audio input device id"));
+    }
+
+    _selectedAudioInputDeviceId = normalizedDeviceId;
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> setSelectedAudioOutputDeviceId(String? deviceId) async {
+    final normalizedDeviceId = _normalizeDeviceId(deviceId);
+    if (normalizedDeviceId == null) {
+      _selectedAudioOutputDeviceId = null;
+      return const Ok<void>(null);
+    }
+
+    final hasMatch =
+        _audioOutputDevices.any((device) => device.id == normalizedDeviceId);
+    if (!hasMatch) {
+      return Error<void>(Exception("Unknown audio output device id"));
+    }
+
+    _selectedAudioOutputDeviceId = normalizedDeviceId;
+    return const Ok<void>(null);
+  }
+
+  @override
+  String? selectedAudioInputDeviceId() {
+    return _selectedAudioInputDeviceId;
+  }
+
+  @override
+  String? selectedAudioOutputDeviceId() {
+    return _selectedAudioOutputDeviceId;
+  }
+
+  @override
+  Stream<void> audioDeviceChanges() {
+    return _audioDeviceChangesController.stream;
+  }
+
+  @override
+  Future<Result<void>> applySelectedAudioDevicesToActiveRoom() async {
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<void> close() async {
+    await _audioDeviceChangesController.close();
   }
 
   void emitAudioDevicesChanged({

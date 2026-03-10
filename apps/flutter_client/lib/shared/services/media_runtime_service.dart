@@ -11,10 +11,12 @@ final class RuntimeAudioDevice {
   const RuntimeAudioDevice({
     required this.id,
     required this.label,
+    this.isSystemDefault = false,
   });
 
   final String id;
   final String label;
+  final bool isSystemDefault;
 }
 
 sealed class ParticipantStatusUpdate {
@@ -53,6 +55,8 @@ final class ParticipantDeafenedStatusUpdated extends ParticipantStatusUpdate {
 }
 
 abstract interface class MediaRuntimeService {
+  Future<void> close();
+
   Future<Result<void>> connect({
     required String livekitUrl,
     required String accessToken,

@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
@@ -12,6 +14,8 @@ import "package:polyphony_flutter_client/shared/auth/authentication_session_serv
 import "package:polyphony_flutter_client/shared/auth/refresh_token_store.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/presentation/theme/polyphony_theme.dart";
+import "package:polyphony_flutter_client/shared/services/audio_device_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/livekit/livekit_audio_device_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
@@ -90,11 +94,38 @@ class PolyphonyApp extends StatelessWidget {
             sessionService: context.read<AuthenticationSessionService>(),
           ),
         ),
+        Provider<AudioDeviceRuntimeService>(
+          create: (_) => LivekitAudioDeviceRuntimeService(),
+          dispose: (_, service) {
+            unawaited(service.close());
+          },
+        ),
         Provider<MediaRuntimeService>(
-          create: (_) => LivekitMediaRuntimeService(),
+          create: (context) {
+            final audioDeviceRuntimeService =
+                context.read<AudioDeviceRuntimeService>();
+            final mediaRuntimeService = LivekitMediaRuntimeService(
+              audioDeviceRuntimeService: audioDeviceRuntimeService,
+            );
+            if (audioDeviceRuntimeService
+                case final LivekitAudioDeviceRuntimeService
+                    livekitAudioDeviceRuntimeService) {
+              livekitAudioDeviceRuntimeService.bindActiveRoom(
+                mediaRuntimeService.currentRoom,
+              );
+            }
+
+            return mediaRuntimeService;
+          },
+          dispose: (_, service) {
+            unawaited(service.close());
+          },
         ),
         Provider<MessageRuntimeService>(
           create: (_) => LivekitMessageRuntimeService(),
+          dispose: (_, service) {
+            unawaited(service.disconnect());
+          },
         ),
         Provider<NotificationBadgeService>(
           create: (_) => const FlutterAppIconNotificationBadgeService(),
@@ -102,7 +133,8 @@ class PolyphonyApp extends StatelessWidget {
         BlocProvider<SettingsBloc>(
           create: (context) => SettingsBloc(
             preferencesStore: context.read<PreferencesStore>(),
-            mediaRuntimeService: context.read<MediaRuntimeService>(),
+            audioDeviceRuntimeService:
+                context.read<AudioDeviceRuntimeService>(),
           )..add(const SettingsPreferencesRestoreRequested()),
         ),
       ],

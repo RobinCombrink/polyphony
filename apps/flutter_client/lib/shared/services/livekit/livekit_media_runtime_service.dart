@@ -3,6 +3,7 @@ import "dart:async";
 import "package:livekit_client/livekit_client.dart";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/audio_device_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/livekit/livekit_runtime_projection.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 
@@ -17,20 +18,11 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       StreamController<ParticipantStatusUpdate>.broadcast();
   final _participantVideoTracksController =
       StreamController<Map<String, Object>>.broadcast();
-  final _audioDeviceChangesController = StreamController<void>.broadcast();
 
-  var _isSelfMuted = false;
-  var _isSelfDeafened = false;
-  var _isSelfScreenShareEnabled = false;
-  String? _selectedAudioInputDeviceId;
-  String? _selectedAudioOutputDeviceId;
+  final AudioDeviceRuntimeService _audioDeviceRuntimeService;
 
-  final _participantAudioChannelByUserId =
-      <ParticipantUserId, RuntimeAudioChannel>{};
-  final _audioChannelEnabled = <RuntimeAudioChannel, bool>{
-    RuntimeAudioChannel.voice: true,
-    RuntimeAudioChannel.livestream: true,
-  };
+  var _operationQueue = Future<void>.value();
+  var _runtimeState = const _LivekitRuntimeState();
 
   Set<ParticipantUserId>? _lastParticipantUserIds;
   Set<ParticipantUserId>? _lastSpeakingParticipantUserIds;
@@ -38,428 +30,386 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   Set<ParticipantUserId>? _lastDeafenedParticipantUserIds;
   Map<String, Object>? _lastParticipantVideoTracks;
 
-  LivekitMediaRuntimeService() {
-    Hardware.instance.onDeviceChange.stream.listen((_) {
-      _audioDeviceChangesController.add(null);
-    });
+  LivekitMediaRuntimeService({
+    required AudioDeviceRuntimeService audioDeviceRuntimeService,
+  }) : _audioDeviceRuntimeService = audioDeviceRuntimeService;
+
+  @override
+  Future<void> close() async {
+    await _disconnectCurrentRoom();
+    await _participantUserIdsController.close();
+    await _participantStatusUpdatesController.close();
+    await _participantVideoTracksController.close();
+  }
+
+  Room? currentRoom() {
+    return _room;
   }
 
   @override
   Future<Result<void>> connect({
     required String livekitUrl,
     required String accessToken,
-  }) async {
-    try {
-      await _disconnectCurrentRoom();
+  }) {
+    return _enqueue(() async {
+      try {
+        await _disconnectCurrentRoom();
 
-      final room = Room(
-        roomOptions: RoomOptions(
-          adaptiveStream: true,
-          dynacast: true,
-          defaultAudioCaptureOptions: AudioCaptureOptions(
-            deviceId: _selectedAudioInputDeviceId,
+        final selectedAudioInputDeviceId =
+            _audioDeviceRuntimeService.selectedAudioInputDeviceId();
+        final selectedAudioOutputDeviceId =
+            _audioDeviceRuntimeService.selectedAudioOutputDeviceId();
+
+        final room = Room(
+          roomOptions: RoomOptions(
+            adaptiveStream: true,
+            dynacast: true,
+            defaultAudioCaptureOptions: AudioCaptureOptions(
+              deviceId: selectedAudioInputDeviceId,
+            ),
+            defaultAudioOutputOptions: AudioOutputOptions(
+              deviceId: selectedAudioOutputDeviceId,
+            ),
           ),
-          defaultAudioOutputOptions: AudioOutputOptions(
-            deviceId: _selectedAudioOutputDeviceId,
-          ),
-        ),
-      );
-      await room.prepareConnection(livekitUrl, accessToken);
-      await room.connect(livekitUrl, accessToken);
-      await _applyPreferredAudioDevices(room);
-      await room.localParticipant?.setMicrophoneEnabled(true);
-      await room.localParticipant?.setScreenShareEnabled(false);
-      _setLocalParticipantDeafenedAttribute(
-        localParticipant: room.localParticipant,
-        deafenState: const NotDeafenedState(),
-      );
+        );
+        await room.prepareConnection(livekitUrl, accessToken);
+        await room.connect(livekitUrl, accessToken);
+        _room = room;
+        final applySelectedDevicesResult = await _audioDeviceRuntimeService
+            .applySelectedAudioDevicesToActiveRoom();
+        if (applySelectedDevicesResult case Error<void>(:final error)) {
+          return Error<void>(error);
+        }
+        await room.localParticipant?.setMicrophoneEnabled(true);
+        await room.localParticipant?.setScreenShareEnabled(false);
+        _setLocalParticipantDeafenedAttribute(
+          localParticipant: room.localParticipant,
+          deafenState: const NotDeafenedState(),
+        );
 
-      _isSelfMuted = false;
-      _isSelfDeafened = false;
-      _isSelfScreenShareEnabled = false;
-      _participantAudioChannelByUserId.clear();
-      _audioChannelEnabled
-        ..clear()
-        ..addAll(<RuntimeAudioChannel, bool>{
-          RuntimeAudioChannel.voice: true,
-          RuntimeAudioChannel.livestream: true,
-        });
+        _runtimeState = _runtimeState.copyWith(
+          isSelfMuted: false,
+          isSelfDeafened: false,
+          isSelfScreenShareEnabled: false,
+          participantAudioChannelByUserId: const <ParticipantUserId,
+              RuntimeAudioChannel>{},
+          audioChannelEnabled: const <RuntimeAudioChannel, bool>{
+            RuntimeAudioChannel.voice: true,
+            RuntimeAudioChannel.livestream: true,
+          },
+        );
 
-      _room = room;
-      _roomListener = room.createListener()
-        ..on<RoomEvent>((_) {
-          _emitRoomSnapshot(room);
-        })
-        ..on<TrackMutedEvent>((_) {
-          _emitMutedParticipantUserIds(_mutedParticipantUserIdsFromRoom(room));
-        })
-        ..on<TrackUnmutedEvent>((_) {
-          _emitMutedParticipantUserIds(_mutedParticipantUserIdsFromRoom(room));
-        })
-        ..on<ParticipantMetadataUpdatedEvent>((_) {
-          _emitDeafenedParticipantUserIds(
-            _deafenedParticipantUserIdsFromRoom(room),
-          );
-        })
-        ..on<ActiveSpeakersChangedEvent>((event) {
-          _emitSpeakingParticipantUserIds(event.speakers);
-        })
-        ..on<TrackSubscribedEvent>((event) {
-          if (!_isSelfDeafened || event.track is! RemoteAudioTrack) {
-            return;
-          }
+        _roomListener = room.createListener()
+          ..on<RoomEvent>((_) {
+            _emitRoomSnapshot(room);
+          })
+          ..on<TrackMutedEvent>((_) {
+            _emitMutedParticipantUserIds(
+                _mutedParticipantUserIdsFromRoom(room));
+          })
+          ..on<TrackUnmutedEvent>((_) {
+            _emitMutedParticipantUserIds(
+                _mutedParticipantUserIdsFromRoom(room));
+          })
+          ..on<ParticipantMetadataUpdatedEvent>((_) {
+            _emitDeafenedParticipantUserIds(
+              _deafenedParticipantUserIdsFromRoom(room),
+            );
+          })
+          ..on<ActiveSpeakersChangedEvent>((event) {
+            _emitSpeakingParticipantUserIds(event.speakers);
+          })
+          ..on<TrackSubscribedEvent>((event) {
+            if (!_runtimeState.isSelfDeafened ||
+                event.track is! RemoteAudioTrack) {
+              return;
+            }
 
-          unawaited(event.publication.unsubscribe());
-        });
+            unawaited(event.publication.unsubscribe());
+          });
 
-      _emitRoomSnapshot(room);
-      _emitSpeakingParticipantUserIds(room.activeSpeakers);
-      return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(
-        RuntimeConnectionException(operation: "connect", cause: error),
-      );
-    }
-  }
-
-  @override
-  Future<Result<void>> disconnect() async {
-    try {
-      await _disconnectCurrentRoom();
-      _isSelfMuted = false;
-      _isSelfDeafened = false;
-      _isSelfScreenShareEnabled = false;
-      _participantAudioChannelByUserId.clear();
-      _audioChannelEnabled
-        ..clear()
-        ..addAll(<RuntimeAudioChannel, bool>{
-          RuntimeAudioChannel.voice: true,
-          RuntimeAudioChannel.livestream: true,
-        });
-
-      _emitParticipantUserIds(const <ParticipantUserId>{});
-      _emitSpeakingParticipantUserIdsFromSet(const <ParticipantUserId>{});
-      _emitMutedParticipantUserIds(const <ParticipantUserId>{});
-      _emitDeafenedParticipantUserIds(const <ParticipantUserId>{});
-      _emitParticipantVideoTracks(const <String, Object>{});
-
-      return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(
-        RuntimeConnectionException(operation: "disconnect", cause: error),
-      );
-    }
-  }
-
-  @override
-  Future<Result<void>> setSelfMuted({required bool muted}) async {
-    try {
-      final activeRoom = _room;
-      if (activeRoom == null) {
-        return Error<void>(Exception("Not connected to a voice session."));
+        _emitRoomSnapshot(room);
+        _emitSpeakingParticipantUserIds(room.activeSpeakers);
+        return const Ok<void>(null);
+      } on Exception catch (error) {
+        return Error<void>(
+          RuntimeConnectionException(operation: "connect", cause: error),
+        );
       }
+    });
+  }
 
-      await activeRoom.localParticipant?.setMicrophoneEnabled(!muted);
-      _isSelfMuted = muted;
-      _emitMutedParticipantUserIds(
-          _mutedParticipantUserIdsFromRoom(activeRoom));
-      return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
-    }
+  @override
+  Future<Result<void>> disconnect() {
+    return _enqueue(() async {
+      try {
+        await _disconnectCurrentRoom();
+        _runtimeState = _runtimeState.copyWith(
+          isSelfMuted: false,
+          isSelfDeafened: false,
+          isSelfScreenShareEnabled: false,
+          participantAudioChannelByUserId: const <ParticipantUserId,
+              RuntimeAudioChannel>{},
+          audioChannelEnabled: const <RuntimeAudioChannel, bool>{
+            RuntimeAudioChannel.voice: true,
+            RuntimeAudioChannel.livestream: true,
+          },
+        );
+
+        _emitParticipantUserIds(const <ParticipantUserId>{});
+        _emitSpeakingParticipantUserIdsFromSet(const <ParticipantUserId>{});
+        _emitMutedParticipantUserIds(const <ParticipantUserId>{});
+        _emitDeafenedParticipantUserIds(const <ParticipantUserId>{});
+        _emitParticipantVideoTracks(const <String, Object>{});
+
+        return const Ok<void>(null);
+      } on Exception catch (error) {
+        return Error<void>(
+          RuntimeConnectionException(operation: "disconnect", cause: error),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<Result<void>> setSelfMuted({required bool muted}) {
+    return _enqueue(() async {
+      try {
+        final activeRoom = _room;
+        if (activeRoom == null) {
+          return Error<void>(Exception("Not connected to a voice session."));
+        }
+
+        await activeRoom.localParticipant?.setMicrophoneEnabled(!muted);
+        _runtimeState = _runtimeState.copyWith(isSelfMuted: muted);
+        _emitMutedParticipantUserIds(
+            _mutedParticipantUserIdsFromRoom(activeRoom));
+        return const Ok<void>(null);
+      } on Exception catch (error) {
+        return Error<void>(error);
+      }
+    });
   }
 
   @override
   bool isSelfMuted() {
-    return _isSelfMuted;
+    return _runtimeState.isSelfMuted;
   }
 
   @override
-  Future<Result<void>> setSelfDeafened({required bool deafened}) async {
-    try {
-      final activeRoom = _room;
-      if (activeRoom == null) {
-        return Error<void>(Exception("Not connected to a voice session."));
+  Future<Result<void>> setSelfDeafened({required bool deafened}) {
+    return _enqueue(() async {
+      try {
+        final activeRoom = _room;
+        if (activeRoom == null) {
+          return Error<void>(Exception("Not connected to a voice session."));
+        }
+
+        if (deafened) {
+          await activeRoom.localParticipant?.setMicrophoneEnabled(false);
+          _runtimeState = _runtimeState.copyWith(isSelfMuted: true);
+          await _setRemoteAudioSubscriptionsEnabled(enabled: false);
+        } else {
+          await activeRoom.localParticipant?.setMicrophoneEnabled(true);
+          _runtimeState = _runtimeState.copyWith(isSelfMuted: false);
+          await _setRemoteAudioSubscriptionsEnabled(enabled: true);
+        }
+
+        _runtimeState = _runtimeState.copyWith(isSelfDeafened: deafened);
+        _setLocalParticipantDeafenedAttribute(
+          localParticipant: activeRoom.localParticipant,
+          deafenState: ParticipantDeafenState.fromBool(deafened),
+        );
+        _emitMutedParticipantUserIds(
+            _mutedParticipantUserIdsFromRoom(activeRoom));
+        _emitDeafenedParticipantUserIds(
+          _deafenedParticipantUserIdsFromRoom(activeRoom),
+        );
+
+        return const Ok<void>(null);
+      } on Exception catch (error) {
+        return Error<void>(error);
       }
-
-      if (deafened) {
-        await activeRoom.localParticipant?.setMicrophoneEnabled(false);
-        _isSelfMuted = true;
-        await _setRemoteAudioSubscriptionsEnabled(enabled: false);
-      } else {
-        await activeRoom.localParticipant?.setMicrophoneEnabled(true);
-        _isSelfMuted = false;
-        await _setRemoteAudioSubscriptionsEnabled(enabled: true);
-      }
-
-      _isSelfDeafened = deafened;
-      _setLocalParticipantDeafenedAttribute(
-        localParticipant: activeRoom.localParticipant,
-        deafenState: ParticipantDeafenState.fromBool(deafened),
-      );
-      _emitMutedParticipantUserIds(
-          _mutedParticipantUserIdsFromRoom(activeRoom));
-      _emitDeafenedParticipantUserIds(
-        _deafenedParticipantUserIdsFromRoom(activeRoom),
-      );
-
-      return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
-    }
+    });
   }
 
   @override
   bool isSelfDeafened() {
-    return _isSelfDeafened;
+    return _runtimeState.isSelfDeafened;
   }
 
   @override
   Future<Result<void>> setSelfScreenShareEnabled(
-      {required bool enabled, String? sourceId}) async {
-    try {
-      final activeRoom = _room;
-      if (activeRoom == null) {
-        return Error<void>(Exception("Not connected to a voice session."));
-      }
-
-      final localParticipant = activeRoom.localParticipant;
-      if (localParticipant == null) {
-        return Error<void>(
-          Exception("Local participant is unavailable for screen sharing."),
-        );
-      }
-
-      if (enabled && !localParticipant.permissions.canPublish) {
-        return Error<void>(
-          Exception("Not allowed to publish screen share."),
-        );
-      }
-
-      if (enabled) {
-        final trimmedSourceId = sourceId?.trim();
-
-        if (trimmedSourceId != null && trimmedSourceId.isNotEmpty) {
-          final existingScreenSharePublication =
-              localParticipant.getTrackPublicationBySource(
-            TrackSource.screenShareVideo,
-          );
-
-          if (existingScreenSharePublication != null) {
-            await localParticipant
-                .removePublishedTrack(existingScreenSharePublication.sid);
-          }
-
-          final track = await LocalVideoTrack.createScreenShareTrack(
-            ScreenShareCaptureOptions(
-              sourceId: trimmedSourceId,
-              maxFrameRate: 15.0,
-              params: activeRoom
-                  .roomOptions.defaultScreenShareCaptureOptions.params,
-            ),
-          );
-
-          await localParticipant.publishVideoTrack(track);
-        } else {
-          await localParticipant.setScreenShareEnabled(true);
+      {required bool enabled, String? sourceId}) {
+    return _enqueue(() async {
+      try {
+        final activeRoom = _room;
+        if (activeRoom == null) {
+          return Error<void>(Exception("Not connected to a voice session."));
         }
-      } else {
-        await localParticipant.setScreenShareEnabled(false);
-      }
 
-      final isScreenShareEnabled = localParticipant.isScreenShareEnabled();
+        final localParticipant = activeRoom.localParticipant;
+        if (localParticipant == null) {
+          return Error<void>(
+            Exception("Local participant is unavailable for screen sharing."),
+          );
+        }
 
-      if (enabled && !isScreenShareEnabled) {
-        return Error<void>(
-          Exception("Screen sharing did not start."),
+        if (enabled && !localParticipant.permissions.canPublish) {
+          return Error<void>(
+            Exception("Not allowed to publish screen share."),
+          );
+        }
+
+        if (enabled) {
+          final trimmedSourceId = sourceId?.trim();
+
+          if (trimmedSourceId != null && trimmedSourceId.isNotEmpty) {
+            final existingScreenSharePublication =
+                localParticipant.getTrackPublicationBySource(
+              TrackSource.screenShareVideo,
+            );
+
+            if (existingScreenSharePublication != null) {
+              await localParticipant
+                  .removePublishedTrack(existingScreenSharePublication.sid);
+            }
+
+            final track = await LocalVideoTrack.createScreenShareTrack(
+              ScreenShareCaptureOptions(
+                sourceId: trimmedSourceId,
+                maxFrameRate: 15.0,
+                params: activeRoom
+                    .roomOptions.defaultScreenShareCaptureOptions.params,
+              ),
+            );
+
+            await localParticipant.publishVideoTrack(track);
+          } else {
+            await localParticipant.setScreenShareEnabled(true);
+          }
+        } else {
+          await localParticipant.setScreenShareEnabled(false);
+        }
+
+        final isScreenShareEnabled = localParticipant.isScreenShareEnabled();
+
+        if (enabled && !isScreenShareEnabled) {
+          return Error<void>(
+            Exception("Screen sharing did not start."),
+          );
+        }
+
+        if (!enabled && isScreenShareEnabled) {
+          return Error<void>(Exception("Screen sharing did not stop."));
+        }
+
+        _runtimeState = _runtimeState.copyWith(
+          isSelfScreenShareEnabled: isScreenShareEnabled,
         );
+        _emitParticipantVideoTracks(
+            _participantVideoTracksFromRoom(activeRoom));
+        return const Ok<void>(null);
+      } on Exception catch (error) {
+        return Error<void>(error);
       }
-
-      if (!enabled && isScreenShareEnabled) {
-        return Error<void>(Exception("Screen sharing did not stop."));
-      }
-
-      _isSelfScreenShareEnabled = isScreenShareEnabled;
-      _emitParticipantVideoTracks(_participantVideoTracksFromRoom(activeRoom));
-      return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
-    }
+    });
   }
 
   @override
   bool isSelfScreenShareEnabled() {
-    return _isSelfScreenShareEnabled;
+    return _runtimeState.isSelfScreenShareEnabled;
   }
 
   @override
   Future<Result<void>> setAudioChannelEnabled({
     required RuntimeAudioChannel channel,
     required bool enabled,
-  }) async {
-    try {
-      _audioChannelEnabled[channel] = enabled;
-      await _applyRemoteAudioSubscriptions();
-      return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
-    }
+  }) {
+    return _enqueue(() async {
+      try {
+        final nextAudioChannelEnabled = Map<RuntimeAudioChannel, bool>.from(
+          _runtimeState.audioChannelEnabled,
+        )..[channel] = enabled;
+        _runtimeState = _runtimeState.copyWith(
+          audioChannelEnabled: nextAudioChannelEnabled,
+        );
+        await _applyRemoteAudioSubscriptions();
+        return const Ok<void>(null);
+      } on Exception catch (error) {
+        return Error<void>(error);
+      }
+    });
   }
 
   @override
   Future<Result<void>> setParticipantAudioChannel({
     required String participantUserId,
     required RuntimeAudioChannel channel,
-  }) async {
-    try {
-      final normalizedParticipantUserId =
-          ParticipantUserId.fromRaw(participantUserId);
-      if (normalizedParticipantUserId == null) {
-        return Error<void>(Exception("Participant user id cannot be empty."));
-      }
+  }) {
+    return _enqueue(() async {
+      try {
+        final normalizedParticipantUserId =
+            ParticipantUserId.fromRaw(participantUserId);
+        if (normalizedParticipantUserId == null) {
+          return Error<void>(
+            Exception("Participant user id cannot be empty."),
+          );
+        }
 
-      _participantAudioChannelByUserId[normalizedParticipantUserId] = channel;
-      await _applyRemoteAudioSubscriptions();
-      return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
-    }
-  }
-
-  @override
-  Future<Result<List<RuntimeAudioDevice>>> listAudioInputDevices() async {
-    try {
-      final devices = await Hardware.instance.audioInputs();
-      return Ok<List<RuntimeAudioDevice>>(_toRuntimeAudioDevices(devices));
-    } on Exception catch (error) {
-      return Error<List<RuntimeAudioDevice>>(error);
-    }
-  }
-
-  @override
-  Future<Result<List<RuntimeAudioDevice>>> listAudioOutputDevices() async {
-    try {
-      final devices = await Hardware.instance.audioOutputs();
-      return Ok<List<RuntimeAudioDevice>>(_toRuntimeAudioDevices(devices));
-    } on Exception catch (error) {
-      return Error<List<RuntimeAudioDevice>>(error);
-    }
-  }
-
-  @override
-  Future<Result<void>> setSelectedAudioInputDeviceId(String? deviceId) async {
-    try {
-      final normalizedDeviceId = _normalizeDeviceId(deviceId);
-      _selectedAudioInputDeviceId = normalizedDeviceId;
-
-      if (normalizedDeviceId == null) {
-        return const Ok<void>(null);
-      }
-
-      final inputDevicesResult = await listAudioInputDevices();
-      if (inputDevicesResult
-          case Error<List<RuntimeAudioDevice>>(:final error)) {
-        return Error<void>(error);
-      }
-
-      final inputDevices =
-          (inputDevicesResult as Ok<List<RuntimeAudioDevice>>).value;
-      final selectedInputDevice = inputDevices
-          .where((device) => device.id == normalizedDeviceId)
-          .firstOrNull;
-      if (selectedInputDevice == null) {
-        return Error<void>(
-            Exception("Unknown audio input device id: $normalizedDeviceId"));
-      }
-
-      final activeRoom = _room;
-      if (activeRoom == null) {
-        return const Ok<void>(null);
-      }
-
-      await activeRoom.setAudioInputDevice(
-        MediaDevice(
-          selectedInputDevice.id,
-          selectedInputDevice.label,
-          "audioinput",
-          null,
-        ),
-      );
-      return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
-    }
-  }
-
-  @override
-  Future<Result<void>> setSelectedAudioOutputDeviceId(String? deviceId) async {
-    try {
-      final normalizedDeviceId = _normalizeDeviceId(deviceId);
-      _selectedAudioOutputDeviceId = normalizedDeviceId;
-
-      if (normalizedDeviceId == null) {
-        return const Ok<void>(null);
-      }
-
-      final outputDevicesResult = await listAudioOutputDevices();
-      if (outputDevicesResult
-          case Error<List<RuntimeAudioDevice>>(:final error)) {
-        return Error<void>(error);
-      }
-
-      final outputDevices =
-          (outputDevicesResult as Ok<List<RuntimeAudioDevice>>).value;
-      final selectedOutputDevice = outputDevices
-          .where((device) => device.id == normalizedDeviceId)
-          .firstOrNull;
-      if (selectedOutputDevice == null) {
-        return Error<void>(
-          Exception("Unknown audio output device id: $normalizedDeviceId"),
+        final nextParticipantAudioChannelByUserId =
+            Map<ParticipantUserId, RuntimeAudioChannel>.from(
+          _runtimeState.participantAudioChannelByUserId,
+        )..[normalizedParticipantUserId] = channel;
+        _runtimeState = _runtimeState.copyWith(
+          participantAudioChannelByUserId: nextParticipantAudioChannelByUserId,
         );
-      }
-
-      final activeRoom = _room;
-      if (activeRoom == null) {
+        await _applyRemoteAudioSubscriptions();
         return const Ok<void>(null);
+      } on Exception catch (error) {
+        return Error<void>(error);
       }
+    });
+  }
 
-      await activeRoom.setAudioOutputDevice(
-        MediaDevice(
-          selectedOutputDevice.id,
-          selectedOutputDevice.label,
-          "audiooutput",
-          null,
-        ),
-      );
+  @override
+  Future<Result<List<RuntimeAudioDevice>>> listAudioInputDevices() {
+    return _audioDeviceRuntimeService.listAudioInputDevices();
+  }
 
-      return const Ok<void>(null);
-    } on Exception catch (error) {
-      return Error<void>(error);
-    }
+  @override
+  Future<Result<List<RuntimeAudioDevice>>> listAudioOutputDevices() {
+    return _audioDeviceRuntimeService.listAudioOutputDevices();
+  }
+
+  @override
+  Future<Result<void>> setSelectedAudioInputDeviceId(String? deviceId) {
+    return _audioDeviceRuntimeService.setSelectedAudioInputDeviceId(deviceId);
+  }
+
+  @override
+  Future<Result<void>> setSelectedAudioOutputDeviceId(String? deviceId) {
+    return _audioDeviceRuntimeService.setSelectedAudioOutputDeviceId(deviceId);
   }
 
   @override
   String? selectedAudioInputDeviceId() {
-    final activeRoom = _room;
-    return activeRoom?.selectedAudioInputDeviceId ??
-        _selectedAudioInputDeviceId;
+    return _audioDeviceRuntimeService.selectedAudioInputDeviceId();
   }
 
   @override
   String? selectedAudioOutputDeviceId() {
-    final activeRoom = _room;
-    return activeRoom?.selectedAudioOutputDeviceId ??
-        _selectedAudioOutputDeviceId;
+    return _audioDeviceRuntimeService.selectedAudioOutputDeviceId();
   }
 
   @override
   Stream<void> audioDeviceChanges() {
-    return _audioDeviceChangesController.stream;
+    return _audioDeviceRuntimeService.audioDeviceChanges();
   }
 
   @override
   bool isAudioChannelEnabled(RuntimeAudioChannel channel) {
-    return _audioChannelEnabled[channel] ?? true;
+    return _runtimeState.audioChannelEnabled[channel] ?? true;
   }
 
   @override
@@ -470,7 +420,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       return RuntimeAudioChannel.voice;
     }
 
-    return _participantAudioChannelByUserId[normalizedParticipantUserId] ??
+    return _runtimeState
+            .participantAudioChannelByUserId[normalizedParticipantUserId] ??
         RuntimeAudioChannel.voice;
   }
 
@@ -552,51 +503,6 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     await activeRoom.disconnect();
   }
 
-  Future<void> _applyPreferredAudioDevices(Room room) async {
-    final selectedAudioInputDeviceId = _selectedAudioInputDeviceId;
-    if (selectedAudioInputDeviceId != null) {
-      final devices = await Hardware.instance.audioInputs();
-      final selectedInputDevice = devices
-          .where((device) => device.deviceId == selectedAudioInputDeviceId)
-          .firstOrNull;
-      if (selectedInputDevice != null) {
-        await room.setAudioInputDevice(selectedInputDevice);
-      }
-    }
-
-    final selectedAudioOutputDeviceId = _selectedAudioOutputDeviceId;
-    if (selectedAudioOutputDeviceId != null) {
-      final devices = await Hardware.instance.audioOutputs();
-      final selectedOutputDevice = devices
-          .where((device) => device.deviceId == selectedAudioOutputDeviceId)
-          .firstOrNull;
-      if (selectedOutputDevice != null) {
-        await room.setAudioOutputDevice(selectedOutputDevice);
-      }
-    }
-  }
-
-  List<RuntimeAudioDevice> _toRuntimeAudioDevices(
-      Iterable<MediaDevice> devices) {
-    return devices
-        .map(
-          (device) => RuntimeAudioDevice(
-            id: device.deviceId,
-            label: device.label.trim().isEmpty ? device.deviceId : device.label,
-          ),
-        )
-        .toList(growable: false);
-  }
-
-  String? _normalizeDeviceId(String? deviceId) {
-    final trimmedDeviceId = deviceId?.trim();
-    if (trimmedDeviceId == null || trimmedDeviceId.isEmpty) {
-      return null;
-    }
-
-    return trimmedDeviceId;
-  }
-
   void _emitRoomSnapshot(Room room) {
     final participantUserIds = _participantUserIdsFromRoom(room);
     final didParticipantSetChange =
@@ -617,7 +523,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     Set<ParticipantUserId> participantUserIds,
   ) {
     final previousChannels = Map<ParticipantUserId, RuntimeAudioChannel>.from(
-      _participantAudioChannelByUserId,
+      _runtimeState.participantAudioChannelByUserId,
     );
 
     final synchronizedChannels =
@@ -630,9 +536,9 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
       return false;
     }
 
-    _participantAudioChannelByUserId
-      ..clear()
-      ..addAll(synchronizedChannels);
+    _runtimeState = _runtimeState.copyWith(
+      participantAudioChannelByUserId: synchronizedChannels,
+    );
     return true;
   }
 
@@ -664,7 +570,8 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         }
 
         final participantChannel =
-            _participantAudioChannelByUserId[participantIdentity.toUserId()] ??
+            _runtimeState.participantAudioChannelByUserId[
+                    participantIdentity.toUserId()] ??
                 RuntimeAudioChannel.voice;
         final channelEnabled = isAudioChannelEnabled(participantChannel);
         final shouldBeEnabled = enabled && channelEnabled;
@@ -680,7 +587,9 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   }
 
   Future<void> _applyRemoteAudioSubscriptions() async {
-    await _setRemoteAudioSubscriptionsEnabled(enabled: !_isSelfDeafened);
+    await _setRemoteAudioSubscriptionsEnabled(
+      enabled: !_runtimeState.isSelfDeafened,
+    );
   }
 
   void _emitParticipantUserIds(Set<ParticipantUserId> participantUserIds) {
@@ -786,7 +695,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
     final localAudioPublications =
         room.localParticipant?.audioTrackPublications;
     final localAudioState = ParticipantAudioState.fromMutedFlag(
-      _isSelfMuted ||
+      _runtimeState.isSelfMuted ||
           (localAudioPublications?.any((publication) => publication.muted) ??
               false),
     );
@@ -812,7 +721,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   }
 
   Set<ParticipantUserId> _deafenedParticipantUserIdsFromRoom(Room room) {
-    final localDeafenState = _isSelfDeafened
+    final localDeafenState = _runtimeState.isSelfDeafened
         ? const DeafenedState()
         : _participantDeafenState(room.localParticipant);
 
@@ -995,5 +904,59 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         updateForValue(participantUserId, isEnabled),
       );
     }
+  }
+
+  Future<Result<T>> _enqueue<T>(Future<Result<T>> Function() operation) {
+    final completer = Completer<Result<T>>();
+    _operationQueue = _operationQueue.then((_) async {
+      try {
+        final result = await operation();
+        completer.complete(result);
+      } on Exception catch (error) {
+        completer.complete(Error<T>(error));
+      }
+    });
+
+    return completer.future;
+  }
+}
+
+final class _LivekitRuntimeState {
+  const _LivekitRuntimeState({
+    this.isSelfMuted = false,
+    this.isSelfDeafened = false,
+    this.isSelfScreenShareEnabled = false,
+    this.participantAudioChannelByUserId =
+        const <ParticipantUserId, RuntimeAudioChannel>{},
+    this.audioChannelEnabled = const <RuntimeAudioChannel, bool>{
+      RuntimeAudioChannel.voice: true,
+      RuntimeAudioChannel.livestream: true,
+    },
+  });
+
+  final bool isSelfMuted;
+  final bool isSelfDeafened;
+  final bool isSelfScreenShareEnabled;
+  final Map<ParticipantUserId, RuntimeAudioChannel>
+      participantAudioChannelByUserId;
+  final Map<RuntimeAudioChannel, bool> audioChannelEnabled;
+
+  _LivekitRuntimeState copyWith({
+    bool? isSelfMuted,
+    bool? isSelfDeafened,
+    bool? isSelfScreenShareEnabled,
+    Map<ParticipantUserId, RuntimeAudioChannel>?
+        participantAudioChannelByUserId,
+    Map<RuntimeAudioChannel, bool>? audioChannelEnabled,
+  }) {
+    return _LivekitRuntimeState(
+      isSelfMuted: isSelfMuted ?? this.isSelfMuted,
+      isSelfDeafened: isSelfDeafened ?? this.isSelfDeafened,
+      isSelfScreenShareEnabled:
+          isSelfScreenShareEnabled ?? this.isSelfScreenShareEnabled,
+      participantAudioChannelByUserId: participantAudioChannelByUserId ??
+          this.participantAudioChannelByUserId,
+      audioChannelEnabled: audioChannelEnabled ?? this.audioChannelEnabled,
+    );
   }
 }

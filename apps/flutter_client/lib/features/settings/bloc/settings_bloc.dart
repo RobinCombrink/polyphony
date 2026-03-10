@@ -2,6 +2,7 @@ import "dart:async";
 
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/audio_device_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
@@ -11,9 +12,9 @@ part "settings_state.dart";
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   SettingsBloc({
     required PreferencesStore preferencesStore,
-    required MediaRuntimeService mediaRuntimeService,
+    required AudioDeviceRuntimeService audioDeviceRuntimeService,
   })  : _preferencesStore = preferencesStore,
-        _mediaRuntimeService = mediaRuntimeService,
+        _audioDeviceRuntimeService = audioDeviceRuntimeService,
         super(const SettingsInitialState()) {
     on<SettingsPreferencesRestoreRequested>(
       _onSettingsPreferencesRestoreRequested,
@@ -36,13 +37,13 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     );
 
     _audioDeviceChangesSubscription =
-        _mediaRuntimeService.audioDeviceChanges().listen((_) {
+        _audioDeviceRuntimeService.audioDeviceChanges().listen((_) {
       add(const SettingsAudioDevicesRefreshRequested());
     });
   }
 
   final PreferencesStore _preferencesStore;
-  final MediaRuntimeService _mediaRuntimeService;
+  final AudioDeviceRuntimeService _audioDeviceRuntimeService;
   StreamSubscription<void>? _audioDeviceChangesSubscription;
 
   @override
@@ -273,13 +274,15 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           await _readAudioOutputDevices(currentSnapshot.audioOutputDevices);
 
       final selectedAudioInputDeviceId = _normalizeSelectedAudioDeviceId(
-        selectedDeviceId: _mediaRuntimeService.selectedAudioInputDeviceId() ??
-            currentSnapshot.selectedAudioInputDeviceId,
+        selectedDeviceId:
+            _audioDeviceRuntimeService.selectedAudioInputDeviceId() ??
+                currentSnapshot.selectedAudioInputDeviceId,
         devices: audioInputDevices,
       );
       final selectedAudioOutputDeviceId = _normalizeSelectedAudioDeviceId(
-        selectedDeviceId: _mediaRuntimeService.selectedAudioOutputDeviceId() ??
-            currentSnapshot.selectedAudioOutputDeviceId,
+        selectedDeviceId:
+            _audioDeviceRuntimeService.selectedAudioOutputDeviceId() ??
+                currentSnapshot.selectedAudioOutputDeviceId,
         devices: audioOutputDevices,
       );
 
@@ -342,7 +345,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     );
 
     try {
-      final applyResult = await _mediaRuntimeService
+      final applyResult = await _audioDeviceRuntimeService
           .setSelectedAudioInputDeviceId(nextSelectedAudioInputDeviceId);
       if (applyResult case Error<void>(:final error)) {
         throw error;
@@ -395,7 +398,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     );
 
     try {
-      final applyResult = await _mediaRuntimeService
+      final applyResult = await _audioDeviceRuntimeService
           .setSelectedAudioOutputDeviceId(nextSelectedAudioOutputDeviceId);
       if (applyResult case Error<void>(:final error)) {
         throw error;
@@ -426,7 +429,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   Future<List<RuntimeAudioDevice>> _readAudioInputDevices(
     List<RuntimeAudioDevice> fallback,
   ) async {
-    final result = await _mediaRuntimeService.listAudioInputDevices();
+    final result = await _audioDeviceRuntimeService.listAudioInputDevices();
     return switch (result) {
       Ok<List<RuntimeAudioDevice>>(:final value) => value,
       Error<List<RuntimeAudioDevice>>() => fallback,
@@ -436,7 +439,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   Future<List<RuntimeAudioDevice>> _readAudioOutputDevices(
     List<RuntimeAudioDevice> fallback,
   ) async {
-    final result = await _mediaRuntimeService.listAudioOutputDevices();
+    final result = await _audioDeviceRuntimeService.listAudioOutputDevices();
     return switch (result) {
       Ok<List<RuntimeAudioDevice>>(:final value) => value,
       Error<List<RuntimeAudioDevice>>() => fallback,
@@ -461,13 +464,13 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     required String? selectedAudioInputDeviceId,
     required String? selectedAudioOutputDeviceId,
   }) async {
-    final applyInputResult = await _mediaRuntimeService
+    final applyInputResult = await _audioDeviceRuntimeService
         .setSelectedAudioInputDeviceId(selectedAudioInputDeviceId);
     if (applyInputResult case Error<void>(:final error)) {
       throw error;
     }
 
-    final applyOutputResult = await _mediaRuntimeService
+    final applyOutputResult = await _audioDeviceRuntimeService
         .setSelectedAudioOutputDeviceId(selectedAudioOutputDeviceId);
     if (applyOutputResult case Error<void>(:final error)) {
       throw error;

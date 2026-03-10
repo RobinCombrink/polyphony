@@ -37,7 +37,7 @@ void main() {
       final preferencesStore = InMemoryPreferencesStore();
       final settingsBloc = SettingsBloc(
         preferencesStore: preferencesStore,
-        mediaRuntimeService: FakeVoiceRuntimeService(),
+        audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
       )..add(const SettingsPreferencesRestoreRequested());
       final channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),
@@ -64,7 +64,7 @@ void main() {
       final preferencesStore = InMemoryPreferencesStore();
       final settingsBloc = SettingsBloc(
         preferencesStore: preferencesStore,
-        mediaRuntimeService: FakeVoiceRuntimeService(),
+        audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
       )..add(const SettingsPreferencesRestoreRequested());
       final channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),
@@ -105,7 +105,7 @@ void main() {
       );
       final settingsBloc = SettingsBloc(
         preferencesStore: preferencesStore,
-        mediaRuntimeService: FakeVoiceRuntimeService(),
+        audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
       )..add(const SettingsPreferencesRestoreRequested());
       final channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),

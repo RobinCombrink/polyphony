@@ -25,13 +25,39 @@ Future<void> _pumpUi(WidgetTester tester) async {
 
 void main() {
   group("SettingsAudioDevicesSectionWidget", () {
+    testWidgets("shows which devices are system defaults", (tester) async {
+      final preferencesStore = InMemoryPreferencesStore();
+      final audioDeviceRuntimeService = FakeAudioDeviceRuntimeService();
+      final settingsBloc = SettingsBloc(
+        preferencesStore: preferencesStore,
+        audioDeviceRuntimeService: audioDeviceRuntimeService,
+      )..add(const SettingsPreferencesRestoreRequested());
+      addTearDown(() async {
+        await settingsBloc.close();
+      });
+
+      await tester.pumpWidget(_buildTestApp(settingsBloc));
+      await _pumpUi(tester);
+
+      await tester.tap(find.byType(DropdownButtonFormField<String?>).first);
+      await _pumpUi(tester);
+      expect(find.text("System Default (Default microphone)"), findsOneWidget);
+
+      await tester.tap(find.text("Automatic (Follow system default)").last);
+      await _pumpUi(tester);
+
+      await tester.tap(find.byType(DropdownButtonFormField<String?>).last);
+      await _pumpUi(tester);
+      expect(find.text("System Default (Default speakers)"), findsOneWidget);
+    });
+
     testWidgets("selecting input device persists and applies immediately",
         (tester) async {
       final preferencesStore = InMemoryPreferencesStore();
-      final mediaRuntimeService = FakeVoiceRuntimeService();
+      final audioDeviceRuntimeService = FakeAudioDeviceRuntimeService();
       final settingsBloc = SettingsBloc(
         preferencesStore: preferencesStore,
-        mediaRuntimeService: mediaRuntimeService,
+        audioDeviceRuntimeService: audioDeviceRuntimeService,
       )..add(const SettingsPreferencesRestoreRequested());
       addTearDown(() async {
         await settingsBloc.close();
@@ -46,16 +72,16 @@ void main() {
       await _pumpUi(tester);
 
       expect(await preferencesStore.readAudioInputDeviceId(), "mic-usb");
-      expect(mediaRuntimeService.selectedAudioInputDeviceId(), "mic-usb");
+      expect(audioDeviceRuntimeService.selectedAudioInputDeviceId(), "mic-usb");
     });
 
     testWidgets("selecting output device persists and applies immediately",
         (tester) async {
       final preferencesStore = InMemoryPreferencesStore();
-      final mediaRuntimeService = FakeVoiceRuntimeService();
+      final audioDeviceRuntimeService = FakeAudioDeviceRuntimeService();
       final settingsBloc = SettingsBloc(
         preferencesStore: preferencesStore,
-        mediaRuntimeService: mediaRuntimeService,
+        audioDeviceRuntimeService: audioDeviceRuntimeService,
       )..add(const SettingsPreferencesRestoreRequested());
       addTearDown(() async {
         await settingsBloc.close();
@@ -70,7 +96,10 @@ void main() {
       await _pumpUi(tester);
 
       expect(await preferencesStore.readAudioOutputDeviceId(), "spk-usb");
-      expect(mediaRuntimeService.selectedAudioOutputDeviceId(), "spk-usb");
+      expect(
+        audioDeviceRuntimeService.selectedAudioOutputDeviceId(),
+        "spk-usb",
+      );
     });
   });
 }

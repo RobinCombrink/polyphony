@@ -6,6 +6,14 @@ import "package:polyphony_flutter_client/shared/services/media_runtime_service.d
 class SettingsAudioDevicesSectionWidget extends StatelessWidget {
   const SettingsAudioDevicesSectionWidget({super.key});
 
+  String _audioDeviceLabel(RuntimeAudioDevice device) {
+    if (!device.isSystemDefault) {
+      return device.label;
+    }
+
+    return "System Default (${device.label})";
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<SettingsBloc, SettingsState>(
@@ -56,12 +64,12 @@ class SettingsAudioDevicesSectionWidget extends StatelessWidget {
               ),
               items: <DropdownMenuItem<String?>>[
                 const DropdownMenuItem<String?>(
-                  child: Text("System default"),
+                  child: Text("Automatic (Follow system default)"),
                 ),
                 ...audioInputDevices.map(
                   (device) => DropdownMenuItem<String?>(
                     value: device.id,
-                    child: Text(device.label),
+                    child: Text(_audioDeviceLabel(device)),
                   ),
                 ),
               ],
@@ -81,12 +89,12 @@ class SettingsAudioDevicesSectionWidget extends StatelessWidget {
               ),
               items: <DropdownMenuItem<String?>>[
                 const DropdownMenuItem<String?>(
-                  child: Text("System default"),
+                  child: Text("Automatic (Follow system default)"),
                 ),
                 ...audioOutputDevices.map(
                   (device) => DropdownMenuItem<String?>(
                     value: device.id,
-                    child: Text(device.label),
+                    child: Text(_audioDeviceLabel(device)),
                   ),
                 ),
               ],
