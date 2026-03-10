@@ -66,6 +66,22 @@ final class SetSelfScreenShareEnabledRequested extends VoiceSessionsEvent {
   final String? sourceId;
 }
 
+final class SetEchoCancellationEnabledRequested extends VoiceSessionsEvent {
+  const SetEchoCancellationEnabledRequested({
+    required this.enabled,
+  });
+
+  final bool enabled;
+}
+
+final class SetNoiseSuppressionEnabledRequested extends VoiceSessionsEvent {
+  const SetNoiseSuppressionEnabledRequested({
+    required this.enabled,
+  });
+
+  final bool enabled;
+}
+
 final class ParticipantStatusUpdated extends VoiceSessionsEvent {
   const ParticipantStatusUpdated({
     required this.update,

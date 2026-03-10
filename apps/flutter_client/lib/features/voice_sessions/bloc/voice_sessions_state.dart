@@ -44,6 +44,8 @@ sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
     required this.isSelfMuted,
     required this.isSelfDeafened,
     required this.isSelfScreenShareEnabled,
+    this.isEchoCancellationEnabled = true,
+    this.isNoiseSuppressionEnabled = true,
   });
 
   final VoiceConnectSession? activeConnection;
@@ -54,6 +56,8 @@ sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
   final bool isSelfMuted;
   final bool isSelfDeafened;
   final bool isSelfScreenShareEnabled;
+  final bool isEchoCancellationEnabled;
+  final bool isNoiseSuppressionEnabled;
 
   String? get connectedChannelId => activeConnection?.channelId;
 }
@@ -68,6 +72,8 @@ final class VoiceSessionsLoadedState extends VoiceSessionsLoadedDataState {
     required super.isSelfMuted,
     required super.isSelfDeafened,
     required super.isSelfScreenShareEnabled,
+    super.isEchoCancellationEnabled,
+    super.isNoiseSuppressionEnabled,
   });
 }
 
@@ -83,6 +89,8 @@ final class VoiceSessionsValidationFailedState
     required super.isSelfMuted,
     required super.isSelfDeafened,
     required super.isSelfScreenShareEnabled,
+    super.isEchoCancellationEnabled,
+    super.isNoiseSuppressionEnabled,
   });
 
   final VoiceSessionsValidationIssue issue;
@@ -100,6 +108,8 @@ final class VoiceSessionsLifecycleIssueState
     required super.isSelfMuted,
     required super.isSelfDeafened,
     required super.isSelfScreenShareEnabled,
+    super.isEchoCancellationEnabled,
+    super.isNoiseSuppressionEnabled,
   });
 
   final VoiceSessionsLifecycleIssue issue;

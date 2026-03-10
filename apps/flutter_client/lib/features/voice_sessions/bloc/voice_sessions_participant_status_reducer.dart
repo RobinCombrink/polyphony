@@ -55,6 +55,8 @@ final class ParticipantStatusReducer {
           statusUpdate: statusUpdate,
         ),
         isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+        isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+        isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
       ),
     );
   }

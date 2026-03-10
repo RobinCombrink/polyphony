@@ -89,6 +89,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         await _onSetSelfDeafenedRequested(event, emit);
       case SetSelfScreenShareEnabledRequested():
         await _onSetSelfScreenShareEnabledRequested(event, emit);
+      case SetEchoCancellationEnabledRequested():
+        await _onSetEchoCancellationEnabledRequested(event, emit);
+      case SetNoiseSuppressionEnabledRequested():
+        await _onSetNoiseSuppressionEnabledRequested(event, emit);
       case ParticipantStatusUpdated():
         _onParticipantStatusUpdated(event, emit);
       case ParticipantUserIdsUpdated():
@@ -119,6 +123,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
               isSelfMuted: loadedState.isSelfMuted,
               isSelfDeafened: loadedState.isSelfDeafened,
               isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+              isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+              isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
             ),
           _ => const VoiceSessionsExceptionState(
               error: VoiceSessionPreconditionException(
@@ -159,6 +165,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       ),
       isSelfDeafened: loadedState?.isSelfDeafened ?? false,
       isSelfScreenShareEnabled: loadedState?.isSelfScreenShareEnabled ?? false,
+      isEchoCancellationEnabled: loadedState?.isEchoCancellationEnabled ?? true,
+      isNoiseSuppressionEnabled: loadedState?.isNoiseSuppressionEnabled ?? true,
     ));
   }
 
@@ -230,6 +238,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       ),
       isSelfDeafened: loadedState.isSelfDeafened,
       isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+      isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+      isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
     ));
   }
 
@@ -265,6 +275,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
         isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+        isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+        isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
       ));
       return;
     }
@@ -297,6 +309,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         ),
         isSelfDeafened: loadedState.isSelfDeafened,
         isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+        isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+        isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
       ));
       return;
     }
@@ -333,6 +347,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         final runtimeConnectResult = await _voiceRuntimeService.connect(
           livekitUrl: value.livekitUrl,
           accessToken: value.accessToken,
+          audioProcessingOptions: VoiceAudioProcessingOptions(
+            isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+            isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
+          ),
         );
 
         switch (runtimeConnectResult) {
@@ -379,6 +397,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
               isSelfDeafened: _voiceRuntimeService.isSelfDeafened(),
               isSelfScreenShareEnabled:
                   _voiceRuntimeService.isSelfScreenShareEnabled(),
+              isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+              isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
             ));
           case Error<void>(:final error):
             if (_emitLifecycleIssueState(
@@ -437,6 +457,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
         isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+        isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+        isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
       ));
       return;
     }
@@ -466,6 +488,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       isSelfMuted: false,
       isSelfDeafened: false,
       isSelfScreenShareEnabled: false,
+      isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+      isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
     ));
 
     _lastConnectedChannelId = trimmedChannelId;
@@ -502,6 +526,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
         isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+        isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+        isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
       ));
       return;
     }
@@ -563,6 +589,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           isSelfMuted: _voiceRuntimeService.isSelfMuted(),
           isSelfDeafened: isSelfDeafened,
           isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+          isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+          isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
         ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
@@ -600,6 +628,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
         isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+        isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+        isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
       ));
       return;
     }
@@ -650,6 +680,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           isSelfMuted: isSelfMuted,
           isSelfDeafened: _voiceRuntimeService.isSelfDeafened(),
           isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+          isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+          isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
         ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
@@ -686,6 +718,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         isSelfMuted: loadedState.isSelfMuted,
         isSelfDeafened: loadedState.isSelfDeafened,
         isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+        isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+        isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
       ));
       return;
     }
@@ -709,10 +743,84 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           isSelfDeafened: loadedState.isSelfDeafened,
           isSelfScreenShareEnabled:
               _voiceRuntimeService.isSelfScreenShareEnabled(),
+          isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+          isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
         ));
       case Error<void>(:final error):
         emit(VoiceSessionsExceptionState(error: error));
     }
+  }
+
+  Future<void> _onSetEchoCancellationEnabledRequested(
+    SetEchoCancellationEnabledRequested event,
+    Emitter<VoiceSessionsState> emit,
+  ) async {
+    final loadedState = switch (state) {
+      final VoiceSessionsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
+
+    if (loadedState == null) {
+      return;
+    }
+
+    if (loadedState.activeConnection != null) {
+      await _voiceRuntimeService.applyVoiceAudioProcessingOptions(
+        audioProcessingOptions: VoiceAudioProcessingOptions(
+          isEchoCancellationEnabled: event.enabled,
+          isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
+        ),
+      );
+    }
+
+    emit(VoiceSessionsLoadedState(
+      activeConnection: loadedState.activeConnection,
+      selectedChannelId: loadedState.selectedChannelId,
+      participants: loadedState.participants,
+      participantsByChannelId: loadedState.participantsByChannelId,
+      participantVideoTracks: loadedState.participantVideoTracks,
+      isSelfMuted: loadedState.isSelfMuted,
+      isSelfDeafened: loadedState.isSelfDeafened,
+      isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+      isEchoCancellationEnabled: event.enabled,
+      isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
+    ));
+  }
+
+  Future<void> _onSetNoiseSuppressionEnabledRequested(
+    SetNoiseSuppressionEnabledRequested event,
+    Emitter<VoiceSessionsState> emit,
+  ) async {
+    final loadedState = switch (state) {
+      final VoiceSessionsLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
+
+    if (loadedState == null) {
+      return;
+    }
+
+    if (loadedState.activeConnection != null) {
+      await _voiceRuntimeService.applyVoiceAudioProcessingOptions(
+        audioProcessingOptions: VoiceAudioProcessingOptions(
+          isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+          isNoiseSuppressionEnabled: event.enabled,
+        ),
+      );
+    }
+
+    emit(VoiceSessionsLoadedState(
+      activeConnection: loadedState.activeConnection,
+      selectedChannelId: loadedState.selectedChannelId,
+      participants: loadedState.participants,
+      participantsByChannelId: loadedState.participantsByChannelId,
+      participantVideoTracks: loadedState.participantVideoTracks,
+      isSelfMuted: loadedState.isSelfMuted,
+      isSelfDeafened: loadedState.isSelfDeafened,
+      isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+      isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+      isNoiseSuppressionEnabled: event.enabled,
+    ));
   }
 
   bool _isReconnectAttempt({
@@ -764,6 +872,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       isSelfMuted: loadedState?.isSelfMuted ?? false,
       isSelfDeafened: loadedState?.isSelfDeafened ?? false,
       isSelfScreenShareEnabled: loadedState?.isSelfScreenShareEnabled ?? false,
+      isEchoCancellationEnabled: loadedState?.isEchoCancellationEnabled ?? true,
+      isNoiseSuppressionEnabled: loadedState?.isNoiseSuppressionEnabled ?? true,
     ));
 
     return true;
@@ -1032,6 +1142,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       isSelfMuted: _voiceRuntimeService.isSelfMuted(),
       isSelfDeafened: loadedState.isSelfDeafened,
       isSelfScreenShareEnabled: loadedState.isSelfScreenShareEnabled,
+      isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+      isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
     ));
   }
 
@@ -1059,6 +1171,8 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       isSelfMuted: loadedState.isSelfMuted,
       isSelfDeafened: loadedState.isSelfDeafened,
       isSelfScreenShareEnabled: _voiceRuntimeService.isSelfScreenShareEnabled(),
+      isEchoCancellationEnabled: loadedState.isEchoCancellationEnabled,
+      isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
     ));
   }
 

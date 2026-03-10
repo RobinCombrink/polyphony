@@ -366,6 +366,9 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   var _isSelfMuted = false;
   var _isSelfDeafened = false;
   var _isSelfScreenShareEnabled = false;
+  VoiceAudioProcessingOptions? lastAudioProcessingOptions;
+  VoiceAudioProcessingOptions? lastAppliedAudioProcessingOptions;
+  var applyVoiceAudioProcessingOptionsCalls = 0;
 
   @override
   Future<void> close() async {
@@ -379,7 +382,10 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
   Future<Result<void>> connect({
     required String livekitUrl,
     required String accessToken,
+    required VoiceAudioProcessingOptions audioProcessingOptions,
   }) async {
+    lastAudioProcessingOptions = audioProcessingOptions;
+
     if (forceConnectError) {
       return Error<void>(
         RuntimeConnectionException(
@@ -401,6 +407,15 @@ class FakeVoiceRuntimeService implements MediaRuntimeService {
         RuntimeAudioChannel.livestream: true,
       });
     _currentDeafenedParticipantUserIds.clear();
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> applyVoiceAudioProcessingOptions({
+    required VoiceAudioProcessingOptions audioProcessingOptions,
+  }) async {
+    applyVoiceAudioProcessingOptionsCalls += 1;
+    lastAppliedAudioProcessingOptions = audioProcessingOptions;
     return const Ok<void>(null);
   }
 

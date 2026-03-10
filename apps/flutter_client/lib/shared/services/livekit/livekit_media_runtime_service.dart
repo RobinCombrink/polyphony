@@ -50,6 +50,7 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
   Future<Result<void>> connect({
     required String livekitUrl,
     required String accessToken,
+    required VoiceAudioProcessingOptions audioProcessingOptions,
   }) {
     return _enqueue(() async {
       try {
@@ -64,8 +65,9 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
           roomOptions: RoomOptions(
             adaptiveStream: true,
             dynacast: true,
-            defaultAudioCaptureOptions: AudioCaptureOptions(
-              deviceId: selectedAudioInputDeviceId,
+            defaultAudioCaptureOptions: _buildAudioCaptureOptions(
+              selectedAudioInputDeviceId: selectedAudioInputDeviceId,
+              audioProcessingOptions: audioProcessingOptions,
             ),
             defaultAudioOutputOptions: AudioOutputOptions(
               deviceId: selectedAudioOutputDeviceId,
@@ -138,6 +140,50 @@ class LivekitMediaRuntimeService implements MediaRuntimeService {
         );
       }
     });
+  }
+
+  @override
+  Future<Result<void>> applyVoiceAudioProcessingOptions({
+    required VoiceAudioProcessingOptions audioProcessingOptions,
+  }) {
+    return _enqueue(() async {
+      try {
+        final activeRoom = _room;
+        if (activeRoom == null) {
+          return const Ok<void>(null);
+        }
+
+        final localParticipant = activeRoom.localParticipant;
+        if (localParticipant == null) {
+          return const Ok<void>(null);
+        }
+
+        final selectedAudioInputDeviceId =
+            _audioDeviceRuntimeService.selectedAudioInputDeviceId();
+        await localParticipant.setMicrophoneEnabled(
+          !_runtimeState.isSelfMuted,
+          audioCaptureOptions: _buildAudioCaptureOptions(
+            selectedAudioInputDeviceId: selectedAudioInputDeviceId,
+            audioProcessingOptions: audioProcessingOptions,
+          ),
+        );
+
+        return const Ok<void>(null);
+      } on Exception {
+        return const Ok<void>(null);
+      }
+    });
+  }
+
+  AudioCaptureOptions _buildAudioCaptureOptions({
+    required String? selectedAudioInputDeviceId,
+    required VoiceAudioProcessingOptions audioProcessingOptions,
+  }) {
+    return AudioCaptureOptions(
+      deviceId: selectedAudioInputDeviceId,
+      echoCancellation: audioProcessingOptions.isEchoCancellationEnabled,
+      noiseSuppression: audioProcessingOptions.isNoiseSuppressionEnabled,
+    );
   }
 
   @override

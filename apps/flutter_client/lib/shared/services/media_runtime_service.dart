@@ -7,6 +7,16 @@ enum RuntimeAudioChannel {
   livestream,
 }
 
+final class VoiceAudioProcessingOptions {
+  const VoiceAudioProcessingOptions({
+    this.isEchoCancellationEnabled = true,
+    this.isNoiseSuppressionEnabled = true,
+  });
+
+  final bool isEchoCancellationEnabled;
+  final bool isNoiseSuppressionEnabled;
+}
+
 final class RuntimeAudioDevice {
   const RuntimeAudioDevice({
     required this.id,
@@ -60,6 +70,11 @@ abstract interface class MediaRuntimeService {
   Future<Result<void>> connect({
     required String livekitUrl,
     required String accessToken,
+    required VoiceAudioProcessingOptions audioProcessingOptions,
+  });
+
+  Future<Result<void>> applyVoiceAudioProcessingOptions({
+    required VoiceAudioProcessingOptions audioProcessingOptions,
   });
 
   Future<Result<void>> disconnect();

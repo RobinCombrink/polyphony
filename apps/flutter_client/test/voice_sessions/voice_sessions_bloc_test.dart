@@ -236,6 +236,16 @@ void main() {
             fixture.listedVoiceChannel.id,
           )
           .having(
+            (state) => state.isEchoCancellationEnabled,
+            "echo cancellation enabled",
+            true,
+          )
+          .having(
+            (state) => state.isNoiseSuppressionEnabled,
+            "noise suppression enabled",
+            true,
+          )
+          .having(
             (state) =>
                 state.participants.map((participant) => participant.userId),
             "participant user ids",
@@ -266,6 +276,129 @@ void main() {
         VoiceSessionsValidationIssue.channelSelectionRequired,
       ),
     ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "audio processing toggles update voice session state",
+    build: () => VoiceSessionsBloc(
+      voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+      voiceRuntimeService: FakeVoiceRuntimeService(),
+      profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+    ),
+    act: (bloc) => bloc
+      ..add(LoadVoiceSessionsRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      ))
+      ..add(const SetEchoCancellationEnabledRequested(enabled: false))
+      ..add(const SetNoiseSuppressionEnabledRequested(enabled: false)),
+    expect: () => <Matcher>[
+      isA<VoiceSessionsLoadedState>()
+          .having(
+            (state) => state.isEchoCancellationEnabled,
+            "echo cancellation enabled",
+            true,
+          )
+          .having(
+            (state) => state.isNoiseSuppressionEnabled,
+            "noise suppression enabled",
+            true,
+          ),
+      isA<VoiceSessionsLoadedState>()
+          .having(
+            (state) => state.isEchoCancellationEnabled,
+            "echo cancellation enabled",
+            false,
+          )
+          .having(
+            (state) => state.isNoiseSuppressionEnabled,
+            "noise suppression enabled",
+            true,
+          ),
+      isA<VoiceSessionsLoadedState>()
+          .having(
+            (state) => state.isEchoCancellationEnabled,
+            "echo cancellation enabled",
+            false,
+          )
+          .having(
+            (state) => state.isNoiseSuppressionEnabled,
+            "noise suppression enabled",
+            false,
+          ),
+    ],
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "connect applies selected audio processing options to runtime",
+    build: () {
+      speakingRuntimeService = FakeVoiceRuntimeService();
+
+      return VoiceSessionsBloc(
+        voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+        voiceRuntimeService: speakingRuntimeService,
+        profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+      );
+    },
+    act: (bloc) => bloc
+      ..add(LoadVoiceSessionsRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      ))
+      ..add(const SetEchoCancellationEnabledRequested(enabled: false))
+      ..add(const SetNoiseSuppressionEnabledRequested(enabled: false))
+      ..add(ConnectVoiceSessionRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      )),
+    verify: (_) {
+      expect(
+        speakingRuntimeService.lastAudioProcessingOptions,
+        isNotNull,
+      );
+      expect(
+        speakingRuntimeService
+            .lastAudioProcessingOptions!.isEchoCancellationEnabled,
+        isFalse,
+      );
+      expect(
+        speakingRuntimeService
+            .lastAudioProcessingOptions!.isNoiseSuppressionEnabled,
+        isFalse,
+      );
+    },
+  );
+
+  blocTest<VoiceSessionsBloc, VoiceSessionsState>(
+    "connected toggle changes apply audio processing immediately",
+    build: () {
+      speakingRuntimeService = FakeVoiceRuntimeService();
+
+      return VoiceSessionsBloc(
+        voiceSessionRepo: FakeVoiceSessionRepository(fixture: fixture),
+        voiceRuntimeService: speakingRuntimeService,
+        profileRepo: FakeProfileRepository(userId: fixture.ownerUserId),
+      );
+    },
+    act: (bloc) => bloc
+      ..add(LoadVoiceSessionsRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      ))
+      ..add(ConnectVoiceSessionRequested(
+        channelId: fixture.listedVoiceChannel.id,
+      ))
+      ..add(const SetEchoCancellationEnabledRequested(enabled: false))
+      ..add(const SetNoiseSuppressionEnabledRequested(enabled: false)),
+    verify: (_) {
+      expect(speakingRuntimeService.applyVoiceAudioProcessingOptionsCalls, 2);
+      expect(
+        speakingRuntimeService
+            .lastAppliedAudioProcessingOptions!.isEchoCancellationEnabled,
+        isFalse,
+      );
+      expect(
+        speakingRuntimeService
+            .lastAppliedAudioProcessingOptions!.isNoiseSuppressionEnabled,
+        isFalse,
+      );
+    },
   );
 
   blocTest<VoiceSessionsBloc, VoiceSessionsState>(

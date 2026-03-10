@@ -52,6 +52,10 @@ class VoiceQuickActionsOverlayWidget extends StatelessWidget {
                 final isSelfDeafened = loadedData?.isSelfDeafened ?? false;
                 final isSelfScreenShareEnabled =
                     loadedData?.isSelfScreenShareEnabled ?? false;
+                final isEchoCancellationEnabled =
+                    loadedData?.isEchoCancellationEnabled ?? true;
+                final isNoiseSuppressionEnabled =
+                    loadedData?.isNoiseSuppressionEnabled ?? true;
                 final lifecycleIssue =
                     loadedData is VoiceSessionsLifecycleIssueState
                         ? loadedData.issue
@@ -118,6 +122,8 @@ class VoiceQuickActionsOverlayWidget extends StatelessWidget {
                     isSelfMuted: isSelfMuted,
                     isSelfDeafened: isSelfDeafened,
                     isSelfScreenShareEnabled: isSelfScreenShareEnabled,
+                    isEchoCancellationEnabled: isEchoCancellationEnabled,
+                    isNoiseSuppressionEnabled: isNoiseSuppressionEnabled,
                   ),
                 );
               },
@@ -147,6 +153,8 @@ class _VoiceQuickActionsCard extends StatelessWidget {
     required this.isSelfMuted,
     required this.isSelfDeafened,
     required this.isSelfScreenShareEnabled,
+    required this.isEchoCancellationEnabled,
+    required this.isNoiseSuppressionEnabled,
   });
 
   final String? connectedChannelId;
@@ -156,6 +164,8 @@ class _VoiceQuickActionsCard extends StatelessWidget {
   final bool isSelfMuted;
   final bool isSelfDeafened;
   final bool isSelfScreenShareEnabled;
+  final bool isEchoCancellationEnabled;
+  final bool isNoiseSuppressionEnabled;
 
   Future<void> _onToggleScreenSharePressed(BuildContext context) async {
     try {
@@ -337,6 +347,36 @@ class _VoiceQuickActionsCard extends StatelessWidget {
                       isSelfScreenShareEnabled
                           ? Icons.stop_screen_share
                           : Icons.screen_share,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => context.read<VoiceSessionsBloc>().add(
+                          SetEchoCancellationEnabledRequested(
+                            enabled: !isEchoCancellationEnabled,
+                          ),
+                        ),
+                    tooltip: isEchoCancellationEnabled
+                        ? "Disable echo cancellation"
+                        : "Enable echo cancellation",
+                    icon: Icon(
+                      isEchoCancellationEnabled
+                          ? Icons.hearing
+                          : Icons.hearing_disabled,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => context.read<VoiceSessionsBloc>().add(
+                          SetNoiseSuppressionEnabledRequested(
+                            enabled: !isNoiseSuppressionEnabled,
+                          ),
+                        ),
+                    tooltip: isNoiseSuppressionEnabled
+                        ? "Disable noise suppression"
+                        : "Enable noise suppression",
+                    icon: Icon(
+                      isNoiseSuppressionEnabled
+                          ? Icons.noise_aware
+                          : Icons.surround_sound,
                     ),
                   ),
                 ],
