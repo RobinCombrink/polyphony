@@ -310,6 +310,65 @@ pub(crate) async fn add_server_member_with_raw_user_id(
         .expect("add server member response from app")
 }
 
+pub(crate) async fn invite_friend_to_server_with_token(
+    app: &axum::Router,
+    server_id: &ServerId,
+    friend_user_id: &UserId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/servers/{server_id}/invite/friends/{friend_user_id}"
+                ))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("invite friend to server request to be valid"),
+        )
+        .await
+        .expect("invite friend to server response from app")
+}
+
+pub(crate) async fn send_friend_request_with_token(
+    app: &axum::Router,
+    addressee_user_id: &UserId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/friends/requests/{addressee_user_id}"))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("send friend request request to be valid"),
+        )
+        .await
+        .expect("send friend request response from app")
+}
+
+pub(crate) async fn accept_friend_request_with_token(
+    app: &axum::Router,
+    friend_request_id: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/friends/requests/{friend_request_id}/accept"
+                ))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("accept friend request request to be valid"),
+        )
+        .await
+        .expect("accept friend request response from app")
+}
+
 pub(crate) async fn delete_server(
     app: &axum::Router,
     server_id: &ServerId,

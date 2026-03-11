@@ -111,3 +111,19 @@ Feature: Servers and channels
       When "Noah" deletes channel "general"
       Then the delete is denied
 
+  Rule: Friend-only invite flow controls server invitations
+    Scenario: Server owner can invite a friend to server
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And "Olivia" and "Noah" are friends
+      And "Olivia" owns server "Test"
+      When "Olivia" invites friend "Noah" to server "Test"
+      Then the server membership is created successfully
+
+    Scenario: Server owner cannot invite a non-friend to server
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And "Olivia" owns server "Test"
+      When "Olivia" invites friend "Noah" to server "Test"
+      Then inviting a friend is denied because they are not friends
+

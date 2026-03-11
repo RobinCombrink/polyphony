@@ -8,12 +8,14 @@ use common::{
     bdd_support::{
         Actor, ChannelId, ServerId, SharedTestStore, UserId, add_server_member,
         add_server_member_with_raw_user_id, add_server_member_with_token, create_actor,
-        create_channel, create_channel_with_token, create_server, create_server_with_token,
-        default_shared_store, delete_channel, delete_channel_with_token, delete_server,
-        delete_server_with_token, fresh_shared_store, list_channels, list_channels_with_token,
-        list_servers, list_servers_with_token, payload_channel_id, payload_server_id,
-        payload_user_id, prime_feature_test_store, response_payload_json, seeded_app_with_store,
-        shutdown_feature_test_store, update_channel, update_channel_with_token,
+        accept_friend_request_with_token, create_channel, create_channel_with_token,
+        create_server, create_server_with_token, default_shared_store, delete_channel,
+        delete_channel_with_token, delete_server, delete_server_with_token, fresh_shared_store,
+        invite_friend_to_server_with_token, list_channels, list_channels_with_token, list_servers,
+        list_servers_with_token, payload_channel_id, payload_server_id, payload_user_id,
+        prime_feature_test_store, response_payload_json, seeded_app_with_store,
+        send_friend_request_with_token, shutdown_feature_test_store, update_channel,
+        update_channel_with_token,
     },
     entity_seeder::EntitySeeder,
 };
@@ -254,6 +256,37 @@ async fn named_user_adds_named_user_to_named_server(
     named_user_adds_named_user_to_the_server(world, owner_name, member_name).await;
 }
 
+#[given(regex = r#"^"([^"]+)" and "([^"]+)" are friends$"#)]
+async fn named_users_are_friends(
+    world: &mut ServersAndChannelsWorld,
+    requester_name: String,
+    addressee_name: String,
+) {
+    let requester = world.actor_ref(&requester_name);
+    let addressee = world.actor_ref(&addressee_name);
+
+    let response = send_friend_request_with_token(
+        &requester.app,
+        &addressee.user_id,
+        requester.token.as_str(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let payload = response_payload_json(response).await;
+    let friend_request_id = payload["id"]
+        .as_str()
+        .expect("friend request id in payload")
+        .to_owned();
+
+    let response = accept_friend_request_with_token(
+        &addressee.app,
+        &friend_request_id,
+        addressee.token.as_str(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
 async fn the_user_already_owns_a_server(world: &mut ServersAndChannelsWorld) {
     world.ensure_owner_server().await;
 }
@@ -430,6 +463,36 @@ async fn the_server_owner_updates_the_channel_name(world: &mut ServersAndChannel
     world.updated_channel_name = Some(updated_name);
     world.latest_status = Some(response.status());
     world.latest_payload = None;
+}
+
+#[when(regex = r#"^"([^"]+)" invites friend "([^"]+)" to server "([^"]+)"$"#)]
+async fn named_user_invites_friend_to_server_named(
+    world: &mut ServersAndChannelsWorld,
+    owner_name: String,
+    friend_name: String,
+    _server_name: String,
+) {
+    world.assert_owner_name(&owner_name);
+    world.assert_second_name(&friend_name);
+    world.ensure_owner_server().await;
+
+    let owner = world.owner_actor_ref();
+    let friend = world.second_actor_ref();
+
+    let response = invite_friend_to_server_with_token(
+        &owner.app,
+        world.server_id_ref(),
+        &friend.user_id,
+        owner.token.as_str(),
+    )
+    .await;
+
+    world.latest_status = Some(response.status());
+    world.latest_payload = if response.status() == StatusCode::CREATED {
+        Some(response_payload_json(response).await)
+    } else {
+        None
+    };
 }
 
 #[when("the non-owner attempts to update the channel name")]
@@ -764,6 +827,13 @@ async fn channel_listing_is_denied(world: &mut ServersAndChannelsWorld) {
 
 #[then("adding a member is denied")]
 async fn adding_a_member_is_denied(world: &mut ServersAndChannelsWorld) {
+    assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
+}
+
+#[then("inviting a friend is denied because they are not friends")]
+async fn inviting_a_friend_is_denied_because_they_are_not_friends(
+    world: &mut ServersAndChannelsWorld,
+) {
     assert_eq!(world.latest_status(), StatusCode::FORBIDDEN);
 }
 

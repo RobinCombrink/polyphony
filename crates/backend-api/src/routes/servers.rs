@@ -6,7 +6,8 @@ use axum::{
 };
 use backend_domain::{Channel, ChannelId, Membership, Server, ServerId};
 use backend_storage::{
-    ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
+    ChannelRepository, FriendRepository, MessageRepository, MutationResult, ServerRepository,
+    UserRepository,
 };
 
 use crate::{
@@ -151,6 +152,69 @@ where
             StatusCode::CREATED,
             Json(Membership {
                 user_id: request.user_id,
+                server_id,
+            }),
+        )
+            .into_response(),
+        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
+        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
+        MutationResult::Deleted => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/servers/{server_id}/invite/friends/{friend_user_id}",
+    responses(
+        (status = 201, description = "Friend invited to server", body = Membership),
+        (status = 403, description = "Only server owner can invite members or users are not friends"),
+        (status = 404, description = "Server or user not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(
+        ("server_id" = ServerId, Path, description = "Server id"),
+        ("friend_user_id" = backend_domain::UserId, Path, description = "Friend user id")
+    ),
+    tag = "backend-api"
+)]
+pub(crate) async fn invite_friend_to_server<
+    UserRepo,
+    ServerRepo,
+    ChannelRepo,
+    MessageRepo,
+    Verifier,
+>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
+    authenticated_user: AuthenticatedUser,
+    Path((server_id, friend_user_id)): Path<(ServerId, backend_domain::UserId)>,
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository + FriendRepository,
+    Verifier: TokenVerifier,
+{
+    let are_friends = state
+        .message_repository
+        .are_friends(authenticated_user.user_id, friend_user_id)
+        .await;
+
+    if !are_friends {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+
+    let mutation_result = state
+        .server_repository
+        .add_server_member(server_id, authenticated_user.user_id, friend_user_id)
+        .await;
+
+    match mutation_result {
+        MutationResult::Updated => (
+            StatusCode::CREATED,
+            Json(Membership {
+                user_id: friend_user_id,
                 server_id,
             }),
         )
