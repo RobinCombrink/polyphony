@@ -283,6 +283,133 @@ where
     }
 }
 
+pub(crate) async fn send_friend_request_from_server_context<
+    UserRepo,
+    ServerRepo,
+    ChannelRepo,
+    MessageRepo,
+    Verifier,
+>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
+    authenticated_user: AuthenticatedUser,
+    Path((server_id, user_id)): Path<(backend_domain::ServerId, UserId)>,
+) -> impl IntoResponse
+where
+    UserRepo: backend_storage::UserRepository + Send + Sync + 'static,
+    ServerRepo: backend_storage::ServerRepository + Send + Sync + 'static,
+    ChannelRepo: backend_storage::ChannelRepository + Send + Sync + 'static,
+    MessageRepo: backend_storage::MessageRepository
+        + backend_storage::NotificationRepository
+        + FriendRepository
+        + BlockRepository
+        + DirectMessageRepository
+        + Send
+        + Sync
+        + 'static,
+    Verifier: TokenVerifier + Send + Sync + 'static,
+{
+    let requester_is_member = match state
+        .server_repository
+        .is_server_member(server_id, authenticated_user.user_id)
+        .await
+    {
+        Some(value) => value,
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(ApiErrorResponse::new("NOT_FOUND", "server was not found")),
+            )
+                .into_response();
+        }
+    };
+
+    let addressee_is_member = match state
+        .server_repository
+        .is_server_member(server_id, user_id)
+        .await
+    {
+        Some(value) => value,
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(ApiErrorResponse::new("NOT_FOUND", "server was not found")),
+            )
+                .into_response();
+        }
+    };
+
+    if !requester_is_member || !addressee_is_member {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(ApiErrorResponse::new(
+                "FORBIDDEN",
+                "friend request is denied because users do not share this server",
+            )),
+        )
+            .into_response();
+    }
+
+    match state
+        .message_repository
+        .send_friend_request(authenticated_user.user_id, user_id)
+        .await
+    {
+        SendFriendRequestResult::Created(friend_request) => {
+            state.notification_hub.publish(NotificationEnvelope {
+                recipient_user_id: friend_request.addressee_user_id,
+                event: NotificationEvent::friend_request_received(
+                    friend_request.id,
+                    friend_request.requester_user_id,
+                    friend_request.addressee_user_id,
+                ),
+            });
+
+            (
+                StatusCode::CREATED,
+                Json(FriendRequestResponse::from(friend_request)),
+            )
+                .into_response()
+        }
+        SendFriendRequestResult::AlreadyFriends => (
+            StatusCode::CONFLICT,
+            Json(ApiErrorResponse::new(
+                "ALREADY_FRIENDS",
+                "users are already friends",
+            )),
+        )
+            .into_response(),
+        SendFriendRequestResult::AlreadyPending => (
+            StatusCode::CONFLICT,
+            Json(ApiErrorResponse::new(
+                "ALREADY_PENDING",
+                "friend request is already pending",
+            )),
+        )
+            .into_response(),
+        SendFriendRequestResult::Blocked => (
+            StatusCode::FORBIDDEN,
+            Json(ApiErrorResponse::new(
+                "USERS_BLOCKED",
+                "friend request is denied due to blocked relationship",
+            )),
+        )
+            .into_response(),
+        SendFriendRequestResult::Forbidden => (
+            StatusCode::FORBIDDEN,
+            Json(ApiErrorResponse::new("FORBIDDEN", "operation is forbidden")),
+        )
+            .into_response(),
+        SendFriendRequestResult::NotFound => (
+            StatusCode::NOT_FOUND,
+            Json(ApiErrorResponse::new(
+                "NOT_FOUND",
+                "target user was not found",
+            )),
+        )
+            .into_response(),
+    }
+}
+
 pub(crate) async fn accept_friend_request<
     UserRepo,
     ServerRepo,

@@ -24,9 +24,10 @@ use openapi::ApiDocumentation;
 use routes::{
     friends_and_dms::{
         accept_friend_request, block_user, cancel_friend_request, decline_friend_request,
-        list_blocked_users, list_direct_messages, list_direct_message_threads, list_friends,
-        list_incoming_friend_requests, list_outgoing_friend_requests, open_or_get_direct_message_thread,
-        search_direct_messages, send_direct_message, send_friend_request, unblock_user,
+        list_blocked_users, list_direct_message_threads, list_direct_messages, list_friends,
+        list_incoming_friend_requests, list_outgoing_friend_requests,
+        open_or_get_direct_message_thread, search_direct_messages, send_direct_message,
+        send_friend_request, send_friend_request_from_server_context, unblock_user,
     },
     health::health,
     me::{me, update_me},
@@ -40,8 +41,7 @@ use routes::{
     },
     servers::{
         add_server_member, create_channel, create_server, delete_channel, delete_server,
-        invite_friend_to_server, list_channels, list_server_members, list_servers,
-        update_channel,
+        invite_friend_to_server, list_channels, list_server_members, list_servers, update_channel,
     },
     users::get_user_by_id,
     voice::create_session,
@@ -240,6 +240,10 @@ where
             post(send_friend_request),
         )
         .route(
+            "/api/v1/servers/{server_id}/friends/requests/{user_id}",
+            post(send_friend_request_from_server_context),
+        )
+        .route(
             "/api/v1/friends/requests/{friend_request_id}/accept",
             post(accept_friend_request),
         )
@@ -252,7 +256,10 @@ where
             post(cancel_friend_request),
         )
         .route("/api/v1/blocks", get(list_blocked_users))
-        .route("/api/v1/blocks/{user_id}", post(block_user).delete(unblock_user))
+        .route(
+            "/api/v1/blocks/{user_id}",
+            post(block_user).delete(unblock_user),
+        )
         .route("/api/v1/dms/threads", get(list_direct_message_threads))
         .route(
             "/api/v1/dms/threads/{user_id}",

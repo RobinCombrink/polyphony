@@ -102,6 +102,28 @@ async fn send_friend_request(
         .expect("send friend request response from app")
 }
 
+async fn send_friend_request_from_server_context(
+    actor: &Actor,
+    server_id: backend_api::domain::ServerId,
+    target_user_id: backend_api::domain::UserId,
+) -> axum::response::Response {
+    actor
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/servers/{server_id}/friends/requests/{target_user_id}"
+                ))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {}", actor.token))
+                .body(Body::empty())
+                .expect("send friend request from server context request to be valid"),
+        )
+        .await
+        .expect("send friend request from server context response from app")
+}
+
 async fn list_friends(actor: &Actor) -> axum::response::Response {
     actor
         .app
@@ -640,7 +662,37 @@ async fn named_user_sends_friend_request_to_named_user_from_server(
     addressee_name: String,
     _server_name: String,
 ) {
-    named_user_sends_friend_request_to_named_user(world, requester_name, addressee_name).await;
+    let requester = world.actor_ref(&requester_name);
+    let addressee = world.actor_ref(&addressee_name);
+
+    let server_payload = world
+        .latest_payload
+        .as_ref()
+        .expect("latest payload with server id to be set");
+    let server_id = payload_server_id(server_payload, "id");
+
+    let response =
+        send_friend_request_from_server_context(requester, server_id, addressee.user_id).await;
+    world.latest_status = Some(response.status());
+    world.latest_payload = Some(response_payload_json(response).await);
+
+    if world.latest_status_ref() == StatusCode::CREATED {
+        let friend_request_id = world.latest_payload.as_ref().expect("latest payload")["id"]
+            .as_str()
+            .expect("friend request id to be present")
+            .to_owned();
+        world.friend_request_ids_by_pair.insert(
+            FriendsAndDirectMessagesWorld::ordered_pair(&requester_name, &addressee_name),
+            friend_request_id,
+        );
+    }
+}
+
+#[then("friend request from server context is denied because users do not share that server")]
+async fn friend_request_from_server_context_is_denied_because_users_do_not_share_that_server(
+    world: &mut FriendsAndDirectMessagesWorld,
+) {
+    assert_eq!(world.latest_status_ref(), StatusCode::FORBIDDEN);
 }
 
 #[then(regex = r#"^"([^"]+)" is included in the friend list for "([^"]+)"$"#)]

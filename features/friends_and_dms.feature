@@ -114,3 +114,10 @@ Feature: Friends, direct messaging, and safety controls
       And "Olivia" adds "Noah" to server "Test"
       When "Noah" sends a friend request to "Olivia" from server "Test"
       Then "Olivia" has a pending friend request from "Noah"
+
+    Scenario: User cannot send a friend request from server context without shared membership
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And a server named "Test" owned by "Olivia" exists
+      When "Noah" sends a friend request to "Olivia" from server "Test"
+      Then friend request from server context is denied because users do not share that server
