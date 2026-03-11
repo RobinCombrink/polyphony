@@ -113,6 +113,7 @@ impl NotificationEvent {
             addressee_user_id,
         }
     }
+
 }
 
 #[derive(Clone, Debug)]

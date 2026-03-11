@@ -26,6 +26,7 @@ Feature: Friends, direct messaging, and safety controls
       And "Olivia" sent a friend request to "Noah"
       When "Olivia" cancels the friend request to "Noah"
       Then "Noah" has no pending friend request from "Olivia"
+      And "Olivia" has no outgoing friend request to "Noah"
 
     Scenario: Friend request notifications are emitted once per transition
       Given a user named "Olivia" exists
@@ -34,6 +35,22 @@ Feature: Friends, direct messaging, and safety controls
       And "Noah" accepts the friend request from "Olivia"
       Then "Noah" receives one friend request notification from "Olivia"
       And "Olivia" receives one friend request accepted notification from "Noah"
+
+    Scenario: Declining removes the pending friend request without notifications
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And "Olivia" sent a friend request to "Noah"
+      When "Noah" declines the friend request from "Olivia"
+      Then "Noah" has no pending friend request from "Olivia"
+      And "Olivia" has no outgoing friend request to "Noah"
+
+    Scenario: Cancelling removes the pending friend request without notifications
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And "Olivia" sent a friend request to "Noah"
+      When "Olivia" cancels the friend request to "Noah"
+      Then "Noah" has no pending friend request from "Olivia"
+      And "Olivia" has no outgoing friend request to "Noah"
 
   Rule: Direct messaging requires an active friendship
     Scenario: Friends can open and reuse a direct message thread

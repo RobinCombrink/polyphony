@@ -585,6 +585,64 @@ async fn named_user_accepts_the_friend_request_from_named_user(
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
+#[when(regex = r#"^"([^"]+)" declines the friend request from "([^"]+)"$"#)]
+async fn named_user_declines_the_friend_request_from_named_user(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    requester_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let friend_request_id = world.friend_request_id_for_pair(&actor_name, &requester_name);
+
+    let response = actor
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/friends/requests/{friend_request_id}/decline"
+                ))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {}", actor.token))
+                .body(Body::empty())
+                .expect("decline friend request request to be valid"),
+        )
+        .await
+        .expect("decline friend request response from app");
+
+    world.latest_status = Some(response.status());
+    world.latest_payload = Some(response_payload_json(response).await);
+}
+
+#[when(regex = r#"^"([^"]+)" cancels the friend request to "([^"]+)"$"#)]
+async fn named_user_cancels_the_friend_request_to_named_user(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    addressee_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let friend_request_id = world.friend_request_id_for_pair(&actor_name, &addressee_name);
+
+    let response = actor
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/friends/requests/{friend_request_id}/cancel"
+                ))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {}", actor.token))
+                .body(Body::empty())
+                .expect("cancel friend request request to be valid"),
+        )
+        .await
+        .expect("cancel friend request response from app");
+
+    world.latest_status = Some(response.status());
+    world.latest_payload = Some(response_payload_json(response).await);
+}
+
 #[when(regex = r#"^"([^"]+)" posts a plain message in channel "([^"]+)"$"#)]
 async fn named_user_posts_a_plain_message_in_channel_named(
     world: &mut NotificationsWorld,

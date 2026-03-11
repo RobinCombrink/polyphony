@@ -16,7 +16,10 @@ use strum::{AsRefStr, Display, EnumString};
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[sqlx(type_name = "friend_notification_event_type", rename_all = "snake_case")]
+#[sqlx(
+    type_name = "friend_notification_event_type",
+    rename_all = "snake_case"
+)]
 pub enum FriendNotificationEventType {
     FriendRequestReceived,
     FriendRequestAccepted,

@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
 use backend_domain::{
-    BlockRelationship, Channel, ChannelId, ChannelType, DisplayName, DirectMessage, DirectMessageThread,
-    DirectMessageThreadId, ExternalReference, FriendNotificationEventType, FriendRequest,
-    FriendRequestId, FriendRequestState, Friendship, FriendshipId, Membership, Message, MessageId,
-    NotificationCategoryPreference, NotificationEventType, NotificationMuteState, Server,
-    ServerId, User, UserId,
+    BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
+    DirectMessageThreadId, DisplayName, ExternalReference, FriendNotificationEventType,
+    FriendRequest, FriendRequestId, FriendRequestState, Friendship, FriendshipId, Membership,
+    Message, MessageId, NotificationCategoryPreference, NotificationEventType,
+    NotificationMuteState, Server, ServerId, User, UserId,
 };
 use uuid::Uuid;
 
@@ -40,7 +40,8 @@ pub(crate) struct InMemoryStore {
     pub(crate) friendships_by_id: HashMap<FriendshipId, Friendship>,
     pub(crate) blocks_by_user_pair: HashMap<(UserId, UserId), BlockRelationship>,
     pub(crate) direct_message_threads_by_id: HashMap<DirectMessageThreadId, DirectMessageThread>,
-    pub(crate) direct_message_thread_id_by_user_pair: HashMap<(UserId, UserId), DirectMessageThreadId>,
+    pub(crate) direct_message_thread_id_by_user_pair:
+        HashMap<(UserId, UserId), DirectMessageThreadId>,
     pub(crate) direct_messages_by_thread_id: HashMap<DirectMessageThreadId, Vec<DirectMessage>>,
 }
 
@@ -722,7 +723,8 @@ impl InMemoryStore {
         friend_request_id: FriendRequestId,
         state: FriendRequestState,
     ) -> crate::UpdateFriendRequestResult {
-        let Some(existing_request) = self.friend_requests_by_id.get_mut(&friend_request_id) else {
+        let Some(existing_request) = self.friend_requests_by_id.get(&friend_request_id).cloned()
+        else {
             return crate::UpdateFriendRequestResult::NotFound;
         };
 
@@ -744,12 +746,29 @@ impl InMemoryStore {
             FriendRequestState::Pending => return crate::UpdateFriendRequestResult::InvalidState,
         }
 
-        existing_request.state = state;
         let requester_user_id = existing_request.requester_user_id;
         let addressee_user_id = existing_request.addressee_user_id;
+
+        if state == FriendRequestState::Declined || state == FriendRequestState::Cancelled {
+            self.friend_requests_by_id.remove(&friend_request_id);
+
+            return crate::UpdateFriendRequestResult::Updated(FriendRequest {
+                id: friend_request_id,
+                requester_user_id,
+                addressee_user_id,
+                state,
+            });
+        }
+
+        let Some(existing_request) = self.friend_requests_by_id.get_mut(&friend_request_id) else {
+            return crate::UpdateFriendRequestResult::NotFound;
+        };
+        existing_request.state = state;
         let updated_request = existing_request.clone();
 
-        if state == FriendRequestState::Accepted && !self.are_friends(requester_user_id, addressee_user_id) {
+        if state == FriendRequestState::Accepted
+            && !self.are_friends(requester_user_id, addressee_user_id)
+        {
             let friendship = Friendship {
                 id: Uuid::new_v4().into(),
                 user_a_id: requester_user_id,
@@ -776,7 +795,10 @@ impl InMemoryStore {
             .collect::<Vec<_>>()
     }
 
-    pub(crate) fn list_pending_incoming_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest> {
+    pub(crate) fn list_pending_incoming_friend_requests(
+        &self,
+        user_id: UserId,
+    ) -> Vec<FriendRequest> {
         self.friend_requests_by_id
             .values()
             .filter(|request| {
@@ -786,7 +808,10 @@ impl InMemoryStore {
             .collect::<Vec<_>>()
     }
 
-    pub(crate) fn list_pending_outgoing_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest> {
+    pub(crate) fn list_pending_outgoing_friend_requests(
+        &self,
+        user_id: UserId,
+    ) -> Vec<FriendRequest> {
         self.friend_requests_by_id
             .values()
             .filter(|request| {
@@ -886,7 +911,9 @@ impl InMemoryStore {
             return crate::OpenOrGetDirectMessageThreadResult::Forbidden;
         }
 
-        if self.find_user_by_id(actor_user_id).is_none() || self.find_user_by_id(other_user_id).is_none() {
+        if self.find_user_by_id(actor_user_id).is_none()
+            || self.find_user_by_id(other_user_id).is_none()
+        {
             return crate::OpenOrGetDirectMessageThreadResult::NotFound;
         }
 
@@ -899,7 +926,11 @@ impl InMemoryStore {
         }
 
         let ordered_pair = Self::ordered_user_pair(actor_user_id, other_user_id);
-        if let Some(thread_id) = self.direct_message_thread_id_by_user_pair.get(&ordered_pair).copied() {
+        if let Some(thread_id) = self
+            .direct_message_thread_id_by_user_pair
+            .get(&ordered_pair)
+            .copied()
+        {
             let existing_thread = self
                 .direct_message_threads_by_id
                 .get(&thread_id)
@@ -913,15 +944,22 @@ impl InMemoryStore {
             participant_a_user_id: ordered_pair.0,
             participant_b_user_id: ordered_pair.1,
         };
-        self.direct_message_thread_id_by_user_pair.insert(ordered_pair, thread.id);
-        self.direct_message_threads_by_id.insert(thread.id, thread.clone());
+        self.direct_message_thread_id_by_user_pair
+            .insert(ordered_pair, thread.id);
+        self.direct_message_threads_by_id
+            .insert(thread.id, thread.clone());
         crate::OpenOrGetDirectMessageThreadResult::Opened(thread)
     }
 
-    pub(crate) fn list_direct_message_threads_for_user(&self, user_id: UserId) -> Vec<DirectMessageThread> {
+    pub(crate) fn list_direct_message_threads_for_user(
+        &self,
+        user_id: UserId,
+    ) -> Vec<DirectMessageThread> {
         self.direct_message_threads_by_id
             .values()
-            .filter(|thread| thread.participant_a_user_id == user_id || thread.participant_b_user_id == user_id)
+            .filter(|thread| {
+                thread.participant_a_user_id == user_id || thread.participant_b_user_id == user_id
+            })
             .cloned()
             .collect::<Vec<_>>()
     }
@@ -936,7 +974,9 @@ impl InMemoryStore {
             return crate::SendDirectMessageResult::NotFound;
         };
 
-        if thread.participant_a_user_id != actor_user_id && thread.participant_b_user_id != actor_user_id {
+        if thread.participant_a_user_id != actor_user_id
+            && thread.participant_b_user_id != actor_user_id
+        {
             return crate::SendDirectMessageResult::Forbidden;
         }
 
@@ -974,7 +1014,9 @@ impl InMemoryStore {
         thread_id: DirectMessageThreadId,
     ) -> Option<Vec<DirectMessage>> {
         let thread = self.direct_message_threads_by_id.get(&thread_id)?;
-        if thread.participant_a_user_id != actor_user_id && thread.participant_b_user_id != actor_user_id {
+        if thread.participant_a_user_id != actor_user_id
+            && thread.participant_b_user_id != actor_user_id
+        {
             return None;
         }
 
@@ -1001,7 +1043,11 @@ impl InMemoryStore {
         }
 
         let ordered_pair = Self::ordered_user_pair(actor_user_id, other_user_id);
-        let Some(thread_id) = self.direct_message_thread_id_by_user_pair.get(&ordered_pair).copied() else {
+        let Some(thread_id) = self
+            .direct_message_thread_id_by_user_pair
+            .get(&ordered_pair)
+            .copied()
+        else {
             return Some(Vec::new());
         };
 

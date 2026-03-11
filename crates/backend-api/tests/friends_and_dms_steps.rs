@@ -132,6 +132,21 @@ async fn list_incoming_friend_requests(actor: &Actor) -> axum::response::Respons
         .expect("list incoming friend requests response from app")
 }
 
+async fn list_outgoing_friend_requests(actor: &Actor) -> axum::response::Response {
+    actor
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/friends/requests/outgoing")
+                .header(header::AUTHORIZATION, format!("Bearer {}", actor.token))
+                .body(Body::empty())
+                .expect("list outgoing friend requests request to be valid"),
+        )
+        .await
+        .expect("list outgoing friend requests response from app")
+}
+
 async fn set_friend_request_state(
     actor: &Actor,
     friend_request_id: &str,
@@ -501,6 +516,15 @@ async fn named_user_cancels_the_friend_request_to_named_user(
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
+#[given(regex = r#"^"([^"]+)" cancels the friend request to "([^"]+)"$"#)]
+async fn named_user_cancels_the_friend_request_to_named_user_given(
+    world: &mut FriendsAndDirectMessagesWorld,
+    actor_name: String,
+    addressee_name: String,
+) {
+    named_user_cancels_the_friend_request_to_named_user(world, actor_name, addressee_name).await;
+}
+
 #[when(regex = r#"^"([^"]+)" opens a direct message thread with "([^"]+)"$"#)]
 async fn named_user_opens_direct_message_thread_with_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
@@ -677,6 +701,27 @@ async fn named_user_has_no_pending_friend_request_from_named_user(
         .expect("incoming requests payload to be array");
     assert!(!list.iter().any(|entry| {
         entry["requester_user_id"].as_str() == Some(&requester.user_id.to_string())
+    }));
+}
+
+#[then(regex = r#"^"([^"]+)" has no outgoing friend request to "([^"]+)"$"#)]
+async fn named_user_has_no_outgoing_friend_request_to_named_user(
+    world: &mut FriendsAndDirectMessagesWorld,
+    requester_name: String,
+    addressee_name: String,
+) {
+    let requester = world.actor_ref(&requester_name);
+    let addressee = world.actor_ref(&addressee_name);
+
+    let response = list_outgoing_friend_requests(requester).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = response_payload_json(response).await;
+
+    let list = payload
+        .as_array()
+        .expect("outgoing requests payload to be array");
+    assert!(!list.iter().any(|entry| {
+        entry["addressee_user_id"].as_str() == Some(&addressee.user_id.to_string())
     }));
 }
 

@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
     DirectMessageThreadId, DisplayName, ExternalReference, FriendNotificationEventType,
-    FriendRequest, FriendRequestId, FriendRequestState, Friendship, Membership, Message,
-    MessageId, NotificationCategoryPreference, NotificationEventType, NotificationMuteState,
-    Server, ServerId, User, UserId,
+    FriendRequest, FriendRequestId, FriendRequestState, Friendship, Membership, Message, MessageId,
+    NotificationCategoryPreference, NotificationEventType, NotificationMuteState, Server, ServerId,
+    User, UserId,
 };
 use sqlx::migrate::Migrator;
 use sqlx::{
@@ -1681,6 +1681,31 @@ impl FriendRepository for PostgresRepository {
                 }
             }
             FriendRequestState::Pending => return UpdateFriendRequestResult::InvalidState,
+        }
+
+        if state == FriendRequestState::Declined || state == FriendRequestState::Cancelled {
+            let deleted = sqlx::query(
+                "DELETE FROM friend_requests
+                 WHERE id = $1",
+            )
+            .bind(friend_request_id)
+            .execute(&self.pool)
+            .await;
+
+            let Ok(deleted_result) = deleted else {
+                return UpdateFriendRequestResult::NotFound;
+            };
+
+            if deleted_result.rows_affected() == 0 {
+                return UpdateFriendRequestResult::NotFound;
+            }
+
+            return UpdateFriendRequestResult::Updated(FriendRequest {
+                id: friend_request_id.into(),
+                requester_user_id: requester_user_id.into(),
+                addressee_user_id: addressee_user_id.into(),
+                state,
+            });
         }
 
         let updated = sqlx::query_as::<_, FriendRequestRow>(
