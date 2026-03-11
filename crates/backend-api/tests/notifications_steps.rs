@@ -5,7 +5,8 @@ use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::http::StatusCode;
+use axum::body::Body;
+use axum::http::{Request, StatusCode, header};
 use backend_api::notification_hub::NotificationHub;
 use common::bdd_support::{
     Actor, ChannelId, MessageId, NotificationCategoryPreference, NotificationMuteState, ServerId,
@@ -32,6 +33,7 @@ use tokio::sync::oneshot;
 use tokio_tungstenite::MaybeTlsStream;
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tower::ServiceExt;
 
 const FEATURE_PATH: &str = "../../features/notifications.feature";
 
@@ -62,6 +64,7 @@ struct NotificationsWorld {
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
     latest_message_id: Option<MessageId>,
+    friend_request_ids_by_pair: HashMap<(String, String), String>,
     outbox_totals_before_post_by_actor: HashMap<String, u64>,
     active_ws_connection: Option<WsConnection>,
 }
@@ -80,6 +83,7 @@ impl Default for NotificationsWorld {
             latest_status: None,
             latest_payload: None,
             latest_message_id: None,
+            friend_request_ids_by_pair: HashMap::new(),
             outbox_totals_before_post_by_actor: HashMap::new(),
             active_ws_connection: None,
         }
@@ -87,6 +91,23 @@ impl Default for NotificationsWorld {
 }
 
 impl NotificationsWorld {
+    fn ordered_actor_pair(first: &str, second: &str) -> (String, String) {
+        if first <= second {
+            (first.to_owned(), second.to_owned())
+        } else {
+            (second.to_owned(), first.to_owned())
+        }
+    }
+
+    fn friend_request_id_for_pair(&self, first: &str, second: &str) -> String {
+        self.friend_request_ids_by_pair
+            .get(&Self::ordered_actor_pair(first, second))
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!("friend request id for pair {first}-{second} to be initialized")
+            })
+    }
+
     fn actor_ref(&self, name: &str) -> &Actor {
         self.actors
             .get(name)
@@ -482,6 +503,86 @@ async fn named_user_posts_a_message_in_channel_named(
         *world.channel_id_by_name_ref(&channel_name),
     )
     .await;
+}
+
+#[when(regex = r#"^"([^"]+)" sends a friend request to "([^"]+)"$"#)]
+async fn named_user_sends_friend_request_to_named_user(
+    world: &mut NotificationsWorld,
+    requester_name: String,
+    addressee_name: String,
+) {
+    let requester = world.actor_ref(&requester_name);
+    let addressee = world.actor_ref(&addressee_name);
+
+    let response = requester
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/friends/requests/{}", addressee.user_id))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {}", requester.token))
+                .body(Body::empty())
+                .expect("send friend request request to be valid"),
+        )
+        .await
+        .expect("send friend request response from app");
+
+    world.latest_status = Some(response.status());
+    world.latest_payload = Some(response_payload_json(response).await);
+
+    if world.latest_status() == StatusCode::CREATED {
+        let friend_request_id = world
+            .latest_payload
+            .as_ref()
+            .and_then(|payload| payload["id"].as_str())
+            .expect("friend request id in payload")
+            .to_owned();
+
+        world.friend_request_ids_by_pair.insert(
+            NotificationsWorld::ordered_actor_pair(&requester_name, &addressee_name),
+            friend_request_id,
+        );
+    }
+}
+
+#[given(regex = r#"^"([^"]+)" sent a friend request to "([^"]+)"$"#)]
+async fn named_user_sent_friend_request_to_named_user(
+    world: &mut NotificationsWorld,
+    requester_name: String,
+    addressee_name: String,
+) {
+    named_user_sends_friend_request_to_named_user(world, requester_name, addressee_name).await;
+    assert_eq!(world.latest_status(), StatusCode::CREATED);
+}
+
+#[when(regex = r#"^"([^"]+)" accepts the friend request from "([^"]+)"$"#)]
+async fn named_user_accepts_the_friend_request_from_named_user(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    requester_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let friend_request_id = world.friend_request_id_for_pair(&actor_name, &requester_name);
+
+    let response = actor
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/friends/requests/{friend_request_id}/accept"
+                ))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {}", actor.token))
+                .body(Body::empty())
+                .expect("accept friend request request to be valid"),
+        )
+        .await
+        .expect("accept friend request response from app");
+
+    world.latest_status = Some(response.status());
+    world.latest_payload = Some(response_payload_json(response).await);
 }
 
 #[when(regex = r#"^"([^"]+)" posts a plain message in channel "([^"]+)"$"#)]
@@ -976,6 +1077,80 @@ async fn named_user_receives_friend_joined_voice_live_notification_for_named_cha
         joined_user_display_name == joined_user_name
             || joined_user_display_name == expected_joined_user_id,
         "expected joined_user_display_name to match actor name or user id"
+    );
+
+    let ws_connection = world
+        .active_ws_connection
+        .as_ref()
+        .expect("active live notification stream connection to be set");
+    assert_eq!(ws_connection.actor_name, actor_name);
+}
+
+#[then(
+    regex = r#"^"([^"]+)" receives a friend-request-received live notification from "([^"]+)"$"#
+)]
+async fn named_user_receives_friend_request_received_live_notification_from_named_user(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    requester_name: String,
+) {
+    let event = world
+        .next_ws_event(Duration::from_secs(2))
+        .await
+        .expect("live notification event to be received");
+
+    assert_eq!(world.latest_status(), StatusCode::CREATED);
+    assert_eq!(
+        event["event_type"].as_str(),
+        Some("friend_request_received")
+    );
+
+    let requester = world.actor_ref(&requester_name);
+    let addressee = world.actor_ref(&actor_name);
+    assert_eq!(
+        event["requester_user_id"].as_str(),
+        Some(requester.user_id.to_string().as_str())
+    );
+    assert_eq!(
+        event["addressee_user_id"].as_str(),
+        Some(addressee.user_id.to_string().as_str())
+    );
+
+    let ws_connection = world
+        .active_ws_connection
+        .as_ref()
+        .expect("active live notification stream connection to be set");
+    assert_eq!(ws_connection.actor_name, actor_name);
+}
+
+#[then(
+    regex = r#"^"([^"]+)" receives a friend-request-accepted live notification from "([^"]+)"$"#
+)]
+async fn named_user_receives_friend_request_accepted_live_notification_from_named_user(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    accepter_name: String,
+) {
+    let event = world
+        .next_ws_event(Duration::from_secs(2))
+        .await
+        .expect("live notification event to be received");
+
+    assert_eq!(world.latest_status(), StatusCode::OK);
+    assert_eq!(
+        event["event_type"].as_str(),
+        Some("friend_request_accepted")
+    );
+
+    let requester = world.actor_ref(&actor_name);
+    let addressee = world.actor_ref(&accepter_name);
+    assert_eq!(
+        event["requester_user_id"].as_str(),
+        Some(requester.user_id.to_string().as_str())
+    );
+    assert_eq!(
+        event["addressee_user_id"].as_str(),
+        Some(addressee.user_id.to_string().as_str())
     );
 
     let ws_connection = world

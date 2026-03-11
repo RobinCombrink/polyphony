@@ -17,6 +17,7 @@ use crate::{
     ApiState,
     auth::{AuthenticatedUser, TokenVerifier},
     dto::ApiErrorResponse,
+    notification_hub::{NotificationEnvelope, NotificationEvent},
 };
 
 #[derive(Debug, Serialize)]
@@ -226,11 +227,22 @@ where
         .send_friend_request(authenticated_user.user_id, user_id)
         .await
     {
-        SendFriendRequestResult::Created(friend_request) => (
-            StatusCode::CREATED,
-            Json(FriendRequestResponse::from(friend_request)),
-        )
-            .into_response(),
+        SendFriendRequestResult::Created(friend_request) => {
+            state.notification_hub.publish(NotificationEnvelope {
+                recipient_user_id: friend_request.addressee_user_id,
+                event: NotificationEvent::friend_request_received(
+                    friend_request.id,
+                    friend_request.requester_user_id,
+                    friend_request.addressee_user_id,
+                ),
+            });
+
+            (
+                StatusCode::CREATED,
+                Json(FriendRequestResponse::from(friend_request)),
+            )
+                .into_response()
+        }
         SendFriendRequestResult::AlreadyFriends => (
             StatusCode::CONFLICT,
             Json(ApiErrorResponse::new(
@@ -305,11 +317,22 @@ where
         )
         .await
     {
-        UpdateFriendRequestResult::Updated(friend_request) => (
-            StatusCode::OK,
-            Json(FriendRequestResponse::from(friend_request)),
-        )
-            .into_response(),
+        UpdateFriendRequestResult::Updated(friend_request) => {
+            state.notification_hub.publish(NotificationEnvelope {
+                recipient_user_id: friend_request.requester_user_id,
+                event: NotificationEvent::friend_request_accepted(
+                    friend_request.id,
+                    friend_request.requester_user_id,
+                    friend_request.addressee_user_id,
+                ),
+            });
+
+            (
+                StatusCode::OK,
+                Json(FriendRequestResponse::from(friend_request)),
+            )
+                .into_response()
+        }
         UpdateFriendRequestResult::Forbidden => (
             StatusCode::FORBIDDEN,
             Json(ApiErrorResponse::new("FORBIDDEN", "operation is forbidden")),

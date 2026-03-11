@@ -142,6 +142,22 @@ Feature: Notifications
       When "Olivia" posts a message in channel "general"
       Then "Noah" does not receive live notification events for channel "general"
 
+  Rule: Live friend request delivery reaches connected recipients
+    Background:
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+
+    Scenario: Connected addressee receives friend request received live notification event
+      Given "Noah" is subscribed to live notifications
+      When "Olivia" sends a friend request to "Noah"
+      Then "Noah" receives a friend-request-received live notification from "Olivia"
+
+    Scenario: Connected requester receives friend request accepted live notification event
+      Given "Olivia" is subscribed to live notifications
+      And "Olivia" sent a friend request to "Noah"
+      When "Noah" accepts the friend request from "Olivia"
+      Then "Olivia" receives a friend-request-accepted live notification from "Noah"
+
   Rule: Live voice events are delivered to other members and not echoed to the joining user
     Background:
       Given a user named "Olivia" exists

@@ -27,6 +27,16 @@ pub enum NotificationEvent {
         joined_user_id: UserId,
         joined_user_display_name: String,
     },
+    FriendRequestReceived {
+        friend_request_id: backend_domain::FriendRequestId,
+        requester_user_id: UserId,
+        addressee_user_id: UserId,
+    },
+    FriendRequestAccepted {
+        friend_request_id: backend_domain::FriendRequestId,
+        requester_user_id: UserId,
+        addressee_user_id: UserId,
+    },
 }
 
 impl NotificationEvent {
@@ -77,6 +87,30 @@ impl NotificationEvent {
             channel_name,
             joined_user_id,
             joined_user_display_name,
+        }
+    }
+
+    pub fn friend_request_received(
+        friend_request_id: backend_domain::FriendRequestId,
+        requester_user_id: UserId,
+        addressee_user_id: UserId,
+    ) -> Self {
+        Self::FriendRequestReceived {
+            friend_request_id,
+            requester_user_id,
+            addressee_user_id,
+        }
+    }
+
+    pub fn friend_request_accepted(
+        friend_request_id: backend_domain::FriendRequestId,
+        requester_user_id: UserId,
+        addressee_user_id: UserId,
+    ) -> Self {
+        Self::FriendRequestAccepted {
+            friend_request_id,
+            requester_user_id,
+            addressee_user_id,
         }
     }
 }
