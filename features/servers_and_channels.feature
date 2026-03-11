@@ -110,3 +110,4 @@ Feature: Servers and channels
       And "Olivia" adds "Noah" to server "Test"
       When "Noah" deletes channel "general"
       Then the delete is denied
+
