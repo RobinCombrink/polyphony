@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
-    DirectMessageThreadId, DisplayName, ExternalReference, FriendRequest, FriendRequestId,
-    FriendRequestState, Friendship, Membership, Message, MessageId, NotificationCategoryPreference,
-    NotificationEventType, NotificationMuteState, Server, ServerId, User, UserId,
+    DirectMessageThreadId, DisplayName, ExternalReference, FriendNotificationEventType,
+    FriendRequest, FriendRequestId, FriendRequestState, Friendship, Membership, Message,
+    MessageId, NotificationCategoryPreference, NotificationEventType, NotificationMuteState,
+    Server, ServerId, User, UserId,
 };
 use sqlx::migrate::Migrator;
 use sqlx::{
@@ -1155,6 +1156,29 @@ impl NotificationRepository for PostgresRepository {
         .and_then(|value| u64::try_from(value).ok())
         .unwrap_or(0)
     }
+
+    async fn outbox_count_for_friend_notification(
+        &self,
+        recipient_user_id: UserId,
+        actor_user_id: UserId,
+        event_type: FriendNotificationEventType,
+    ) -> u64 {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM friend_notification_outbox
+             WHERE recipient_user_id = $1
+               AND actor_user_id = $2
+               AND event_type = $3",
+        )
+        .bind(Uuid::from(recipient_user_id))
+        .bind(Uuid::from(actor_user_id))
+        .bind(event_type)
+        .fetch_one(&self.pool)
+        .await
+        .ok()
+        .and_then(|value| u64::try_from(value).ok())
+        .unwrap_or(0)
+    }
 }
 
 #[async_trait]
@@ -1575,6 +1599,33 @@ impl FriendRepository for PostgresRepository {
 
         let friend_request = FriendRequest::from(friend_request_row);
 
+        let payload = serde_json::json!({
+            "event_type": FriendNotificationEventType::FriendRequestReceived.to_string(),
+            "friend_request_id": friend_request.id,
+            "requester_user_id": friend_request.requester_user_id,
+            "addressee_user_id": friend_request.addressee_user_id,
+        });
+
+        let _ = sqlx::query(
+            "INSERT INTO friend_notification_outbox (
+                id,
+                event_type,
+                friend_request_id,
+                recipient_user_id,
+                actor_user_id,
+                payload
+             )
+             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+             ON CONFLICT (event_type, friend_request_id, recipient_user_id) DO NOTHING",
+        )
+        .bind(FriendNotificationEventType::FriendRequestReceived)
+        .bind(Uuid::from(friend_request.id))
+        .bind(Uuid::from(friend_request.addressee_user_id))
+        .bind(Uuid::from(friend_request.requester_user_id))
+        .bind(payload)
+        .execute(&self.pool)
+        .await;
+
         SendFriendRequestResult::Created(friend_request)
     }
 
@@ -1656,6 +1707,33 @@ impl FriendRepository for PostgresRepository {
             )
             .bind(requester_user_id)
             .bind(addressee_user_id)
+            .execute(&self.pool)
+            .await;
+
+            let payload = serde_json::json!({
+                "event_type": FriendNotificationEventType::FriendRequestAccepted.to_string(),
+                "friend_request_id": updated_friend_request_row.id,
+                "requester_user_id": updated_friend_request_row.requester_user_id,
+                "addressee_user_id": updated_friend_request_row.addressee_user_id,
+            });
+
+            let _ = sqlx::query(
+                "INSERT INTO friend_notification_outbox (
+                    id,
+                    event_type,
+                    friend_request_id,
+                    recipient_user_id,
+                    actor_user_id,
+                    payload
+                 )
+                 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+                 ON CONFLICT (event_type, friend_request_id, recipient_user_id) DO NOTHING",
+            )
+            .bind(FriendNotificationEventType::FriendRequestAccepted)
+            .bind(updated_friend_request_row.id)
+            .bind(updated_friend_request_row.requester_user_id)
+            .bind(updated_friend_request_row.addressee_user_id)
+            .bind(payload)
             .execute(&self.pool)
             .await;
         }

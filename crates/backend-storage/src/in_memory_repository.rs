@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread, DirectMessageThreadId,
-    ExternalReference, FriendRequest, FriendRequestId, FriendRequestState, Friendship,
+    ExternalReference, FriendNotificationEventType, FriendRequest, FriendRequestId, FriendRequestState,
+    Friendship,
     Membership, Message, MessageId, NotificationCategoryPreference, NotificationMuteState,
     Server, ServerId, User, UserId,
 };
@@ -394,6 +395,26 @@ impl NotificationRepository for InMemoryRepository {
             .iter()
             .filter(|(_, _, stored_recipient_user_id, _, _)| {
                 *stored_recipient_user_id == recipient_user_id
+            })
+            .count();
+
+        u64::try_from(count).unwrap_or(0)
+    }
+
+    async fn outbox_count_for_friend_notification(
+        &self,
+        recipient_user_id: UserId,
+        actor_user_id: UserId,
+        event_type: FriendNotificationEventType,
+    ) -> u64 {
+        let store = self.store.read().await;
+        let count = store
+            .friend_notification_outbox
+            .iter()
+            .filter(|(_, stored_recipient_user_id, stored_actor_user_id, stored_event_type)| {
+                *stored_recipient_user_id == recipient_user_id
+                    && *stored_actor_user_id == actor_user_id
+                    && *stored_event_type == event_type
             })
             .count();
 

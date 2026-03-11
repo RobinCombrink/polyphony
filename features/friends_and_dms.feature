@@ -41,7 +41,7 @@ Feature: Friends, direct messaging, and safety controls
       And a user named "Noah" exists
       And "Olivia" and "Noah" are friends
       When "Olivia" opens a direct message thread with "Noah"
-      And "Olivia" opens a direct message thread with "Noah" again
+      And "Olivia" opens a direct message thread with "Noah"
       Then both thread openings resolve to the same direct message thread
 
     Scenario: Friends can exchange direct messages

@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DisplayName, DirectMessage, DirectMessageThread,
-    DirectMessageThreadId, ExternalReference, FriendRequest,
+    DirectMessageThreadId, ExternalReference, FriendNotificationEventType, FriendRequest,
     FriendRequestId, FriendRequestState, Friendship, FriendshipId, Membership, Message, MessageId,
     NotificationCategoryPreference, NotificationEventType, NotificationMuteState, Server,
     ServerId, User, UserId,
@@ -22,6 +22,8 @@ pub(crate) struct InMemoryStore {
     pub(crate) messages_by_channel: HashMap<ChannelId, Vec<Message>>,
     pub(crate) notification_outbox:
         Vec<(MessageId, ChannelId, UserId, UserId, NotificationEventType)>,
+    pub(crate) friend_notification_outbox:
+        Vec<(FriendRequestId, UserId, UserId, FriendNotificationEventType)>,
     pub(crate) unread_counts_by_user_channel: HashMap<(UserId, ChannelId), u64>,
     pub(crate) global_notification_category_by_user:
         HashMap<UserId, NotificationCategoryPreference>,
@@ -704,6 +706,13 @@ impl InMemoryStore {
         self.friend_requests_by_id
             .insert(friend_request.id, friend_request.clone());
 
+        self.friend_notification_outbox.push((
+            friend_request.id,
+            addressee_user_id,
+            requester_user_id,
+            FriendNotificationEventType::FriendRequestReceived,
+        ));
+
         crate::SendFriendRequestResult::Created(friend_request)
     }
 
@@ -747,6 +756,13 @@ impl InMemoryStore {
                 user_b_id: addressee_user_id,
             };
             self.friendships_by_id.insert(friendship.id, friendship);
+
+            self.friend_notification_outbox.push((
+                friend_request_id,
+                requester_user_id,
+                addressee_user_id,
+                FriendNotificationEventType::FriendRequestAccepted,
+            ));
         }
 
         crate::UpdateFriendRequestResult::Updated(updated_request)

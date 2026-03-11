@@ -25,8 +25,8 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 pub(crate) use backend_api::domain::{
-    ChannelId, ExternalReference, MessageId, NotificationCategoryPreference, NotificationMuteState,
-    ServerId, UserId,
+    ChannelId, ExternalReference, FriendNotificationEventType, MessageId,
+    NotificationCategoryPreference, NotificationMuteState, ServerId, UserId,
 };
 
 #[derive(Debug)]
@@ -1128,6 +1128,27 @@ pub(crate) async fn outbox_total_count_for_recipient(
             store
                 .repository
                 .outbox_total_count_for_recipient(recipient_user_id)
+                .await
+        }
+    }
+}
+
+pub(crate) async fn outbox_count_for_friend_notification(
+    repository: &SharedTestStore,
+    recipient_user_id: UserId,
+    actor_user_id: UserId,
+    event_type: FriendNotificationEventType,
+) -> u64 {
+    match repository.as_ref() {
+        TestStore::InMemory(store) => {
+            store
+                .outbox_count_for_friend_notification(recipient_user_id, actor_user_id, event_type)
+                .await
+        }
+        TestStore::Postgres(store) => {
+            store
+                .repository
+                .outbox_count_for_friend_notification(recipient_user_id, actor_user_id, event_type)
                 .await
         }
     }

@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
-    ExternalReference, FriendRequest, FriendRequestId, FriendRequestState, Friendship, Membership,
-    Message, MessageId, NotificationCategoryPreference, NotificationMuteState, Server, ServerId,
-    User, UserId,
+    ExternalReference, FriendNotificationEventType, FriendRequest, FriendRequestId,
+    FriendRequestState, Friendship, Membership, Message, MessageId, NotificationCategoryPreference,
+    NotificationMuteState, Server, ServerId, User, UserId,
 };
 
 use crate::MutationResult;
@@ -141,6 +141,12 @@ pub trait NotificationRepository: Send + Sync {
         recipient_user_id: UserId,
     ) -> u64;
     async fn outbox_total_count_for_recipient(&self, recipient_user_id: UserId) -> u64;
+    async fn outbox_count_for_friend_notification(
+        &self,
+        recipient_user_id: UserId,
+        actor_user_id: UserId,
+        event_type: FriendNotificationEventType,
+    ) -> u64;
 }
 
 #[async_trait]
