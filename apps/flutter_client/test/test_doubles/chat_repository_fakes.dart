@@ -120,22 +120,59 @@ class FakeServerMemberRepository implements ServerMemberRepo {
 class FakeFriendRepository implements FriendRepo {
   FakeFriendRepository({
     required this.friendUserIds,
+    this.initialPendingOutgoingRequests = const <PendingFriendRequest>[],
     this.forceCreateError = false,
     this.createError,
+    this.forceCancelError = false,
+    this.cancelError,
   });
 
   final Set<String> friendUserIds;
+  final List<PendingFriendRequest> initialPendingOutgoingRequests;
   final bool forceCreateError;
   final Exception? createError;
+  final bool forceCancelError;
+  final Exception? cancelError;
+
+  List<PendingFriendRequest>? _pendingOutgoingRequests;
+
+  List<PendingFriendRequest> get _pendingRequests {
+    return _pendingOutgoingRequests ??=
+        List<PendingFriendRequest>.from(initialPendingOutgoingRequests);
+  }
 
   @override
-  Future<Result<void>> createOne({
+  Future<Result<PendingFriendRequest>> createOne({
     required SendFriendRequestFromServerContextCommand command,
   }) async {
     if (forceCreateError) {
-      return Error<void>(
+      return Error<PendingFriendRequest>(
           createError ?? Exception("Failed to send friend request"));
     }
+
+    final pendingRequest = PendingFriendRequest(
+      id: "pending-${command.targetUserId}",
+      requesterUserId: "requester-user",
+      addresseeUserId: command.targetUserId,
+    );
+    _pendingRequests.add(pendingRequest);
+
+    return Ok<PendingFriendRequest>(pendingRequest);
+  }
+
+  @override
+  Future<Result<void>> deleteOne({
+    required CancelOutgoingFriendRequestCommand command,
+  }) async {
+    if (forceCancelError) {
+      return Error<void>(
+        cancelError ?? Exception("Failed to cancel friend request"),
+      );
+    }
+
+    _pendingRequests.removeWhere(
+      (request) => request.id == command.friendRequestId,
+    );
 
     return const Ok<void>(null);
   }
@@ -148,6 +185,15 @@ class FakeFriendRepository implements FriendRepo {
         .map((userId) => Friend(userId: userId))
         .toList(growable: false);
     return Ok<Iterable<Friend>>(friends);
+  }
+
+  @override
+  Future<Result<Iterable<PendingFriendRequest>>> getOne({
+    required GetOutgoingPendingFriendRequestsQuery query,
+  }) async {
+    return Ok<Iterable<PendingFriendRequest>>(
+      List<PendingFriendRequest>.from(_pendingRequests),
+    );
   }
 }
 

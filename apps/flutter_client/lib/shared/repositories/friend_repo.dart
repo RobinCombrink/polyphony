@@ -5,6 +5,10 @@ class GetFriendsQuery {
   const GetFriendsQuery();
 }
 
+class GetOutgoingPendingFriendRequestsQuery {
+  const GetOutgoingPendingFriendRequestsQuery();
+}
+
 class SendFriendRequestFromServerContextCommand {
   const SendFriendRequestFromServerContextCommand({
     required this.serverId,
@@ -15,7 +19,19 @@ class SendFriendRequestFromServerContextCommand {
   final String targetUserId;
 }
 
+class CancelOutgoingFriendRequestCommand {
+  const CancelOutgoingFriendRequestCommand({
+    required this.friendRequestId,
+  });
+
+  final String friendRequestId;
+}
+
 abstract interface class FriendRepo
     with
         RepositoryGetMany<Friend, GetFriendsQuery>,
-        RepositoryCreateOne<void, SendFriendRequestFromServerContextCommand> {}
+        RepositoryGetOne<Iterable<PendingFriendRequest>,
+            GetOutgoingPendingFriendRequestsQuery>,
+        RepositoryCreateOne<PendingFriendRequest,
+            SendFriendRequestFromServerContextCommand>,
+        RepositoryDeleteOne<CancelOutgoingFriendRequestCommand> {}

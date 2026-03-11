@@ -39,6 +39,16 @@ extension ApiFriendToDomainExtension on ApiFriend {
   }
 }
 
+extension ApiFriendRequestToDomainExtension on ApiFriendRequest {
+  PendingFriendRequest toDomainModel() {
+    return PendingFriendRequest(
+      id: id,
+      requesterUserId: requesterUserId,
+      addresseeUserId: addresseeUserId,
+    );
+  }
+}
+
 extension DomainFriendToApiExtension on Friend {
   ApiFriend toApiModel() {
     return ApiFriend(

@@ -26,3 +26,11 @@ final class SendFriendRequestToServerMemberRequested
   final String serverId;
   final String targetUserId;
 }
+
+final class CancelOutgoingFriendRequestRequested extends ServerMembersEvent {
+  const CancelOutgoingFriendRequestRequested({
+    required this.friendRequestId,
+  });
+
+  final String friendRequestId;
+}

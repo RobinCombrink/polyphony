@@ -19,9 +19,10 @@ class ServerUsersPaneWidget extends StatelessWidget {
     required ServerMembersLoadedDataState loadedData,
     required UserProfile member,
     required bool isFriend,
+    required bool hasPendingRequest,
     required Offset globalPosition,
   }) async {
-    if (isFriend) {
+    if (isFriend || hasPendingRequest) {
       return;
     }
 
@@ -54,6 +55,19 @@ class ServerUsersPaneWidget extends StatelessWidget {
               ),
             );
     }
+  }
+
+  String _resolvedPendingRequestLabel({
+    required PendingFriendRequest pendingRequest,
+    required Map<String, String> displayNameByUserId,
+  }) {
+    final resolvedDisplayName =
+        displayNameByUserId[pendingRequest.addresseeUserId];
+    if (resolvedDisplayName != null && resolvedDisplayName.isNotEmpty) {
+      return resolvedDisplayName;
+    }
+
+    return pendingRequest.addresseeUserId;
   }
 
   List<UserProfile> _skeletonMembers() {
@@ -92,6 +106,16 @@ class ServerUsersPaneWidget extends StatelessWidget {
 
         final members = loadedData?.members ?? const <UserProfile>[];
         final friendUserIds = loadedData?.friendUserIds ?? const <String>{};
+        final pendingOutgoingFriendRequests =
+            loadedData?.pendingOutgoingFriendRequests ??
+                const <PendingFriendRequest>[];
+        final pendingRequestUserIds = pendingOutgoingFriendRequests
+            .map((request) => request.addresseeUserId)
+            .toSet();
+        final displayNameByUserId = {
+          for (final member in members)
+            member.userId: _resolvedDisplayName(member),
+        };
         final visibleMembers =
             isLoading && members.isEmpty ? _skeletonMembers() : members;
 
@@ -127,6 +151,8 @@ class ServerUsersPaneWidget extends StatelessWidget {
                                   member.displayName?.trim().isNotEmpty == true;
                               final isFriend =
                                   friendUserIds.contains(member.userId);
+                              final hasPendingRequest =
+                                  pendingRequestUserIds.contains(member.userId);
 
                               return GestureDetector(
                                 onSecondaryTapDown:
@@ -138,6 +164,8 @@ class ServerUsersPaneWidget extends StatelessWidget {
                                                 loadedData: loadedData,
                                                 member: member,
                                                 isFriend: isFriend,
+                                                hasPendingRequest:
+                                                    hasPendingRequest,
                                                 globalPosition:
                                                     details.globalPosition,
                                               ),
@@ -151,6 +179,8 @@ class ServerUsersPaneWidget extends StatelessWidget {
                                                 loadedData: loadedData,
                                                 member: member,
                                                 isFriend: isFriend,
+                                                hasPendingRequest:
+                                                    hasPendingRequest,
                                                 globalPosition:
                                                     details.globalPosition,
                                               ),
@@ -167,13 +197,74 @@ class ServerUsersPaneWidget extends StatelessWidget {
                                       ? null
                                       : isFriend
                                           ? const Text("Friend")
-                                          : const Text("Not friend"),
+                                          : hasPendingRequest
+                                              ? const Text("Pending")
+                                              : const Text("Not friend"),
                                 ),
                               );
                             },
                           ),
                   ),
                 ),
+                if (!isLoading && pendingOutgoingFriendRequests.isNotEmpty)
+                  const SizedBox(height: 8),
+                if (!isLoading && pendingOutgoingFriendRequests.isNotEmpty)
+                  SizedBox(
+                    height: 180,
+                    child: Card(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            Text(
+                              "Pending friend requests",
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: ListView.separated(
+                                itemCount: pendingOutgoingFriendRequests.length,
+                                separatorBuilder: (_, __) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final pendingRequest =
+                                      pendingOutgoingFriendRequests[index];
+
+                                  return ListTile(
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    title: Text(
+                                      _resolvedPendingRequestLabel(
+                                        pendingRequest: pendingRequest,
+                                        displayNameByUserId:
+                                            displayNameByUserId,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      pendingRequest.addresseeUserId,
+                                    ),
+                                    trailing: TextButton(
+                                      onPressed: () {
+                                        context.read<ServerMembersBloc>().add(
+                                              CancelOutgoingFriendRequestRequested(
+                                                friendRequestId:
+                                                    pendingRequest.id,
+                                              ),
+                                            );
+                                      },
+                                      child: const Text("Cancel"),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

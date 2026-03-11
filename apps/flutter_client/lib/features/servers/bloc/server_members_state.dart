@@ -3,11 +3,15 @@ part of "server_members_bloc.dart";
 enum ServerMembersValidationIssue {
   serverSelectionRequired,
   serverMemberSelectionRequired,
+  pendingFriendRequestSelectionRequired,
   targetUserRequired,
   alreadyFriend,
   sendFriendRequestForbidden,
   sendFriendRequestNotFound,
   sendFriendRequestConflict,
+  cancelFriendRequestForbidden,
+  cancelFriendRequestNotFound,
+  cancelFriendRequestConflict,
 }
 
 sealed class ServerMembersState {
@@ -27,11 +31,13 @@ sealed class ServerMembersLoadedDataState extends ServerMembersState {
     required this.serverId,
     required this.members,
     required this.friendUserIds,
+    required this.pendingOutgoingFriendRequests,
   });
 
   final String serverId;
   final List<UserProfile> members;
   final Set<String> friendUserIds;
+  final List<PendingFriendRequest> pendingOutgoingFriendRequests;
 }
 
 final class ServerMembersLoadedState extends ServerMembersLoadedDataState {
@@ -39,6 +45,7 @@ final class ServerMembersLoadedState extends ServerMembersLoadedDataState {
     required super.serverId,
     required super.members,
     required super.friendUserIds,
+    required super.pendingOutgoingFriendRequests,
   });
 }
 
@@ -49,6 +56,7 @@ final class ServerMembersValidationFailedState
     required super.serverId,
     required super.members,
     required super.friendUserIds,
+    required super.pendingOutgoingFriendRequests,
   });
 
   final ServerMembersValidationIssue issue;

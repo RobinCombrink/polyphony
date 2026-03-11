@@ -51,6 +51,29 @@ class ApiFriend {
   }
 }
 
+class ApiFriendRequest {
+  const ApiFriendRequest({
+    required this.id,
+    required this.requesterUserId,
+    required this.addresseeUserId,
+    required this.state,
+  });
+
+  final String id;
+  final String requesterUserId;
+  final String addresseeUserId;
+  final String state;
+
+  factory ApiFriendRequest.fromJson(Map<String, dynamic> json) {
+    return ApiFriendRequest(
+      id: json["id"] as String,
+      requesterUserId: json["requester_user_id"] as String,
+      addresseeUserId: json["addressee_user_id"] as String,
+      state: json["state"] as String,
+    );
+  }
+}
+
 class ApiChannel {
   const ApiChannel({
     required this.id,

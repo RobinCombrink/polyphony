@@ -48,6 +48,18 @@ class Friend {
   }
 }
 
+class PendingFriendRequest {
+  const PendingFriendRequest({
+    required this.id,
+    required this.requesterUserId,
+    required this.addresseeUserId,
+  });
+
+  final String id;
+  final String requesterUserId;
+  final String addresseeUserId;
+}
+
 sealed class Channel {
   const Channel({
     required this.id,

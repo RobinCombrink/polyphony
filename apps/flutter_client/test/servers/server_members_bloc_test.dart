@@ -11,15 +11,23 @@ void main() {
   final fixture = EntitySeeder().chatApiFixture();
 
   blocTest<ServerMembersBloc, ServerMembersState>(
-    "loads server users and marks known friends when friend repo is available",
+    "loads server users with known friends and pending outgoing requests",
     build: () => ServerMembersBloc(
       serverMemberRepo: FakeServerMemberRepository(fixture: fixture),
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
         initialDisplayName: "Owner",
       ),
-      friendRepo:
-          FakeFriendRepository(friendUserIds: <String>{fixture.ownerUserId}),
+      friendRepo: FakeFriendRepository(
+        friendUserIds: <String>{fixture.ownerUserId},
+        initialPendingOutgoingRequests: <PendingFriendRequest>[
+          const PendingFriendRequest(
+            id: "pending-request-1",
+            requesterUserId: "requester-user",
+            addresseeUserId: "auth0|pending",
+          ),
+        ],
+      ),
     ),
     act: (bloc) => bloc.add(
       LoadServerMembersRequested(serverId: fixture.listedServer.id),
@@ -30,7 +38,12 @@ void main() {
           .having(
               (state) => state.serverId, "server id", fixture.listedServer.id)
           .having((state) => state.friendUserIds, "friend user ids",
-              contains(fixture.ownerUserId)),
+              contains(fixture.ownerUserId))
+          .having(
+            (state) => state.pendingOutgoingFriendRequests.length,
+            "pending outgoing friend requests",
+            1,
+          ),
     ],
   );
 
@@ -52,12 +65,17 @@ void main() {
       isA<ServerMembersLoadedState>()
           .having(
               (state) => state.serverId, "server id", fixture.listedServer.id)
-          .having((state) => state.friendUserIds, "friend user ids", isEmpty),
+          .having((state) => state.friendUserIds, "friend user ids", isEmpty)
+          .having(
+            (state) => state.pendingOutgoingFriendRequests,
+            "pending outgoing friend requests",
+            isEmpty,
+          ),
     ],
   );
 
   blocTest<ServerMembersBloc, ServerMembersState>(
-    "sends friend request to server member and marks user as friend",
+    "sends friend request to server member and adds pending request",
     build: () => ServerMembersBloc(
       serverMemberRepo: FakeServerMemberRepository(fixture: fixture),
       profileRepo: FakeProfileRepository(
@@ -72,6 +90,7 @@ void main() {
         UserProfile(userId: fixture.ownerUserId, displayName: "Owner"),
       ],
       friendUserIds: const <String>{},
+      pendingOutgoingFriendRequests: const <PendingFriendRequest>[],
     ),
     act: (bloc) => bloc.add(
       SendFriendRequestToServerMemberRequested(
@@ -81,8 +100,9 @@ void main() {
     ),
     expect: () => <Matcher>[
       isA<ServerMembersLoadedState>().having(
-        (state) => state.friendUserIds,
-        "friend user ids",
+        (state) => state.pendingOutgoingFriendRequests
+            .map((request) => request.addresseeUserId),
+        "pending outgoing friend request addressees",
         contains(fixture.ownerUserId),
       ),
     ],
@@ -112,6 +132,7 @@ void main() {
         UserProfile(userId: fixture.ownerUserId, displayName: "Owner"),
       ],
       friendUserIds: const <String>{},
+      pendingOutgoingFriendRequests: const <PendingFriendRequest>[],
     ),
     act: (bloc) => bloc.add(
       SendFriendRequestToServerMemberRequested(
@@ -124,6 +145,53 @@ void main() {
         (state) => state.issue,
         "validation issue",
         ServerMembersValidationIssue.sendFriendRequestConflict,
+      ),
+    ],
+  );
+
+  blocTest<ServerMembersBloc, ServerMembersState>(
+    "cancels pending outgoing friend request",
+    build: () => ServerMembersBloc(
+      serverMemberRepo: FakeServerMemberRepository(fixture: fixture),
+      profileRepo: FakeProfileRepository(
+        userId: fixture.ownerUserId,
+        initialDisplayName: "Owner",
+      ),
+      friendRepo: FakeFriendRepository(
+        friendUserIds: <String>{},
+        initialPendingOutgoingRequests: <PendingFriendRequest>[
+          const PendingFriendRequest(
+            id: "pending-request-1",
+            requesterUserId: "requester-user",
+            addresseeUserId: "auth0|pending",
+          ),
+        ],
+      ),
+    ),
+    seed: () => const ServerMembersLoadedState(
+      serverId: "server-1",
+      members: <UserProfile>[
+        UserProfile(userId: "auth0|pending", displayName: "Pending User"),
+      ],
+      friendUserIds: <String>{},
+      pendingOutgoingFriendRequests: <PendingFriendRequest>[
+        PendingFriendRequest(
+          id: "pending-request-1",
+          requesterUserId: "requester-user",
+          addresseeUserId: "auth0|pending",
+        ),
+      ],
+    ),
+    act: (bloc) => bloc.add(
+      const CancelOutgoingFriendRequestRequested(
+        friendRequestId: "pending-request-1",
+      ),
+    ),
+    expect: () => <Matcher>[
+      isA<ServerMembersLoadedState>().having(
+        (state) => state.pendingOutgoingFriendRequests,
+        "pending outgoing friend requests",
+        isEmpty,
       ),
     ],
   );

@@ -25,12 +25,45 @@ class FriendRepository implements FriendRepo {
   }
 
   @override
-  Future<Result<void>> createOne({
+  Future<Result<Iterable<PendingFriendRequest>>> getOne({
+    required GetOutgoingPendingFriendRequestsQuery query,
+  }) async {
+    final serviceResult =
+        await _friendService.listOutgoingPendingFriendRequests();
+
+    return switch (serviceResult) {
+      Ok<List<ApiFriendRequest>>(:final value) =>
+        Ok<Iterable<PendingFriendRequest>>(
+            value.map((request) => request.toDomainModel()).toList()),
+      Error<List<ApiFriendRequest>>(:final error) =>
+        Error<Iterable<PendingFriendRequest>>(error),
+    };
+  }
+
+  @override
+  Future<Result<PendingFriendRequest>> createOne({
     required SendFriendRequestFromServerContextCommand command,
-  }) {
-    return _friendService.sendFriendRequestFromServerContext(
+  }) async {
+    final serviceResult =
+        await _friendService.sendFriendRequestFromServerContext(
       serverId: command.serverId,
       targetUserId: command.targetUserId,
+    );
+
+    return switch (serviceResult) {
+      Ok<ApiFriendRequest>(:final value) =>
+        Ok<PendingFriendRequest>(value.toDomainModel()),
+      Error<ApiFriendRequest>(:final error) =>
+        Error<PendingFriendRequest>(error),
+    };
+  }
+
+  @override
+  Future<Result<void>> deleteOne({
+    required CancelOutgoingFriendRequestCommand command,
+  }) {
+    return _friendService.cancelOutgoingFriendRequest(
+      friendRequestId: command.friendRequestId,
     );
   }
 }

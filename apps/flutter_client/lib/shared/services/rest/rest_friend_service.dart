@@ -19,15 +19,37 @@ class RestFriendService extends RestRequestServiceBase
   }
 
   @override
-  Future<Result<void>> sendFriendRequestFromServerContext({
+  Future<Result<List<ApiFriendRequest>>> listOutgoingPendingFriendRequests() {
+    return performListRequest<ApiFriendRequest>(
+      endpoint: "/api/v1/friends/requests/outgoing",
+      operation: "list outgoing pending friend requests",
+      decodeItem: ApiFriendRequest.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<ApiFriendRequest>> sendFriendRequestFromServerContext({
     required String serverId,
     required String targetUserId,
   }) {
-    return performPostRequestWithoutResponseBody(
+    return performPostRequest<ApiFriendRequest>(
       endpoint: "/api/v1/servers/$serverId/friends/requests/$targetUserId",
       operation: "send friend request from server context",
       body: const <String, dynamic>{},
       expectedStatusCode: 201,
+      decodeItem: ApiFriendRequest.fromJson,
+    );
+  }
+
+  @override
+  Future<Result<void>> cancelOutgoingFriendRequest({
+    required String friendRequestId,
+  }) {
+    return performPostRequestWithoutResponseBody(
+      endpoint: "/api/v1/friends/requests/$friendRequestId/cancel",
+      operation: "cancel outgoing friend request",
+      body: const <String, dynamic>{},
+      expectedStatusCode: 200,
     );
   }
 }

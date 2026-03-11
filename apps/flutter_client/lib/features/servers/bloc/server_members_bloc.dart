@@ -23,6 +23,9 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     on<SendFriendRequestToServerMemberRequested>(
       _onSendFriendRequestToServerMemberRequested,
     );
+    on<CancelOutgoingFriendRequestRequested>(
+      _onCancelOutgoingFriendRequestRequested,
+    );
   }
 
   final ServerMemberRepo _serverMemberRepo;
@@ -58,6 +61,8 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
               serverId: loadedState.serverId,
               members: loadedState.members,
               friendUserIds: loadedState.friendUserIds,
+              pendingOutgoingFriendRequests:
+                  loadedState.pendingOutgoingFriendRequests,
             ),
           _ => ServerMembersExceptionState(
               error: Exception(
@@ -82,10 +87,13 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
           existingMembers: existingMembers,
         );
         final friendUserIds = await _resolveFriendUserIds();
+        final pendingOutgoingFriendRequests =
+            await _resolvePendingOutgoingFriendRequests();
         emit(ServerMembersLoadedState(
           serverId: trimmedServerId,
           members: members,
           friendUserIds: friendUserIds,
+          pendingOutgoingFriendRequests: pendingOutgoingFriendRequests,
         ));
       case Error<Iterable<ServerMember>>(:final error):
         emit(ServerMembersExceptionState(error: error));
@@ -115,6 +123,8 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
         serverId: loadedState.serverId,
         members: loadedState.members,
         friendUserIds: loadedState.friendUserIds,
+        pendingOutgoingFriendRequests:
+            loadedState.pendingOutgoingFriendRequests,
       ));
       return;
     }
@@ -125,6 +135,8 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
         serverId: loadedState.serverId,
         members: loadedState.members,
         friendUserIds: loadedState.friendUserIds,
+        pendingOutgoingFriendRequests:
+            loadedState.pendingOutgoingFriendRequests,
       ));
       return;
     }
@@ -136,6 +148,8 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
         serverId: loadedState.serverId,
         members: loadedState.members,
         friendUserIds: loadedState.friendUserIds,
+        pendingOutgoingFriendRequests:
+            loadedState.pendingOutgoingFriendRequests,
       ));
       return;
     }
@@ -146,6 +160,22 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
         serverId: loadedState.serverId,
         members: loadedState.members,
         friendUserIds: loadedState.friendUserIds,
+        pendingOutgoingFriendRequests:
+            loadedState.pendingOutgoingFriendRequests,
+      ));
+      return;
+    }
+
+    if (loadedState.pendingOutgoingFriendRequests.any(
+      (request) => request.addresseeUserId == trimmedTargetUserId,
+    )) {
+      emit(ServerMembersValidationFailedState(
+        issue: ServerMembersValidationIssue.sendFriendRequestConflict,
+        serverId: loadedState.serverId,
+        members: loadedState.members,
+        friendUserIds: loadedState.friendUserIds,
+        pendingOutgoingFriendRequests:
+            loadedState.pendingOutgoingFriendRequests,
       ));
       return;
     }
@@ -158,16 +188,17 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     );
 
     switch (sendResult) {
-      case Ok<void>():
+      case Ok<PendingFriendRequest>(:final value):
         emit(ServerMembersLoadedState(
           serverId: loadedState.serverId,
           members: loadedState.members,
-          friendUserIds: <String>{
-            ...loadedState.friendUserIds,
-            trimmedTargetUserId,
-          },
+          friendUserIds: loadedState.friendUserIds,
+          pendingOutgoingFriendRequests: <PendingFriendRequest>[
+            ...loadedState.pendingOutgoingFriendRequests,
+            value,
+          ],
         ));
-      case Error<void>(:final error):
+      case Error<PendingFriendRequest>(:final error):
         final issue = _classifySendFriendRequestIssue(error);
         if (issue != null) {
           emit(ServerMembersValidationFailedState(
@@ -175,6 +206,85 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
             serverId: loadedState.serverId,
             members: loadedState.members,
             friendUserIds: loadedState.friendUserIds,
+            pendingOutgoingFriendRequests:
+                loadedState.pendingOutgoingFriendRequests,
+          ));
+          return;
+        }
+
+        emit(ServerMembersExceptionState(error: error));
+    }
+  }
+
+  Future<void> _onCancelOutgoingFriendRequestRequested(
+    CancelOutgoingFriendRequestRequested event,
+    Emitter<ServerMembersState> emit,
+  ) async {
+    final loadedState = _loadedStateOrNull(state);
+    if (loadedState == null) {
+      emit(ServerMembersExceptionState(
+        error: Exception(
+          "Server members must be loaded before cancelling a friend request.",
+        ),
+      ));
+      return;
+    }
+
+    final trimmedRequestId = event.friendRequestId.trim();
+    if (trimmedRequestId.isEmpty) {
+      emit(ServerMembersValidationFailedState(
+        issue:
+            ServerMembersValidationIssue.pendingFriendRequestSelectionRequired,
+        serverId: loadedState.serverId,
+        members: loadedState.members,
+        friendUserIds: loadedState.friendUserIds,
+        pendingOutgoingFriendRequests:
+            loadedState.pendingOutgoingFriendRequests,
+      ));
+      return;
+    }
+
+    if (!loadedState.pendingOutgoingFriendRequests
+        .any((request) => request.id == trimmedRequestId)) {
+      emit(ServerMembersValidationFailedState(
+        issue:
+            ServerMembersValidationIssue.pendingFriendRequestSelectionRequired,
+        serverId: loadedState.serverId,
+        members: loadedState.members,
+        friendUserIds: loadedState.friendUserIds,
+        pendingOutgoingFriendRequests:
+            loadedState.pendingOutgoingFriendRequests,
+      ));
+      return;
+    }
+
+    final cancelResult = await _friendRepo.deleteOne(
+      command: CancelOutgoingFriendRequestCommand(
+        friendRequestId: trimmedRequestId,
+      ),
+    );
+
+    switch (cancelResult) {
+      case Ok<void>():
+        emit(ServerMembersLoadedState(
+          serverId: loadedState.serverId,
+          members: loadedState.members,
+          friendUserIds: loadedState.friendUserIds,
+          pendingOutgoingFriendRequests: loadedState
+              .pendingOutgoingFriendRequests
+              .where((request) => request.id != trimmedRequestId)
+              .toList(growable: false),
+        ));
+      case Error<void>(:final error):
+        final issue = _classifyCancelFriendRequestIssue(error);
+        if (issue != null) {
+          emit(ServerMembersValidationFailedState(
+            issue: issue,
+            serverId: loadedState.serverId,
+            members: loadedState.members,
+            friendUserIds: loadedState.friendUserIds,
+            pendingOutgoingFriendRequests:
+                loadedState.pendingOutgoingFriendRequests,
           ));
           return;
         }
@@ -197,6 +307,20 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     };
   }
 
+  ServerMembersValidationIssue? _classifyCancelFriendRequestIssue(
+      Exception error) {
+    if (error is! ApiRequestException) {
+      return null;
+    }
+
+    return switch (error.statusCode) {
+      403 => ServerMembersValidationIssue.cancelFriendRequestForbidden,
+      404 => ServerMembersValidationIssue.cancelFriendRequestNotFound,
+      409 => ServerMembersValidationIssue.cancelFriendRequestConflict,
+      _ => null,
+    };
+  }
+
   Future<Set<String>> _resolveFriendUserIds() async {
     final friendsResult = await _friendRepo.getMany(
       query: const GetFriendsQuery(),
@@ -208,6 +332,20 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
           .where((userId) => userId.isNotEmpty)
           .toSet(),
       Error<Iterable<Friend>>() => <String>{},
+    };
+  }
+
+  Future<List<PendingFriendRequest>>
+      _resolvePendingOutgoingFriendRequests() async {
+    final pendingRequestsResult = await _friendRepo.getOne(
+      query: const GetOutgoingPendingFriendRequestsQuery(),
+    );
+
+    return switch (pendingRequestsResult) {
+      Ok<Iterable<PendingFriendRequest>>(:final value) => value
+          .where((request) => request.id.trim().isNotEmpty)
+          .toList(growable: false),
+      Error<Iterable<PendingFriendRequest>>() => const <PendingFriendRequest>[],
     };
   }
 
