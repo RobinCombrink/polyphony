@@ -688,8 +688,10 @@ async fn named_user_sends_friend_request_to_named_user_from_server(
     }
 }
 
-#[then("friend request from server context is denied because users do not share that server")]
-async fn friend_request_from_server_context_is_denied_because_users_do_not_share_that_server(
+#[then(
+    "friend request from server \"Test\" context is denied because users do not share server \"Test\""
+)]
+async fn friend_request_from_server_context_is_denied_because_users_do_not_share_server_test(
     world: &mut FriendsAndDirectMessagesWorld,
 ) {
     assert_eq!(world.latest_status_ref(), StatusCode::FORBIDDEN);

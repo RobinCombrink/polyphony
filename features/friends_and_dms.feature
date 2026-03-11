@@ -120,4 +120,4 @@ Feature: Friends, direct messaging, and safety controls
       And a user named "Noah" exists
       And a server named "Test" owned by "Olivia" exists
       When "Noah" sends a friend request to "Olivia" from server "Test"
-      Then friend request from server context is denied because users do not share that server
+      Then friend request from server "Test" context is denied because users do not share server "Test"
