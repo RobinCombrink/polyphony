@@ -2,6 +2,12 @@ part of "server_members_bloc.dart";
 
 enum ServerMembersValidationIssue {
   serverSelectionRequired,
+  serverMemberSelectionRequired,
+  targetUserRequired,
+  alreadyFriend,
+  sendFriendRequestForbidden,
+  sendFriendRequestNotFound,
+  sendFriendRequestConflict,
 }
 
 sealed class ServerMembersState {

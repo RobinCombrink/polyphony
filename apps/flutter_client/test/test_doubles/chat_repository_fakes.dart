@@ -120,14 +120,23 @@ class FakeServerMemberRepository implements ServerMemberRepo {
 class FakeFriendRepository implements FriendRepo {
   FakeFriendRepository({
     required this.friendUserIds,
+    this.forceCreateError = false,
+    this.createError,
   });
 
   final Set<String> friendUserIds;
+  final bool forceCreateError;
+  final Exception? createError;
 
   @override
   Future<Result<void>> createOne({
     required SendFriendRequestFromServerContextCommand command,
   }) async {
+    if (forceCreateError) {
+      return Error<void>(
+          createError ?? Exception("Failed to send friend request"));
+    }
+
     return const Ok<void>(null);
   }
 

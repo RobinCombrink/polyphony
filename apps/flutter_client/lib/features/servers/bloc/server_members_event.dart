@@ -15,3 +15,14 @@ final class LoadServerMembersRequested extends ServerMembersEvent {
 
   final String serverId;
 }
+
+final class SendFriendRequestToServerMemberRequested
+    extends ServerMembersEvent {
+  const SendFriendRequestToServerMemberRequested({
+    required this.serverId,
+    required this.targetUserId,
+  });
+
+  final String serverId;
+  final String targetUserId;
+}

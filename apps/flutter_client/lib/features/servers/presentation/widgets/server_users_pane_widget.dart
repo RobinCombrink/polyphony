@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
@@ -5,8 +7,54 @@ import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
+enum _ServerUserContextMenuAction {
+  addFriend,
+}
+
 class ServerUsersPaneWidget extends StatelessWidget {
   const ServerUsersPaneWidget({super.key});
+
+  Future<void> _showUserContextMenu({
+    required BuildContext context,
+    required ServerMembersLoadedDataState loadedData,
+    required UserProfile member,
+    required bool isFriend,
+    required Offset globalPosition,
+  }) async {
+    if (isFriend) {
+      return;
+    }
+
+    final selectedAction = await showMenu<_ServerUserContextMenuAction>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        globalPosition.dx,
+        globalPosition.dy,
+      ),
+      items: const <PopupMenuEntry<_ServerUserContextMenuAction>>[
+        PopupMenuItem<_ServerUserContextMenuAction>(
+          value: _ServerUserContextMenuAction.addFriend,
+          child: Text("Add friend"),
+        ),
+      ],
+    );
+
+    if (!context.mounted || selectedAction == null) {
+      return;
+    }
+
+    switch (selectedAction) {
+      case _ServerUserContextMenuAction.addFriend:
+        context.read<ServerMembersBloc>().add(
+              SendFriendRequestToServerMemberRequested(
+                serverId: loadedData.serverId,
+                targetUserId: member.userId,
+              ),
+            );
+    }
+  }
 
   List<UserProfile> _skeletonMembers() {
     return List<UserProfile>.generate(
@@ -77,21 +125,50 @@ class ServerUsersPaneWidget extends StatelessWidget {
                               final displayName = _resolvedDisplayName(member);
                               final hasDisplayName =
                                   member.displayName?.trim().isNotEmpty == true;
+                              final isFriend =
+                                  friendUserIds.contains(member.userId);
 
-                              return ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.person_outline),
-                                title: Text(displayName),
-                                subtitle:
-                                    hasDisplayName ? Text(member.userId) : null,
-                                trailing: isLoading
-                                    ? null
-                                    : Text(
-                                        friendUserIds.contains(member.userId)
-                                            ? "Friend"
-                                            : "Not friend",
-                                      ),
+                              return GestureDetector(
+                                onSecondaryTapDown:
+                                    isLoading || loadedData == null
+                                        ? null
+                                        : (details) => unawaited(
+                                              _showUserContextMenu(
+                                                context: context,
+                                                loadedData: loadedData,
+                                                member: member,
+                                                isFriend: isFriend,
+                                                globalPosition:
+                                                    details.globalPosition,
+                                              ),
+                                            ),
+                                onLongPressStart:
+                                    isLoading || loadedData == null
+                                        ? null
+                                        : (details) => unawaited(
+                                              _showUserContextMenu(
+                                                context: context,
+                                                loadedData: loadedData,
+                                                member: member,
+                                                isFriend: isFriend,
+                                                globalPosition:
+                                                    details.globalPosition,
+                                              ),
+                                            ),
+                                child: ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(Icons.person_outline),
+                                  title: Text(displayName),
+                                  subtitle: hasDisplayName
+                                      ? Text(member.userId)
+                                      : null,
+                                  trailing: isLoading
+                                      ? null
+                                      : isFriend
+                                          ? const Text("Friend")
+                                          : const Text("Not friend"),
+                                ),
                               );
                             },
                           ),
