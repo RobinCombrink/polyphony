@@ -37,6 +37,20 @@ class ApiServerMember {
   }
 }
 
+class ApiFriend {
+  const ApiFriend({
+    required this.userId,
+  });
+
+  final String userId;
+
+  factory ApiFriend.fromJson(Map<String, dynamic> json) {
+    return ApiFriend(
+      userId: json["user_id"] as String,
+    );
+  }
+}
+
 class ApiChannel {
   const ApiChannel({
     required this.id,

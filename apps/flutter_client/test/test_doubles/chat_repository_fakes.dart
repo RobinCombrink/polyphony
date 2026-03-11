@@ -3,6 +3,7 @@ import "dart:async";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_member_repo.dart";
@@ -113,6 +114,31 @@ class FakeServerMemberRepository implements ServerMemberRepo {
           )
           .toList(),
     );
+  }
+}
+
+class FakeFriendRepository implements FriendRepo {
+  FakeFriendRepository({
+    required this.friendUserIds,
+  });
+
+  final Set<String> friendUserIds;
+
+  @override
+  Future<Result<void>> createOne({
+    required SendFriendRequestFromServerContextCommand command,
+  }) async {
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<Iterable<Friend>>> getMany({
+    required GetFriendsQuery query,
+  }) async {
+    final friends = friendUserIds
+        .map((userId) => Friend(userId: userId))
+        .toList(growable: false);
+    return Ok<Iterable<Friend>>(friends);
   }
 }
 

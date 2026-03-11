@@ -34,6 +34,20 @@ class ServerMember {
   }
 }
 
+class Friend {
+  const Friend({
+    required this.userId,
+  });
+
+  final String userId;
+
+  factory Friend.fromJson(Map<String, dynamic> json) {
+    return Friend(
+      userId: json["user_id"] as String,
+    );
+  }
+}
+
 sealed class Channel {
   const Channel({
     required this.id,

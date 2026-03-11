@@ -43,6 +43,7 @@ class ServerUsersPaneWidget extends StatelessWidget {
         }
 
         final members = loadedData?.members ?? const <UserProfile>[];
+        final friendUserIds = loadedData?.friendUserIds ?? const <String>{};
         final visibleMembers =
             isLoading && members.isEmpty ? _skeletonMembers() : members;
 
@@ -84,6 +85,13 @@ class ServerUsersPaneWidget extends StatelessWidget {
                                 title: Text(displayName),
                                 subtitle:
                                     hasDisplayName ? Text(member.userId) : null,
+                                trailing: isLoading
+                                    ? null
+                                    : Text(
+                                        friendUserIds.contains(member.userId)
+                                            ? "Friend"
+                                            : "Not friend",
+                                      ),
                               );
                             },
                           ),

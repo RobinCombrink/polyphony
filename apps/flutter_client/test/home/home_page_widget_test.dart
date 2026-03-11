@@ -30,6 +30,7 @@ class _RecordingServerMembersBloc extends ServerMembersBloc {
   _RecordingServerMembersBloc({
     required super.serverMemberRepo,
     required super.profileRepo,
+    required super.friendRepo,
   });
 
   final recordedEvents = <ServerMembersEvent>[];
@@ -223,6 +224,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
+        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,
@@ -337,6 +339,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
+        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,
@@ -436,6 +439,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
+        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,
@@ -539,6 +543,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
+        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,
@@ -656,6 +661,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
+        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,
@@ -787,6 +793,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
+        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,

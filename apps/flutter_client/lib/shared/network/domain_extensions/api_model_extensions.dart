@@ -31,6 +31,22 @@ extension ApiServerMemberToDomainExtension on ApiServerMember {
   }
 }
 
+extension ApiFriendToDomainExtension on ApiFriend {
+  Friend toDomainModel() {
+    return Friend(
+      userId: userId,
+    );
+  }
+}
+
+extension DomainFriendToApiExtension on Friend {
+  ApiFriend toApiModel() {
+    return ApiFriend(
+      userId: userId,
+    );
+  }
+}
+
 extension DomainServerMemberToApiExtension on ServerMember {
   ApiServerMember toApiModel() {
     return ApiServerMember(

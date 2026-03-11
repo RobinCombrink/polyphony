@@ -18,6 +18,8 @@ import "package:polyphony_flutter_client/shared/config/backend_base_url_resolver
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repository.dart";
+import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/friend_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
@@ -33,6 +35,7 @@ import "package:polyphony_flutter_client/shared/repositories/text_session_reposi
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repository.dart";
 import "package:polyphony_flutter_client/shared/services/channel_service.dart";
+import "package:polyphony_flutter_client/shared/services/friend_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_service.dart";
@@ -42,6 +45,7 @@ import "package:polyphony_flutter_client/shared/services/notification_service.da
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_channel_service.dart";
+import "package:polyphony_flutter_client/shared/services/rest/rest_friend_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_message_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_profile_service.dart";
@@ -293,6 +297,11 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
               dio: context.read<Dio>(),
             ),
           ),
+          Provider<FriendService>(
+            create: (context) => RestFriendService(
+              dio: context.read<Dio>(),
+            ),
+          ),
           Provider<MessageService>(
             create: (context) => RestMessageService(
               dio: context.read<Dio>(),
@@ -326,6 +335,11 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
           Provider<ChannelRepo>(
             create: (context) => ChannelRepository(
               channelService: context.read<ChannelService>(),
+            ),
+          ),
+          Provider<FriendRepo>(
+            create: (context) => FriendRepository(
+              friendService: context.read<FriendService>(),
             ),
           ),
           Provider<MessageRepo>(
@@ -406,6 +420,7 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
               create: (context) => ServerMembersBloc(
                 serverMemberRepo: context.read<ServerMemberRepo>(),
                 profileRepo: context.read<ProfileRepo>(),
+                friendRepo: context.read<FriendRepo>(),
               ),
             ),
             BlocProvider<VoiceSessionsBloc>(
