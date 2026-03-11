@@ -1389,4 +1389,3 @@ async fn notifications_feature() {
         .await;
     shutdown_feature_test_store().await;
 }
-

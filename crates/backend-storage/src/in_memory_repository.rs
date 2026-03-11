@@ -1,10 +1,9 @@
 use async_trait::async_trait;
 use backend_domain::{
-    BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread, DirectMessageThreadId,
-    ExternalReference, FriendNotificationEventType, FriendRequest, FriendRequestId, FriendRequestState,
-    Friendship,
-    Membership, Message, MessageId, NotificationCategoryPreference, NotificationMuteState,
-    Server, ServerId, User, UserId,
+    BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
+    DirectMessageThreadId, ExternalReference, FriendNotificationEventType, FriendRequest,
+    FriendRequestId, FriendRequestState, Friendship, Membership, Message, MessageId,
+    NotificationCategoryPreference, NotificationMuteState, Server, ServerId, User, UserId,
 };
 use tokio::sync::RwLock;
 
@@ -411,11 +410,13 @@ impl NotificationRepository for InMemoryRepository {
         let count = store
             .friend_notification_outbox
             .iter()
-            .filter(|(_, stored_recipient_user_id, stored_actor_user_id, stored_event_type)| {
-                *stored_recipient_user_id == recipient_user_id
-                    && *stored_actor_user_id == actor_user_id
-                    && *stored_event_type == event_type
-            })
+            .filter(
+                |(_, stored_recipient_user_id, stored_actor_user_id, stored_event_type)| {
+                    *stored_recipient_user_id == recipient_user_id
+                        && *stored_actor_user_id == actor_user_id
+                        && *stored_event_type == event_type
+                },
+            )
             .count();
 
         u64::try_from(count).unwrap_or(0)
@@ -475,7 +476,11 @@ impl BlockRepository for InMemoryRepository {
         store.block_user(blocker_user_id, blocked_user_id)
     }
 
-    async fn unblock_user(&self, blocker_user_id: UserId, blocked_user_id: UserId) -> MutationResult {
+    async fn unblock_user(
+        &self,
+        blocker_user_id: UserId,
+        blocked_user_id: UserId,
+    ) -> MutationResult {
         let mut store = self.store.write().await;
         store.unblock_user(blocker_user_id, blocked_user_id)
     }
@@ -502,7 +507,10 @@ impl DirectMessageRepository for InMemoryRepository {
         store.open_or_get_direct_message_thread(actor_user_id, other_user_id)
     }
 
-    async fn list_direct_message_threads_for_user(&self, user_id: UserId) -> Vec<DirectMessageThread> {
+    async fn list_direct_message_threads_for_user(
+        &self,
+        user_id: UserId,
+    ) -> Vec<DirectMessageThread> {
         let store = self.store.read().await;
         store.list_direct_message_threads_for_user(user_id)
     }
@@ -517,7 +525,11 @@ impl DirectMessageRepository for InMemoryRepository {
         store.send_direct_message(actor_user_id, thread_id, content)
     }
 
-    async fn list_direct_messages(&self, actor_user_id: UserId, thread_id: DirectMessageThreadId) -> Option<Vec<DirectMessage>> {
+    async fn list_direct_messages(
+        &self,
+        actor_user_id: UserId,
+        thread_id: DirectMessageThreadId,
+    ) -> Option<Vec<DirectMessage>> {
         let store = self.store.read().await;
         store.list_direct_messages(actor_user_id, thread_id)
     }
