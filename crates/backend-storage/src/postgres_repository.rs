@@ -1,14 +1,13 @@
 use async_trait::async_trait;
 use backend_domain::{
-    BlockRelationship, Channel, ChannelId, ChannelType, DisplayName, DirectMessage, DirectMessageThread,
-    DirectMessageThreadId, ExternalReference, FriendRequest, FriendRequestId, FriendRequestState, Friendship,
-    Membership, Message, MessageId, NotificationCategoryPreference, NotificationEventType,
-    NotificationMuteState, Server, ServerId, User, UserId,
+    BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
+    DirectMessageThreadId, DisplayName, ExternalReference, FriendRequest, FriendRequestId,
+    FriendRequestState, Friendship, Membership, Message, MessageId, NotificationCategoryPreference,
+    NotificationEventType, NotificationMuteState, Server, ServerId, User, UserId,
 };
 use sqlx::migrate::Migrator;
 use sqlx::{
-    FromRow,
-    PgPool,
+    FromRow, PgPool,
     postgres::{PgConnectOptions, PgPoolOptions},
 };
 use uuid::Uuid;
@@ -16,8 +15,8 @@ use uuid::Uuid;
 use crate::{
     BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
     DirectMessageRepository, FriendRepository, MessageRepository, MutationResult,
-    NotificationRepository, OpenOrGetDirectMessageThreadResult, SendDirectMessageResult, SendFriendRequestResult,
-    ServerRepository, UpdateFriendRequestResult, UserRepository,
+    NotificationRepository, OpenOrGetDirectMessageThreadResult, SendDirectMessageResult,
+    SendFriendRequestResult, ServerRepository, UpdateFriendRequestResult, UserRepository,
 };
 
 #[cfg(target_family = "windows")]
@@ -220,8 +219,16 @@ impl TryFrom<ChannelRow> for Channel {
 
     fn try_from(value: ChannelRow) -> Result<Self, Self::Error> {
         match value.channel_type.as_str() {
-            "text" => Ok(Channel::new_text(value.id.into(), value.server_id.into(), value.name)),
-            "voice" => Ok(Channel::new_voice(value.id.into(), value.server_id.into(), value.name)),
+            "text" => Ok(Channel::new_text(
+                value.id.into(),
+                value.server_id.into(),
+                value.name,
+            )),
+            "voice" => Ok(Channel::new_voice(
+                value.id.into(),
+                value.server_id.into(),
+                value.name,
+            )),
             _ => Err(()),
         }
     }
@@ -1536,12 +1543,13 @@ impl FriendRepository for PostgresRepository {
         let pending_count = sqlx::query_scalar::<_, i64>(
             "SELECT COUNT(1)
              FROM friend_requests
-             WHERE state = 'pending'
-               AND LEAST(requester_user_id, addressee_user_id) = LEAST($1, $2)
-               AND GREATEST(requester_user_id, addressee_user_id) = GREATEST($1, $2)",
+                         WHERE state = $3
+                             AND LEAST(requester_user_id, addressee_user_id) = LEAST($1, $2)
+                             AND GREATEST(requester_user_id, addressee_user_id) = GREATEST($1, $2)",
         )
         .bind(requester_user_id)
         .bind(addressee_user_id)
+        .bind(FriendRequestState::Pending)
         .fetch_one(&self.pool)
         .await
         .unwrap_or(0);
@@ -1552,11 +1560,12 @@ impl FriendRepository for PostgresRepository {
 
         let inserted = sqlx::query_as::<_, FriendRequestRow>(
             "INSERT INTO friend_requests (id, requester_user_id, addressee_user_id, state)
-             VALUES (gen_random_uuid(), $1, $2, 'pending')
+               VALUES (gen_random_uuid(), $1, $2, $3)
              RETURNING id, requester_user_id, addressee_user_id, state",
         )
         .bind(requester_user_id)
         .bind(addressee_user_id)
+        .bind(FriendRequestState::Pending)
         .fetch_one(&self.pool)
         .await;
 
@@ -1677,10 +1686,11 @@ impl FriendRepository for PostgresRepository {
             "SELECT id, requester_user_id, addressee_user_id, state
              FROM friend_requests
              WHERE addressee_user_id = $1
-               AND state = 'pending'
+                             AND state = $2
              ORDER BY created_at ASC",
         )
         .bind(Uuid::from(user_id))
+        .bind(FriendRequestState::Pending)
         .fetch_all(&self.pool)
         .await
         .unwrap_or_default()
@@ -1694,10 +1704,11 @@ impl FriendRepository for PostgresRepository {
             "SELECT id, requester_user_id, addressee_user_id, state
              FROM friend_requests
              WHERE requester_user_id = $1
-               AND state = 'pending'
+                             AND state = $2
              ORDER BY created_at ASC",
         )
         .bind(Uuid::from(user_id))
+        .bind(FriendRequestState::Pending)
         .fetch_all(&self.pool)
         .await
         .unwrap_or_default()
@@ -2000,7 +2011,10 @@ impl DirectMessageRepository for PostgresRepository {
         ))
     }
 
-    async fn list_direct_message_threads_for_user(&self, user_id: UserId) -> Vec<DirectMessageThread> {
+    async fn list_direct_message_threads_for_user(
+        &self,
+        user_id: UserId,
+    ) -> Vec<DirectMessageThread> {
         sqlx::query_as::<_, DirectMessageThreadRow>(
             "SELECT id, participant_a_user_id, participant_b_user_id
              FROM direct_message_threads
@@ -2125,7 +2139,9 @@ impl DirectMessageRepository for PostgresRepository {
         .await
         .ok()??;
 
-        if actor_user_id != thread.participant_a_user_id && actor_user_id != thread.participant_b_user_id {
+        if actor_user_id != thread.participant_a_user_id
+            && actor_user_id != thread.participant_b_user_id
+        {
             return None;
         }
 
