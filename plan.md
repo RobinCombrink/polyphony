@@ -333,45 +333,9 @@ progress:
 - completed: added auth/health frontend BDD-style test suite at `apps/flutter_client/test/bdd/auth_and_health_feature_test.dart` covering authentication gate session-restore intent and authenticated identity-read scenarios applicable to the Flutter client.
 - completed: all current backend `.feature` files now have corresponding frontend BDD-style parity suites where behavior is client-applicable (`auth_and_health`, `identity_and_users`, `messages`, `notifications`, `servers_and_channels`, `voice_sessions`).
 
-
-#### phase 8: encryption at rest (Although taking the future into account)
-status:
-- planned
-
-goals:
-- privacy first design, user trust.
-
-scope: 
-- all media (voice and video) is encrypted at rest and in transit between client(s) and server
-- all data is encrypted at rest and in transit between client(s) and server
-- the server cannot know what is being sent
-
-#### phase 9: end to end encryption
-status:
-- planned
-
-goals:
-- privacy first design, user trust, user data protection in event of server breach/compromise.
-
-scope: 
-- all media (voice and video) is encrypted in transit between client(s) and server
-- all data is encrypted in transit between client(s) and server
-- the server cannot know what is being sent
-
-#### phase 10: Fuzz testing
-status:
-- planned
-
-goals:
-- Improve robustness and security by finding edge cases and vulnerabilities															
-
-scope: 
-- Implement fuzz testing for critical backend compoennts
-
-
 #### Phase 11 (Weeks 5-6): Friends, direct messaging, and safety controls
 Status:
-- Planned.
+- In progress.
 
 Goals:
 - Add person-to-person social graph and private conversation primitives.
@@ -509,6 +473,43 @@ Goal:
 Scope: 
 - Improve the @mentions experience
 - Add multiple presets for Colour scheme - Scene green, scene purple, Chroma, high contrast, monochrome, etc For both dark and light mode
+
+#### phase 18: Fuzz testing
+status:
+- planned
+
+goals:
+- Improve robustness and security by finding edge cases and vulnerabilities															
+
+scope: 
+- Implement fuzz testing for critical backend compoennts
+
+
+
+#### phase 19: encryption at rest (Although taking the future into account)
+status:
+- planned
+
+goals:
+- privacy first design, user trust.
+
+scope: 
+- all media (voice and video) is encrypted at rest and in transit between client(s) and server
+- all data is encrypted at rest and in transit between client(s) and server
+- the server cannot know what is being sent
+
+#### phase 20: end to end encryption
+status:
+- planned
+
+goals:
+- privacy first design, user trust, user data protection in event of server breach/compromise.
+
+scope: 
+- all media (voice and video) is encrypted in transit between client(s) and server
+- all data is encrypted in transit between client(s) and server
+- the server cannot know what is being sent
+
 
 ### Quality gates for expansion phases
 - Rust changes must pass: `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test`.
