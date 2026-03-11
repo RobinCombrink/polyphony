@@ -2,9 +2,11 @@ use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
 use backend_domain::{
-    Channel, ChannelId, ChannelType, DisplayName, ExternalReference, Membership, Message,
-    MessageId, NotificationCategoryPreference, NotificationEventType, NotificationMuteState,
-    Server, ServerId, User, UserId,
+    BlockRelationship, Channel, ChannelId, ChannelType, DisplayName, DirectMessage, DirectMessageThread,
+    DirectMessageThreadId, ExternalReference, FriendRequest,
+    FriendRequestId, FriendRequestState, Friendship, FriendshipId, Membership, Message, MessageId,
+    NotificationCategoryPreference, NotificationEventType, NotificationMuteState, Server,
+    ServerId, User, UserId,
 };
 use uuid::Uuid;
 
@@ -32,9 +34,23 @@ pub(crate) struct InMemoryStore {
     pub(crate) channel_notification_category_by_user_channel:
         HashMap<(UserId, ChannelId), NotificationCategoryPreference>,
     pub(crate) channel_mute_until_by_user_channel: HashMap<(UserId, ChannelId), SystemTime>,
+    pub(crate) friend_requests_by_id: HashMap<FriendRequestId, FriendRequest>,
+    pub(crate) friendships_by_id: HashMap<FriendshipId, Friendship>,
+    pub(crate) blocks_by_user_pair: HashMap<(UserId, UserId), BlockRelationship>,
+    pub(crate) direct_message_threads_by_id: HashMap<DirectMessageThreadId, DirectMessageThread>,
+    pub(crate) direct_message_thread_id_by_user_pair: HashMap<(UserId, UserId), DirectMessageThreadId>,
+    pub(crate) direct_messages_by_thread_id: HashMap<DirectMessageThreadId, Vec<DirectMessage>>,
 }
 
 impl InMemoryStore {
+    fn ordered_user_pair(user_id: UserId, other_user_id: UserId) -> (UserId, UserId) {
+        if user_id <= other_user_id {
+            (user_id, other_user_id)
+        } else {
+            (other_user_id, user_id)
+        }
+    }
+
     pub(crate) fn is_server_member(&self, server_id: ServerId, user_id: UserId) -> Option<bool> {
         if !self.servers.contains_key(&server_id) {
             return None;
@@ -629,5 +645,360 @@ impl InMemoryStore {
             ) => NotificationCategoryPreference::OnlyMentions,
             _ => scoped_category,
         }
+    }
+
+    pub(crate) fn are_friends(&self, user_id: UserId, other_user_id: UserId) -> bool {
+        let ordered_pair = Self::ordered_user_pair(user_id, other_user_id);
+        self.friendships_by_id.values().any(|friendship| {
+            Self::ordered_user_pair(friendship.user_a_id, friendship.user_b_id) == ordered_pair
+        })
+    }
+
+    pub(crate) fn users_are_blocked(&self, user_id: UserId, other_user_id: UserId) -> bool {
+        let ordered_pair = Self::ordered_user_pair(user_id, other_user_id);
+        self.blocks_by_user_pair.contains_key(&ordered_pair)
+    }
+
+    pub(crate) fn send_friend_request(
+        &mut self,
+        requester_user_id: UserId,
+        addressee_user_id: UserId,
+    ) -> crate::SendFriendRequestResult {
+        if requester_user_id == addressee_user_id {
+            return crate::SendFriendRequestResult::Forbidden;
+        }
+
+        if self.find_user_by_id(requester_user_id).is_none()
+            || self.find_user_by_id(addressee_user_id).is_none()
+        {
+            return crate::SendFriendRequestResult::NotFound;
+        }
+
+        if self.users_are_blocked(requester_user_id, addressee_user_id) {
+            return crate::SendFriendRequestResult::Blocked;
+        }
+
+        if self.are_friends(requester_user_id, addressee_user_id) {
+            return crate::SendFriendRequestResult::AlreadyFriends;
+        }
+
+        let already_pending = self.friend_requests_by_id.values().any(|request| {
+            request.state == FriendRequestState::Pending
+                && ((request.requester_user_id == requester_user_id
+                    && request.addressee_user_id == addressee_user_id)
+                    || (request.requester_user_id == addressee_user_id
+                        && request.addressee_user_id == requester_user_id))
+        });
+
+        if already_pending {
+            return crate::SendFriendRequestResult::AlreadyPending;
+        }
+
+        let friend_request = FriendRequest {
+            id: Uuid::new_v4().into(),
+            requester_user_id,
+            addressee_user_id,
+            state: FriendRequestState::Pending,
+        };
+
+        self.friend_requests_by_id
+            .insert(friend_request.id, friend_request.clone());
+
+        crate::SendFriendRequestResult::Created(friend_request)
+    }
+
+    pub(crate) fn set_friend_request_state(
+        &mut self,
+        actor_user_id: UserId,
+        friend_request_id: FriendRequestId,
+        state: FriendRequestState,
+    ) -> crate::UpdateFriendRequestResult {
+        let Some(existing_request) = self.friend_requests_by_id.get_mut(&friend_request_id) else {
+            return crate::UpdateFriendRequestResult::NotFound;
+        };
+
+        if existing_request.state != FriendRequestState::Pending {
+            return crate::UpdateFriendRequestResult::InvalidState;
+        }
+
+        match state {
+            FriendRequestState::Accepted | FriendRequestState::Declined => {
+                if existing_request.addressee_user_id != actor_user_id {
+                    return crate::UpdateFriendRequestResult::Forbidden;
+                }
+            }
+            FriendRequestState::Cancelled => {
+                if existing_request.requester_user_id != actor_user_id {
+                    return crate::UpdateFriendRequestResult::Forbidden;
+                }
+            }
+            FriendRequestState::Pending => return crate::UpdateFriendRequestResult::InvalidState,
+        }
+
+        existing_request.state = state;
+        let requester_user_id = existing_request.requester_user_id;
+        let addressee_user_id = existing_request.addressee_user_id;
+        let updated_request = existing_request.clone();
+
+        if state == FriendRequestState::Accepted && !self.are_friends(requester_user_id, addressee_user_id) {
+            let friendship = Friendship {
+                id: Uuid::new_v4().into(),
+                user_a_id: requester_user_id,
+                user_b_id: addressee_user_id,
+            };
+            self.friendships_by_id.insert(friendship.id, friendship);
+        }
+
+        crate::UpdateFriendRequestResult::Updated(updated_request)
+    }
+
+    pub(crate) fn list_friendships_for_user(&self, user_id: UserId) -> Vec<Friendship> {
+        self.friendships_by_id
+            .values()
+            .filter(|friendship| friendship.user_a_id == user_id || friendship.user_b_id == user_id)
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+
+    pub(crate) fn list_pending_incoming_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest> {
+        self.friend_requests_by_id
+            .values()
+            .filter(|request| {
+                request.state == FriendRequestState::Pending && request.addressee_user_id == user_id
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+
+    pub(crate) fn list_pending_outgoing_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest> {
+        self.friend_requests_by_id
+            .values()
+            .filter(|request| {
+                request.state == FriendRequestState::Pending && request.requester_user_id == user_id
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+
+    pub(crate) fn block_user(
+        &mut self,
+        blocker_user_id: UserId,
+        blocked_user_id: UserId,
+    ) -> crate::BlockUserResult {
+        if blocker_user_id == blocked_user_id {
+            return crate::BlockUserResult::Forbidden;
+        }
+
+        if self.find_user_by_id(blocker_user_id).is_none()
+            || self.find_user_by_id(blocked_user_id).is_none()
+        {
+            return crate::BlockUserResult::NotFound;
+        }
+
+        let ordered_pair = Self::ordered_user_pair(blocker_user_id, blocked_user_id);
+        if self.blocks_by_user_pair.contains_key(&ordered_pair) {
+            return crate::BlockUserResult::AlreadyBlocked;
+        }
+
+        let restored_friendship_id = self
+            .friendships_by_id
+            .iter()
+            .find(|(_, friendship)| {
+                Self::ordered_user_pair(friendship.user_a_id, friendship.user_b_id) == ordered_pair
+            })
+            .map(|(id, _)| *id);
+
+        if let Some(friendship_id) = restored_friendship_id {
+            self.friendships_by_id.remove(&friendship_id);
+        }
+
+        let block_relationship = BlockRelationship {
+            id: Uuid::new_v4().into(),
+            blocker_user_id,
+            blocked_user_id,
+            restored_friendship_id,
+        };
+
+        self.blocks_by_user_pair
+            .insert(ordered_pair, block_relationship.clone());
+
+        crate::BlockUserResult::Created(block_relationship)
+    }
+
+    pub(crate) fn unblock_user(
+        &mut self,
+        blocker_user_id: UserId,
+        blocked_user_id: UserId,
+    ) -> MutationResult {
+        let ordered_pair = Self::ordered_user_pair(blocker_user_id, blocked_user_id);
+        let Some(block_relationship) = self.blocks_by_user_pair.get(&ordered_pair).cloned() else {
+            return MutationResult::NotFound;
+        };
+
+        if block_relationship.blocker_user_id != blocker_user_id {
+            return MutationResult::Forbidden;
+        }
+
+        self.blocks_by_user_pair.remove(&ordered_pair);
+
+        if let Some(friendship_id) = block_relationship.restored_friendship_id {
+            let friendship = Friendship {
+                id: friendship_id,
+                user_a_id: ordered_pair.0,
+                user_b_id: ordered_pair.1,
+            };
+            self.friendships_by_id.insert(friendship.id, friendship);
+        }
+
+        MutationResult::Deleted
+    }
+
+    pub(crate) fn list_blocked_users(&self, blocker_user_id: UserId) -> Vec<BlockRelationship> {
+        self.blocks_by_user_pair
+            .values()
+            .filter(|block_relationship| block_relationship.blocker_user_id == blocker_user_id)
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+
+    pub(crate) fn open_or_get_direct_message_thread(
+        &mut self,
+        actor_user_id: UserId,
+        other_user_id: UserId,
+    ) -> crate::OpenOrGetDirectMessageThreadResult {
+        if actor_user_id == other_user_id {
+            return crate::OpenOrGetDirectMessageThreadResult::Forbidden;
+        }
+
+        if self.find_user_by_id(actor_user_id).is_none() || self.find_user_by_id(other_user_id).is_none() {
+            return crate::OpenOrGetDirectMessageThreadResult::NotFound;
+        }
+
+        if self.users_are_blocked(actor_user_id, other_user_id) {
+            return crate::OpenOrGetDirectMessageThreadResult::Blocked;
+        }
+
+        if !self.are_friends(actor_user_id, other_user_id) {
+            return crate::OpenOrGetDirectMessageThreadResult::Forbidden;
+        }
+
+        let ordered_pair = Self::ordered_user_pair(actor_user_id, other_user_id);
+        if let Some(thread_id) = self.direct_message_thread_id_by_user_pair.get(&ordered_pair).copied() {
+            let existing_thread = self
+                .direct_message_threads_by_id
+                .get(&thread_id)
+                .cloned()
+                .expect("dm thread id mapping to existing thread");
+            return crate::OpenOrGetDirectMessageThreadResult::Opened(existing_thread);
+        }
+
+        let thread = DirectMessageThread {
+            id: Uuid::new_v4().into(),
+            participant_a_user_id: ordered_pair.0,
+            participant_b_user_id: ordered_pair.1,
+        };
+        self.direct_message_thread_id_by_user_pair.insert(ordered_pair, thread.id);
+        self.direct_message_threads_by_id.insert(thread.id, thread.clone());
+        crate::OpenOrGetDirectMessageThreadResult::Opened(thread)
+    }
+
+    pub(crate) fn list_direct_message_threads_for_user(&self, user_id: UserId) -> Vec<DirectMessageThread> {
+        self.direct_message_threads_by_id
+            .values()
+            .filter(|thread| thread.participant_a_user_id == user_id || thread.participant_b_user_id == user_id)
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+
+    pub(crate) fn send_direct_message(
+        &mut self,
+        actor_user_id: UserId,
+        thread_id: DirectMessageThreadId,
+        content: String,
+    ) -> crate::SendDirectMessageResult {
+        let Some(thread) = self.direct_message_threads_by_id.get(&thread_id).cloned() else {
+            return crate::SendDirectMessageResult::NotFound;
+        };
+
+        if thread.participant_a_user_id != actor_user_id && thread.participant_b_user_id != actor_user_id {
+            return crate::SendDirectMessageResult::Forbidden;
+        }
+
+        let other_user_id = if thread.participant_a_user_id == actor_user_id {
+            thread.participant_b_user_id
+        } else {
+            thread.participant_a_user_id
+        };
+
+        if self.users_are_blocked(actor_user_id, other_user_id) {
+            return crate::SendDirectMessageResult::Blocked;
+        }
+
+        if !self.are_friends(actor_user_id, other_user_id) {
+            return crate::SendDirectMessageResult::Forbidden;
+        }
+
+        let message = DirectMessage {
+            id: Uuid::new_v4().into(),
+            thread_id,
+            author_user_id: actor_user_id,
+            content,
+        };
+        self.direct_messages_by_thread_id
+            .entry(thread_id)
+            .or_default()
+            .push(message.clone());
+
+        crate::SendDirectMessageResult::Created(message)
+    }
+
+    pub(crate) fn list_direct_messages(
+        &self,
+        actor_user_id: UserId,
+        thread_id: DirectMessageThreadId,
+    ) -> Option<Vec<DirectMessage>> {
+        let thread = self.direct_message_threads_by_id.get(&thread_id)?;
+        if thread.participant_a_user_id != actor_user_id && thread.participant_b_user_id != actor_user_id {
+            return None;
+        }
+
+        Some(
+            self.direct_messages_by_thread_id
+                .get(&thread_id)
+                .cloned()
+                .unwrap_or_default(),
+        )
+    }
+
+    pub(crate) fn search_direct_messages_for_person(
+        &self,
+        actor_user_id: UserId,
+        other_user_id: UserId,
+        query: &str,
+    ) -> Option<Vec<DirectMessage>> {
+        if self.users_are_blocked(actor_user_id, other_user_id) {
+            return None;
+        }
+
+        if !self.are_friends(actor_user_id, other_user_id) {
+            return None;
+        }
+
+        let ordered_pair = Self::ordered_user_pair(actor_user_id, other_user_id);
+        let Some(thread_id) = self.direct_message_thread_id_by_user_pair.get(&ordered_pair).copied() else {
+            return Some(Vec::new());
+        };
+
+        let query_lower = query.to_lowercase();
+        let messages = self
+            .direct_messages_by_thread_id
+            .get(&thread_id)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|message| message.content.to_lowercase().contains(&query_lower))
+            .collect::<Vec<_>>();
+
+        Some(messages)
     }
 }

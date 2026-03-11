@@ -1,5 +1,7 @@
 mod channel;
+mod direct_message;
 mod display_name;
+mod friend_relationship;
 mod ids;
 mod membership;
 mod message;
@@ -10,8 +12,13 @@ mod server;
 mod user;
 
 pub use channel::{Channel, ChannelType};
+pub use direct_message::{DirectMessage, DirectMessageThread};
 pub use display_name::DisplayName;
-pub use ids::{ChannelId, ExternalReference, MessageId, ServerId, UserId};
+pub use friend_relationship::{BlockRelationship, FriendRequest, FriendRequestState, Friendship};
+pub use ids::{
+    BlockRelationshipId, ChannelId, DirectMessageId, DirectMessageThreadId, ExternalReference, FriendRequestId,
+    FriendshipId, MessageId, ServerId, UserId,
+};
 pub use membership::Membership;
 pub use message::{MentionedMessage, Message, RegularMessage};
 pub use notification_category_preference::NotificationCategoryPreference;

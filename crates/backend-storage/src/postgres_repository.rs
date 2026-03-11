@@ -1,19 +1,23 @@
 use async_trait::async_trait;
 use backend_domain::{
-    Channel, ChannelId, ChannelType, DisplayName, ExternalReference, Membership, Message,
-    MessageId, NotificationCategoryPreference, NotificationEventType, NotificationMuteState,
-    Server, ServerId, User, UserId,
+    BlockRelationship, Channel, ChannelId, ChannelType, DisplayName, DirectMessage, DirectMessageThread,
+    DirectMessageThreadId, ExternalReference, FriendRequest, FriendRequestId, FriendRequestState, Friendship,
+    Membership, Message, MessageId, NotificationCategoryPreference, NotificationEventType,
+    NotificationMuteState, Server, ServerId, User, UserId,
 };
 use sqlx::migrate::Migrator;
 use sqlx::{
+    FromRow,
     PgPool,
     postgres::{PgConnectOptions, PgPoolOptions},
 };
 use uuid::Uuid;
 
 use crate::{
-    ChannelRepository, CreateMessageResult, MessageRepository, MutationResult,
-    NotificationRepository, ServerRepository, UserRepository,
+    BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
+    DirectMessageRepository, FriendRepository, MessageRepository, MutationResult,
+    NotificationRepository, OpenOrGetDirectMessageThreadResult, SendDirectMessageResult, SendFriendRequestResult,
+    ServerRepository, UpdateFriendRequestResult, UserRepository,
 };
 
 #[cfg(target_family = "windows")]
@@ -25,6 +29,208 @@ static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 #[derive(Debug, Clone)]
 pub struct PostgresRepository {
     pool: PgPool,
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct FriendRequestRow {
+    id: Uuid,
+    requester_user_id: Uuid,
+    addressee_user_id: Uuid,
+    state: FriendRequestState,
+}
+
+impl From<FriendRequestRow> for FriendRequest {
+    fn from(value: FriendRequestRow) -> Self {
+        Self {
+            id: value.id.into(),
+            requester_user_id: value.requester_user_id.into(),
+            addressee_user_id: value.addressee_user_id.into(),
+            state: value.state,
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct FriendshipRow {
+    id: Uuid,
+    user_a_id: Uuid,
+    user_b_id: Uuid,
+}
+
+impl From<FriendshipRow> for Friendship {
+    fn from(value: FriendshipRow) -> Self {
+        Self {
+            id: value.id.into(),
+            user_a_id: value.user_a_id.into(),
+            user_b_id: value.user_b_id.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct BlockRelationshipRow {
+    id: Uuid,
+    blocker_user_id: Uuid,
+    blocked_user_id: Uuid,
+    restored_friendship_id: Option<Uuid>,
+}
+
+impl From<BlockRelationshipRow> for BlockRelationship {
+    fn from(value: BlockRelationshipRow) -> Self {
+        Self {
+            id: value.id.into(),
+            blocker_user_id: value.blocker_user_id.into(),
+            blocked_user_id: value.blocked_user_id.into(),
+            restored_friendship_id: value.restored_friendship_id.map(Into::into),
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct DirectMessageThreadRow {
+    id: Uuid,
+    participant_a_user_id: Uuid,
+    participant_b_user_id: Uuid,
+}
+
+impl From<DirectMessageThreadRow> for DirectMessageThread {
+    fn from(value: DirectMessageThreadRow) -> Self {
+        Self {
+            id: value.id.into(),
+            participant_a_user_id: value.participant_a_user_id.into(),
+            participant_b_user_id: value.participant_b_user_id.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct DirectMessageRow {
+    id: Uuid,
+    thread_id: Uuid,
+    author_user_id: Uuid,
+    content: String,
+}
+
+impl From<DirectMessageRow> for DirectMessage {
+    fn from(value: DirectMessageRow) -> Self {
+        Self {
+            id: value.id.into(),
+            thread_id: value.thread_id.into(),
+            author_user_id: value.author_user_id.into(),
+            content: value.content,
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct DirectMessageThreadParticipantsRow {
+    participant_a_user_id: Uuid,
+    participant_b_user_id: Uuid,
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct MessageRow {
+    id: Uuid,
+    channel_id: Uuid,
+    author_user_id: Uuid,
+    content: String,
+    mentioned_user_id: Option<Uuid>,
+}
+
+impl From<MessageRow> for Message {
+    fn from(value: MessageRow) -> Self {
+        if let Some(mentioned_user_id) = value.mentioned_user_id {
+            return Message::new_mentioned(
+                value.id.into(),
+                value.channel_id.into(),
+                value.author_user_id.into(),
+                value.content,
+                mentioned_user_id.into(),
+            );
+        }
+
+        Message::new_regular(
+            value.id.into(),
+            value.channel_id.into(),
+            value.author_user_id.into(),
+            value.content,
+        )
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct UserRow {
+    id: Uuid,
+    external_reference: String,
+    display_name: Option<String>,
+}
+
+impl From<UserRow> for User {
+    fn from(value: UserRow) -> Self {
+        Self {
+            id: value.id.into(),
+            external_reference: value.external_reference.into(),
+            display_name: value.display_name.map(DisplayName::new),
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct ServerRow {
+    id: Uuid,
+    name: String,
+    owner_user_id: Uuid,
+}
+
+impl From<ServerRow> for Server {
+    fn from(value: ServerRow) -> Self {
+        Self {
+            id: value.id.into(),
+            name: value.name,
+            owner_user_id: value.owner_user_id.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct ServerMemberRow {
+    server_id: Uuid,
+    user_id: Uuid,
+}
+
+impl From<ServerMemberRow> for Membership {
+    fn from(value: ServerMemberRow) -> Self {
+        Self {
+            user_id: value.user_id.into(),
+            server_id: value.server_id.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct ChannelRow {
+    id: Uuid,
+    server_id: Uuid,
+    name: String,
+    channel_type: String,
+}
+
+impl TryFrom<ChannelRow> for Channel {
+    type Error = ();
+
+    fn try_from(value: ChannelRow) -> Result<Self, Self::Error> {
+        match value.channel_type.as_str() {
+            "text" => Ok(Channel::new_text(value.id.into(), value.server_id.into(), value.name)),
+            "voice" => Ok(Channel::new_voice(value.id.into(), value.server_id.into(), value.name)),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct CreatedServerMembershipRow {
+    server_id: Uuid,
+    user_id: Uuid,
 }
 
 impl PostgresRepository {
@@ -185,7 +391,7 @@ impl MessageRepository for PostgresRepository {
             Err(_) => return CreateMessageResult::NotFound,
         };
 
-        let created_message = sqlx::query_as::<_, (Uuid, Uuid, Uuid, String, Option<Uuid>)>(
+        let created_message = sqlx::query_as::<_, MessageRow>(
             "INSERT INTO messages (id, channel_id, author_user_id, content, mentioned_user_id)
              VALUES (gen_random_uuid(), $1, $2, $3, $4)
              RETURNING id, channel_id, author_user_id, content, mentioned_user_id",
@@ -197,16 +403,15 @@ impl MessageRepository for PostgresRepository {
         .fetch_one(&mut *transaction)
         .await;
 
-        let (
-            message_id,
-            message_channel_id,
-            message_author_user_id,
-            message_content,
-            mentioned_user_id,
-        ) = match created_message {
+        let message_row = match created_message {
             Ok(value) => value,
             Err(_) => return CreateMessageResult::NotFound,
         };
+
+        let message_id = message_row.id;
+        let message_channel_id = message_row.channel_id;
+        let message_author_user_id = message_row.author_user_id;
+        let mentioned_user_id = message_row.mentioned_user_id;
 
         let candidate_user_ids = sqlx::query_scalar::<_, Uuid>(
             "SELECT sm.user_id
@@ -333,22 +538,7 @@ impl MessageRepository for PostgresRepository {
         }
 
         CreateMessageResult::Created {
-            message: if let Some(mentioned_user_id) = mentioned_user_id {
-                Message::new_mentioned(
-                    message_id.into(),
-                    message_channel_id.into(),
-                    message_author_user_id.into(),
-                    message_content,
-                    mentioned_user_id.into(),
-                )
-            } else {
-                Message::new_regular(
-                    message_id.into(),
-                    message_channel_id.into(),
-                    message_author_user_id.into(),
-                    message_content,
-                )
-            },
+            message: Message::from(message_row),
             notified_user_ids: notified_user_ids
                 .into_iter()
                 .map(Into::into)
@@ -450,7 +640,7 @@ impl MessageRepository for PostgresRepository {
     async fn list_messages(&self, channel_id: ChannelId) -> Vec<Message> {
         let channel_id = Uuid::from(channel_id);
 
-        sqlx::query_as::<_, (Uuid, Uuid, Uuid, String, Option<Uuid>)>(
+        sqlx::query_as::<_, MessageRow>(
             "SELECT id, channel_id, author_user_id, content, mentioned_user_id
              FROM messages
              WHERE channel_id = $1
@@ -461,26 +651,7 @@ impl MessageRepository for PostgresRepository {
         .await
         .unwrap_or_default()
         .into_iter()
-        .map(
-            |(id, channel_id, author_user_id, content, mentioned_user_id)| {
-                if let Some(mentioned_user_id) = mentioned_user_id {
-                    Message::new_mentioned(
-                        id.into(),
-                        channel_id.into(),
-                        author_user_id.into(),
-                        content,
-                        mentioned_user_id.into(),
-                    )
-                } else {
-                    Message::new_regular(
-                        id.into(),
-                        channel_id.into(),
-                        author_user_id.into(),
-                        content,
-                    )
-                }
-            },
-        )
+        .map(Message::from)
         .collect()
     }
 }
@@ -490,7 +661,7 @@ impl UserRepository for PostgresRepository {
     async fn find_user_by_id(&self, user_id: UserId) -> Option<User> {
         let user_id = Uuid::from(user_id);
 
-        sqlx::query_as::<_, (Uuid, String, Option<String>)>(
+        sqlx::query_as::<_, UserRow>(
             "SELECT id, external_reference, display_name
              FROM users
              WHERE id = $1",
@@ -500,18 +671,14 @@ impl UserRepository for PostgresRepository {
         .await
         .ok()
         .flatten()
-        .map(|(id, external_reference, display_name)| User {
-            id: id.into(),
-            external_reference: external_reference.into(),
-            display_name: display_name.map(DisplayName::new),
-        })
+        .map(User::from)
     }
 
     async fn find_user_by_external_reference(
         &self,
         external_reference: &ExternalReference,
     ) -> Option<User> {
-        sqlx::query_as::<_, (Uuid, String, Option<String>)>(
+        sqlx::query_as::<_, UserRow>(
             "SELECT id, external_reference, display_name
              FROM users
              WHERE external_reference = $1",
@@ -521,11 +688,7 @@ impl UserRepository for PostgresRepository {
         .await
         .ok()
         .flatten()
-        .map(|(id, external_reference, display_name)| User {
-            id: id.into(),
-            external_reference: external_reference.into(),
-            display_name: display_name.map(DisplayName::new),
-        })
+        .map(User::from)
     }
 
     async fn get_or_create_user_by_external_reference(
@@ -992,7 +1155,7 @@ impl ServerRepository for PostgresRepository {
     async fn create_server(&self, name: String, owner_user_id: UserId) -> Server {
         let owner_user_id = Uuid::from(owner_user_id);
 
-        let (server_id, owner_user_id_created) = sqlx::query_as::<_, (Uuid, Uuid)>(
+        let created_server_membership = sqlx::query_as::<_, CreatedServerMembershipRow>(
             "WITH inserted AS (
                 INSERT INTO servers (id, name, owner_user_id)
                 VALUES (gen_random_uuid(), $1, $2)
@@ -1011,16 +1174,16 @@ impl ServerRepository for PostgresRepository {
         .expect("create server in postgres to succeed");
 
         Server {
-            id: server_id.into(),
+            id: created_server_membership.server_id.into(),
             name,
-            owner_user_id: owner_user_id_created.into(),
+            owner_user_id: created_server_membership.user_id.into(),
         }
     }
 
     async fn list_servers_for_user(&self, user_id: UserId) -> Vec<Server> {
         let user_id = Uuid::from(user_id);
 
-        sqlx::query_as::<_, (Uuid, String, Uuid)>(
+        sqlx::query_as::<_, ServerRow>(
             "SELECT s.id, s.name, s.owner_user_id
              FROM servers s
              INNER JOIN server_members sm ON sm.server_id = s.id
@@ -1032,11 +1195,7 @@ impl ServerRepository for PostgresRepository {
         .await
         .unwrap_or_default()
         .into_iter()
-        .map(|(id, name, owner_user_id)| Server {
-            id: id.into(),
-            name,
-            owner_user_id: owner_user_id.into(),
-        })
+        .map(Server::from)
         .collect()
     }
 
@@ -1133,7 +1292,7 @@ impl ServerRepository for PostgresRepository {
 
         let server_id = Uuid::from(server_id);
 
-        let members = sqlx::query_as::<_, (Uuid, Uuid)>(
+        let members = sqlx::query_as::<_, ServerMemberRow>(
             "SELECT server_id, user_id
              FROM server_members
              WHERE server_id = $1
@@ -1144,10 +1303,7 @@ impl ServerRepository for PostgresRepository {
         .await
         .ok()?
         .into_iter()
-        .map(|(server_id, user_id)| Membership {
-            user_id: user_id.into(),
-            server_id: server_id.into(),
-        })
+        .map(Membership::from)
         .collect();
 
         Some(members)
@@ -1173,7 +1329,7 @@ impl ChannelRepository for PostgresRepository {
             ChannelType::Voice => "voice",
         };
 
-        sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
+        sqlx::query_as::<_, ChannelRow>(
             "INSERT INTO channels (id, server_id, name, channel_type)
             VALUES (gen_random_uuid(), $1, $2, $3)
             RETURNING id, server_id, name, channel_type",
@@ -1184,13 +1340,7 @@ impl ChannelRepository for PostgresRepository {
         .fetch_one(&self.pool)
         .await
         .ok()
-        .and_then(
-            |(id, server_id, name, channel_type)| match channel_type.as_str() {
-                "text" => Some(Channel::new_text(id.into(), server_id.into(), name)),
-                "voice" => Some(Channel::new_voice(id.into(), server_id.into(), name)),
-                _ => None,
-            },
-        )
+        .and_then(|row| Channel::try_from(row).ok())
     }
 
     async fn update_channel_name(
@@ -1284,7 +1434,7 @@ impl ChannelRepository for PostgresRepository {
 
         let server_id = Uuid::from(server_id);
 
-        let channels = sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
+        let channels = sqlx::query_as::<_, ChannelRow>(
             "SELECT id, server_id, name, channel_type
              FROM channels
              WHERE server_id = $1
@@ -1295,13 +1445,7 @@ impl ChannelRepository for PostgresRepository {
         .await
         .ok()?
         .into_iter()
-        .filter_map(
-            |(id, server_id, name, channel_type)| match channel_type.as_str() {
-                "text" => Some(Channel::new_text(id.into(), server_id.into(), name)),
-                "voice" => Some(Channel::new_voice(id.into(), server_id.into(), name)),
-                _ => None,
-            },
-        )
+        .filter_map(|row| Channel::try_from(row).ok())
         .collect();
 
         Some(channels)
@@ -1310,7 +1454,7 @@ impl ChannelRepository for PostgresRepository {
     async fn find_channel_by_id(&self, channel_id: ChannelId) -> Option<Channel> {
         let channel_id = Uuid::from(channel_id);
 
-        sqlx::query_as::<_, (Uuid, Uuid, String, String)>(
+        sqlx::query_as::<_, ChannelRow>(
             "SELECT id, server_id, name, channel_type
              FROM channels
              WHERE id = $1",
@@ -1319,18 +1463,763 @@ impl ChannelRepository for PostgresRepository {
         .fetch_optional(&self.pool)
         .await
         .ok()?
-        .and_then(
-            |(id, server_id, name, channel_type)| match channel_type.as_str() {
-                "text" => Some(Channel::new_text(id.into(), server_id.into(), name)),
-                "voice" => Some(Channel::new_voice(id.into(), server_id.into(), name)),
-                _ => None,
-            },
-        )
+        .and_then(|row| Channel::try_from(row).ok())
     }
 
     async fn is_channel_member(&self, channel_id: ChannelId, user_id: UserId) -> Option<bool> {
         self.is_user_member_of_channel(channel_id, user_id)
             .await
             .ok()?
+    }
+}
+
+#[async_trait]
+impl FriendRepository for PostgresRepository {
+    async fn send_friend_request(
+        &self,
+        requester_user_id: UserId,
+        addressee_user_id: UserId,
+    ) -> SendFriendRequestResult {
+        if requester_user_id == addressee_user_id {
+            return SendFriendRequestResult::Forbidden;
+        }
+
+        let requester_user_id = Uuid::from(requester_user_id);
+        let addressee_user_id = Uuid::from(addressee_user_id);
+
+        let existing_users = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM users
+             WHERE id = ANY($1)",
+        )
+        .bind(vec![requester_user_id, addressee_user_id])
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if existing_users < 2 {
+            return SendFriendRequestResult::NotFound;
+        }
+
+        let blocked_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM blocks
+             WHERE LEAST(blocker_user_id, blocked_user_id) = LEAST($1, $2)
+               AND GREATEST(blocker_user_id, blocked_user_id) = GREATEST($1, $2)",
+        )
+        .bind(requester_user_id)
+        .bind(addressee_user_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if blocked_count > 0 {
+            return SendFriendRequestResult::Blocked;
+        }
+
+        let friendships_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM friendships
+             WHERE LEAST(user_a_id, user_b_id) = LEAST($1, $2)
+               AND GREATEST(user_a_id, user_b_id) = GREATEST($1, $2)",
+        )
+        .bind(requester_user_id)
+        .bind(addressee_user_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if friendships_count > 0 {
+            return SendFriendRequestResult::AlreadyFriends;
+        }
+
+        let pending_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM friend_requests
+             WHERE state = 'pending'
+               AND LEAST(requester_user_id, addressee_user_id) = LEAST($1, $2)
+               AND GREATEST(requester_user_id, addressee_user_id) = GREATEST($1, $2)",
+        )
+        .bind(requester_user_id)
+        .bind(addressee_user_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if pending_count > 0 {
+            return SendFriendRequestResult::AlreadyPending;
+        }
+
+        let inserted = sqlx::query_as::<_, FriendRequestRow>(
+            "INSERT INTO friend_requests (id, requester_user_id, addressee_user_id, state)
+             VALUES (gen_random_uuid(), $1, $2, 'pending')
+             RETURNING id, requester_user_id, addressee_user_id, state",
+        )
+        .bind(requester_user_id)
+        .bind(addressee_user_id)
+        .fetch_one(&self.pool)
+        .await;
+
+        let Ok(friend_request_row) = inserted else {
+            return SendFriendRequestResult::NotFound;
+        };
+
+        let friend_request = FriendRequest::from(friend_request_row);
+
+        SendFriendRequestResult::Created(friend_request)
+    }
+
+    async fn set_friend_request_state(
+        &self,
+        actor_user_id: UserId,
+        friend_request_id: FriendRequestId,
+        state: FriendRequestState,
+    ) -> UpdateFriendRequestResult {
+        if state == FriendRequestState::Pending {
+            return UpdateFriendRequestResult::InvalidState;
+        }
+
+        let actor_user_id = Uuid::from(actor_user_id);
+        let friend_request_id = Uuid::from(friend_request_id);
+
+        let existing = sqlx::query_as::<_, FriendRequestRow>(
+            "SELECT id, requester_user_id, addressee_user_id, state
+             FROM friend_requests
+             WHERE id = $1",
+        )
+        .bind(friend_request_id)
+        .fetch_optional(&self.pool)
+        .await;
+
+        let Ok(existing) = existing else {
+            return UpdateFriendRequestResult::NotFound;
+        };
+
+        let Some(existing_friend_request_row) = existing else {
+            return UpdateFriendRequestResult::NotFound;
+        };
+
+        let existing_friend_request = FriendRequest::from(existing_friend_request_row);
+
+        let requester_user_id = Uuid::from(existing_friend_request.requester_user_id);
+        let addressee_user_id = Uuid::from(existing_friend_request.addressee_user_id);
+        let existing_state = existing_friend_request.state;
+
+        if existing_state != FriendRequestState::Pending {
+            return UpdateFriendRequestResult::InvalidState;
+        }
+
+        match state {
+            FriendRequestState::Accepted | FriendRequestState::Declined => {
+                if addressee_user_id != actor_user_id {
+                    return UpdateFriendRequestResult::Forbidden;
+                }
+            }
+            FriendRequestState::Cancelled => {
+                if requester_user_id != actor_user_id {
+                    return UpdateFriendRequestResult::Forbidden;
+                }
+            }
+            FriendRequestState::Pending => return UpdateFriendRequestResult::InvalidState,
+        }
+
+        let updated = sqlx::query_as::<_, FriendRequestRow>(
+            "UPDATE friend_requests
+             SET state = $2,
+                 updated_at = NOW()
+             WHERE id = $1
+             RETURNING id, requester_user_id, addressee_user_id, state",
+        )
+        .bind(friend_request_id)
+        .bind(state)
+        .fetch_one(&self.pool)
+        .await;
+
+        let Ok(updated_friend_request_row) = updated else {
+            return UpdateFriendRequestResult::NotFound;
+        };
+
+        if state == FriendRequestState::Accepted {
+            let _ = sqlx::query(
+                "INSERT INTO friendships (id, user_a_id, user_b_id)
+                 VALUES (gen_random_uuid(), LEAST($1, $2), GREATEST($1, $2))
+                 ON CONFLICT DO NOTHING",
+            )
+            .bind(requester_user_id)
+            .bind(addressee_user_id)
+            .execute(&self.pool)
+            .await;
+        }
+
+        let updated_friend_request = FriendRequest::from(updated_friend_request_row);
+
+        UpdateFriendRequestResult::Updated(updated_friend_request)
+    }
+
+    async fn list_friendships_for_user(&self, user_id: UserId) -> Vec<Friendship> {
+        sqlx::query_as::<_, FriendshipRow>(
+            "SELECT id, user_a_id, user_b_id
+             FROM friendships
+             WHERE user_a_id = $1 OR user_b_id = $1
+             ORDER BY created_at ASC",
+        )
+        .bind(Uuid::from(user_id))
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(Friendship::from)
+        .collect::<Vec<_>>()
+    }
+
+    async fn list_pending_incoming_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest> {
+        sqlx::query_as::<_, FriendRequestRow>(
+            "SELECT id, requester_user_id, addressee_user_id, state
+             FROM friend_requests
+             WHERE addressee_user_id = $1
+               AND state = 'pending'
+             ORDER BY created_at ASC",
+        )
+        .bind(Uuid::from(user_id))
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(FriendRequest::from)
+        .collect::<Vec<_>>()
+    }
+
+    async fn list_pending_outgoing_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest> {
+        sqlx::query_as::<_, FriendRequestRow>(
+            "SELECT id, requester_user_id, addressee_user_id, state
+             FROM friend_requests
+             WHERE requester_user_id = $1
+               AND state = 'pending'
+             ORDER BY created_at ASC",
+        )
+        .bind(Uuid::from(user_id))
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(FriendRequest::from)
+        .collect::<Vec<_>>()
+    }
+
+    async fn are_friends(&self, user_id: UserId, other_user_id: UserId) -> bool {
+        let count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM friendships
+             WHERE LEAST(user_a_id, user_b_id) = LEAST($1, $2)
+               AND GREATEST(user_a_id, user_b_id) = GREATEST($1, $2)",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(other_user_id))
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        count > 0
+    }
+}
+
+#[async_trait]
+impl BlockRepository for PostgresRepository {
+    async fn block_user(
+        &self,
+        blocker_user_id: UserId,
+        blocked_user_id: UserId,
+    ) -> BlockUserResult {
+        if blocker_user_id == blocked_user_id {
+            return BlockUserResult::Forbidden;
+        }
+
+        let blocker_user_id = Uuid::from(blocker_user_id);
+        let blocked_user_id = Uuid::from(blocked_user_id);
+
+        let existing_users = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM users
+             WHERE id = ANY($1)",
+        )
+        .bind(vec![blocker_user_id, blocked_user_id])
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if existing_users < 2 {
+            return BlockUserResult::NotFound;
+        }
+
+        let already_blocked = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM blocks
+             WHERE LEAST(blocker_user_id, blocked_user_id) = LEAST($1, $2)
+               AND GREATEST(blocker_user_id, blocked_user_id) = GREATEST($1, $2)",
+        )
+        .bind(blocker_user_id)
+        .bind(blocked_user_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if already_blocked > 0 {
+            return BlockUserResult::AlreadyBlocked;
+        }
+
+        let restored_friendship_id = sqlx::query_scalar::<_, Uuid>(
+            "SELECT id
+             FROM friendships
+             WHERE LEAST(user_a_id, user_b_id) = LEAST($1, $2)
+               AND GREATEST(user_a_id, user_b_id) = GREATEST($1, $2)",
+        )
+        .bind(blocker_user_id)
+        .bind(blocked_user_id)
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten();
+
+        if let Some(friendship_id) = restored_friendship_id {
+            let _ = sqlx::query("DELETE FROM friendships WHERE id = $1")
+                .bind(friendship_id)
+                .execute(&self.pool)
+                .await;
+        }
+
+        let inserted = sqlx::query_as::<_, BlockRelationshipRow>(
+            "INSERT INTO blocks (id, blocker_user_id, blocked_user_id, restored_friendship_id)
+             VALUES (gen_random_uuid(), $1, $2, $3)
+             RETURNING id, blocker_user_id, blocked_user_id, restored_friendship_id",
+        )
+        .bind(blocker_user_id)
+        .bind(blocked_user_id)
+        .bind(restored_friendship_id)
+        .fetch_one(&self.pool)
+        .await;
+
+        let Ok(block_relationship_row) = inserted else {
+            return BlockUserResult::NotFound;
+        };
+
+        BlockUserResult::Created(BlockRelationship::from(block_relationship_row))
+    }
+
+    async fn unblock_user(
+        &self,
+        blocker_user_id: UserId,
+        blocked_user_id: UserId,
+    ) -> MutationResult {
+        let blocker_user_id = Uuid::from(blocker_user_id);
+        let blocked_user_id = Uuid::from(blocked_user_id);
+
+        let block_record = sqlx::query_as::<_, BlockRelationshipRow>(
+            "SELECT id, blocker_user_id, blocked_user_id, restored_friendship_id
+             FROM blocks
+             WHERE LEAST(blocker_user_id, blocked_user_id) = LEAST($1, $2)
+               AND GREATEST(blocker_user_id, blocked_user_id) = GREATEST($1, $2)",
+        )
+        .bind(blocker_user_id)
+        .bind(blocked_user_id)
+        .fetch_optional(&self.pool)
+        .await;
+
+        let Ok(block_record) = block_record else {
+            return MutationResult::NotFound;
+        };
+
+        let Some(block_relationship_row) = block_record else {
+            return MutationResult::NotFound;
+        };
+
+        let block_relationship = BlockRelationship::from(block_relationship_row);
+
+        if Uuid::from(block_relationship.blocker_user_id) != blocker_user_id {
+            return MutationResult::Forbidden;
+        }
+
+        let deleted = sqlx::query("DELETE FROM blocks WHERE id = $1")
+            .bind(Uuid::from(block_relationship.id))
+            .execute(&self.pool)
+            .await;
+
+        let Ok(delete_result) = deleted else {
+            return MutationResult::NotFound;
+        };
+
+        if delete_result.rows_affected() == 0 {
+            return MutationResult::NotFound;
+        }
+
+        if let Some(friendship_id) = block_relationship.restored_friendship_id {
+            let _ = sqlx::query(
+                "INSERT INTO friendships (id, user_a_id, user_b_id)
+                 VALUES ($1, LEAST($2, $3), GREATEST($2, $3))
+                 ON CONFLICT DO NOTHING",
+            )
+            .bind(Uuid::from(friendship_id))
+            .bind(Uuid::from(block_relationship.blocker_user_id))
+            .bind(Uuid::from(block_relationship.blocked_user_id))
+            .execute(&self.pool)
+            .await;
+        }
+
+        MutationResult::Deleted
+    }
+
+    async fn list_blocked_users(&self, blocker_user_id: UserId) -> Vec<BlockRelationship> {
+        sqlx::query_as::<_, BlockRelationshipRow>(
+            "SELECT id, blocker_user_id, blocked_user_id, restored_friendship_id
+             FROM blocks
+             WHERE blocker_user_id = $1
+             ORDER BY created_at ASC",
+        )
+        .bind(Uuid::from(blocker_user_id))
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(BlockRelationship::from)
+        .collect::<Vec<_>>()
+    }
+
+    async fn users_are_blocked(&self, user_id: UserId, other_user_id: UserId) -> bool {
+        let count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM blocks
+             WHERE LEAST(blocker_user_id, blocked_user_id) = LEAST($1, $2)
+               AND GREATEST(blocker_user_id, blocked_user_id) = GREATEST($1, $2)",
+        )
+        .bind(Uuid::from(user_id))
+        .bind(Uuid::from(other_user_id))
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        count > 0
+    }
+}
+
+#[async_trait]
+impl DirectMessageRepository for PostgresRepository {
+    async fn open_or_get_direct_message_thread(
+        &self,
+        actor_user_id: UserId,
+        other_user_id: UserId,
+    ) -> OpenOrGetDirectMessageThreadResult {
+        if actor_user_id == other_user_id {
+            return OpenOrGetDirectMessageThreadResult::Forbidden;
+        }
+
+        let actor_user_id = Uuid::from(actor_user_id);
+        let other_user_id = Uuid::from(other_user_id);
+
+        let existing_users = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM users
+             WHERE id = ANY($1)",
+        )
+        .bind(vec![actor_user_id, other_user_id])
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if existing_users < 2 {
+            return OpenOrGetDirectMessageThreadResult::NotFound;
+        }
+
+        let blocked_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM blocks
+             WHERE LEAST(blocker_user_id, blocked_user_id) = LEAST($1, $2)
+               AND GREATEST(blocker_user_id, blocked_user_id) = GREATEST($1, $2)",
+        )
+        .bind(actor_user_id)
+        .bind(other_user_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if blocked_count > 0 {
+            return OpenOrGetDirectMessageThreadResult::Blocked;
+        }
+
+        let friends_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM friendships
+             WHERE LEAST(user_a_id, user_b_id) = LEAST($1, $2)
+               AND GREATEST(user_a_id, user_b_id) = GREATEST($1, $2)",
+        )
+        .bind(actor_user_id)
+        .bind(other_user_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if friends_count == 0 {
+            return OpenOrGetDirectMessageThreadResult::Forbidden;
+        }
+
+        let existing_thread = sqlx::query_as::<_, DirectMessageThreadRow>(
+            "SELECT id, participant_a_user_id, participant_b_user_id
+             FROM direct_message_threads
+             WHERE LEAST(participant_a_user_id, participant_b_user_id) = LEAST($1, $2)
+               AND GREATEST(participant_a_user_id, participant_b_user_id) = GREATEST($1, $2)",
+        )
+        .bind(actor_user_id)
+        .bind(other_user_id)
+        .fetch_optional(&self.pool)
+        .await;
+
+        let Ok(existing_thread) = existing_thread else {
+            return OpenOrGetDirectMessageThreadResult::NotFound;
+        };
+
+        if let Some(direct_message_thread_row) = existing_thread {
+            return OpenOrGetDirectMessageThreadResult::Opened(DirectMessageThread::from(
+                direct_message_thread_row,
+            ));
+        }
+
+        let inserted = sqlx::query_as::<_, DirectMessageThreadRow>(
+            "INSERT INTO direct_message_threads (id, participant_a_user_id, participant_b_user_id)
+             VALUES (gen_random_uuid(), LEAST($1, $2), GREATEST($1, $2))
+             RETURNING id, participant_a_user_id, participant_b_user_id",
+        )
+        .bind(actor_user_id)
+        .bind(other_user_id)
+        .fetch_one(&self.pool)
+        .await;
+
+        let Ok(direct_message_thread_row) = inserted else {
+            return OpenOrGetDirectMessageThreadResult::NotFound;
+        };
+
+        OpenOrGetDirectMessageThreadResult::Opened(DirectMessageThread::from(
+            direct_message_thread_row,
+        ))
+    }
+
+    async fn list_direct_message_threads_for_user(&self, user_id: UserId) -> Vec<DirectMessageThread> {
+        sqlx::query_as::<_, DirectMessageThreadRow>(
+            "SELECT id, participant_a_user_id, participant_b_user_id
+             FROM direct_message_threads
+             WHERE participant_a_user_id = $1 OR participant_b_user_id = $1
+             ORDER BY created_at ASC",
+        )
+        .bind(Uuid::from(user_id))
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(DirectMessageThread::from)
+        .collect::<Vec<_>>()
+    }
+
+    async fn send_direct_message(
+        &self,
+        actor_user_id: UserId,
+        thread_id: DirectMessageThreadId,
+        content: String,
+    ) -> SendDirectMessageResult {
+        let actor_user_id = Uuid::from(actor_user_id);
+        let thread_id = Uuid::from(thread_id);
+
+        let thread = sqlx::query_as::<_, DirectMessageThreadRow>(
+            "SELECT id, participant_a_user_id, participant_b_user_id
+             FROM direct_message_threads
+             WHERE id = $1",
+        )
+        .bind(thread_id)
+        .fetch_optional(&self.pool)
+        .await;
+
+        let Ok(thread) = thread else {
+            return SendDirectMessageResult::NotFound;
+        };
+
+        let Some(direct_message_thread_row) = thread else {
+            return SendDirectMessageResult::NotFound;
+        };
+
+        let direct_message_thread = DirectMessageThread::from(direct_message_thread_row);
+        let thread_id = Uuid::from(direct_message_thread.id);
+        let participant_a_user_id = Uuid::from(direct_message_thread.participant_a_user_id);
+        let participant_b_user_id = Uuid::from(direct_message_thread.participant_b_user_id);
+
+        if actor_user_id != participant_a_user_id && actor_user_id != participant_b_user_id {
+            return SendDirectMessageResult::Forbidden;
+        }
+
+        let other_user_id = if actor_user_id == participant_a_user_id {
+            participant_b_user_id
+        } else {
+            participant_a_user_id
+        };
+
+        let blocked_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM blocks
+             WHERE LEAST(blocker_user_id, blocked_user_id) = LEAST($1, $2)
+               AND GREATEST(blocker_user_id, blocked_user_id) = GREATEST($1, $2)",
+        )
+        .bind(actor_user_id)
+        .bind(other_user_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if blocked_count > 0 {
+            return SendDirectMessageResult::Blocked;
+        }
+
+        let friends_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM friendships
+             WHERE LEAST(user_a_id, user_b_id) = LEAST($1, $2)
+               AND GREATEST(user_a_id, user_b_id) = GREATEST($1, $2)",
+        )
+        .bind(actor_user_id)
+        .bind(other_user_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if friends_count == 0 {
+            return SendDirectMessageResult::Forbidden;
+        }
+
+        let inserted = sqlx::query_as::<_, DirectMessageRow>(
+            "INSERT INTO direct_messages (id, thread_id, author_user_id, content)
+             VALUES (gen_random_uuid(), $1, $2, $3)
+             RETURNING id, thread_id, author_user_id, content",
+        )
+        .bind(thread_id)
+        .bind(actor_user_id)
+        .bind(content)
+        .fetch_one(&self.pool)
+        .await;
+
+        let Ok(direct_message_row) = inserted else {
+            return SendDirectMessageResult::NotFound;
+        };
+
+        SendDirectMessageResult::Created(DirectMessage::from(direct_message_row))
+    }
+
+    async fn list_direct_messages(
+        &self,
+        actor_user_id: UserId,
+        thread_id: DirectMessageThreadId,
+    ) -> Option<Vec<DirectMessage>> {
+        let actor_user_id = Uuid::from(actor_user_id);
+        let thread_id = Uuid::from(thread_id);
+
+        let thread = sqlx::query_as::<_, DirectMessageThreadParticipantsRow>(
+            "SELECT participant_a_user_id, participant_b_user_id
+             FROM direct_message_threads
+             WHERE id = $1",
+        )
+        .bind(thread_id)
+        .fetch_optional(&self.pool)
+        .await
+        .ok()??;
+
+        if actor_user_id != thread.participant_a_user_id && actor_user_id != thread.participant_b_user_id {
+            return None;
+        }
+
+        let messages = sqlx::query_as::<_, DirectMessageRow>(
+            "SELECT id, thread_id, author_user_id, content
+             FROM direct_messages
+             WHERE thread_id = $1
+             ORDER BY created_at ASC",
+        )
+        .bind(thread_id)
+        .fetch_all(&self.pool)
+        .await
+        .ok()?
+        .into_iter()
+        .map(DirectMessage::from)
+        .collect::<Vec<_>>();
+
+        Some(messages)
+    }
+
+    async fn search_direct_messages_for_person(
+        &self,
+        actor_user_id: UserId,
+        other_user_id: UserId,
+        query: &str,
+    ) -> Option<Vec<DirectMessage>> {
+        let actor_user_id = Uuid::from(actor_user_id);
+        let other_user_id = Uuid::from(other_user_id);
+
+        let blocked_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM blocks
+             WHERE LEAST(blocker_user_id, blocked_user_id) = LEAST($1, $2)
+               AND GREATEST(blocker_user_id, blocked_user_id) = GREATEST($1, $2)",
+        )
+        .bind(actor_user_id)
+        .bind(other_user_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if blocked_count > 0 {
+            return None;
+        }
+
+        let friends_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(1)
+             FROM friendships
+             WHERE LEAST(user_a_id, user_b_id) = LEAST($1, $2)
+               AND GREATEST(user_a_id, user_b_id) = GREATEST($1, $2)",
+        )
+        .bind(actor_user_id)
+        .bind(other_user_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
+
+        if friends_count == 0 {
+            return None;
+        }
+
+        let thread_id = sqlx::query_scalar::<_, Uuid>(
+            "SELECT id
+             FROM direct_message_threads
+             WHERE LEAST(participant_a_user_id, participant_b_user_id) = LEAST($1, $2)
+               AND GREATEST(participant_a_user_id, participant_b_user_id) = GREATEST($1, $2)",
+        )
+        .bind(actor_user_id)
+        .bind(other_user_id)
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten();
+
+        let Some(thread_id) = thread_id else {
+            return Some(Vec::new());
+        };
+
+        let matches = sqlx::query_as::<_, DirectMessageRow>(
+            "SELECT id, thread_id, author_user_id, content
+             FROM direct_messages
+             WHERE thread_id = $1
+               AND content ILIKE CONCAT('%', $2, '%')
+             ORDER BY created_at ASC",
+        )
+        .bind(thread_id)
+        .bind(query)
+        .fetch_all(&self.pool)
+        .await
+        .ok()?
+        .into_iter()
+        .map(DirectMessage::from)
+        .collect::<Vec<_>>();
+
+        Some(matches)
     }
 }

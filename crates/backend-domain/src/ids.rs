@@ -98,3 +98,8 @@ define_uuid_id!(UserId);
 define_uuid_id!(ServerId);
 define_uuid_id!(ChannelId);
 define_uuid_id!(MessageId);
+define_uuid_id!(FriendRequestId);
+define_uuid_id!(FriendshipId);
+define_uuid_id!(BlockRelationshipId);
+define_uuid_id!(DirectMessageThreadId);
+define_uuid_id!(DirectMessageId);

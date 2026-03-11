@@ -15,12 +15,19 @@ use auth::{AuthState, JwksTokenVerifier};
 use axum::routing::{patch, post};
 use axum::{Router, routing::get};
 use backend_storage::{
-    ChannelRepository, MessageRepository, NotificationRepository, PostgresRepository,
-    ServerRepository, UserRepository,
+    BlockRepository, ChannelRepository, DirectMessageRepository, FriendRepository,
+    MessageRepository, NotificationRepository, PostgresRepository, ServerRepository,
+    UserRepository,
 };
 use http::{HeaderValue, Method, Request, header::AUTHORIZATION};
 use openapi::ApiDocumentation;
 use routes::{
+    friends_and_dms::{
+        accept_friend_request, block_user, cancel_friend_request, decline_friend_request,
+        list_blocked_users, list_direct_messages, list_direct_message_threads, list_friends,
+        list_incoming_friend_requests, list_outgoing_friend_requests, open_or_get_direct_message_thread,
+        search_direct_messages, send_direct_message, send_friend_request, unblock_user,
+    },
     health::health,
     me::{me, update_me},
     messages::{create_message, delete_message, list_messages, update_message},
@@ -176,7 +183,14 @@ where
     UserRepo: UserRepository + Send + Sync + 'static,
     ServerRepo: ServerRepository + Send + Sync + 'static,
     ChannelRepo: ChannelRepository + Send + Sync + 'static,
-    MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
+    MessageRepo: MessageRepository
+        + NotificationRepository
+        + FriendRepository
+        + BlockRepository
+        + DirectMessageRepository
+        + Send
+        + Sync
+        + 'static,
     Verifier: auth::TokenVerifier + Send + Sync + 'static,
 {
     let backend_config = config::BackendApiConfig::from_environment();
@@ -196,7 +210,14 @@ where
     UserRepo: UserRepository + Send + Sync + 'static,
     ServerRepo: ServerRepository + Send + Sync + 'static,
     ChannelRepo: ChannelRepository + Send + Sync + 'static,
-    MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
+    MessageRepo: MessageRepository
+        + NotificationRepository
+        + FriendRepository
+        + BlockRepository
+        + DirectMessageRepository
+        + Send
+        + Sync
+        + 'static,
     Verifier: auth::TokenVerifier + Send + Sync + 'static,
 {
     let router = Router::new()
@@ -204,6 +225,43 @@ where
         .route("/api/v1/me", get(me).patch(update_me))
         .route("/api/v1/users/{user_id}", get(get_user_by_id))
         .route("/api/v1/servers", post(create_server).get(list_servers))
+        .route("/api/v1/friends", get(list_friends))
+        .route(
+            "/api/v1/friends/requests/incoming",
+            get(list_incoming_friend_requests),
+        )
+        .route(
+            "/api/v1/friends/requests/outgoing",
+            get(list_outgoing_friend_requests),
+        )
+        .route(
+            "/api/v1/friends/requests/{user_id}",
+            post(send_friend_request),
+        )
+        .route(
+            "/api/v1/friends/requests/{friend_request_id}/accept",
+            post(accept_friend_request),
+        )
+        .route(
+            "/api/v1/friends/requests/{friend_request_id}/decline",
+            post(decline_friend_request),
+        )
+        .route(
+            "/api/v1/friends/requests/{friend_request_id}/cancel",
+            post(cancel_friend_request),
+        )
+        .route("/api/v1/blocks", get(list_blocked_users))
+        .route("/api/v1/blocks/{user_id}", post(block_user).delete(unblock_user))
+        .route("/api/v1/dms/threads", get(list_direct_message_threads))
+        .route(
+            "/api/v1/dms/threads/{user_id}",
+            post(open_or_get_direct_message_thread),
+        )
+        .route(
+            "/api/v1/dms/threads/{thread_id}/messages",
+            post(send_direct_message).get(list_direct_messages),
+        )
+        .route("/api/v1/dms/search/{user_id}", get(search_direct_messages))
         .route(
             "/api/v1/servers/{server_id}",
             axum::routing::delete(delete_server),

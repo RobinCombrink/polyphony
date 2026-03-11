@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use backend_domain::{
-    Channel, ChannelId, ChannelType, ExternalReference, Membership, Message, MessageId,
-    NotificationCategoryPreference, NotificationMuteState, Server, ServerId, User, UserId,
+    BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
+    ExternalReference, FriendRequest, FriendRequestId, FriendRequestState, Friendship, Membership,
+    Message, MessageId, NotificationCategoryPreference, NotificationMuteState, Server, ServerId,
+    User, UserId,
 };
 
 use crate::MutationResult;
@@ -13,6 +15,43 @@ pub enum CreateMessageResult {
     },
     Forbidden,
     ChannelKindMismatch,
+    NotFound,
+}
+
+pub enum SendFriendRequestResult {
+    Created(FriendRequest),
+    AlreadyFriends,
+    AlreadyPending,
+    Blocked,
+    Forbidden,
+    NotFound,
+}
+
+pub enum UpdateFriendRequestResult {
+    Updated(FriendRequest),
+    Forbidden,
+    NotFound,
+    InvalidState,
+}
+
+pub enum BlockUserResult {
+    Created(BlockRelationship),
+    AlreadyBlocked,
+    Forbidden,
+    NotFound,
+}
+
+pub enum OpenOrGetDirectMessageThreadResult {
+    Opened(DirectMessageThread),
+    Blocked,
+    Forbidden,
+    NotFound,
+}
+
+pub enum SendDirectMessageResult {
+    Created(DirectMessage),
+    Blocked,
+    Forbidden,
     NotFound,
 }
 
@@ -176,4 +215,66 @@ pub trait ChannelRepository: Send + Sync {
     async fn list_channels_for_server(&self, server_id: ServerId) -> Option<Vec<Channel>>;
     async fn find_channel_by_id(&self, channel_id: ChannelId) -> Option<Channel>;
     async fn is_channel_member(&self, channel_id: ChannelId, user_id: UserId) -> Option<bool>;
+}
+
+#[async_trait]
+pub trait FriendRepository: Send + Sync {
+    async fn send_friend_request(
+        &self,
+        requester_user_id: UserId,
+        addressee_user_id: UserId,
+    ) -> SendFriendRequestResult;
+    async fn set_friend_request_state(
+        &self,
+        actor_user_id: UserId,
+        friend_request_id: FriendRequestId,
+        state: FriendRequestState,
+    ) -> UpdateFriendRequestResult;
+    async fn list_friendships_for_user(&self, user_id: UserId) -> Vec<Friendship>;
+    async fn list_pending_incoming_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest>;
+    async fn list_pending_outgoing_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest>;
+    async fn are_friends(&self, user_id: UserId, other_user_id: UserId) -> bool;
+}
+
+#[async_trait]
+pub trait BlockRepository: Send + Sync {
+    async fn block_user(&self, blocker_user_id: UserId, blocked_user_id: UserId)
+    -> BlockUserResult;
+    async fn unblock_user(
+        &self,
+        blocker_user_id: UserId,
+        blocked_user_id: UserId,
+    ) -> MutationResult;
+    async fn list_blocked_users(&self, blocker_user_id: UserId) -> Vec<BlockRelationship>;
+    async fn users_are_blocked(&self, user_id: UserId, other_user_id: UserId) -> bool;
+}
+
+#[async_trait]
+pub trait DirectMessageRepository: Send + Sync {
+    async fn open_or_get_direct_message_thread(
+        &self,
+        actor_user_id: UserId,
+        other_user_id: UserId,
+    ) -> OpenOrGetDirectMessageThreadResult;
+    async fn list_direct_message_threads_for_user(
+        &self,
+        user_id: UserId,
+    ) -> Vec<DirectMessageThread>;
+    async fn send_direct_message(
+        &self,
+        actor_user_id: UserId,
+        thread_id: backend_domain::DirectMessageThreadId,
+        content: String,
+    ) -> SendDirectMessageResult;
+    async fn list_direct_messages(
+        &self,
+        actor_user_id: UserId,
+        thread_id: backend_domain::DirectMessageThreadId,
+    ) -> Option<Vec<DirectMessage>>;
+    async fn search_direct_messages_for_person(
+        &self,
+        actor_user_id: UserId,
+        other_user_id: UserId,
+        query: &str,
+    ) -> Option<Vec<DirectMessage>>;
 }

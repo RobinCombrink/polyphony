@@ -1,13 +1,17 @@
 use async_trait::async_trait;
 use backend_domain::{
-    Channel, ChannelId, ChannelType, ExternalReference, Membership, Message, MessageId,
-    NotificationCategoryPreference, NotificationMuteState, Server, ServerId, User, UserId,
+    BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread, DirectMessageThreadId,
+    ExternalReference, FriendRequest, FriendRequestId, FriendRequestState, Friendship,
+    Membership, Message, MessageId, NotificationCategoryPreference, NotificationMuteState,
+    Server, ServerId, User, UserId,
 };
 use tokio::sync::RwLock;
 
 use crate::{
-    ChannelRepository, CreateMessageResult, InMemoryStore, MessageRepository, MutationResult,
-    NotificationRepository, ServerRepository, UserRepository,
+    BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
+    DirectMessageRepository, FriendRepository, InMemoryStore, MessageRepository, MutationResult,
+    NotificationRepository, OpenOrGetDirectMessageThreadResult, SendDirectMessageResult,
+    SendFriendRequestResult, ServerRepository, UpdateFriendRequestResult, UserRepository,
 };
 
 #[derive(Debug, Default)]
@@ -394,5 +398,116 @@ impl NotificationRepository for InMemoryRepository {
             .count();
 
         u64::try_from(count).unwrap_or(0)
+    }
+}
+
+#[async_trait]
+impl FriendRepository for InMemoryRepository {
+    async fn send_friend_request(
+        &self,
+        requester_user_id: UserId,
+        addressee_user_id: UserId,
+    ) -> SendFriendRequestResult {
+        let mut store = self.store.write().await;
+        store.send_friend_request(requester_user_id, addressee_user_id)
+    }
+
+    async fn set_friend_request_state(
+        &self,
+        actor_user_id: UserId,
+        friend_request_id: FriendRequestId,
+        state: FriendRequestState,
+    ) -> UpdateFriendRequestResult {
+        let mut store = self.store.write().await;
+        store.set_friend_request_state(actor_user_id, friend_request_id, state)
+    }
+
+    async fn list_friendships_for_user(&self, user_id: UserId) -> Vec<Friendship> {
+        let store = self.store.read().await;
+        store.list_friendships_for_user(user_id)
+    }
+
+    async fn list_pending_incoming_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest> {
+        let store = self.store.read().await;
+        store.list_pending_incoming_friend_requests(user_id)
+    }
+
+    async fn list_pending_outgoing_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest> {
+        let store = self.store.read().await;
+        store.list_pending_outgoing_friend_requests(user_id)
+    }
+
+    async fn are_friends(&self, user_id: UserId, other_user_id: UserId) -> bool {
+        let store = self.store.read().await;
+        store.are_friends(user_id, other_user_id)
+    }
+}
+
+#[async_trait]
+impl BlockRepository for InMemoryRepository {
+    async fn block_user(
+        &self,
+        blocker_user_id: UserId,
+        blocked_user_id: UserId,
+    ) -> BlockUserResult {
+        let mut store = self.store.write().await;
+        store.block_user(blocker_user_id, blocked_user_id)
+    }
+
+    async fn unblock_user(&self, blocker_user_id: UserId, blocked_user_id: UserId) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.unblock_user(blocker_user_id, blocked_user_id)
+    }
+
+    async fn list_blocked_users(&self, blocker_user_id: UserId) -> Vec<BlockRelationship> {
+        let store = self.store.read().await;
+        store.list_blocked_users(blocker_user_id)
+    }
+
+    async fn users_are_blocked(&self, user_id: UserId, other_user_id: UserId) -> bool {
+        let store = self.store.read().await;
+        store.users_are_blocked(user_id, other_user_id)
+    }
+}
+
+#[async_trait]
+impl DirectMessageRepository for InMemoryRepository {
+    async fn open_or_get_direct_message_thread(
+        &self,
+        actor_user_id: UserId,
+        other_user_id: UserId,
+    ) -> OpenOrGetDirectMessageThreadResult {
+        let mut store = self.store.write().await;
+        store.open_or_get_direct_message_thread(actor_user_id, other_user_id)
+    }
+
+    async fn list_direct_message_threads_for_user(&self, user_id: UserId) -> Vec<DirectMessageThread> {
+        let store = self.store.read().await;
+        store.list_direct_message_threads_for_user(user_id)
+    }
+
+    async fn send_direct_message(
+        &self,
+        actor_user_id: UserId,
+        thread_id: DirectMessageThreadId,
+        content: String,
+    ) -> SendDirectMessageResult {
+        let mut store = self.store.write().await;
+        store.send_direct_message(actor_user_id, thread_id, content)
+    }
+
+    async fn list_direct_messages(&self, actor_user_id: UserId, thread_id: DirectMessageThreadId) -> Option<Vec<DirectMessage>> {
+        let store = self.store.read().await;
+        store.list_direct_messages(actor_user_id, thread_id)
+    }
+
+    async fn search_direct_messages_for_person(
+        &self,
+        actor_user_id: UserId,
+        other_user_id: UserId,
+        query: &str,
+    ) -> Option<Vec<DirectMessage>> {
+        let store = self.store.read().await;
+        store.search_direct_messages_for_person(actor_user_id, other_user_id, query)
     }
 }

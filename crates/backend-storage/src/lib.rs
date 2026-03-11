@@ -9,6 +9,8 @@ pub(crate) use in_memory_store::InMemoryStore;
 pub use mutation_result::MutationResult;
 pub use postgres_repository::PostgresRepository;
 pub use repository::{
-    ChannelRepository, CreateMessageResult, MessageRepository, NotificationRepository,
-    ServerRepository, UserRepository,
+    BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
+    DirectMessageRepository, FriendRepository, MessageRepository, NotificationRepository,
+    OpenOrGetDirectMessageThreadResult, SendDirectMessageResult, SendFriendRequestResult,
+    ServerRepository, UpdateFriendRequestResult, UserRepository,
 };
