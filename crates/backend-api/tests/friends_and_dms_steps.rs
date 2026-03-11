@@ -20,6 +20,7 @@ const FEATURE_PATH: &str = "../../features/friends_and_dms.feature";
 struct FriendsAndDirectMessagesWorld {
     shared_store: SharedTestStore,
     actors: HashMap<String, Actor>,
+    server_id: Option<backend_api::domain::ServerId>,
     friend_request_ids_by_pair: HashMap<(String, String), String>,
     direct_message_thread_ids_by_pair: HashMap<(String, String), String>,
     latest_status: Option<StatusCode>,
@@ -34,6 +35,7 @@ impl Default for FriendsAndDirectMessagesWorld {
         Self {
             shared_store: default_shared_store(),
             actors: HashMap::new(),
+            server_id: None,
             friend_request_ids_by_pair: HashMap::new(),
             direct_message_thread_ids_by_pair: HashMap::new(),
             latest_status: None,
@@ -434,7 +436,9 @@ async fn a_server_named_owned_by_named_user_exists(
     let owner = world.actor_ref(&owner_name);
     let response = create_server_with_token(&owner.app, &server_name, &owner.token).await;
     world.latest_status = Some(response.status());
-    world.latest_payload = Some(response_payload_json(response).await);
+    let payload = response_payload_json(response).await;
+    world.server_id = Some(payload_server_id(&payload, "id"));
+    world.latest_payload = Some(payload);
     assert_eq!(world.latest_status_ref(), StatusCode::CREATED);
 }
 
@@ -664,12 +668,7 @@ async fn named_user_sends_friend_request_to_named_user_from_server(
 ) {
     let requester = world.actor_ref(&requester_name);
     let addressee = world.actor_ref(&addressee_name);
-
-    let server_payload = world
-        .latest_payload
-        .as_ref()
-        .expect("latest payload with server id to be set");
-    let server_id = payload_server_id(server_payload, "id");
+    let server_id = world.server_id.expect("server id to be set");
 
     let response =
         send_friend_request_from_server_context(requester, server_id, addressee.user_id).await;
