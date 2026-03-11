@@ -45,9 +45,9 @@ Feature: Servers and channels
       When the server owner adds another user as a member
       Then the server membership is created successfully
 
-    Scenario: Server owner cannot add a server member with an invalid user id
+    Scenario: Server owner cannot add a server member with an invalid user identifier
       Given the user already owns server "Test"
-      When the server owner adds a member with an invalid user id
+      When the server owner adds a member with an invalid user identifier
       Then adding a member fails with invalid input
 
     Scenario: Server owner can delete a server

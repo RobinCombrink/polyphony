@@ -115,8 +115,8 @@ async fn the_authenticated_user_has_an_updated_display_name(world: &mut Identity
     world.user_id = Some(payload_user_id(&me_payload, "user_id"));
 }
 
-#[when("I look up the authenticated user by id")]
-async fn i_look_up_the_authenticated_user_by_id(world: &mut IdentityWorld) {
+#[when("I look up the authenticated user by identifier")]
+async fn i_look_up_the_authenticated_user_by_identifier(world: &mut IdentityWorld) {
     let response =
         get_user_by_id_with_token(world.app_ref(), world.user_id_ref(), VALID_TOKEN).await;
 
@@ -129,8 +129,8 @@ async fn the_lookup_succeeds(world: &mut IdentityWorld) {
     assert_eq!(world.latest_status(), StatusCode::OK);
 }
 
-#[then("the result includes the user id and display name")]
-async fn the_result_includes_the_user_id_and_display_name(world: &mut IdentityWorld) {
+#[then("the result includes the user identifier and display name")]
+async fn the_result_includes_the_user_identifier_and_display_name(world: &mut IdentityWorld) {
     let payload = world.latest_payload_ref();
     let response_user_id = payload_user_id(payload, "id");
 
@@ -138,8 +138,8 @@ async fn the_result_includes_the_user_id_and_display_name(world: &mut IdentityWo
     assert_eq!(payload["display_name"].as_str(), Some(UPDATED_DISPLAY_NAME));
 }
 
-#[when("I look up a user id that does not exist")]
-async fn i_look_up_a_user_id_that_does_not_exist(world: &mut IdentityWorld) {
+#[when("I look up a user identifier that does not exist")]
+async fn i_look_up_a_user_identifier_that_does_not_exist(world: &mut IdentityWorld) {
     let response = get_user_by_id_with_token(world.app_ref(), &MISSING_USER_ID, VALID_TOKEN).await;
 
     world.latest_status = Some(response.status());

@@ -1,4 +1,4 @@
-Feature: Backend API identity and user lookup
+Feature: Identity and user lookup
   As an authenticated user
   I want to manage my profile and resolve user identities
   So that user information is accurate and retrievable
@@ -12,14 +12,14 @@ Feature: Backend API identity and user lookup
     And the returned profile includes the updated display name
     And viewing my identity again includes the updated display name
 
-  Scenario: Existing user can be looked up by id
+  Scenario: Existing user can be looked up by identifier
     Given the authenticated user has an updated display name
-    When I look up the authenticated user by id
+    When I look up the authenticated user by identifier
     Then the lookup succeeds
-    And the result includes the user id and display name
+    And the result includes the user identifier and display name
 
   Scenario: Looking up a missing user returns not found
-    When I look up a user id that does not exist
+    When I look up a user identifier that does not exist
     Then the user is reported as not found
 
   Scenario: Looking up a user with an invalid token returns unauthorized

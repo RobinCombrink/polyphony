@@ -784,8 +784,8 @@ async fn named_user_unmutes_named_server(
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
-#[then(regex = r#"^a notification outbox event is recorded for "([^"]+)"$"#)]
-async fn a_notification_outbox_event_is_recorded_for_named_user(
+#[then(regex = r#"^a durable notification record is stored for "([^"]+)"$"#)]
+async fn a_durable_notification_record_is_stored_for_named_user(
     world: &mut NotificationsWorld,
     recipient_name: String,
 ) {
@@ -797,11 +797,15 @@ async fn a_notification_outbox_event_is_recorded_for_named_user(
     )
     .await;
 
-    assert_eq!(outbox_count, 1);
+    assert_eq!(
+        outbox_count, 1,
+        "Expected a durable notification record to be stored for {}",
+        recipient_name
+    );
 }
 
-#[then(regex = r#"^no notification outbox event is recorded for "([^"]+)" for the last message$"#)]
-async fn no_notification_outbox_event_is_recorded_for_named_user_for_last_message(
+#[then(regex = r#"^no durable notification record is stored for "([^"]+)" for the last message$"#)]
+async fn no_durable_notification_record_is_stored_for_named_user_for_last_message(
     world: &mut NotificationsWorld,
     recipient_name: String,
 ) {
@@ -813,11 +817,15 @@ async fn no_notification_outbox_event_is_recorded_for_named_user_for_last_messag
     )
     .await;
 
-    assert_eq!(outbox_count, 0);
+    assert_eq!(
+        outbox_count, 0,
+        "Expected no durable notification record to be stored for {} for the last message",
+        recipient_name
+    );
 }
 
-#[then(regex = r#"^no notification outbox event is recorded for "([^"]+)"$"#)]
-async fn no_notification_outbox_event_is_recorded_for_named_user(
+#[then(regex = r#"^no durable notification record is stored for "([^"]+)"$"#)]
+async fn no_durable_notification_record_is_stored_for_named_user(
     world: &mut NotificationsWorld,
     actor_name: String,
 ) {
@@ -830,7 +838,11 @@ async fn no_notification_outbox_event_is_recorded_for_named_user(
         .get(&actor_name)
         .expect("outbox count before posting to be tracked");
 
-    assert_eq!(after_count, before_count);
+    assert_eq!(
+        after_count, before_count,
+        "Expected no durable notification record to be stored for {}",
+        actor_name
+    );
 }
 
 #[then(regex = r#"^unread count for "([^"]+)" in channel "([^"]+)" is zero$"#)]
@@ -1232,7 +1244,7 @@ async fn named_user_does_not_receive_live_notification_events_for_that_channel(
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
-#[then(regex = r#"^"([^"]+)" does not receive live notification events for channel "([^"]+)"$"#)]
+#[then(regex = r#"^"([^"]+)" does not receive live notifications for channel "([^"]+)"$"#)]
 async fn named_user_does_not_receive_live_notification_events_for_named_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -1377,3 +1389,4 @@ async fn notifications_feature() {
         .await;
     shutdown_feature_test_store().await;
 }
+

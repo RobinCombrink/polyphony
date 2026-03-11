@@ -6,11 +6,11 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use common::{
     bdd_support::{
-        Actor, ChannelId, ServerId, SharedTestStore, UserId, add_server_member,
-        add_server_member_with_raw_user_id, add_server_member_with_token, create_actor,
-        accept_friend_request_with_token, create_channel, create_channel_with_token,
-        create_server, create_server_with_token, default_shared_store, delete_channel,
-        delete_channel_with_token, delete_server, delete_server_with_token, fresh_shared_store,
+        Actor, ChannelId, ServerId, SharedTestStore, UserId, accept_friend_request_with_token,
+        add_server_member, add_server_member_with_raw_user_id, add_server_member_with_token,
+        create_actor, create_channel, create_channel_with_token, create_server,
+        create_server_with_token, default_shared_store, delete_channel, delete_channel_with_token,
+        delete_server, delete_server_with_token, fresh_shared_store,
         invite_friend_to_server_with_token, list_channels, list_channels_with_token, list_servers,
         list_servers_with_token, payload_channel_id, payload_server_id, payload_user_id,
         prime_feature_test_store, response_payload_json, seeded_app_with_store,
@@ -538,8 +538,8 @@ async fn the_server_owner_adds_another_user_as_a_member(world: &mut ServersAndCh
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[when("the server owner adds a member with an invalid user id")]
-async fn the_server_owner_adds_a_member_with_an_invalid_user_id(
+#[when("the server owner adds a member with an invalid user identifier")]
+async fn the_server_owner_adds_a_member_with_an_invalid_user_identifier(
     world: &mut ServersAndChannelsWorld,
 ) {
     world.ensure_owner_server().await;

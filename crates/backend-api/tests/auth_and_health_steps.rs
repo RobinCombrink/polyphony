@@ -52,8 +52,8 @@ impl AuthAndHealthWorld {
     }
 }
 
-#[given("the backend service is running")]
-async fn the_backend_service_is_running(world: &mut AuthAndHealthWorld) {
+#[given("the application is running")]
+async fn the_application_is_running(world: &mut AuthAndHealthWorld) {
     let shared = fresh_shared_store().await;
     world.app = seeded_app_with_store(EXTERNAL_REFERENCE, VALID_TOKEN, shared.clone());
     world.shared_store = shared;
@@ -61,8 +61,8 @@ async fn the_backend_service_is_running(world: &mut AuthAndHealthWorld) {
     world.latest_payload = None;
 }
 
-#[when("I check service health")]
-async fn i_check_service_health(world: &mut AuthAndHealthWorld) {
+#[when("I check health")]
+async fn i_check_health(world: &mut AuthAndHealthWorld) {
     let response = world
         .app_ref()
         .clone()
@@ -79,14 +79,14 @@ async fn i_check_service_health(world: &mut AuthAndHealthWorld) {
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[then("the service is reported as healthy")]
-async fn the_service_is_reported_as_healthy(world: &mut AuthAndHealthWorld) {
+#[then("health is reported as ready")]
+async fn health_is_reported_as_ready(world: &mut AuthAndHealthWorld) {
     assert_eq!(world.latest_status(), StatusCode::OK);
     assert_eq!(world.latest_payload_ref()["status"].as_str(), Some("ok"));
 }
 
-#[then("the service identity is visible")]
-async fn the_service_identity_is_visible(world: &mut AuthAndHealthWorld) {
+#[then("service details are visible")]
+async fn service_details_are_visible(world: &mut AuthAndHealthWorld) {
     assert_eq!(
         world.latest_payload_ref()["service"].as_str(),
         Some("backend-api")

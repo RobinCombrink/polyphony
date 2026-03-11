@@ -1,14 +1,14 @@
-Feature: Service health and identity
+Feature: Health and identity access
   As a local developer
   I want to verify service readiness and identity access
   So that I can trust local-first development before dev rollout
 
   Rule: Service remains healthy
     Scenario: Service reports healthy
-      Given the backend service is running
-      When I check service health
-      Then the service is reported as healthy
-      And the service identity is visible
+      Given the application is running
+      When I check health
+      Then health is reported as ready
+      And service details are visible
 
   Rule: Authenticated identity is readable
     Background:
