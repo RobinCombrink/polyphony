@@ -56,6 +56,19 @@ class RestServerService extends RestRequestServiceBase
   }
 
   @override
+  Future<Result<void>> inviteFriendToServer({
+    required String serverId,
+    required String friendUserId,
+  }) {
+    return performPostRequestWithoutResponseBody(
+      endpoint: "/api/v1/servers/$serverId/invite/friends/$friendUserId",
+      operation: "invite friend to server",
+      body: const <String, dynamic>{},
+      expectedStatusCode: 201,
+    );
+  }
+
+  @override
   Future<Result<List<ApiServerMember>>> listServerMembers({
     required String serverId,
   }) {

@@ -17,6 +17,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     on<DeleteServerRequested>(_onDeleteServerRequested);
     on<SelectServerRequested>(_onSelectServerRequested);
     on<AddServerMemberRequested>(_onAddServerMemberRequested);
+    on<InviteFriendToServerRequested>(_onInviteFriendToServerRequested);
   }
 
   final ServerRepo _serverRepo;
@@ -250,7 +251,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     emit(const ServersLoadingState());
 
     final addMemberResult = await _serverRepo.updateOne(
-      command: AddServerMemberCommand(
+      command: AddServerMemberUpdateCommand(
         serverId: trimmedServerId,
         userId: trimmedUserId,
       ),
@@ -290,12 +291,112 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     }
   }
 
+  Future<void> _onInviteFriendToServerRequested(
+    InviteFriendToServerRequested event,
+    Emitter<ServersState> emit,
+  ) async {
+    final loadedState = switch (state) {
+      final ServersLoadedDataState loadedState => loadedState,
+      _ => null,
+    };
+
+    if (loadedState == null) {
+      emit(ServersExceptionState(
+        error: Exception("Servers must be loaded before inviting a friend."),
+      ));
+      return;
+    }
+
+    final trimmedServerId = event.serverId.trim();
+    final trimmedFriendUserId = event.friendUserId.trim();
+
+    if (trimmedServerId.isEmpty ||
+        !loadedState.servers.any((server) => server.id == trimmedServerId)) {
+      emit(ServersValidationFailedState(
+        issue: ServersValidationIssue.serverSelectionRequired,
+        servers: loadedState.servers,
+        selectedServerId: loadedState.selectedServerId,
+      ));
+      return;
+    }
+
+    if (trimmedFriendUserId.isEmpty) {
+      emit(ServersValidationFailedState(
+        issue: ServersValidationIssue.friendUserIdRequired,
+        servers: loadedState.servers,
+        selectedServerId: loadedState.selectedServerId,
+      ));
+      return;
+    }
+
+    emit(const ServersLoadingState());
+
+    final inviteResult = await _serverRepo.updateOne(
+      command: InviteFriendToServerCommand(
+        serverId: trimmedServerId,
+        friendUserId: trimmedFriendUserId,
+      ),
+    );
+
+    switch (inviteResult) {
+      case Ok<void>():
+        final listServersResult = await _serverRepo.getMany(
+          query: const GetServersQuery(),
+        );
+
+        switch (listServersResult) {
+          case Ok<Iterable<Server>>(:final value):
+            final servers = value.toList();
+            emit(ServersLoadedState(
+              servers: servers,
+              selectedServerId: servers.any(
+                (server) => server.id == trimmedServerId,
+              )
+                  ? trimmedServerId
+                  : null,
+            ));
+          case Error<Iterable<Server>>(:final error):
+            emit(ServersExceptionState(error: error));
+        }
+      case Error<void>(:final error):
+        final handledApiError = _emitInviteFriendValidationState(
+          error: error,
+          loadedState: loadedState,
+          emit: emit,
+        );
+        if (handledApiError) {
+          return;
+        }
+
+        emit(ServersExceptionState(error: error));
+    }
+  }
+
   bool _emitAddMemberValidationState({
     required Exception error,
     required ServersLoadedDataState loadedState,
     required Emitter<ServersState> emit,
   }) {
     final issue = _classifyAddMemberIssue(error);
+    if (issue == null) {
+      return false;
+    }
+
+    emit(ServersValidationFailedState(
+      issue: issue,
+      servers: loadedState.servers,
+      selectedServerId: loadedState.selectedServerId,
+    ));
+
+    return true;
+  }
+
+  bool _emitInviteFriendValidationState({
+    required Exception error,
+    required ServersLoadedDataState loadedState,
+    required Emitter<ServersState> emit,
+  }) {
+    final issue = _classifyInviteFriendIssue(error);
     if (issue == null) {
       return false;
     }
@@ -318,6 +419,18 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
       403 => ServersValidationIssue.addMemberForbidden,
       404 => ServersValidationIssue.addMemberTargetNotFound,
       422 => ServersValidationIssue.userIdInvalidFormat,
+      _ => null,
+    };
+  }
+
+  ServersValidationIssue? _classifyInviteFriendIssue(Exception error) {
+    if (error is! ApiRequestException) {
+      return null;
+    }
+
+    return switch (error.statusCode) {
+      403 => ServersValidationIssue.inviteFriendForbidden,
+      404 => ServersValidationIssue.inviteFriendTargetNotFound,
       _ => null,
     };
   }

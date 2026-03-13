@@ -16,6 +16,10 @@ SectionStatus? buildServersSectionStatus(ServersState state) {
           message: "User id is required.",
           isError: true,
         ),
+      ServersValidationIssue.friendUserIdRequired => const SectionStatus(
+          message: "Friend user id is required.",
+          isError: true,
+        ),
       ServersValidationIssue.userIdInvalidFormat => const SectionStatus(
           message: "User id must be a UUID.",
           isError: true,
@@ -26,6 +30,14 @@ SectionStatus? buildServersSectionStatus(ServersState state) {
         ),
       ServersValidationIssue.addMemberTargetNotFound => const SectionStatus(
           message: "User or server not found.",
+          isError: true,
+        ),
+      ServersValidationIssue.inviteFriendForbidden => const SectionStatus(
+          message: "Only server owners can invite existing friends.",
+          isError: true,
+        ),
+      ServersValidationIssue.inviteFriendTargetNotFound => const SectionStatus(
+          message: "Friend or server not found.",
           isError: true,
         ),
     };
@@ -57,6 +69,7 @@ class ServersSectionWidget extends StatefulWidget {
     required this.createController,
     required this.onTap,
     required this.onAddUser,
+    required this.onInviteFriend,
     required this.onNotificationPreferences,
     required this.onDeleteServer,
     required this.onCreate,
@@ -70,6 +83,7 @@ class ServersSectionWidget extends StatefulWidget {
   final TextEditingController createController;
   final void Function(Server server) onTap;
   final void Function(Server server) onAddUser;
+  final void Function(Server server) onInviteFriend;
   final void Function(Server server) onNotificationPreferences;
   final void Function(Server server) onDeleteServer;
   final VoidCallback onCreate;
@@ -123,6 +137,10 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
         PopupMenuItem<void>(
           onTap: () => widget.onAddUser(server),
           child: const Text("Add user to server"),
+        ),
+        PopupMenuItem<void>(
+          onTap: () => widget.onInviteFriend(server),
+          child: const Text("Invite friend to server"),
         ),
         PopupMenuItem<void>(
           onTap: () => widget.onNotificationPreferences(server),

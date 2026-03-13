@@ -21,11 +21,25 @@ class DeleteServerCommand {
   final String serverId;
 }
 
-class AddServerMemberCommand {
-  const AddServerMemberCommand({
+sealed class ServerUpdateCommand {
+  const ServerUpdateCommand();
+}
+
+class InviteFriendToServerCommand extends ServerUpdateCommand {
+  const InviteFriendToServerCommand({
+    required this.serverId,
+    required this.friendUserId,
+  }) : super();
+
+  final String serverId;
+  final String friendUserId;
+}
+
+class AddServerMemberUpdateCommand extends ServerUpdateCommand {
+  const AddServerMemberUpdateCommand({
     required this.serverId,
     required this.userId,
-  });
+  }) : super();
 
   final String serverId;
   final String userId;
@@ -36,4 +50,4 @@ abstract interface class ServerRepo
         RepositoryGetMany<Server, GetServersQuery>,
         RepositoryCreateOne<Server, CreateServerCommand>,
         RepositoryDeleteOne<DeleteServerCommand>,
-        RepositoryUpdateOne<void, AddServerMemberCommand> {}
+        RepositoryUpdateOne<void, ServerUpdateCommand> {}

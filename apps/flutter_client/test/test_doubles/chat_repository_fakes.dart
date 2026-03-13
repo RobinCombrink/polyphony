@@ -23,6 +23,8 @@ class FakeServerRepository implements ServerRepo {
     required ChatApiFixture fixture,
     this.forceAddMemberError = false,
     this.addMemberError,
+    this.forceInviteFriendError = false,
+    this.inviteFriendError,
     this.forceDeleteError = false,
   })  : _servers = <Server>[fixture.listedServer],
         _membersByServerId = <String, Set<String>>{
@@ -33,6 +35,8 @@ class FakeServerRepository implements ServerRepo {
 
   final bool forceAddMemberError;
   final Exception? addMemberError;
+  final bool forceInviteFriendError;
+  final Exception? inviteFriendError;
   final bool forceDeleteError;
   final List<Server> _servers;
   final Map<String, Set<String>> _membersByServerId;
@@ -68,19 +72,35 @@ class FakeServerRepository implements ServerRepo {
 
   @override
   Future<Result<void>> updateOne({
-    required AddServerMemberCommand command,
+    required ServerUpdateCommand command,
   }) async {
+    return switch (command) {
+      AddServerMemberUpdateCommand(:final serverId, :final userId) =>
+        _addServerMember(serverId: serverId, userId: userId),
+      InviteFriendToServerCommand() => _inviteFriendToServer(),
+    };
+  }
+
+  Result<void> _inviteFriendToServer() {
+    if (forceInviteFriendError) {
+      return Error<void>(
+        inviteFriendError ?? Exception("Failed to invite friend to server"),
+      );
+    }
+
+    return const Ok<void>(null);
+  }
+
+  Result<void> _addServerMember({
+    required String serverId,
+    required String userId,
+  }) {
     if (forceAddMemberError) {
       return Error<void>(
           addMemberError ?? Exception("Failed to add server member"));
     }
 
-    _membersByServerId
-        .putIfAbsent(
-          command.serverId,
-          () => <String>{},
-        )
-        .add(command.userId);
+    _membersByServerId.putIfAbsent(serverId, () => <String>{}).add(userId);
 
     return const Ok<void>(null);
   }

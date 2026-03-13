@@ -238,4 +238,119 @@ void main() {
       ),
     ],
   );
+
+  blocTest<ServersBloc, ServersState>(
+    "invites friend to selected server",
+    build: () => ServersBloc(
+      serverRepo: FakeServerRepository(fixture: fixture),
+    ),
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id))
+      ..add(InviteFriendToServerRequested(
+        serverId: fixture.listedServer.id,
+        friendUserId: "auth0|friend-1",
+      )),
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>().having(
+        (state) => state.selectedServerId,
+        "selected server id",
+        fixture.listedServer.id,
+      ),
+    ],
+  );
+
+  blocTest<ServersBloc, ServersState>(
+    "emits validation failed when invite-friend user id is empty",
+    build: () => ServersBloc(
+      serverRepo: FakeServerRepository(fixture: fixture),
+    ),
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id))
+      ..add(InviteFriendToServerRequested(
+        serverId: fixture.listedServer.id,
+        friendUserId: "   ",
+      )),
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        ServersValidationIssue.friendUserIdRequired,
+      ),
+    ],
+  );
+
+  blocTest<ServersBloc, ServersState>(
+    "emits validation failed when invite-friend is forbidden",
+    build: () => ServersBloc(
+      serverRepo: FakeServerRepository(
+        fixture: fixture,
+        forceInviteFriendError: true,
+        inviteFriendError: const ApiRequestException(
+          operation: "invite friend to server",
+          statusCode: 403,
+          responseBody: "",
+        ),
+      ),
+    ),
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id))
+      ..add(InviteFriendToServerRequested(
+        serverId: fixture.listedServer.id,
+        friendUserId: "auth0|friend-1",
+      )),
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadingState>(),
+      isA<ServersValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        ServersValidationIssue.inviteFriendForbidden,
+      ),
+    ],
+  );
+
+  blocTest<ServersBloc, ServersState>(
+    "emits validation failed when invite-friend target is missing",
+    build: () => ServersBloc(
+      serverRepo: FakeServerRepository(
+        fixture: fixture,
+        forceInviteFriendError: true,
+        inviteFriendError: const ApiRequestException(
+          operation: "invite friend to server",
+          statusCode: 404,
+          responseBody: "",
+        ),
+      ),
+    ),
+    act: (bloc) => bloc
+      ..add(const LoadServersRequested())
+      ..add(SelectServerRequested(serverId: fixture.listedServer.id))
+      ..add(InviteFriendToServerRequested(
+        serverId: fixture.listedServer.id,
+        friendUserId: "auth0|friend-1",
+      )),
+    expect: () => <Matcher>[
+      isA<ServersLoadingState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadedState>(),
+      isA<ServersLoadingState>(),
+      isA<ServersValidationFailedState>().having(
+        (state) => state.issue,
+        "issue",
+        ServersValidationIssue.inviteFriendTargetNotFound,
+      ),
+    ],
+  );
 }

@@ -46,10 +46,18 @@ class ServerRepository implements ServerRepo {
   }
 
   @override
-  Future<Result<void>> updateOne({required AddServerMemberCommand command}) {
-    return _serverService.addServerMember(
-      serverId: command.serverId,
-      userId: command.userId,
-    );
+  Future<Result<void>> updateOne({required ServerUpdateCommand command}) {
+    return switch (command) {
+      AddServerMemberUpdateCommand(:final serverId, :final userId) =>
+        _serverService.addServerMember(
+          serverId: serverId,
+          userId: userId,
+        ),
+      InviteFriendToServerCommand(:final serverId, :final friendUserId) =>
+        _serverService.inviteFriendToServer(
+          serverId: serverId,
+          friendUserId: friendUserId,
+        ),
+    };
   }
 }

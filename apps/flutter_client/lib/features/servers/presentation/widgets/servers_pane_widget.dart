@@ -133,6 +133,47 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
         );
   }
 
+  Future<void> _showInviteFriendToServerDialog(String serverId) async {
+    final controller = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text("Invite friend to server"),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+            decoration: const InputDecoration(labelText: "Friend user id"),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text("Cancel"),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+              child: const Text("Invite"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    context.read<ServersBloc>().add(
+          InviteFriendToServerRequested(
+            serverId: serverId,
+            friendUserId: result,
+          ),
+        );
+  }
+
   Future<void> _showServerNotificationPreferencesDialog(Server server) async {
     final notificationPreferencesBloc =
         context.read<NotificationPreferencesBloc>()
@@ -247,6 +288,8 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
                     .add(SelectServerRequested(serverId: server.id));
               },
               onAddUser: (server) => _showAddUserToServerDialog(server.id),
+              onInviteFriend: (server) =>
+                  _showInviteFriendToServerDialog(server.id),
               onNotificationPreferences: (server) =>
                   unawaited(_showServerNotificationPreferencesDialog(server)),
               onDeleteServer: (server) =>

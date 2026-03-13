@@ -17,6 +17,11 @@ abstract interface class ServerService {
     required String userId,
   });
 
+  Future<Result<void>> inviteFriendToServer({
+    required String serverId,
+    required String friendUserId,
+  });
+
   Future<Result<List<ApiServerMember>>> listServerMembers({
     required String serverId,
   });

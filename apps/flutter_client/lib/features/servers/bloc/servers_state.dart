@@ -4,9 +4,12 @@ enum ServersValidationIssue {
   serverNameRequired,
   serverSelectionRequired,
   userIdRequired,
+  friendUserIdRequired,
   userIdInvalidFormat,
   addMemberForbidden,
   addMemberTargetNotFound,
+  inviteFriendForbidden,
+  inviteFriendTargetNotFound,
 }
 
 sealed class ServersState {

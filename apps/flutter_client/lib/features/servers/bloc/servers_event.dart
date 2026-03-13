@@ -37,3 +37,13 @@ final class AddServerMemberRequested extends ServersEvent {
   final String serverId;
   final String userId;
 }
+
+final class InviteFriendToServerRequested extends ServersEvent {
+  const InviteFriendToServerRequested({
+    required this.serverId,
+    required this.friendUserId,
+  });
+
+  final String serverId;
+  final String friendUserId;
+}
