@@ -220,13 +220,12 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
                       onLongPress: widget.isLoading
                           ? null
                           : () {
-                              final renderBox =
-                                  context.findRenderObject() as RenderBox?;
-                              final globalPosition = renderBox == null
-                                  ? Offset.zero
-                                  : renderBox.localToGlobal(
-                                      renderBox.size.center(Offset.zero),
-                                    );
+                              final renderObject = context.findRenderObject();
+                              final globalPosition = switch (renderObject) {
+                                final RenderBox box => box.localToGlobal(
+                                    box.size.center(Offset.zero)),
+                                _ => Offset.zero,
+                              };
 
                               unawaited(
                                 _showServerContextMenu(
