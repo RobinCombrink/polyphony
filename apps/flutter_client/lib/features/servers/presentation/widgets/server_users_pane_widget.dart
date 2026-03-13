@@ -9,6 +9,7 @@ import "package:skeletonizer/skeletonizer.dart";
 
 enum _ServerUserContextMenuAction {
   addFriend,
+  cancelFriendRequest,
 }
 
 class ServerUsersPaneWidget extends StatelessWidget {
@@ -19,12 +20,14 @@ class ServerUsersPaneWidget extends StatelessWidget {
     required ServerMembersLoadedDataState loadedData,
     required UserProfile member,
     required bool isFriend,
-    required bool hasPendingRequest,
+    required PendingFriendRequest? pendingRequest,
     required Offset globalPosition,
   }) async {
-    if (isFriend || hasPendingRequest) {
+    if (isFriend) {
       return;
     }
+
+    final hasPendingRequest = pendingRequest != null;
 
     final selectedAction = await showMenu<_ServerUserContextMenuAction>(
       context: context,
@@ -34,11 +37,17 @@ class ServerUsersPaneWidget extends StatelessWidget {
         globalPosition.dx,
         globalPosition.dy,
       ),
-      items: const <PopupMenuEntry<_ServerUserContextMenuAction>>[
-        PopupMenuItem<_ServerUserContextMenuAction>(
-          value: _ServerUserContextMenuAction.addFriend,
-          child: Text("Add friend"),
-        ),
+      items: <PopupMenuEntry<_ServerUserContextMenuAction>>[
+        if (!hasPendingRequest)
+          const PopupMenuItem<_ServerUserContextMenuAction>(
+            value: _ServerUserContextMenuAction.addFriend,
+            child: Text("Add friend"),
+          ),
+        if (hasPendingRequest)
+          const PopupMenuItem<_ServerUserContextMenuAction>(
+            value: _ServerUserContextMenuAction.cancelFriendRequest,
+            child: Text("Cancel friend request"),
+          ),
       ],
     );
 
@@ -48,10 +57,24 @@ class ServerUsersPaneWidget extends StatelessWidget {
 
     switch (selectedAction) {
       case _ServerUserContextMenuAction.addFriend:
+        if (hasPendingRequest) {
+          return;
+        }
+
         context.read<ServerMembersBloc>().add(
               SendFriendRequestToServerMemberRequested(
                 serverId: loadedData.serverId,
                 targetUserId: member.userId,
+              ),
+            );
+      case _ServerUserContextMenuAction.cancelFriendRequest:
+        if (!hasPendingRequest) {
+          return;
+        }
+
+        context.read<ServerMembersBloc>().add(
+              CancelOutgoingFriendRequestRequested(
+                friendRequestId: pendingRequest.id,
               ),
             );
     }
@@ -112,6 +135,10 @@ class ServerUsersPaneWidget extends StatelessWidget {
         final pendingRequestUserIds = pendingOutgoingFriendRequests
             .map((request) => request.addresseeUserId)
             .toSet();
+        final pendingRequestByAddresseeUserId = {
+          for (final request in pendingOutgoingFriendRequests)
+            request.addresseeUserId: request,
+        };
         final displayNameByUserId = {
           for (final member in members)
             member.userId: _resolvedDisplayName(member),
@@ -153,6 +180,9 @@ class ServerUsersPaneWidget extends StatelessWidget {
                                   friendUserIds.contains(member.userId);
                               final hasPendingRequest =
                                   pendingRequestUserIds.contains(member.userId);
+                              final pendingRequest =
+                                  pendingRequestByAddresseeUserId[
+                                      member.userId];
 
                               return GestureDetector(
                                 onSecondaryTapDown:
@@ -164,8 +194,7 @@ class ServerUsersPaneWidget extends StatelessWidget {
                                                 loadedData: loadedData,
                                                 member: member,
                                                 isFriend: isFriend,
-                                                hasPendingRequest:
-                                                    hasPendingRequest,
+                                                pendingRequest: pendingRequest,
                                                 globalPosition:
                                                     details.globalPosition,
                                               ),
@@ -179,8 +208,7 @@ class ServerUsersPaneWidget extends StatelessWidget {
                                                 loadedData: loadedData,
                                                 member: member,
                                                 isFriend: isFriend,
-                                                hasPendingRequest:
-                                                    hasPendingRequest,
+                                                pendingRequest: pendingRequest,
                                                 globalPosition:
                                                     details.globalPosition,
                                               ),

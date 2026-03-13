@@ -195,4 +195,43 @@ void main() {
       ),
     ],
   );
+
+  blocTest<ServerMembersBloc, ServerMembersState>(
+    "emits validation failed when outgoing request already exists for member",
+    build: () => ServerMembersBloc(
+      serverMemberRepo: FakeServerMemberRepository(fixture: fixture),
+      profileRepo: FakeProfileRepository(
+        userId: fixture.ownerUserId,
+        initialDisplayName: "Owner",
+      ),
+      friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+    ),
+    seed: () => ServerMembersLoadedState(
+      serverId: fixture.listedServer.id,
+      members: <UserProfile>[
+        UserProfile(userId: fixture.ownerUserId, displayName: "Owner"),
+      ],
+      friendUserIds: const <String>{},
+      pendingOutgoingFriendRequests: <PendingFriendRequest>[
+        PendingFriendRequest(
+          id: "pending-request-owner",
+          requesterUserId: "requester-user",
+          addresseeUserId: fixture.ownerUserId,
+        ),
+      ],
+    ),
+    act: (bloc) => bloc.add(
+      SendFriendRequestToServerMemberRequested(
+        serverId: fixture.listedServer.id,
+        targetUserId: fixture.ownerUserId,
+      ),
+    ),
+    expect: () => <Matcher>[
+      isA<ServerMembersValidationFailedState>().having(
+        (state) => state.issue,
+        "validation issue",
+        ServerMembersValidationIssue.sendFriendRequestConflict,
+      ),
+    ],
+  );
 }
