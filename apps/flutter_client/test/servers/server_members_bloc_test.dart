@@ -234,4 +234,50 @@ void main() {
       ),
     ],
   );
+
+  blocTest<ServerMembersBloc, ServerMembersState>(
+    "emits validation failed when cancel pending request is not found",
+    build: () => ServerMembersBloc(
+      serverMemberRepo: FakeServerMemberRepository(fixture: fixture),
+      profileRepo: FakeProfileRepository(
+        userId: fixture.ownerUserId,
+        initialDisplayName: "Owner",
+      ),
+      friendRepo: FakeFriendRepository(
+        friendUserIds: <String>{},
+        forceCancelError: true,
+        cancelError: const ApiRequestException(
+          operation: "cancel outgoing friend request",
+          statusCode: 404,
+          responseBody: "",
+        ),
+      ),
+    ),
+    seed: () => const ServerMembersLoadedState(
+      serverId: "server-1",
+      members: <UserProfile>[
+        UserProfile(userId: "auth0|pending", displayName: "Pending User"),
+      ],
+      friendUserIds: <String>{},
+      pendingOutgoingFriendRequests: <PendingFriendRequest>[
+        PendingFriendRequest(
+          id: "pending-request-1",
+          requesterUserId: "requester-user",
+          addresseeUserId: "auth0|pending",
+        ),
+      ],
+    ),
+    act: (bloc) => bloc.add(
+      const CancelOutgoingFriendRequestRequested(
+        friendRequestId: "pending-request-1",
+      ),
+    ),
+    expect: () => <Matcher>[
+      isA<ServerMembersValidationFailedState>().having(
+        (state) => state.issue,
+        "validation issue",
+        ServerMembersValidationIssue.cancelFriendRequestNotFound,
+      ),
+    ],
+  );
 }

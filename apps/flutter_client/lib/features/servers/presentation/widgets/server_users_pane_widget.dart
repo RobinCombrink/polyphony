@@ -4,12 +4,70 @@ import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
 enum _ServerUserContextMenuAction {
   addFriend,
   cancelFriendRequest,
+}
+
+SectionStatus? buildServerUsersPaneStatus(ServerMembersState state) {
+  if (state is ServerMembersValidationFailedState) {
+    return switch (state.issue) {
+      ServerMembersValidationIssue.serverSelectionRequired =>
+        const SectionStatus(message: "Select a server first.", isError: true),
+      ServerMembersValidationIssue.serverMemberSelectionRequired =>
+        const SectionStatus(
+          message: "Select a server member first.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.pendingFriendRequestSelectionRequired =>
+        const SectionStatus(
+          message: "Select a pending friend request first.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.targetUserRequired => const SectionStatus(
+          message: "Target user is required.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.alreadyFriend =>
+        const SectionStatus(message: "You are already friends.", isError: true),
+      ServerMembersValidationIssue.sendFriendRequestForbidden =>
+        const SectionStatus(
+          message: "Friend request is not allowed in this server context.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.sendFriendRequestNotFound =>
+        const SectionStatus(
+          message: "User or server was not found.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.sendFriendRequestConflict =>
+        const SectionStatus(
+          message: "A friend request is already pending.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.cancelFriendRequestForbidden =>
+        const SectionStatus(
+          message: "Cancelling this friend request is not allowed.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.cancelFriendRequestNotFound =>
+        const SectionStatus(
+          message: "Pending friend request was not found.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.cancelFriendRequestConflict =>
+        const SectionStatus(
+          message: "Friend request can no longer be cancelled.",
+          isError: true,
+        ),
+    };
+  }
+
+  return null;
 }
 
 class ServerUsersPaneWidget extends StatelessWidget {
@@ -119,6 +177,7 @@ class ServerUsersPaneWidget extends StatelessWidget {
         final isLoading = state is ServerMembersInitialState ||
             state is ServerMembersLoadingState;
         final loadedData = state is ServerMembersLoadedDataState ? state : null;
+        final status = buildServerUsersPaneStatus(state);
         final errorMessage = state is ServerMembersExceptionState
             ? state.error.toString()
             : null;
@@ -156,6 +215,17 @@ class ServerUsersPaneWidget extends StatelessWidget {
                   "Server users",
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
+                if (status != null) ...<Widget>[
+                  const SizedBox(height: 8),
+                  Text(
+                    status.message,
+                    style: TextStyle(
+                      color: status.isError
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 Expanded(
                   child: Skeletonizer(
