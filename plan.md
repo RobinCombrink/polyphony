@@ -347,6 +347,15 @@ Scope:
 - Behavior rules for blocked relationships (friend actions and DMs restricted).
 - Search through sent messages to a particular person in DM context.
 - Sending friend requests to users who are in servers that we are in
+
+Progress:
+- completed: backend friend lifecycle, block-list, and DM endpoints plus route wiring for friends/requests, blocks, and DM operations.
+- completed: frontend friend repository/service plumbing for listing friends and sending server-context friend requests.
+- completed: server-members UI support for friend status comparison against server users.
+- completed: server-members context-menu flows for add friend and cancel pending friend request.
+- completed: pending outgoing friend request section with cancel action in server members pane.
+- completed: bloc + widget coverage for server-members friend request send/cancel and context-menu rendering paths.
+- in progress: dedicated friends and direct-messages feature surfaces and full blocked-DM UX flows.
 Implementation notes:
 - Introduce friend relationship state machine in domain layer.
 - DM permissions should use explicit relationship checks.
@@ -360,13 +369,40 @@ Acceptance criteria:
 
 #### phase 11.5: Inviting friends to servers and adding friends through servers
 status:
-- planned
+- in progress
 
 goals:
 - Invite a user that exists in a friends list to a specific server
 - Add a user as a friend through a common server membership
 
-#### Phase 12 (Weeks 7-10): Text chat enhancements (media, reactions, threading, retrieval)
+progress:
+- completed: backend server-context friend request initiation endpoint retained and used by frontend.
+- completed: frontend add-friend-through-common-server flow from server members context menu.
+- completed: pending outgoing server-context friend requests are listed and cancellable in the members pane.
+- completed: invite-friend-to-server operation implemented in Flutter service/repository/bloc/UI context menu.
+- completed: validation and API error mapping for invite-friend-to-server flow with automated tests.
+- in progress: broader friend/DM navigation surfaces and remaining phase-wide smoke paths.
+
+#### Phase 12: Upgrade Server and Channel experience
+Status:
+- Planned
+
+Scope: 
+- Add Server name updating to the right click context menu (And the new Server Settings page, accessed by clicking on the name of the server in the channel list)
+- Add Channel name updating to the right click context menu
+
+#### Phase 12.5: Developer experience regarding the mobile client
+Status:
+- Planned
+
+Goal:
+- Improve debugability of the frontend client
+
+Scope: 
+- add a context menu item to more entities in the frontend when developer mode is enabled. This will copy the Id of the user
+- Refactor all {Entity}Id fields, e.g. userId, to named extension types for compile time safety and preventing id wires being crossed accidentally
+
+#### Phase 12.7 (Weeks 7-10): Text chat enhancements (media, reactions, threading, retrieval)
 Status:
 - Planned.
 
@@ -443,25 +479,6 @@ Acceptance criteria:
 - Member list can be hidden/restored in one interaction from the main chat view.
 - Layout remains stable on compact viewports when member list visibility changes.
 - BDD covers server profile naming precedence and member-list toggle behavior.
-#### Phase 15: Upgrade Server and Channel experience
-Status:
-- Planned
-
-Scope: 
-- Add Server name updating to the right click context menu (And the new Server Settings page, accessed by clicking on the name of the server in the channel list)
-- Add Channel name updating to the right click context menu
-
-#### Phase 16: Developer experience regarding the mobile client
-Status:
-- Planned
-
-Goal:
-- Improve debugability of the frontend client
-
-Scope: 
-- add a context menu item to more entities in the frontend when developer mode is enabled. This will copy the Id of the user
-- Refactor all {Entity}Id fields, e.g. userId, to named extension types for compile time safety and preventing id wires being crossed accidentally
-
 
 #### Phase 17: Improved UI look and feel
 Status:
