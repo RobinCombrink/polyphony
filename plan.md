@@ -355,7 +355,9 @@ Progress:
 - completed: server-members context-menu flows for add friend and cancel pending friend request.
 - completed: pending outgoing friend request section with cancel action in server members pane.
 - completed: bloc + widget coverage for server-members friend request send/cancel and context-menu rendering paths.
-- in progress: dedicated friends and direct-messages feature surfaces and full blocked-DM UX flows.
+- completed: dedicated `friends` and `direct_messages` feature modules implemented and wired into home composition/authentication gate providers.
+- completed: block/unblock controls and blocked-DM composer prompt UX (with unblock action) implemented in frontend feature panes.
+- completed: frontend BDD-style social safety and direct-messaging scenarios added and stabilized with deterministic sequential bloc event handling.
 Implementation notes:
 - Introduce friend relationship state machine in domain layer.
 - DM permissions should use explicit relationship checks.
@@ -369,7 +371,7 @@ Acceptance criteria:
 
 #### phase 11.5: Inviting friends to servers and adding friends through servers
 status:
-- in progress
+- completed
 
 goals:
 - Invite a user that exists in a friends list to a specific server
@@ -381,7 +383,6 @@ progress:
 - completed: pending outgoing server-context friend requests are listed and cancellable in the members pane.
 - completed: invite-friend-to-server operation implemented in Flutter service/repository/bloc/UI context menu.
 - completed: validation and API error mapping for invite-friend-to-server flow with automated tests.
-- in progress: broader friend/DM navigation surfaces and remaining phase-wide smoke paths.
 
 #### Phase 12: Upgrade Server and Channel experience
 Status:

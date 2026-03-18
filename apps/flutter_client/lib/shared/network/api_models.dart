@@ -74,6 +74,63 @@ class ApiFriendRequest {
   }
 }
 
+class ApiBlockedUser {
+  const ApiBlockedUser({
+    required this.blockedUserId,
+  });
+
+  final String blockedUserId;
+
+  factory ApiBlockedUser.fromJson(Map<String, dynamic> json) {
+    return ApiBlockedUser(
+      blockedUserId: json["blocked_user_id"] as String,
+    );
+  }
+}
+
+class ApiDirectMessageThread {
+  const ApiDirectMessageThread({
+    required this.id,
+    required this.participantAUserId,
+    required this.participantBUserId,
+  });
+
+  final String id;
+  final String participantAUserId;
+  final String participantBUserId;
+
+  factory ApiDirectMessageThread.fromJson(Map<String, dynamic> json) {
+    return ApiDirectMessageThread(
+      id: json["id"] as String,
+      participantAUserId: json["participant_a_user_id"] as String,
+      participantBUserId: json["participant_b_user_id"] as String,
+    );
+  }
+}
+
+class ApiDirectMessage {
+  const ApiDirectMessage({
+    required this.id,
+    required this.threadId,
+    required this.authorUserId,
+    required this.content,
+  });
+
+  final String id;
+  final String threadId;
+  final String authorUserId;
+  final String content;
+
+  factory ApiDirectMessage.fromJson(Map<String, dynamic> json) {
+    return ApiDirectMessage(
+      id: json["id"] as String,
+      threadId: json["thread_id"] as String,
+      authorUserId: json["author_user_id"] as String,
+      content: json["content"] as String,
+    );
+  }
+}
+
 class ApiChannel {
   const ApiChannel({
     required this.id,

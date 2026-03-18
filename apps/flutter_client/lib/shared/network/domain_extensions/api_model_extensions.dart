@@ -49,6 +49,33 @@ extension ApiFriendRequestToDomainExtension on ApiFriendRequest {
   }
 }
 
+extension ApiBlockedUserToDomainExtension on ApiBlockedUser {
+  BlockedUser toDomainModel() {
+    return BlockedUser(userId: blockedUserId);
+  }
+}
+
+extension ApiDirectMessageThreadToDomainExtension on ApiDirectMessageThread {
+  DirectMessageThread toDomainModel() {
+    return DirectMessageThread(
+      id: id,
+      participantAUserId: participantAUserId,
+      participantBUserId: participantBUserId,
+    );
+  }
+}
+
+extension ApiDirectMessageToDomainExtension on ApiDirectMessage {
+  DirectMessage toDomainModel() {
+    return DirectMessage(
+      id: id,
+      threadId: threadId,
+      authorUserId: authorUserId,
+      content: content,
+    );
+  }
+}
+
 extension DomainFriendToApiExtension on Friend {
   ApiFriend toApiModel() {
     return ApiFriend(

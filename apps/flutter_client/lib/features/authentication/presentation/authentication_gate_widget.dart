@@ -6,6 +6,8 @@ import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
+import "package:polyphony_flutter_client/features/direct_messages/bloc/direct_messages_bloc.dart";
+import "package:polyphony_flutter_client/features/friends/bloc/friends_bloc.dart";
 import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
@@ -16,8 +18,12 @@ import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/config/backend_base_url_resolver.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
+import "package:polyphony_flutter_client/shared/repositories/block_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/block_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repository.dart";
+import "package:polyphony_flutter_client/shared/repositories/direct_message_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/direct_message_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
@@ -34,7 +40,9 @@ import "package:polyphony_flutter_client/shared/repositories/text_session_repo.d
 import "package:polyphony_flutter_client/shared/repositories/text_session_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repository.dart";
+import "package:polyphony_flutter_client/shared/services/block_service.dart";
 import "package:polyphony_flutter_client/shared/services/channel_service.dart";
+import "package:polyphony_flutter_client/shared/services/direct_message_service.dart";
 import "package:polyphony_flutter_client/shared/services/friend_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
@@ -44,7 +52,9 @@ import "package:polyphony_flutter_client/shared/services/notification_runtime_se
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
+import "package:polyphony_flutter_client/shared/services/rest/rest_block_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_channel_service.dart";
+import "package:polyphony_flutter_client/shared/services/rest/rest_direct_message_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_friend_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_message_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_notification_service.dart";
@@ -302,6 +312,16 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
               dio: context.read<Dio>(),
             ),
           ),
+          Provider<BlockService>(
+            create: (context) => RestBlockService(
+              dio: context.read<Dio>(),
+            ),
+          ),
+          Provider<DirectMessageService>(
+            create: (context) => RestDirectMessageService(
+              dio: context.read<Dio>(),
+            ),
+          ),
           Provider<MessageService>(
             create: (context) => RestMessageService(
               dio: context.read<Dio>(),
@@ -340,6 +360,16 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
           Provider<FriendRepo>(
             create: (context) => FriendRepository(
               friendService: context.read<FriendService>(),
+            ),
+          ),
+          Provider<BlockRepo>(
+            create: (context) => BlockRepository(
+              blockService: context.read<BlockService>(),
+            ),
+          ),
+          Provider<DirectMessageRepo>(
+            create: (context) => DirectMessageRepository(
+              directMessageService: context.read<DirectMessageService>(),
             ),
           ),
           Provider<MessageRepo>(
@@ -428,6 +458,19 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
                 voiceSessionRepo: context.read<VoiceSessionRepo>(),
                 voiceRuntimeService: context.read<MediaRuntimeService>(),
                 profileRepo: context.read<ProfileRepo>(),
+              ),
+            ),
+            BlocProvider<FriendsBloc>(
+              create: (context) => FriendsBloc(
+                friendRepo: context.read<FriendRepo>(),
+                blockRepo: context.read<BlockRepo>(),
+              ),
+            ),
+            BlocProvider<DirectMessagesBloc>(
+              create: (context) => DirectMessagesBloc(
+                directMessageRepo: context.read<DirectMessageRepo>(),
+                blockRepo: context.read<BlockRepo>(),
+                currentUserId: widget.metadata.userId,
               ),
             ),
           ],

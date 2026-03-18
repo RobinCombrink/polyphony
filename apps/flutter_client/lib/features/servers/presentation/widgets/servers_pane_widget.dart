@@ -16,10 +16,18 @@ import "package:skeletonizer/skeletonizer.dart";
 class ServersPaneWidget extends StatefulWidget {
   const ServersPaneWidget({
     required this.createController,
+    required this.isDirectMessagesSelected,
+    required this.directMessagesUnreadCount,
+    required this.onSelectDirectMessages,
+    required this.onSelectServer,
     super.key,
   });
 
   final TextEditingController createController;
+  final bool isDirectMessagesSelected;
+  final int directMessagesUnreadCount;
+  final VoidCallback onSelectDirectMessages;
+  final void Function(String serverId) onSelectServer;
 
   @override
   State<ServersPaneWidget> createState() => _ServersPaneWidgetState();
@@ -278,11 +286,17 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
             enabled: isLoading,
             child: ServersSectionWidget(
               servers: visibleServers,
-              selectedServerId: loadedData?.selectedServerId,
+              selectedServerId: widget.isDirectMessagesSelected
+                  ? null
+                  : loadedData?.selectedServerId,
+              isDirectMessagesSelected: widget.isDirectMessagesSelected,
+              directMessagesUnreadCount: widget.directMessagesUnreadCount,
               currentUserId: currentUserId,
               isLoading: isLoading,
               createController: widget.createController,
+              onSelectDirectMessages: widget.onSelectDirectMessages,
               onTap: (server) {
+                widget.onSelectServer(server.id);
                 context
                     .read<ServersBloc>()
                     .add(SelectServerRequested(serverId: server.id));

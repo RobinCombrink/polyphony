@@ -3,21 +3,31 @@ import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/presentation/widgets/channels_pane_widget.dart";
+import "package:polyphony_flutter_client/features/direct_messages/bloc/direct_messages_bloc.dart";
+import "package:polyphony_flutter_client/features/direct_messages/presentation/widgets/direct_messages_pane_widget.dart";
+import "package:polyphony_flutter_client/features/friends/presentation/widgets/friends_pane_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_pane_widget.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/server_users_pane_widget.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_participants_pane_widget.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/pane_placeholder_widget.dart";
 
+enum HomeWorkspaceMode {
+  server,
+  directMessages,
+}
+
 class HomeWorkspaceWidget extends StatelessWidget {
   const HomeWorkspaceWidget({
     required this.createChannelController,
     required this.createMessageController,
+    required this.workspaceMode,
     super.key,
   });
 
   final TextEditingController createChannelController;
   final TextEditingController createMessageController;
+  final HomeWorkspaceMode workspaceMode;
 
   Widget _buildPrimaryPane() {
     return BlocBuilder<ChannelsBloc, ChannelsState>(
@@ -37,8 +47,33 @@ class HomeWorkspaceWidget extends StatelessWidget {
     );
   }
 
+  Widget _buildDirectMessagesWorkspace(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        SizedBox(
+          width: 320,
+          child: FriendsPaneWidget(
+            onStartDirectMessage: (userId) {
+              context.read<DirectMessagesBloc>().add(
+                    OpenDirectMessageThreadRequested(userId: userId),
+                  );
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: DirectMessagesPaneWidget(),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (workspaceMode == HomeWorkspaceMode.directMessages) {
+      return _buildDirectMessagesWorkspace(context);
+    }
+
     return BlocBuilder<ServersBloc, ServersState>(
       builder: (context, serversState) {
         final loadedData =
@@ -99,7 +134,7 @@ class HomeWorkspaceWidget extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 const SizedBox(
-                  width: 280,
+                  width: 320,
                   child: ServerUsersPaneWidget(),
                 ),
               ],

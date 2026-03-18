@@ -60,6 +60,40 @@ class PendingFriendRequest {
   final String addresseeUserId;
 }
 
+class BlockedUser {
+  const BlockedUser({
+    required this.userId,
+  });
+
+  final String userId;
+}
+
+class DirectMessageThread {
+  const DirectMessageThread({
+    required this.id,
+    required this.participantAUserId,
+    required this.participantBUserId,
+  });
+
+  final String id;
+  final String participantAUserId;
+  final String participantBUserId;
+}
+
+class DirectMessage {
+  const DirectMessage({
+    required this.id,
+    required this.threadId,
+    required this.authorUserId,
+    required this.content,
+  });
+
+  final String id;
+  final String threadId;
+  final String authorUserId;
+  final String content;
+}
+
 sealed class Channel {
   const Channel({
     required this.id,

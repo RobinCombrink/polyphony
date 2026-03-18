@@ -35,6 +35,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   final createServerController = TextEditingController();
   final createChannelController = TextEditingController();
   final createMessageController = TextEditingController();
+  var _workspaceMode = HomeWorkspaceMode.server;
   _NotificationChannelTarget? _pendingNotificationChannelTarget;
   var _keybindingsRefreshToken = 0;
   var _isDisplayNamePromptOpen = false;
@@ -96,6 +97,35 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     context.read<NotificationCenterBloc>().add(
           const NotificationCenterUnreadCountRefreshRequested(),
         );
+  }
+
+  void _showDirectMessagesWorkspace() {
+    setState(() {
+      _workspaceMode = HomeWorkspaceMode.directMessages;
+    });
+  }
+
+  void _showServerWorkspace() {
+    setState(() {
+      _workspaceMode = HomeWorkspaceMode.server;
+    });
+  }
+
+  bool _isDirectMessageNotification(NotificationCenterEntry entry) {
+    final normalizedServerId = entry.event.serverId.trim().toLowerCase();
+    final normalizedServerName = entry.event.serverName.trim().toLowerCase();
+    final normalizedChannelName = entry.event.channelName.trim().toLowerCase();
+
+    return normalizedServerId == "direct-messages" ||
+        normalizedServerId == "direct_messages" ||
+        normalizedServerId == "dms" ||
+        normalizedServerName == "direct messages" ||
+        normalizedServerName == "dms" ||
+        normalizedChannelName.contains("direct message");
+  }
+
+  int _directMessagesUnreadCount(NotificationCenterState state) {
+    return state.entries.where(_isDirectMessageNotification).length;
   }
 
   Future<void> _markChannelNotificationsRead(String channelId) async {
@@ -425,8 +455,22 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                         children: <Widget>[
                           SizedBox(
                             width: 120,
-                            child: ServersPaneWidget(
-                              createController: createServerController,
+                            child: BlocBuilder<NotificationCenterBloc,
+                                NotificationCenterState>(
+                              builder: (context, notificationState) {
+                                return ServersPaneWidget(
+                                  createController: createServerController,
+                                  isDirectMessagesSelected: _workspaceMode ==
+                                      HomeWorkspaceMode.directMessages,
+                                  directMessagesUnreadCount:
+                                      _directMessagesUnreadCount(
+                                    notificationState,
+                                  ),
+                                  onSelectDirectMessages:
+                                      _showDirectMessagesWorkspace,
+                                  onSelectServer: (_) => _showServerWorkspace(),
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -434,6 +478,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                             child: HomeWorkspaceWidget(
                               createChannelController: createChannelController,
                               createMessageController: createMessageController,
+                              workspaceMode: _workspaceMode,
                             ),
                           ),
                         ],
@@ -617,6 +662,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     final channelsBloc = context.read<ChannelsBloc>();
 
     Navigator.of(context).pop();
+
+    _showServerWorkspace();
 
     serversBloc.add(
       SelectServerRequested(serverId: serverId),

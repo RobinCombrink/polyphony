@@ -14,6 +14,7 @@ void main() {
 
   Widget buildWidget({
     required void Function(Server server) onInviteFriend,
+    int directMessagesUnreadCount = 0,
   }) {
     return MaterialApp(
       home: Scaffold(
@@ -23,9 +24,12 @@ void main() {
           child: ServersSectionWidget(
             servers: const <Server>[listedServer],
             selectedServerId: listedServer.id,
+            isDirectMessagesSelected: false,
+            directMessagesUnreadCount: directMessagesUnreadCount,
             currentUserId: listedServer.ownerUserId,
             isLoading: false,
             createController: TextEditingController(),
+            onSelectDirectMessages: () {},
             onTap: (_) {},
             onAddUser: (_) {},
             onInviteFriend: onInviteFriend,
@@ -50,7 +54,7 @@ void main() {
       ),
     );
 
-    await tester.longPress(find.byType(CircleAvatar).first);
+    await tester.longPress(find.byTooltip("Alpha"));
     await tester.pumpAndSettle();
 
     expect(find.text("Invite friend to server"), findsOneWidget);
@@ -59,6 +63,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(invitedServer?.id, listedServer.id);
+  });
+
+  testWidgets("direct messages avatar shows unread badge", (tester) async {
+    await tester.pumpWidget(
+      buildWidget(
+        onInviteFriend: (_) {},
+        directMessagesUnreadCount: 4,
+      ),
+    );
+
+    expect(
+      find.descendant(
+        of: find.byTooltip("Direct messages"),
+        matching: find.text("4"),
+      ),
+      findsOneWidget,
+    );
   });
 
   test("servers status includes friend invite validation copy", () {
