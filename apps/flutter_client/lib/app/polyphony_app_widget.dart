@@ -4,8 +4,8 @@ import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:http/http.dart" as http;
+import "package:polyphony_flutter_client/app/app_router.dart";
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
-import "package:polyphony_flutter_client/features/authentication/presentation/authentication_gate_widget.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/auth/auth0_browser_token_provider.dart";
@@ -148,12 +148,12 @@ class PolyphonyApp extends StatelessWidget {
             SettingsInitialState() => ThemeMode.system,
           };
 
-          return MaterialApp(
+          return MaterialApp.router(
             title: "Polyphony",
             theme: PolyphonyTheme.light(),
             darkTheme: PolyphonyTheme.dark(),
             themeMode: themeMode,
-            home: const AuthenticationGateWidget(),
+            routerConfig: createAppRouter(),
           );
         },
       ),

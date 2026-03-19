@@ -69,7 +69,12 @@ import "package:polyphony_flutter_client/shared/services/websocket/web_socket_no
 import "package:provider/provider.dart";
 
 class AuthenticationGateWidget extends StatefulWidget {
-  const AuthenticationGateWidget({super.key});
+  const AuthenticationGateWidget({
+    this.authenticatedChild,
+    super.key,
+  });
+
+  final Widget? authenticatedChild;
 
   @override
   State<AuthenticationGateWidget> createState() =>
@@ -176,7 +181,10 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
       builder: (context, state) {
         return switch (state) {
           AuthenticationAuthenticatedState(:final metadata) =>
-            _AuthenticatedShell(metadata: metadata),
+            _AuthenticatedShell(
+              metadata: metadata,
+              authenticatedChild: widget.authenticatedChild,
+            ),
           AuthenticationAuthenticatingState() when kIsWeb =>
             const _WebAuthenticatingView(),
           AuthenticationAuthenticatingState() => _NativeSignInView(
@@ -228,9 +236,13 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
 }
 
 final class _AuthenticatedShell extends StatefulWidget {
-  const _AuthenticatedShell({required this.metadata});
+  const _AuthenticatedShell({
+    required this.metadata,
+    required this.authenticatedChild,
+  });
 
   final AuthenticationMetadata metadata;
+  final Widget? authenticatedChild;
 
   @override
   State<_AuthenticatedShell> createState() => _AuthenticatedShellState();
@@ -451,6 +463,7 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
                 serverMemberRepo: context.read<ServerMemberRepo>(),
                 profileRepo: context.read<ProfileRepo>(),
                 friendRepo: context.read<FriendRepo>(),
+                serverRepo: context.read<ServerRepo>(),
               ),
             ),
             BlocProvider<VoiceSessionsBloc>(
@@ -474,7 +487,7 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
               ),
             ),
           ],
-          child: const HomePageWidget(),
+          child: widget.authenticatedChild ?? const HomePageWidget(),
         ),
       ),
     );

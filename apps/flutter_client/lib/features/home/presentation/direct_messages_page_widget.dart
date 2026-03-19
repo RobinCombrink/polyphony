@@ -6,7 +6,9 @@ import "package:go_router/go_router.dart";
 import "package:polyphony_flutter_client/app/app_route.dart";
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
-import "package:polyphony_flutter_client/features/home/presentation/widgets/home_workspace_widget.dart";
+import "package:polyphony_flutter_client/features/direct_messages/bloc/direct_messages_bloc.dart";
+import "package:polyphony_flutter_client/features/direct_messages/presentation/widgets/direct_messages_pane_widget.dart";
+import "package:polyphony_flutter_client/features/friends/presentation/widgets/friends_pane_widget.dart";
 import "package:polyphony_flutter_client/features/home/presentation/widgets/workspace_destination.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/identity/presentation/widgets/display_name_banner_widget.dart";
@@ -23,14 +25,15 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 
-class HomePageWidget extends StatefulWidget {
-  const HomePageWidget({super.key});
+class DirectMessagesPageWidget extends StatefulWidget {
+  const DirectMessagesPageWidget({super.key});
 
   @override
-  State<HomePageWidget> createState() => _HomePageWidgetState();
+  State<DirectMessagesPageWidget> createState() =>
+      _DirectMessagesPageWidgetState();
 }
 
-class _HomePageWidgetState extends State<HomePageWidget> {
+class _DirectMessagesPageWidgetState extends State<DirectMessagesPageWidget> {
   final createServerController = TextEditingController();
   final createChannelController = TextEditingController();
   final createMessageController = TextEditingController();
@@ -98,23 +101,28 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   }
 
   void _showDirectMessagesWorkspace() {
-    final router = GoRouter.maybeOf(context);
-    if (router == null) {
-      return;
-    }
-
-    router.goNamed(AppRouteId.directMessages.name);
+    GoRouter.of(context).goNamed(AppRouteId.directMessages.name);
   }
 
-  void _showWorkspaceDestination(WorkspaceDestination destination) {
-    switch (destination) {
-      case DirectMessageWorkspaceDestination():
-        _showDirectMessagesWorkspace();
-      case NoServerSelectedWorkspaceDestination():
-        _showServerWorkspace();
-      case ServerSelectedWorkspaceDestination():
-        _showServerWorkspace();
-    }
+  Widget _buildDirectMessagesWorkspace() {
+    return Row(
+      children: <Widget>[
+        SizedBox(
+          width: 320,
+          child: FriendsPaneWidget(
+            onStartDirectMessage: (userId) {
+              context.read<DirectMessagesBloc>().add(
+                    OpenDirectMessageThreadRequested(userId: userId),
+                  );
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: DirectMessagesPaneWidget(),
+        ),
+      ],
+    );
   }
 
   void _showServerWorkspace() {
@@ -429,63 +437,34 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                         children: <Widget>[
                           SizedBox(
                             width: 120,
-                            child: BlocBuilder<ServersBloc, ServersState>(
-                              builder: (context, serversState) => BlocBuilder<
-                                  NotificationCenterBloc,
-                                  NotificationCenterState>(
-                                builder: (context, notificationState) =>
-                                    switch (serversState) {
-                                  ServerSelected(:final selectedServer) =>
-                                    ServersPaneWidget(
-                                      createController: createServerController,
-                                      selectedDestination:
-                                          ServerSelectedWorkspaceDestination(
-                                        serverId: selectedServer.id,
-                                      ),
-                                      directMessagesUnreadCount:
-                                          _directMessagesUnreadCount(
-                                        notificationState,
-                                      ),
-                                      onSelectDestination:
-                                          _showWorkspaceDestination,
-                                    ),
-                                  NoServerSelected() ||
-                                  ServersValidationFailedState() =>
-                                    ServersPaneWidget(
-                                      createController: createServerController,
-                                      selectedDestination:
-                                          const NoServerSelectedWorkspaceDestination(),
-                                      directMessagesUnreadCount:
-                                          _directMessagesUnreadCount(
-                                        notificationState,
-                                      ),
-                                      onSelectDestination:
-                                          _showWorkspaceDestination,
-                                    ),
-                                  ServersInitialState() ||
-                                  ServersLoadingState() ||
-                                  ServersExceptionState() =>
-                                    ServersPaneWidget(
-                                      createController: createServerController,
-                                      selectedDestination:
-                                          const NoServerSelectedWorkspaceDestination(),
-                                      directMessagesUnreadCount:
-                                          _directMessagesUnreadCount(
-                                        notificationState,
-                                      ),
-                                      onSelectDestination:
-                                          _showWorkspaceDestination,
-                                    ),
-                                },
-                              ),
+                            child: BlocBuilder<NotificationCenterBloc,
+                                NotificationCenterState>(
+                              builder: (context, notificationState) {
+                                return ServersPaneWidget(
+                                  createController: createServerController,
+                                  selectedDestination:
+                                      const DirectMessageWorkspaceDestination(),
+                                  directMessagesUnreadCount:
+                                      _directMessagesUnreadCount(
+                                    notificationState,
+                                  ),
+                                  onSelectDestination: (destination) {
+                                    switch (destination) {
+                                      case DirectMessageWorkspaceDestination():
+                                        _showDirectMessagesWorkspace();
+                                      case NoServerSelectedWorkspaceDestination():
+                                        _showServerWorkspace();
+                                      case ServerSelectedWorkspaceDestination():
+                                        _showServerWorkspace();
+                                    }
+                                  },
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: HomeWorkspaceWidget(
-                              createChannelController: createChannelController,
-                              createMessageController: createMessageController,
-                            ),
+                            child: _buildDirectMessagesWorkspace(),
                           ),
                         ],
                       ),
