@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:flutter_test/flutter_test.dart";
+import "package:polyphony_flutter_client/features/home/presentation/widgets/workspace_destination.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/servers_section_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
@@ -23,8 +24,8 @@ void main() {
           height: 500,
           child: ServersSectionWidget(
             servers: const <Server>[listedServer],
-            selectedServerId: listedServer.id,
-            isDirectMessagesSelected: false,
+            selectedDestination:
+                ServerSelectedWorkspaceDestination(serverId: listedServer.id),
             directMessagesUnreadCount: directMessagesUnreadCount,
             currentUserId: listedServer.ownerUserId,
             isLoading: false,
@@ -82,19 +83,18 @@ void main() {
     );
   });
 
-  test("servers status includes friend invite validation copy", () {
+  test("servers status includes server selection validation copy", () {
     final status = buildServersSectionStatus(
       const ServersValidationFailedState(
-        issue: ServersValidationIssue.inviteFriendForbidden,
+        issue: ServersValidationIssue.serverSelectionRequired,
         servers: <Server>[],
-        selectedServerId: null,
       ),
     );
 
     expect(status, isA<SectionStatus>());
     expect(
       status?.message,
-      "Only server owners can invite existing friends.",
+      "Select a server first.",
     );
     expect(status?.isError, isTrue);
   });

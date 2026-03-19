@@ -3,9 +3,11 @@ import "dart:async";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
+import "package:polyphony_flutter_client/features/home/presentation/widgets/workspace_destination.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/servers_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_notification_preferences_section_widget.dart";
@@ -16,18 +18,16 @@ import "package:skeletonizer/skeletonizer.dart";
 class ServersPaneWidget extends StatefulWidget {
   const ServersPaneWidget({
     required this.createController,
-    required this.isDirectMessagesSelected,
+    required this.selectedDestination,
     required this.directMessagesUnreadCount,
-    required this.onSelectDirectMessages,
-    required this.onSelectServer,
+    required this.onSelectDestination,
     super.key,
   });
 
   final TextEditingController createController;
-  final bool isDirectMessagesSelected;
+  final WorkspaceDestination selectedDestination;
   final int directMessagesUnreadCount;
-  final VoidCallback onSelectDirectMessages;
-  final void Function(String serverId) onSelectServer;
+  final ValueChanged<WorkspaceDestination> onSelectDestination;
 
   @override
   State<ServersPaneWidget> createState() => _ServersPaneWidgetState();
@@ -67,7 +67,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
       return;
     }
 
-    context.read<ServersBloc>().add(
+    context.read<ServerMembersBloc>().add(
           AddServerMemberRequested(
             serverId: serverId,
             userId: result,
@@ -174,7 +174,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
       return;
     }
 
-    context.read<ServersBloc>().add(
+    context.read<ServerMembersBloc>().add(
           InviteFriendToServerRequested(
             serverId: serverId,
             friendUserId: result,
@@ -237,39 +237,45 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
 
     return BlocListener<ServersBloc, ServersState>(
       listenWhen: (previous, current) {
-        final previousSelectedServerId = switch (previous) {
-          ServersLoadedDataState(:final selectedServerId) => selectedServerId,
-          _ => null,
+        return switch ((previous, current)) {
+          (
+            ServerSelected(:final selectedServer),
+            ServerSelected(selectedServer: final currentSelectedServer),
+          ) =>
+            selectedServer.id != currentSelectedServer.id,
+          (
+            NoServerSelected(),
+            NoServerSelected(),
+          ) =>
+            false,
+          (
+            ServersLoadedState(),
+            ServersLoadedState(),
+          ) =>
+            true,
+          _ => false,
         };
-        final currentSelectedServerId = switch (current) {
-          ServersLoadedDataState(:final selectedServerId) => selectedServerId,
-          _ => null,
-        };
-
-        return previousSelectedServerId != currentSelectedServerId;
       },
       listener: (context, state) {
-        final selectedServerId = switch (state) {
-          ServersLoadedDataState(:final selectedServerId) => selectedServerId,
-          _ => null,
-        };
-
-        if (selectedServerId == null) {
-          return;
+        switch (state) {
+          case ServerSelected(:final selectedServer):
+            context.read<MessagesBloc>().add(const ResetMessagesRequested());
+            context.read<ChannelsBloc>().add(const ResetChannelsRequested());
+            context
+                .read<ChannelsBloc>()
+                .add(LoadChannelsRequested(serverId: selectedServer.id));
+          case NoServerSelected() || ServersValidationFailedState():
+            return;
+          default:
+            return;
         }
-
-        context.read<MessagesBloc>().add(const ResetMessagesRequested());
-        context.read<ChannelsBloc>().add(const ResetChannelsRequested());
-        context
-            .read<ChannelsBloc>()
-            .add(LoadChannelsRequested(serverId: selectedServerId));
       },
       child: BlocBuilder<ServersBloc, ServersState>(
         builder: (context, serversState) {
           final isLoading = serversState is ServersInitialState ||
               serversState is ServersLoadingState;
           final loadedData =
-              serversState is ServersLoadedDataState ? serversState : null;
+              serversState is ServersLoadedState ? serversState : null;
           final errorMessage = serversState is ServersExceptionState
               ? serversState.error.toString()
               : null;
@@ -286,20 +292,21 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
             enabled: isLoading,
             child: ServersSectionWidget(
               servers: visibleServers,
-              selectedServerId: widget.isDirectMessagesSelected
-                  ? null
-                  : loadedData?.selectedServerId,
-              isDirectMessagesSelected: widget.isDirectMessagesSelected,
+              selectedDestination: widget.selectedDestination,
               directMessagesUnreadCount: widget.directMessagesUnreadCount,
               currentUserId: currentUserId,
               isLoading: isLoading,
               createController: widget.createController,
-              onSelectDirectMessages: widget.onSelectDirectMessages,
+              onSelectDirectMessages: () => widget.onSelectDestination(
+                const DirectMessageWorkspaceDestination(),
+              ),
               onTap: (server) {
-                widget.onSelectServer(server.id);
                 context
                     .read<ServersBloc>()
                     .add(SelectServerRequested(serverId: server.id));
+                widget.onSelectDestination(
+                  ServerSelectedWorkspaceDestination(serverId: server.id),
+                );
               },
               onAddUser: (server) => _showAddUserToServerDialog(server.id),
               onInviteFriend: (server) =>

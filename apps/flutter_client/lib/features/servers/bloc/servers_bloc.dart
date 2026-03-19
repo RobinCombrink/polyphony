@@ -1,6 +1,6 @@
+import "package:collection/collection.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 
-import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -16,20 +16,15 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     on<CreateServerRequested>(_onCreateServerRequested);
     on<DeleteServerRequested>(_onDeleteServerRequested);
     on<SelectServerRequested>(_onSelectServerRequested);
-    on<AddServerMemberRequested>(_onAddServerMemberRequested);
-    on<InviteFriendToServerRequested>(_onInviteFriendToServerRequested);
   }
 
   final ServerRepo _serverRepo;
-  static final _uuidPattern = RegExp(
-    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
-  );
 
   Future<void> _onLoadServersRequested(
     LoadServersRequested event,
     Emitter<ServersState> emit,
   ) async {
-    final previousLoadedState = _loadedStateOrNull(state);
+    final previousState = state;
 
     emit(const ServersLoadingState());
 
@@ -40,16 +35,8 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     switch (listServersResult) {
       case Ok<Iterable<Server>>(:final value):
         final servers = value.toList();
-        final selectedServerId = value.any(
-          (server) => server.id == previousLoadedState?.selectedServerId,
-        )
-            ? previousLoadedState?.selectedServerId
-            : null;
 
-        emit(ServersLoadedState(
-          servers: servers,
-          selectedServerId: selectedServerId,
-        ));
+        emit(previousState.loadServers(servers: servers));
       case Error<Iterable<Server>>(:final error):
         emit(ServersExceptionState(error: error));
     }
@@ -64,11 +51,9 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     if (trimmedServerName.isEmpty) {
       emit(
         switch (state) {
-          final ServersLoadedDataState loadedState =>
-            ServersValidationFailedState(
+          final ServersLoadedState loadedState => ServersValidationFailedState(
               issue: ServersValidationIssue.serverNameRequired,
               servers: loadedState.servers,
-              selectedServerId: loadedState.selectedServerId,
             ),
           _ => ServersExceptionState(
               error: Exception(
@@ -97,14 +82,9 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
         switch (listServersResult) {
           case Ok<Iterable<Server>>(:final value):
             final servers = value.toList();
-            emit(ServersLoadedState(
-              servers: servers,
-              selectedServerId: servers.any(
-                (server) => server.id == createdServer.id,
-              )
-                  ? createdServer.id
-                  : null,
-            ));
+            emit(state.loadServers(servers: servers).selectServer(
+                  incomingSelectedServer: createdServer,
+                ));
           case Error<Iterable<Server>>(:final error):
             emit(ServersExceptionState(error: error));
         }
@@ -117,328 +97,60 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     DeleteServerRequested event,
     Emitter<ServersState> emit,
   ) async {
-    final loadedState = switch (state) {
-      final ServersLoadedDataState loadedState => loadedState,
-      _ => null,
-    };
+    if (state case final ServersLoadedState state) {
+      final trimmedServerId = event.serverId.trim();
+      if (trimmedServerId.isEmpty ||
+          !state.servers.any((server) => server.id == trimmedServerId)) {
+        emit(ServersValidationFailedState(
+          issue: ServersValidationIssue.serverSelectionRequired,
+          servers: state.servers,
+        ));
+        return;
+      }
 
-    if (loadedState == null) {
-      emit(ServersExceptionState(
-        error: Exception("Servers must be loaded before deleting a server."),
-      ));
+      emit(const ServersLoadingState());
+
+      final deleteServerResult = await _serverRepo.deleteOne(
+        command: DeleteServerCommand(serverId: trimmedServerId),
+      );
+
+      switch (deleteServerResult) {
+        case Ok<void>():
+          final listServersResult = await _serverRepo.getMany(
+            query: const GetServersQuery(),
+          );
+
+          switch (listServersResult) {
+            case Ok<Iterable<Server>>(:final value):
+              final servers = value.toList();
+
+              emit(state.deleteServer(servers: servers));
+            case Error<Iterable<Server>>(:final error):
+              emit(ServersExceptionState(error: error));
+          }
+        case Error<void>(:final error):
+          emit(ServersExceptionState(error: error));
+      }
+
       return;
     }
 
-    final trimmedServerId = event.serverId.trim();
-    if (trimmedServerId.isEmpty ||
-        !loadedState.servers.any((server) => server.id == trimmedServerId)) {
-      emit(ServersValidationFailedState(
-        issue: ServersValidationIssue.serverSelectionRequired,
-        servers: loadedState.servers,
-        selectedServerId: loadedState.selectedServerId,
-      ));
-      return;
-    }
-
-    emit(const ServersLoadingState());
-
-    final deleteServerResult = await _serverRepo.deleteOne(
-      command: DeleteServerCommand(serverId: trimmedServerId),
-    );
-
-    switch (deleteServerResult) {
-      case Ok<void>():
-        final listServersResult = await _serverRepo.getMany(
-          query: const GetServersQuery(),
-        );
-
-        switch (listServersResult) {
-          case Ok<Iterable<Server>>(:final value):
-            final servers = value.toList();
-            final previousSelectedServerId = loadedState.selectedServerId;
-            final selectedServerId = previousSelectedServerId != null &&
-                    servers.any(
-                      (server) => server.id == previousSelectedServerId,
-                    )
-                ? previousSelectedServerId
-                : null;
-
-            emit(ServersLoadedState(
-              servers: servers,
-              selectedServerId: selectedServerId,
-            ));
-          case Error<Iterable<Server>>(:final error):
-            emit(ServersExceptionState(error: error));
-        }
-      case Error<void>(:final error):
-        emit(ServersExceptionState(error: error));
-    }
+    emit(ServersExceptionState(
+      error: Exception("Servers must be loaded before deleting a server."),
+    ));
   }
 
   void _onSelectServerRequested(
     SelectServerRequested event,
     Emitter<ServersState> emit,
   ) {
-    final loadedState = switch (state) {
-      final ServersLoadedDataState loadedState => loadedState,
-      _ => null,
-    };
+    if (state case final ServersLoadedState state) {
+      final trimmedServerId = event.serverId.trim();
+      final selectedServer = state.servers.firstWhereOrNull(
+        (server) => server.id == trimmedServerId,
+      );
 
-    if (loadedState == null) {
-      return;
+      emit(state.selectServer(incomingSelectedServer: selectedServer));
     }
-
-    final trimmedServerId = event.serverId.trim();
-    final selectedServerId = loadedState.servers.any(
-      (server) => server.id == trimmedServerId,
-    )
-        ? trimmedServerId
-        : null;
-
-    emit(ServersLoadedState(
-      servers: loadedState.servers,
-      selectedServerId: selectedServerId,
-    ));
-  }
-
-  Future<void> _onAddServerMemberRequested(
-    AddServerMemberRequested event,
-    Emitter<ServersState> emit,
-  ) async {
-    final loadedState = switch (state) {
-      final ServersLoadedDataState loadedState => loadedState,
-      _ => null,
-    };
-
-    if (loadedState == null) {
-      emit(ServersExceptionState(
-        error: Exception("Servers must be loaded before adding a member."),
-      ));
-      return;
-    }
-
-    final trimmedServerId = event.serverId.trim();
-    final trimmedUserId = event.userId.trim();
-
-    if (trimmedServerId.isEmpty ||
-        !loadedState.servers.any((server) => server.id == trimmedServerId)) {
-      emit(ServersValidationFailedState(
-        issue: ServersValidationIssue.serverSelectionRequired,
-        servers: loadedState.servers,
-        selectedServerId: loadedState.selectedServerId,
-      ));
-      return;
-    }
-
-    if (trimmedUserId.isEmpty) {
-      emit(ServersValidationFailedState(
-        issue: ServersValidationIssue.userIdRequired,
-        servers: loadedState.servers,
-        selectedServerId: loadedState.selectedServerId,
-      ));
-      return;
-    }
-
-    if (!_uuidPattern.hasMatch(trimmedUserId)) {
-      emit(ServersValidationFailedState(
-        issue: ServersValidationIssue.userIdInvalidFormat,
-        servers: loadedState.servers,
-        selectedServerId: loadedState.selectedServerId,
-      ));
-      return;
-    }
-
-    emit(const ServersLoadingState());
-
-    final addMemberResult = await _serverRepo.updateOne(
-      command: AddServerMemberUpdateCommand(
-        serverId: trimmedServerId,
-        userId: trimmedUserId,
-      ),
-    );
-
-    switch (addMemberResult) {
-      case Ok<void>():
-        final listServersResult = await _serverRepo.getMany(
-          query: const GetServersQuery(),
-        );
-
-        switch (listServersResult) {
-          case Ok<Iterable<Server>>(:final value):
-            final servers = value.toList();
-            emit(ServersLoadedState(
-              servers: servers,
-              selectedServerId: servers.any(
-                (server) => server.id == trimmedServerId,
-              )
-                  ? trimmedServerId
-                  : null,
-            ));
-          case Error<Iterable<Server>>(:final error):
-            emit(ServersExceptionState(error: error));
-        }
-      case Error<void>(:final error):
-        final handledApiError = _emitAddMemberValidationState(
-          error: error,
-          loadedState: loadedState,
-          emit: emit,
-        );
-        if (handledApiError) {
-          return;
-        }
-
-        emit(ServersExceptionState(error: error));
-    }
-  }
-
-  Future<void> _onInviteFriendToServerRequested(
-    InviteFriendToServerRequested event,
-    Emitter<ServersState> emit,
-  ) async {
-    final loadedState = switch (state) {
-      final ServersLoadedDataState loadedState => loadedState,
-      _ => null,
-    };
-
-    if (loadedState == null) {
-      emit(ServersExceptionState(
-        error: Exception("Servers must be loaded before inviting a friend."),
-      ));
-      return;
-    }
-
-    final trimmedServerId = event.serverId.trim();
-    final trimmedFriendUserId = event.friendUserId.trim();
-
-    if (trimmedServerId.isEmpty ||
-        !loadedState.servers.any((server) => server.id == trimmedServerId)) {
-      emit(ServersValidationFailedState(
-        issue: ServersValidationIssue.serverSelectionRequired,
-        servers: loadedState.servers,
-        selectedServerId: loadedState.selectedServerId,
-      ));
-      return;
-    }
-
-    if (trimmedFriendUserId.isEmpty) {
-      emit(ServersValidationFailedState(
-        issue: ServersValidationIssue.friendUserIdRequired,
-        servers: loadedState.servers,
-        selectedServerId: loadedState.selectedServerId,
-      ));
-      return;
-    }
-
-    emit(const ServersLoadingState());
-
-    final inviteResult = await _serverRepo.updateOne(
-      command: InviteFriendToServerCommand(
-        serverId: trimmedServerId,
-        friendUserId: trimmedFriendUserId,
-      ),
-    );
-
-    switch (inviteResult) {
-      case Ok<void>():
-        final listServersResult = await _serverRepo.getMany(
-          query: const GetServersQuery(),
-        );
-
-        switch (listServersResult) {
-          case Ok<Iterable<Server>>(:final value):
-            final servers = value.toList();
-            emit(ServersLoadedState(
-              servers: servers,
-              selectedServerId: servers.any(
-                (server) => server.id == trimmedServerId,
-              )
-                  ? trimmedServerId
-                  : null,
-            ));
-          case Error<Iterable<Server>>(:final error):
-            emit(ServersExceptionState(error: error));
-        }
-      case Error<void>(:final error):
-        final handledApiError = _emitInviteFriendValidationState(
-          error: error,
-          loadedState: loadedState,
-          emit: emit,
-        );
-        if (handledApiError) {
-          return;
-        }
-
-        emit(ServersExceptionState(error: error));
-    }
-  }
-
-  bool _emitAddMemberValidationState({
-    required Exception error,
-    required ServersLoadedDataState loadedState,
-    required Emitter<ServersState> emit,
-  }) {
-    final issue = _classifyAddMemberIssue(error);
-    if (issue == null) {
-      return false;
-    }
-
-    emit(ServersValidationFailedState(
-      issue: issue,
-      servers: loadedState.servers,
-      selectedServerId: loadedState.selectedServerId,
-    ));
-
-    return true;
-  }
-
-  bool _emitInviteFriendValidationState({
-    required Exception error,
-    required ServersLoadedDataState loadedState,
-    required Emitter<ServersState> emit,
-  }) {
-    final issue = _classifyInviteFriendIssue(error);
-    if (issue == null) {
-      return false;
-    }
-
-    emit(ServersValidationFailedState(
-      issue: issue,
-      servers: loadedState.servers,
-      selectedServerId: loadedState.selectedServerId,
-    ));
-
-    return true;
-  }
-
-  ServersValidationIssue? _classifyAddMemberIssue(Exception error) {
-    if (error is! ApiRequestException) {
-      return null;
-    }
-
-    return switch (error.statusCode) {
-      403 => ServersValidationIssue.addMemberForbidden,
-      404 => ServersValidationIssue.addMemberTargetNotFound,
-      422 => ServersValidationIssue.userIdInvalidFormat,
-      _ => null,
-    };
-  }
-
-  ServersValidationIssue? _classifyInviteFriendIssue(Exception error) {
-    if (error is! ApiRequestException) {
-      return null;
-    }
-
-    return switch (error.statusCode) {
-      403 => ServersValidationIssue.inviteFriendForbidden,
-      404 => ServersValidationIssue.inviteFriendTargetNotFound,
-      _ => null,
-    };
-  }
-
-  ServersLoadedDataState? _loadedStateOrNull(ServersState state) {
-    return switch (state) {
-      ServersLoadedDataState() => state,
-      _ => null,
-    };
   }
 }

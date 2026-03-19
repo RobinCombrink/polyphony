@@ -28,6 +28,7 @@ void main() {
           ),
         ],
       ),
+      serverRepo: FakeServerRepository(fixture: fixture),
     ),
     act: (bloc) => bloc.add(
       LoadServerMembersRequested(serverId: fixture.listedServer.id),
@@ -56,6 +57,7 @@ void main() {
         initialDisplayName: "Owner",
       ),
       friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+      serverRepo: FakeServerRepository(fixture: fixture),
     ),
     act: (bloc) => bloc.add(
       LoadServerMembersRequested(serverId: fixture.listedServer.id),
@@ -83,6 +85,7 @@ void main() {
         initialDisplayName: "Owner",
       ),
       friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+      serverRepo: FakeServerRepository(fixture: fixture),
     ),
     seed: () => ServerMembersLoadedState(
       serverId: fixture.listedServer.id,
@@ -125,6 +128,7 @@ void main() {
           responseBody: "",
         ),
       ),
+      serverRepo: FakeServerRepository(fixture: fixture),
     ),
     seed: () => ServerMembersLoadedState(
       serverId: fixture.listedServer.id,
@@ -167,6 +171,7 @@ void main() {
           ),
         ],
       ),
+      serverRepo: FakeServerRepository(fixture: fixture),
     ),
     seed: () => const ServerMembersLoadedState(
       serverId: "server-1",
@@ -205,6 +210,7 @@ void main() {
         initialDisplayName: "Owner",
       ),
       friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+      serverRepo: FakeServerRepository(fixture: fixture),
     ),
     seed: () => ServerMembersLoadedState(
       serverId: fixture.listedServer.id,
@@ -252,6 +258,7 @@ void main() {
           responseBody: "",
         ),
       ),
+      serverRepo: FakeServerRepository(fixture: fixture),
     ),
     seed: () => const ServerMembersLoadedState(
       serverId: "server-1",

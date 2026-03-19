@@ -16,6 +16,26 @@ final class LoadServerMembersRequested extends ServerMembersEvent {
   final String serverId;
 }
 
+final class AddServerMemberRequested extends ServerMembersEvent {
+  const AddServerMemberRequested({
+    required this.serverId,
+    required this.userId,
+  });
+
+  final String serverId;
+  final String userId;
+}
+
+final class InviteFriendToServerRequested extends ServerMembersEvent {
+  const InviteFriendToServerRequested({
+    required this.serverId,
+    required this.friendUserId,
+  });
+
+  final String serverId;
+  final String friendUserId;
+}
+
 final class SendFriendRequestToServerMemberRequested
     extends ServerMembersEvent {
   const SendFriendRequestToServerMemberRequested({

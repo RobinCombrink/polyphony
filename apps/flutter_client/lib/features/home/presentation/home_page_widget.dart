@@ -282,24 +282,26 @@ class _HomePageWidgetState extends State<HomePageWidget> {
               },
             ),
             BlocListener<ServersBloc, ServersState>(
-              listenWhen: (_, current) => current is ServersLoadedDataState,
+              listenWhen: (_, current) => current is ServersLoadedState,
               listener: (context, state) {
-                if (state is! ServersLoadedDataState) {
+                if (state is! ServersLoadedState) {
                   return;
                 }
 
-                final selectedServerId = state.selectedServerId;
-
-                if (selectedServerId == null || selectedServerId.isEmpty) {
-                  context.read<ServerMembersBloc>().add(
-                        const ResetServerMembersRequested(),
-                      );
-                  return;
+                switch (state) {
+                  case NoServerSelected():
+                    context.read<ServerMembersBloc>().add(
+                          const ResetServerMembersRequested(),
+                        );
+                  case ServerSelected(:final selectedServer):
+                    context.read<ServerMembersBloc>().add(
+                          LoadServerMembersRequested(
+                            serverId: selectedServer.id,
+                          ),
+                        );
+                  case ServersValidationFailedState():
+                    return;
                 }
-
-                context.read<ServerMembersBloc>().add(
-                      LoadServerMembersRequested(serverId: selectedServerId),
-                    );
               },
             ),
             BlocListener<ChannelsBloc, ChannelsState>(
@@ -455,22 +457,55 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                         children: <Widget>[
                           SizedBox(
                             width: 120,
-                            child: BlocBuilder<NotificationCenterBloc,
-                                NotificationCenterState>(
-                              builder: (context, notificationState) {
-                                return ServersPaneWidget(
-                                  createController: createServerController,
-                                  isDirectMessagesSelected: _workspaceMode ==
-                                      HomeWorkspaceMode.directMessages,
-                                  directMessagesUnreadCount:
-                                      _directMessagesUnreadCount(
-                                    notificationState,
-                                  ),
-                                  onSelectDirectMessages:
-                                      _showDirectMessagesWorkspace,
-                                  onSelectServer: (_) => _showServerWorkspace(),
-                                );
-                              },
+                            child: BlocBuilder<ServersBloc, ServersState>(
+                              builder: (context, serversState) => BlocBuilder<
+                                  NotificationCenterBloc,
+                                  NotificationCenterState>(
+                                builder: (context, notificationState) =>
+                                    switch (serversState) {
+                                  ServerSelected(:final selectedServer) =>
+                                    ServersPaneWidget(
+                                      createController: createServerController,
+                                      selectedDestination:
+                                          ServerSelectedWorkspaceDestination(
+                                        serverId: selectedServer.id,
+                                      ),
+                                      directMessagesUnreadCount:
+                                          _directMessagesUnreadCount(
+                                        notificationState,
+                                      ),
+                                      onSelectDestination:
+                                          _showWorkspaceDestination,
+                                    ),
+                                  NoServerSelected() ||
+                                  ServersValidationFailedState() =>
+                                    ServersPaneWidget(
+                                      createController: createServerController,
+                                      selectedDestination:
+                                          const NoServerSelectedWorkspaceDestination(),
+                                      directMessagesUnreadCount:
+                                          _directMessagesUnreadCount(
+                                        notificationState,
+                                      ),
+                                      onSelectDestination:
+                                          _showWorkspaceDestination,
+                                    ),
+                                  ServersInitialState() ||
+                                  ServersLoadingState() ||
+                                  ServersExceptionState() =>
+                                    ServersPaneWidget(
+                                      createController: createServerController,
+                                      selectedDestination:
+                                          const NoServerSelectedWorkspaceDestination(),
+                                      directMessagesUnreadCount:
+                                          _directMessagesUnreadCount(
+                                        notificationState,
+                                      ),
+                                      onSelectDestination:
+                                          _showWorkspaceDestination,
+                                    ),
+                                },
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),

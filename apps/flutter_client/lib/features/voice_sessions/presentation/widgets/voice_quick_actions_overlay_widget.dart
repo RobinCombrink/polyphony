@@ -18,13 +18,9 @@ class VoiceQuickActionsOverlayWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ServersBloc, ServersState>(
       builder: (context, serversState) {
-        final selectedServerId = switch (serversState) {
-          ServersLoadedDataState(:final selectedServerId) => selectedServerId,
-          _ => null,
-        };
         final selectedServerName = switch (serversState) {
-          ServersLoadedDataState(:final servers) => servers
-              .where((server) => server.id == selectedServerId)
+          ServerSelected(:final servers, :final selectedServer) => servers
+              .where((server) => server.id == selectedServer.id)
               .map((server) => server.name)
               .firstOrNull,
           _ => null,

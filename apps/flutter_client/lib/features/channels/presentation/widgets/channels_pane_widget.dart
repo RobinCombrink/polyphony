@@ -166,11 +166,9 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
     };
     final selectedServerOwnerUserId =
         switch (context.watch<ServersBloc>().state) {
-      ServersLoadedDataState(:final servers, :final selectedServerId)
-          when selectedServerId != null =>
-        servers
-            .firstWhereOrNull((server) => server.id == selectedServerId)
-            ?.ownerUserId,
+      ServerSelected(:final servers, :final selectedServer) => servers
+          .firstWhereOrNull((server) => server.id == selectedServer.id)
+          ?.ownerUserId,
       _ => null,
     };
     final canDeleteChannels =

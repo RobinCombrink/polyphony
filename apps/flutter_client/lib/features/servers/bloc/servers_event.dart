@@ -27,23 +27,3 @@ final class SelectServerRequested extends ServersEvent {
 
   final String serverId;
 }
-
-final class AddServerMemberRequested extends ServersEvent {
-  const AddServerMemberRequested({
-    required this.serverId,
-    required this.userId,
-  });
-
-  final String serverId;
-  final String userId;
-}
-
-final class InviteFriendToServerRequested extends ServersEvent {
-  const InviteFriendToServerRequested({
-    required this.serverId,
-    required this.friendUserId,
-  });
-
-  final String serverId;
-  final String friendUserId;
-}

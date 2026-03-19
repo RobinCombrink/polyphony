@@ -13,6 +13,7 @@ class _RecordingServerMembersBloc extends ServerMembersBloc {
     required super.serverMemberRepo,
     required super.profileRepo,
     required super.friendRepo,
+    required super.serverRepo,
   });
 
   final recordedEvents = <ServerMembersEvent>[];
@@ -54,6 +55,7 @@ void main() {
         initialDisplayName: "Owner",
       ),
       friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+      serverRepo: FakeServerRepository(fixture: fixture),
     );
   }
 

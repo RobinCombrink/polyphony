@@ -31,6 +31,7 @@ class _RecordingServerMembersBloc extends ServerMembersBloc {
     required super.serverMemberRepo,
     required super.profileRepo,
     required super.friendRepo,
+    required super.serverRepo,
   });
 
   final recordedEvents = <ServerMembersEvent>[];
@@ -225,6 +226,7 @@ void main() {
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
         friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,
@@ -340,6 +342,7 @@ void main() {
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
         friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,
@@ -440,6 +443,7 @@ void main() {
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
         friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,
@@ -544,6 +548,7 @@ void main() {
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
         friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,
@@ -662,6 +667,7 @@ void main() {
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
         friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,
@@ -742,11 +748,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       final serversState = serversBloc.state;
-      expect(serversState, isA<ServersLoadedDataState>());
-      expect(
-        (serversState as ServersLoadedDataState).selectedServerId,
-        fixture.listedServer.id,
-      );
+      expect(serversState, isA<ServerSelected>());
+      expect((serversState as ServerSelected).selectedServer.id,
+          fixture.listedServer.id);
 
       final channelsState = channelsBloc.state;
       expect(channelsState, isA<ChannelsLoadedDataState>());
@@ -794,6 +798,7 @@ void main() {
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
         friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
         voiceSessionRepo: voiceSessionRepo,

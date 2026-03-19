@@ -32,8 +32,38 @@ SectionStatus? buildServerUsersPaneStatus(ServerMembersState state) {
           message: "Target user is required.",
           isError: true,
         ),
+      ServerMembersValidationIssue.userIdRequired => const SectionStatus(
+          message: "User id is required.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.friendUserIdRequired => const SectionStatus(
+          message: "Friend user id is required.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.userIdInvalidFormat => const SectionStatus(
+          message: "User id must be a UUID.",
+          isError: true,
+        ),
       ServerMembersValidationIssue.alreadyFriend =>
         const SectionStatus(message: "You are already friends.", isError: true),
+      ServerMembersValidationIssue.addMemberForbidden => const SectionStatus(
+          message: "Only the server owner can add members.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.addMemberTargetNotFound =>
+        const SectionStatus(
+          message: "User or server not found.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.inviteFriendForbidden => const SectionStatus(
+          message: "Only server owners can invite existing friends.",
+          isError: true,
+        ),
+      ServerMembersValidationIssue.inviteFriendTargetNotFound =>
+        const SectionStatus(
+          message: "Friend or server not found.",
+          isError: true,
+        ),
       ServerMembersValidationIssue.sendFriendRequestForbidden =>
         const SectionStatus(
           message: "Friend request is not allowed in this server context.",

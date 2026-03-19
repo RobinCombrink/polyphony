@@ -4,6 +4,7 @@ import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_member_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
 part "server_members_event.dart";
@@ -14,12 +15,16 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     required ServerMemberRepo serverMemberRepo,
     required ProfileRepo profileRepo,
     required FriendRepo friendRepo,
+    required ServerRepo serverRepo,
   })  : _serverMemberRepo = serverMemberRepo,
         _profileRepo = profileRepo,
         _friendRepo = friendRepo,
+        _serverRepo = serverRepo,
         super(const ServerMembersInitialState()) {
     on<LoadServerMembersRequested>(_onLoadServerMembersRequested);
     on<ResetServerMembersRequested>(_onResetServerMembersRequested);
+    on<AddServerMemberRequested>(_onAddServerMemberRequested);
+    on<InviteFriendToServerRequested>(_onInviteFriendToServerRequested);
     on<SendFriendRequestToServerMemberRequested>(
       _onSendFriendRequestToServerMemberRequested,
     );
@@ -31,6 +36,10 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
   final ServerMemberRepo _serverMemberRepo;
   final ProfileRepo _profileRepo;
   final FriendRepo _friendRepo;
+  final ServerRepo _serverRepo;
+  static final _uuidPattern = RegExp(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+  );
 
   void _onResetServerMembersRequested(
     ResetServerMembersRequested event,
@@ -76,8 +85,153 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
 
     emit(const ServerMembersLoadingState());
 
+    await _loadServerMembersForServer(
+      serverId: trimmedServerId,
+      existingMembers: existingMembers,
+      emit: emit,
+    );
+  }
+
+  Future<void> _onAddServerMemberRequested(
+    AddServerMemberRequested event,
+    Emitter<ServerMembersState> emit,
+  ) async {
+    final loadedState = _loadedStateOrNull(state);
+    if (loadedState == null) {
+      emit(ServerMembersExceptionState(
+        error: Exception(
+          "Server members must be loaded before adding a server member.",
+        ),
+      ));
+      return;
+    }
+
+    final trimmedServerId = event.serverId.trim();
+    final trimmedUserId = event.userId.trim();
+
+    if (trimmedServerId.isEmpty || trimmedServerId != loadedState.serverId) {
+      _emitValidationFromLoadedState(
+        loadedState,
+        ServerMembersValidationIssue.serverSelectionRequired,
+        emit,
+      );
+      return;
+    }
+
+    if (trimmedUserId.isEmpty) {
+      _emitValidationFromLoadedState(
+        loadedState,
+        ServerMembersValidationIssue.userIdRequired,
+        emit,
+      );
+      return;
+    }
+
+    if (!_uuidPattern.hasMatch(trimmedUserId)) {
+      _emitValidationFromLoadedState(
+        loadedState,
+        ServerMembersValidationIssue.userIdInvalidFormat,
+        emit,
+      );
+      return;
+    }
+
+    emit(const ServerMembersLoadingState());
+
+    final addMemberResult = await _serverRepo.updateOne(
+      command: AddServerMemberUpdateCommand(
+        serverId: trimmedServerId,
+        userId: trimmedUserId,
+      ),
+    );
+
+    switch (addMemberResult) {
+      case Ok<void>():
+        await _loadServerMembersForServer(
+          serverId: loadedState.serverId,
+          existingMembers: loadedState.members,
+          emit: emit,
+        );
+      case Error<void>(:final error):
+        final validationIssue = _classifyAddMemberIssue(error);
+        if (validationIssue != null) {
+          _emitValidationFromLoadedState(loadedState, validationIssue, emit);
+          return;
+        }
+
+        emit(ServerMembersExceptionState(error: error));
+    }
+  }
+
+  Future<void> _onInviteFriendToServerRequested(
+    InviteFriendToServerRequested event,
+    Emitter<ServerMembersState> emit,
+  ) async {
+    final loadedState = _loadedStateOrNull(state);
+    if (loadedState == null) {
+      emit(ServerMembersExceptionState(
+        error: Exception(
+          "Server members must be loaded before inviting a friend.",
+        ),
+      ));
+      return;
+    }
+
+    final trimmedServerId = event.serverId.trim();
+    final trimmedFriendUserId = event.friendUserId.trim();
+
+    if (trimmedServerId.isEmpty || trimmedServerId != loadedState.serverId) {
+      _emitValidationFromLoadedState(
+        loadedState,
+        ServerMembersValidationIssue.serverSelectionRequired,
+        emit,
+      );
+      return;
+    }
+
+    if (trimmedFriendUserId.isEmpty) {
+      _emitValidationFromLoadedState(
+        loadedState,
+        ServerMembersValidationIssue.friendUserIdRequired,
+        emit,
+      );
+      return;
+    }
+
+    emit(const ServerMembersLoadingState());
+
+    final inviteResult = await _serverRepo.updateOne(
+      command: InviteFriendToServerCommand(
+        serverId: trimmedServerId,
+        friendUserId: trimmedFriendUserId,
+      ),
+    );
+
+    switch (inviteResult) {
+      case Ok<void>():
+        await _loadServerMembersForServer(
+          serverId: loadedState.serverId,
+          existingMembers: loadedState.members,
+          emit: emit,
+        );
+      case Error<void>(:final error):
+        final validationIssue = _classifyInviteFriendIssue(error);
+        if (validationIssue != null) {
+          _emitValidationFromLoadedState(loadedState, validationIssue, emit);
+          return;
+        }
+
+        emit(ServerMembersExceptionState(error: error));
+    }
+  }
+
+  Future<void> _loadServerMembersForServer({
+    required String serverId,
+    required List<UserProfile> existingMembers,
+    required Emitter<ServerMembersState> emit,
+  }) async {
     final membersResult = await _serverMemberRepo.getMany(
-      query: GetServerMembersQuery(serverId: trimmedServerId),
+      query: GetServerMembersQuery(serverId: serverId),
     );
 
     switch (membersResult) {
@@ -90,7 +244,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
         final pendingOutgoingFriendRequests =
             await _resolvePendingOutgoingFriendRequests();
         emit(ServerMembersLoadedState(
-          serverId: trimmedServerId,
+          serverId: serverId,
           members: members,
           friendUserIds: friendUserIds,
           pendingOutgoingFriendRequests: pendingOutgoingFriendRequests,
@@ -214,6 +368,45 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
 
         emit(ServerMembersExceptionState(error: error));
     }
+  }
+
+  void _emitValidationFromLoadedState(
+    ServerMembersLoadedDataState loadedState,
+    ServerMembersValidationIssue issue,
+    Emitter<ServerMembersState> emit,
+  ) {
+    emit(ServerMembersValidationFailedState(
+      issue: issue,
+      serverId: loadedState.serverId,
+      members: loadedState.members,
+      friendUserIds: loadedState.friendUserIds,
+      pendingOutgoingFriendRequests: loadedState.pendingOutgoingFriendRequests,
+    ));
+  }
+
+  ServerMembersValidationIssue? _classifyAddMemberIssue(Exception error) {
+    if (error is! ApiRequestException) {
+      return null;
+    }
+
+    return switch (error.statusCode) {
+      403 => ServerMembersValidationIssue.addMemberForbidden,
+      404 => ServerMembersValidationIssue.addMemberTargetNotFound,
+      422 => ServerMembersValidationIssue.userIdInvalidFormat,
+      _ => null,
+    };
+  }
+
+  ServerMembersValidationIssue? _classifyInviteFriendIssue(Exception error) {
+    if (error is! ApiRequestException) {
+      return null;
+    }
+
+    return switch (error.statusCode) {
+      403 => ServerMembersValidationIssue.inviteFriendForbidden,
+      404 => ServerMembersValidationIssue.inviteFriendTargetNotFound,
+      _ => null,
+    };
   }
 
   Future<void> _onCancelOutgoingFriendRequestRequested(

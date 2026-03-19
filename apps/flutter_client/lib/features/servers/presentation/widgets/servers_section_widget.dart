@@ -1,6 +1,7 @@
 import "dart:async";
 
 import "package:flutter/material.dart";
+import "package:polyphony_flutter_client/features/home/presentation/widgets/workspace_destination.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
@@ -12,34 +13,6 @@ SectionStatus? buildServersSectionStatus(ServersState state) {
         const SectionStatus(message: "Server name is required.", isError: true),
       ServersValidationIssue.serverSelectionRequired =>
         const SectionStatus(message: "Select a server first.", isError: true),
-      ServersValidationIssue.userIdRequired => const SectionStatus(
-          message: "User id is required.",
-          isError: true,
-        ),
-      ServersValidationIssue.friendUserIdRequired => const SectionStatus(
-          message: "Friend user id is required.",
-          isError: true,
-        ),
-      ServersValidationIssue.userIdInvalidFormat => const SectionStatus(
-          message: "User id must be a UUID.",
-          isError: true,
-        ),
-      ServersValidationIssue.addMemberForbidden => const SectionStatus(
-          message: "Only the server owner can add members.",
-          isError: true,
-        ),
-      ServersValidationIssue.addMemberTargetNotFound => const SectionStatus(
-          message: "User or server not found.",
-          isError: true,
-        ),
-      ServersValidationIssue.inviteFriendForbidden => const SectionStatus(
-          message: "Only server owners can invite existing friends.",
-          isError: true,
-        ),
-      ServersValidationIssue.inviteFriendTargetNotFound => const SectionStatus(
-          message: "Friend or server not found.",
-          isError: true,
-        ),
     };
   }
 
@@ -63,8 +36,7 @@ SectionStatus? buildServersSectionStatus(ServersState state) {
 class ServersSectionWidget extends StatefulWidget {
   const ServersSectionWidget({
     required this.servers,
-    required this.selectedServerId,
-    required this.isDirectMessagesSelected,
+    required this.selectedDestination,
     required this.directMessagesUnreadCount,
     required this.currentUserId,
     required this.isLoading,
@@ -80,8 +52,7 @@ class ServersSectionWidget extends StatefulWidget {
   });
 
   final List<Server> servers;
-  final String? selectedServerId;
-  final bool isDirectMessagesSelected;
+  final WorkspaceDestination selectedDestination;
   final int directMessagesUnreadCount;
   final String? currentUserId;
   final bool isLoading;
@@ -322,7 +293,8 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
               child: _buildRailAvatar(
                 context: context,
                 tooltip: "Direct messages",
-                isSelected: widget.isDirectMessagesSelected,
+                isSelected: widget.selectedDestination
+                    is DirectMessageWorkspaceDestination,
                 isHovered: _isDirectMessagesHovered,
                 unreadCount: widget.directMessagesUnreadCount,
                 onTap: widget.isLoading ? null : widget.onSelectDirectMessages,
@@ -336,7 +308,11 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
               itemCount: widget.servers.length,
               itemBuilder: (context, index) {
                 final server = widget.servers[index];
-                final isSelected = server.id == widget.selectedServerId;
+                final isSelected = switch (widget.selectedDestination) {
+                  ServerSelectedWorkspaceDestination(:final serverId) =>
+                    serverId == server.id,
+                  _ => false,
+                };
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(
