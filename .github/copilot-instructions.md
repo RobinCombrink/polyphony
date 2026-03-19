@@ -85,6 +85,13 @@ Use this repository layout and naming when creating or updating code.
 - Services should implement caching (if necessary), not repositories.
 - Repositories MUST use the Repository Mixins for ALL public methods that they implement from their abstract interface. This ensures a consistent API and allows for easy swapping of implementations without changing the public interface.
 Bloc events should never be published inside of the build method. It should only ever be inside of a Stateful widget's init state or inside a callback from a button (or similar user interaction), or inside a BloCListener
+- Prioritise using Algebraic Data Types (ADTs) and pattern matching for state management in BLoCs, rather than relying on nullable fields or boolean flags to represent different states. This leads to clearer, more maintainable code and reduces the likelihood of invalid states.
+- Prioritise using Algebraic Data Types e.g., sealed classes, over enums, nullable fields or boolean flags when each variant has different data or state. 
+- Selection state must be modeled as loaded-state variants, not as nullable IDs or separate nested selection fields. Prefer explicit loaded-state subtypes such as `ServerSelected` and `NoServerSelected`.
+- Avoid deriving intermediate scalar values from BLoC state in widget build methods when the output UI differs by state. Prefer exhaustive `switch` pattern matching that returns distinct widget trees per state variant.
+- Prefer `BlocBuilder` (or focused `BlocSelector`) to subscribe to the smallest state slice needed for a widget, and ensure all relevant state variants are handled explicitly.
+- Use transition state methods on state classes instead of using constructors to create states. This prevents invalid states from being emitted from the BLoC and keeps state transitions explicit and maintainable.
+
 ## Service and Caching Rules
 
 - Implement caching in the service layer, not the repository layer.
