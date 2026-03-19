@@ -756,7 +756,9 @@ void main() {
       expect(channelsState, isA<ChannelsLoadedDataState>());
       expect((channelsState as ChannelsLoadedDataState).serverId,
           fixture.listedServer.id);
-      expect(channelsState.selectedTextChannelId, fixture.listedChannel.id);
+      expect(channelsState, isA<TextChannelSelected>());
+      expect((channelsState as TextChannelSelected).selectedTextChannel.id,
+          fixture.listedChannel.id);
     },
   );
 

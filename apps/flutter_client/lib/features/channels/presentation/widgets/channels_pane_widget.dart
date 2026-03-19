@@ -33,6 +33,34 @@ class ChannelsPaneWidget extends StatefulWidget {
 class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
   var _lastVisibleVoiceChannelIdsKey = "";
 
+  String? _selectedTextChannelId(ChannelsState state) {
+    return switch (state) {
+      TextChannelSelected(:final selectedTextChannel) => selectedTextChannel.id,
+      TextChannelSelectedValidationFailedState(
+        :final selectedTextChannel,
+      ) =>
+        selectedTextChannel.id,
+      _ => null,
+    };
+  }
+
+  String? _selectedChannelId(ChannelsLoadedDataState state) {
+    return switch (state) {
+      TextChannelSelected(:final selectedTextChannel) => selectedTextChannel.id,
+      VoiceChannelSelected(:final selectedVoiceChannel) =>
+        selectedVoiceChannel.id,
+      TextChannelSelectedValidationFailedState(
+        :final selectedTextChannel,
+      ) =>
+        selectedTextChannel.id,
+      VoiceChannelSelectedValidationFailedState(
+        :final selectedVoiceChannel,
+      ) =>
+        selectedVoiceChannel.id,
+      _ => null,
+    };
+  }
+
   void _onTextChannelTapped(BuildContext context, TextChannel channel) {
     context.read<ChannelsBloc>().add(
           SelectTextChannelRequested(
@@ -176,25 +204,13 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
 
     return BlocListener<ChannelsBloc, ChannelsState>(
       listenWhen: (previous, current) {
-        final previousSelectedTextChannelId = switch (previous) {
-          ChannelsLoadedDataState(:final selectedTextChannelId) =>
-            selectedTextChannelId,
-          _ => null,
-        };
-        final currentSelectedTextChannelId = switch (current) {
-          ChannelsLoadedDataState(:final selectedTextChannelId) =>
-            selectedTextChannelId,
-          _ => null,
-        };
+        final previousSelectedTextChannelId = _selectedTextChannelId(previous);
+        final currentSelectedTextChannelId = _selectedTextChannelId(current);
 
         return previousSelectedTextChannelId != currentSelectedTextChannelId;
       },
       listener: (context, state) {
-        final selectedTextChannelId = switch (state) {
-          ChannelsLoadedDataState(:final selectedTextChannelId) =>
-            selectedTextChannelId,
-          _ => null,
-        };
+        final selectedTextChannelId = _selectedTextChannelId(state);
 
         if (selectedTextChannelId == null) {
           context.read<MessagesBloc>().add(const ResetMessagesRequested());
@@ -286,13 +302,9 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
                 enabled: isLoading,
                 child: ChannelPaneWidget(
                   channels: visibleChannels,
-                  selectedChannelId: switch (loadedData?.selectionMode) {
-                    ChannelSelectionMode.voice =>
-                      loadedData?.selectedVoiceChannelId,
-                    ChannelSelectionMode.text =>
-                      loadedData?.selectedTextChannelId,
-                    null => null,
-                  },
+                  selectedChannelId: loadedData == null
+                      ? null
+                      : _selectedChannelId(loadedData),
                   voiceParticipantCount: 0,
                   voiceParticipantsByChannelId: voiceParticipantsByChannelId,
                   connectedVoiceChannelId: activeVoiceChannelId,

@@ -29,8 +29,12 @@ class VoiceQuickActionsOverlayWidget extends StatelessWidget {
         return BlocBuilder<ChannelsBloc, ChannelsState>(
           builder: (context, channelsState) {
             final selectedVoiceChannelId = switch (channelsState) {
-              ChannelsLoadedDataState(:final selectedVoiceChannelId) =>
-                selectedVoiceChannelId,
+              VoiceChannelSelected(:final selectedVoiceChannel) =>
+                selectedVoiceChannel.id,
+              VoiceChannelSelectedValidationFailedState(
+                :final selectedVoiceChannel,
+              ) =>
+                selectedVoiceChannel.id,
               _ => null,
             };
             final voiceChannels = switch (channelsState) {

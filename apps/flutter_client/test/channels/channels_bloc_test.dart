@@ -77,17 +77,11 @@ void main() {
     expect: () => <Matcher>[
       isA<ChannelsLoadingState>(),
       isA<ChannelsLoadedState>(),
-      isA<ChannelsLoadedState>()
-          .having(
-            (state) => state.selectedTextChannelId,
-            "selected text channel",
-            fixture.listedChannel.id,
-          )
-          .having(
-            (state) => state.selectionMode,
-            "selection mode",
-            ChannelSelectionMode.text,
-          ),
+      isA<TextChannelSelected>().having(
+        (state) => state.selectedTextChannel.id,
+        "selected text channel",
+        fixture.listedChannel.id,
+      ),
     ],
   );
 
@@ -108,17 +102,11 @@ void main() {
     expect: () => <Matcher>[
       isA<ChannelsLoadingState>(),
       isA<ChannelsLoadedState>(),
-      isA<ChannelsLoadedState>()
-          .having(
-            (state) => state.selectedVoiceChannelId,
-            "selected voice channel",
-            fixture.listedVoiceChannel.id,
-          )
-          .having(
-            (state) => state.selectionMode,
-            "selection mode",
-            ChannelSelectionMode.voice,
-          ),
+      isA<VoiceChannelSelected>().having(
+        (state) => state.selectedVoiceChannel.id,
+        "selected voice channel",
+        fixture.listedVoiceChannel.id,
+      ),
     ],
   );
 
@@ -148,19 +136,14 @@ void main() {
     expect: () => <Matcher>[
       isA<ChannelsLoadingState>(),
       isA<ChannelsLoadedState>(),
-      isA<ChannelsLoadedState>(),
+      isA<TextChannelSelected>(),
       isA<ChannelsLoadingState>(),
-      isA<ChannelsLoadedState>()
+      isA<NoChannelSelected>()
           .having((state) => state.textChannels, "text channels", isEmpty)
           .having(
             (state) => state.voiceChannels.length,
             "voice channels length",
             1,
-          )
-          .having(
-            (state) => state.selectedTextChannelId,
-            "selected text channel",
-            isNull,
           ),
     ],
   );
@@ -186,39 +169,28 @@ void main() {
     expect: () => <Matcher>[
       isA<ChannelsLoadingState>(),
       isA<ChannelsLoadedState>(),
-      isA<ChannelsLoadedState>()
-          .having(
-            (state) => state.selectedTextChannelId,
-            "selected text channel",
-            fixture.listedChannel.id,
-          )
-          .having(
-            (state) => state.selectionMode,
-            "selection mode",
-            ChannelSelectionMode.text,
-          ),
+      isA<TextChannelSelected>().having(
+        (state) => state.selectedTextChannel.id,
+        "selected text channel",
+        fixture.listedChannel.id,
+      ),
       isA<ChannelsLoadingState>(),
       isA<ChannelsLoadedState>()
           .having(
               (state) => state.serverId, "server id", fixture.createdServer.id)
-          .having((state) => state.selectedTextChannelId,
-              "selected text channel", isNull),
+          .having((state) => state, "no selected channel",
+              isA<NoChannelSelected>()),
       isA<ChannelsLoadingState>(),
-      isA<ChannelsLoadedState>()
+      isA<TextChannelSelected>()
           .having(
             (state) => state.serverId,
             "server id",
             fixture.listedServer.id,
           )
           .having(
-            (state) => state.selectedTextChannelId,
+            (state) => state.selectedTextChannel.id,
             "selected text channel",
             fixture.listedChannel.id,
-          )
-          .having(
-            (state) => state.selectionMode,
-            "selection mode",
-            ChannelSelectionMode.text,
           ),
     ],
   );

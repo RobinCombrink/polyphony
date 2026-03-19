@@ -1,4 +1,3 @@
-import "package:collection/collection.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
@@ -69,14 +68,21 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
     }
 
     final selectedTextChannelId = switch (context.read<ChannelsBloc>().state) {
-      ChannelsLoadedDataState(:final selectedTextChannelId) =>
-        selectedTextChannelId,
+      TextChannelSelected(:final selectedTextChannel) => selectedTextChannel.id,
+      TextChannelSelectedValidationFailedState(
+        :final selectedTextChannel,
+      ) =>
+        selectedTextChannel.id,
       _ => null,
     };
 
+    if (selectedTextChannelId == null) {
+      return;
+    }
+
     context.read<MessagesBloc>().add(
           UpdateMessageRequested(
-            channelId: selectedTextChannelId ?? "",
+            channelId: selectedTextChannelId,
             messageId: message.id,
             messageContent: result,
           ),
@@ -87,11 +93,15 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
   Widget build(BuildContext context) {
     return BlocBuilder<ChannelsBloc, ChannelsState>(
       builder: (context, channelsState) {
-        final channelsData =
-            channelsState is ChannelsLoadedDataState ? channelsState : null;
-        final selectedTextChannel = channelsData?.textChannels.firstWhereOrNull(
-          (channel) => channel.id == channelsData.selectedTextChannelId,
-        );
+        final selectedTextChannel = switch (channelsState) {
+          TextChannelSelected(:final selectedTextChannel) =>
+            selectedTextChannel,
+          TextChannelSelectedValidationFailedState(
+            :final selectedTextChannel,
+          ) =>
+            selectedTextChannel,
+          _ => null,
+        };
 
         if (selectedTextChannel == null) {
           return const PanePlaceholderWidget(

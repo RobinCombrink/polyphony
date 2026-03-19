@@ -21,14 +21,11 @@ class HomeWorkspaceWidget extends StatelessWidget {
   Widget _buildPrimaryPane() {
     return BlocBuilder<ChannelsBloc, ChannelsState>(
       builder: (context, channelsState) {
-        final selectionMode = switch (channelsState) {
-          ChannelsLoadedDataState(:final selectionMode) => selectionMode,
-          _ => ChannelSelectionMode.text,
-        };
-
-        return switch (selectionMode) {
-          ChannelSelectionMode.voice => const VoiceParticipantsPaneWidget(),
-          ChannelSelectionMode.text => MessagesPaneWidget(
+        return switch (channelsState) {
+          VoiceChannelSelected() ||
+          VoiceChannelSelectedValidationFailedState() =>
+            const VoiceParticipantsPaneWidget(),
+          _ => MessagesPaneWidget(
               createController: createMessageController,
             ),
         };

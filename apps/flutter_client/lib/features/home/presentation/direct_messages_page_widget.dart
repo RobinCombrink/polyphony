@@ -333,29 +333,73 @@ class _DirectMessagesPageWidgetState extends State<DirectMessagesPageWidget> {
             ),
             BlocListener<ChannelsBloc, ChannelsState>(
               listenWhen: (previous, current) {
-                if (current is! ChannelsLoadedDataState) {
-                  return false;
-                }
-
-                final previousLoadedState = switch (previous) {
-                  final ChannelsLoadedDataState loaded => loaded,
+                final currentSelectedTextChannelId = switch (current) {
+                  TextChannelSelected(:final selectedTextChannel) =>
+                    selectedTextChannel.id,
+                  TextChannelSelectedValidationFailedState(
+                    :final selectedTextChannel,
+                  ) =>
+                    selectedTextChannel.id,
                   _ => null,
                 };
 
-                if (previousLoadedState == null) {
-                  return current.selectedTextChannelId != null;
+                if (currentSelectedTextChannelId == null) {
+                  return false;
                 }
 
-                return previousLoadedState.selectedTextChannelId !=
-                        current.selectedTextChannelId ||
-                    previousLoadedState.serverId != current.serverId;
+                final previousSelection = switch (previous) {
+                  TextChannelSelected(
+                    :final selectedTextChannel,
+                    :final serverId,
+                  ) =>
+                    (
+                      serverId: serverId,
+                      channelId: selectedTextChannel.id,
+                    ),
+                  TextChannelSelectedValidationFailedState(
+                    :final selectedTextChannel,
+                    :final serverId,
+                  ) =>
+                    (
+                      serverId: serverId,
+                      channelId: selectedTextChannel.id,
+                    ),
+                  _ => null,
+                };
+
+                final currentSelection = switch (current) {
+                  TextChannelSelected(
+                    :final selectedTextChannel,
+                    :final serverId,
+                  ) =>
+                    (
+                      serverId: serverId,
+                      channelId: selectedTextChannel.id,
+                    ),
+                  TextChannelSelectedValidationFailedState(
+                    :final selectedTextChannel,
+                    :final serverId,
+                  ) =>
+                    (
+                      serverId: serverId,
+                      channelId: selectedTextChannel.id,
+                    ),
+                  _ => null,
+                };
+
+                return previousSelection != currentSelection;
               },
               listener: (context, state) {
-                if (state is! ChannelsLoadedDataState) {
-                  return;
-                }
+                final selectedTextChannelId = switch (state) {
+                  TextChannelSelected(:final selectedTextChannel) =>
+                    selectedTextChannel.id,
+                  TextChannelSelectedValidationFailedState(
+                    :final selectedTextChannel,
+                  ) =>
+                    selectedTextChannel.id,
+                  _ => null,
+                };
 
-                final selectedTextChannelId = state.selectedTextChannelId;
                 if (selectedTextChannelId == null) {
                   return;
                 }

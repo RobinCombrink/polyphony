@@ -41,11 +41,11 @@ void main() {
         expect: () => <Matcher>[
           isA<ChannelsLoadingState>(),
           isA<ChannelsLoadedState>(),
-          isA<ChannelsLoadedState>()
-              .having((state) => state.selectedVoiceChannelId,
-                  "selected voice channel", fixture.listedVoiceChannel.id)
-              .having((state) => state.selectionMode, "selection mode",
-                  ChannelSelectionMode.voice),
+          isA<VoiceChannelSelected>().having(
+            (state) => state.selectedVoiceChannel.id,
+            "selected voice channel",
+            fixture.listedVoiceChannel.id,
+          ),
         ],
       );
     });

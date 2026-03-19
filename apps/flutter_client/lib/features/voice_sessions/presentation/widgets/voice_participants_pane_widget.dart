@@ -36,8 +36,15 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ChannelsBloc, ChannelsState>(
       builder: (context, channelsState) {
-        final channelData =
-            channelsState is ChannelsLoadedDataState ? channelsState : null;
+        final selectedVoiceChannel = switch (channelsState) {
+          VoiceChannelSelected(:final selectedVoiceChannel) =>
+            selectedVoiceChannel,
+          VoiceChannelSelectedValidationFailedState(
+            :final selectedVoiceChannel,
+          ) =>
+            selectedVoiceChannel,
+          _ => null,
+        };
 
         return BlocBuilder<VoiceSessionsBloc, VoiceSessionsState>(
           builder: (context, voiceState) {
@@ -55,11 +62,6 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
             if (errorMessage != null) {
               return SomethingWentWrongWidget(message: errorMessage);
             }
-
-            final selectedVoiceChannel =
-                channelData?.voiceChannels.firstWhereOrNull(
-              (channel) => channel.id == channelData.selectedVoiceChannelId,
-            );
 
             if (selectedVoiceChannel == null) {
               return const Card(
