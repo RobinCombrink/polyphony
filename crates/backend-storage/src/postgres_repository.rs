@@ -1894,13 +1894,6 @@ impl BlockRepository for PostgresRepository {
         .ok()
         .flatten();
 
-        if let Some(friendship_id) = restored_friendship_id {
-            let _ = sqlx::query("DELETE FROM friendships WHERE id = $1")
-                .bind(friendship_id)
-                .execute(&self.pool)
-                .await;
-        }
-
         let inserted = sqlx::query_as::<_, BlockRelationshipRow>(
             "INSERT INTO blocks (id, blocker_user_id, blocked_user_id, restored_friendship_id)
              VALUES (gen_random_uuid(), $1, $2, $3)
