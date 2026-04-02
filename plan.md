@@ -401,6 +401,7 @@ Goal:
 
 Scope: 
 - add a context menu item to more entities in the frontend when developer mode is enabled. This will copy the Id of the user
+- ensure that developer mode is saved via the preferences store so that it doesn't need to be toggled all the time
 - Refactor all {Entity}Id fields, e.g. userId, to named extension types for compile time safety and preventing id wires being crossed accidentally
 
 #### Phase 12.7 (Weeks 7-10): Text chat enhancements (media, reactions, threading, retrieval)
@@ -412,31 +413,80 @@ Goals:
 
 Scope:
 - Website previews (link unfurl metadata cards).
-- Direct image upload in text chat with inline rendering.
 - Link-based image rendering fallback when upload is unavailable.
 - Preset emotes (global).
-- Custom emotes per server.
-- GIF emotes.
 - Message reactions using emotes, including:
 	- Notification behavior.
 	- Quick list of most-used emotes.
-- Replies to messages with optional "notify original author" checkbox.
+- Threaded conversations:
+	- A reply to a message creates a reply link (first reply stays inline in the channel).
+	- When a second reply is sent to the same message, the conversation automatically becomes a thread.
+	- Threads open in a dedicated right-hand pane showing only the messages inside the thread.
+	- Thread-level notification controls: auto-follow on reply, manual follow/unfollow.
+	- Optional "also send to channel" toggle when posting inside a thread.
+	- Thread reply count and latest-reply preview displayed inline on the parent message in the channel.
+	- "Threads" inbox view aggregating all threads the user is following, with unread indicators.
 - Mark message as unread in a chat.
-- Pinned messages.
+- Server-wide pinned messages:
+	- Any member with permission can pin a message from any channel to a server-wide pinned collection.
+	- Pinned messages serve as highlights or memorable/funny moments that the community wants to return to.
+	- Dedicated "Pinned Messages" pane accessible from the server header or navigation.
+	- Each pin retains source channel context and links back to the original message location.
+	- Pin/unpin actions are auditable (who pinned, when).
 - Search through messages in a channel.
+- Rich text messages - markdown format while maintaining safety.
 
 Implementation notes:
-- Put upload/cache concerns in service layer and avoid repository-level caching.
-- Reactions and reply notifications should be user-configurable and rate-limited to reduce spam.
+- Thread promotion (reply -> thread) should be backend-authoritative: when a second reply targets the same parent, the backend creates a thread entity and reparents existing replies.
+- Thread message streams should be independently paginated from channel message streams.
+- Reactions and reply/thread notifications should be user-configurable and rate-limited to reduce spam.
 - Channel search should support pagination and ranking to avoid full-scan behavior.
+- Server-wide pins should be a lightweight join (pin metadata + message reference), not a message copy, so pin always reflects the current message state.
 
 Acceptance criteria:
 - Link previews fail gracefully without blocking message send.
-- Uploaded and linked images render consistently across desktop/mobile.
+- Linked images render consistently across desktop/mobile.
+- A single reply stays inline; a second reply to the same parent automatically promotes to a thread.
+- Thread pane displays only thread messages and is independently scrollable from the channel view.
+- Thread notification subscriptions are independent of channel-level notification settings.
+- "Threads" inbox shows all followed threads with accurate unread state.
 - Reaction notifications respect user preference settings.
-- Mark-unread and pin operations are durable and reflected in unread counters.
+- Server-wide pinned messages are visible from any channel context and link back to the source.
+- Pin/unpin operations are durable, auditable, and reflected across all clients.
+- Mark-unread operations are durable and reflected in unread counters.
 - Channel message search returns relevant results with stable ordering.
-- BDD scenarios cover media/reaction/reply/pin/unread/search behavior.
+- BDD scenarios cover threading promotion/lifecycle, thread-pane rendering, server-wide pin/unpin, media/reaction/unread/search behavior.
+
+#### Phase 12.9: Push notifications
+Status:
+- Planned.
+
+Goals:
+- Deliver reliable, policy-aware push notifications for mobile and desktop while avoiding noisy delivery.
+
+Scope:
+- Device registration lifecycle for push tokens/endpoints (register, rotate, revoke).
+- Platform delivery adapters for Android, iOS, and desktop-supported push surfaces where available.
+- Push delivery for high-signal events:
+	- Mentions.
+	- Direct messages.
+	- Friend request lifecycle transitions.
+	- Optional reactions/replies based on user settings.
+- Respect existing notification preference precedence (global, server, channel, temporary mute).
+- Quiet hours and per-event-type push toggles in notification settings.
+
+Implementation notes:
+- Keep provider credentials and signing material in runtime secret stores, never in source control.
+- Reuse existing notification policy evaluation before enqueueing push payloads.
+- Apply retry with bounded backoff and dead-letter handling for provider failures.
+- Keep payloads minimal and privacy-safe on lock screens.
+
+Acceptance criteria:
+- Push notifications are delivered only when allowed by user notification policies.
+- Duplicate push delivery is suppressed for retried or rapidly repeated events.
+- Revoked or expired device tokens are detected and cleaned up automatically.
+- Quiet hours suppress push delivery while preserving unread state and in-app notification history.
+- BDD scenarios cover device registration lifecycle, policy-filtered delivery, and retry/dead-letter behavior.
 
 #### Phase 13 (Weeks 11-12): Settings IA and discoverability
 Status:
@@ -460,6 +510,63 @@ Acceptance criteria:
 - No configuration path requires hidden navigation gestures.
 - BDD covers settings discoverability and persistence of major toggles.
 
+#### Phase 13.1: Automatic openapi wiring
+Status: Planned.
+
+Goals:
+- Improve api spec dev experience
+
+Scope:
+- Automatically register openapi endpoints instead of having to manually specify them
+- Add tags based on entity for each endpoint
+
+#### Phase 13.2: Improve cucumber dev experience and readability
+Status: Planned.
+
+Goals:
+- Improve cucumber test dev experience and ease of understanding
+
+Scope:
+- Replace all (where possible) regexes with named parameters as per the cucumber (rust compatible) spec
+
+Implementation notes:
+- cucumber implementations for steps should overwhelmingly (entirely) use "{*name*}" instead of the equivalent regex with typed where possible
+
+
+#### Phase 13.3: Rust backend maintainability, type safety, and performance hardening
+Status:
+- Planned.
+
+Goals:
+- Improve backend maintainability and runtime performance by favoring immutability, pure functions, and compile-time safety.
+- Reduce invalid-state and schema-drift risk by encoding constraints in types and validated boundaries.
+
+Scope:
+- Introduce typestate-driven transitions for friend request lifecycle operations where valid transitions can be enforced at compile time.
+- Refactor mutable domain update paths to immutable transition methods that return new values rather than mutating existing state.
+- Expand validated value-object boundaries (for example display-name and external-reference invariants) using `TryFrom`/`FromStr` and typed error models.
+- Replace manual enum string conversion/parsing with derive-driven conversion patterns (`strum`, `sqlx::Type`) and Postgres enum backing where applicable.
+- Tighten repository error modeling to separate business outcomes (forbidden/not-found/conflict) from infrastructure/storage failures.
+- Tighten and centralize repository error to api error response conversion (mutation not found to http not found etc) 
+- Reduce dynamic allocation overhead in async repository traits by moving from boxed async-trait patterns to native async trait patterns where toolchain support allows.
+- Centralize policy-resolution logic (for example notification precedence) into shared pure functions used by both in-memory and postgres paths.
+- Migrate DB enum-like text columns to explicit Postgres enum types where domain enums already exist.
+- Adopt compile-time SQL validation with `sqlx::query!`/`query_as!`/`query_scalar!` and offline metadata in CI, with migration updates as the source of truth.
+
+Implementation notes:
+- Keep domain transitions explicit and side-effect free; keep side effects at repository/API boundaries.
+- Prefer standard conversion traits and avoid ad-hoc conversion helpers when no additional context is required.
+- Stage rollout by subsystem (messages, channels, friends, notifications) to keep migrations and refactors reviewable.
+
+Acceptance criteria:
+- Illegal friend-request transition paths are unrepresentable or rejected through typed transition APIs.
+- Domain update APIs used in core flows are immutable and test-covered.
+- Value objects reject invalid input at construction boundaries with explicit error types.
+- Repository methods do not collapse infrastructure failures into not-found/forbidden business outcomes.
+- Enum persistence and parsing paths are derive-driven with no duplicated manual string mapping in core flows.
+- Notification precedence logic is implemented once and reused across storage backends.
+- SQL query shape/type mismatches are caught at build time through compile-time validation in the postgres repository path.
+
 #### Phase 14 (Weeks 13-14): User identity and workspace usability enhancements
 Status:
 - Planned.
@@ -481,52 +588,287 @@ Acceptance criteria:
 - Layout remains stable on compact viewports when member list visibility changes.
 - BDD covers server profile naming precedence and member-list toggle behavior.
 
-#### Phase 17: Improved UI look and feel
+#### Phase 14.1: Typed extension IDs across Flutter domain and flows
 Status:
-- Planned
+- Planned.
+
+Goals:
+- Prevent ID wires being crossed accidentally by enforcing compile-time ID distinctions.
+
+Scope:
+- Introduce extension types for all core IDs (user/server/channel/message/thread/etc.) and migrate shared models, bloc events/state, repository queries/commands, and service boundaries to use them.
+- Keep this explicit across layers even when implied by broader type-safety work.
+
+Acceptance criteria:
+- Passing an ID of the wrong entity type fails at compile time in core domain and repository/service call paths.
+
+#### Phase 14.2: BLoC state transitions over constructor/copyWith mutation style
+Status:
+- Planned.
+
+Goals:
+- Keep state transitions explicit and semantic in BLoCs.
+
+Scope:
+- Standardize loaded-state transition methods (for example `load`, `select`, `clearSelection`, `append`, `fail`) and route state changes through those methods.
+- Prefer named transition methods over generic `copyWith` usage so transition intent remains explicit and invalid combinations are harder to emit.
+
+Acceptance criteria:
+- Core BLoCs use explicit transition methods for state evolution, and direct constructor/copyWith state rewrites are reduced to boundary/bootstrap cases.
+
+#### Phase 14.3: Loud enum contract failures in API-to-domain parsing
+Status:
+- Planned.
+
+Goals:
+- Surface backend contract drift immediately instead of silently defaulting.
+
+Scope:
+- Replace enum fallback parsing paths with strict lookups that throw on unknown values (for example `firstWhere` without `orElse`) so unknown transport values fail loudly.
+
+Acceptance criteria:
+- Unknown enum payload values trigger immediate failure with actionable diagnostics instead of defaulting to another variant.
+
+#### Phase 14.4: Service-layer memory cache defaults
+Status:
+- Planned.
+
+Goals:
+- Introduce consistent caching behavior with safe defaults.
+
+Scope:
+- Add reusable `MemoryCache<T>` primitive(s) in the service layer with a default TTL so call sites are not required to specify TTL for every use.
+
+Acceptance criteria:
+- Service caches have a documented and tested default TTL, with optional overrides where required.
+
+#### Phase 14.5: Entity-specific cache invalidation strategies
+Status:
+- Planned.
+
+Goals:
+- Prevent stale-data bugs by matching invalidation rules to entity behavior.
+
+Scope:
+- Define and implement explicit invalidation policies per entity surface (messages, servers, channels, friends/DMs, notification preferences, identity), including event-driven invalidation hooks and time-based expiry behavior where applicable.
+- Document expected invalidation triggers for create/update/delete and membership/relationship changes.
+
+Acceptance criteria:
+- Cache invalidation behavior is deterministic per entity category and covered by automated tests for high-risk flows.
+
+#### Phase 15 (Priority 0): Roles, permissions, and server governance
+Status:
+- Planned.
+
+Goals:
+- Establish enterprise-grade access control and governance for medium-to-large communities.
+
+Scope:
+- Role-based access control matrix for server/channel capabilities (read/write/speak/stream/attach/manage).
+- Permission inheritance model across server, category, and channel levels.
+- Governance tools for onboarding and controlled growth:
+	- Invite links with expiry and usage limits.
+	- Channel/category default permission templates.
+
+Implementation notes:
+- Keep permission evaluation backend-authoritative and expose semantic capability states to clients.
+- Ensure deny/allow precedence rules are explicit and covered by BDD scenarios.
+
+Acceptance criteria:
+- Permission updates apply consistently across clients without stale authorization behavior.
+- Inheritance and override behavior is deterministic and BDD-covered.
+- Invite expiry/usage constraints are enforced and auditable.
+
+#### Phase 16 (Priority 0): Moderation and trust/safety controls
+Status:
+- Planned.
+
+Goals:
+- Provide moderators and operators with practical tools to prevent abuse and recover quickly.
+
+Scope:
+- Report flows for users/messages with triage states.
+- Moderation actions (warn, timeout, remove content, kick, ban) with reason capture.
+- Anti-spam and anti-raid controls (rate limits, burst detection, and temporary hardening modes).
+- Moderation audit log with actor/action/target/timestamp traceability.
+
+Implementation notes:
+- Keep moderation outcomes and policy checks backend-authoritative.
+- Use bounded rate limiting and abuse heuristics that are configurable per deployment.
+
+Acceptance criteria:
+- Moderation actions are durable, visible in audit history, and reversible where applicable.
+- Abuse controls reduce repeated spam/raid behavior without blocking normal usage patterns.
+- BDD scenarios cover report lifecycle, enforcement paths, and auditability.
+
+#### Phase 17 (Priority 0): Voice quality controls and realtime reliability
+Status:
+- Planned.
+
+Goals:
+- Reach TeamSpeak-class voice reliability and operator confidence under real network variability.
+
+Scope:
+- User voice controls: push-to-talk, voice activation threshold, input/output device fallback, per-user volume.
+- Audio quality controls: noise suppression, echo cancellation, and quality profile presets.
+- Participant audio controls: local mute of other participants and quick per-participant volume increase/reduction.
+- Voice session quality analytics per channel and region:
+	- Packet loss.
+	- Jitter.
+	- Reconnect rate.
+	- Median join time.
+- Voice participation analytics:
+	- Time in channel.
+	- Time spent speaking.
+	- Time spent speaking over other participants.
+	- Times being interrupted.
+	- Times interrupting others.
+
+Implementation notes:
+- Validate reconnect and failover behavior with deterministic integration coverage.
+- Keep voice analytics privacy-aware and aggregate-first for shared dashboards.
+- Derive interruption/overlap metrics from server-timestamped speaking windows to avoid client clock skew.
+
+Acceptance criteria:
+- Voice join/rejoin behavior remains stable during transient disconnects.
+- Voice quality controls are configurable and persisted across sessions.
+- Channel and regional voice quality analytics are queryable with stable time windows.
+- Participant audio controls apply immediately without affecting other users' own device settings.
+
+#### Phase 18 (Priority 1): Messaging realtime UX and search at scale
+Status:
+- Planned.
+
+Goals:
+- Improve communication flow quality and retrieval performance as message volume grows.
+
+Scope:
+- Realtime UX signals: typing indicators, presence state, read-state semantics, thread subscription behavior.
+- Message navigation UX: jump-to-message and context restoration.
+- Search architecture: indexed retrieval, cross-channel/global search, retention-aware filtering, relevance ranking controls.
+- Conversation momentum map analytics with timeline views for:
+	- Burst windows.
+	- Drop-off points.
+	- Reactivation triggers.
+
+Implementation notes:
+- Keep search behavior pagination-first with stable ordering guarantees.
+- Keep presence and typing events rate-limited and privacy-aware.
+- Keep momentum analytics explainable by surfacing the top factors behind burst and drop-off transitions.
+
+Acceptance criteria:
+- Realtime signals remain timely without overwhelming event traffic.
+- Search returns relevant, stable, and paginated results at higher message volumes.
+- Momentum map highlights channel engagement rises/collapses with consistent timeline bucketing.
+- BDD scenarios cover typing/presence/read-state semantics and search behavior.
+
+#### Phase 19 (Priority 1): Platform parity and media lifecycle hardening
+Status:
+- Planned.
+
+Goals:
+- Ensure desktop/mobile parity and safe media handling across the full content lifecycle.
+
+Scope:
+- Platform parity: tray/taskbar behavior, startup/background behavior, deep links, and offline reconnection UX.
+- End-to-end push-notification parity checks across supported clients.
+
+Implementation notes:
+- Keep client surfaces semantic; display copy and user prompts stay in widgets.
+
+Acceptance criteria:
+- Desktop and mobile behavior is consistent for notification and reconnection flows.
+- BDD scenarios cover media lifecycle policy outcomes and parity-critical client behavior.
+
+#### Phase 22 (Priority 2): Data governance and compliance posture
+Status:
+- Planned.
+
+Goals:
+- Prepare for regulated deployments without compromising core product velocity.
+
+Scope:
+- Data export/delete lifecycle for user-controlled data rights.
+- Retention policy controls and legal-hold support.
+- Regional data residency strategy and deployment constraints.
+
+Acceptance criteria:
+- Export/delete operations are auditable and policy-compliant.
+- Retention/legal-hold behavior is deterministic and documented.
+- BDD scenarios cover governance-critical data lifecycle outcomes.
+
+#### Phase 24 (Priority 2): Performance budgets and release guardrails
+Status:
+- Planned.
+
+Goals:
+- Prevent performance regressions as feature surface expands.
+
+Scope:
+- Explicit budgets for app startup, message-send latency, voice-join latency, and memory usage.
+- CI/CD guardrails that fail builds when defined budgets regress beyond thresholds.
+- Load and regression test profiles for text, voice, and notification-heavy scenarios.
+
+Acceptance criteria:
+- Budget regressions are detected before release.
+- Release gates enforce performance quality consistently across platforms.
+- BDD smoke coverage includes critical latency-sensitive journeys.
+
+#### Phase 25 (Priority 3): Improved UI look and feel
+Status:
+- Planned.
 
 Goal:
-- Improve usability of the frontend client
+- Improve frontend usability and visual personalization after core reliability/governance phases.
 
-Scope: 
-- Improve the @mentions experience
-- Add multiple presets for Colour scheme - Scene green, scene purple, Chroma, high contrast, monochrome, etc For both dark and light mode
+Scope:
+- Improve the @mentions experience.
+- Add multiple presets for colour scheme (scene green, scene purple, chroma, high contrast, monochrome) for both dark and light mode.
 
-#### phase 18: Fuzz testing
+#### Stretch goal A: Fuzz testing
 status:
 - planned
 
 goals:
-- Improve robustness and security by finding edge cases and vulnerabilities															
+- Improve robustness and security by finding edge cases and vulnerabilities
 
-scope: 
-- Implement fuzz testing for critical backend compoennts
+scope:
+- Implement fuzz testing for critical backend components
 
-
-
-#### phase 19: encryption at rest (Although taking the future into account)
+#### Stretch goal B: Encryption at rest (future-facing)
 status:
 - planned
 
 goals:
-- privacy first design, user trust.
+- Privacy-first design and user trust.
 
-scope: 
-- all media (voice and video) is encrypted at rest and in transit between client(s) and server
-- all data is encrypted at rest and in transit between client(s) and server
-- the server cannot know what is being sent
+scope:
+- All media (voice and video) is encrypted at rest and in transit between client(s) and server.
+- All data is encrypted at rest and in transit between client(s) and server.
+- The server cannot know what is being sent.
 
-#### phase 20: end to end encryption
+#### Stretch goal C: End-to-end encryption and storage-backed media
 status:
 - planned
 
 goals:
-- privacy first design, user trust, user data protection in event of server breach/compromise.
+- Privacy-first design, user trust, and user data protection in event of server breach/compromise.
+- Deliver dynamic object-store-backed rich media capabilities after core collaboration scope is stable.
 
-scope: 
-- all media (voice and video) is encrypted in transit between client(s) and server
-- all data is encrypted in transit between client(s) and server
-- the server cannot know what is being sent
+scope:
+- All media (voice and video) is encrypted in transit between client(s) and server.
+- All data is encrypted in transit between client(s) and server.
+- The server cannot know what is being sent.
+- Direct image upload in text chat with inline rendering.
+- Dynamic object-store-backed custom emotes per server.
+- Dynamic object-store-backed GIF emotes.
+- Media lifecycle controls for object-store-backed assets:
+	- Malware/content-policy scanning.
+	- Quotas and retention/expiry policy.
+	- CDN/cache invalidation and stale-content controls.
+
+implementation notes:
+- Put upload/cache concerns in service layer and avoid repository-level caching.
 
 
 ### Quality gates for expansion phases
@@ -542,3 +884,9 @@ scope:
 4. Blocked-user enforcement across friend actions and DM messaging.
 5. Channel message search, pin/unpin, and mark-unread roundtrip.
 6. Server profile display name rendering and member-list hide/show behavior.
+7. Role/permission inheritance and override behavior across server/category/channel.
+8. Moderation enforcement roundtrip (report, action, audit visibility, and reversal path).
+9. Voice join under degraded network with reconnect and region failover behavior.
+10. Platform parity check for deep links, background resume, and offline-to-online recovery.
+11. Policy-enforced media lifecycle (scan, quota, retention, and cache invalidation).
+12. Performance budget gate verification for startup, message-send, and voice-join latency.
