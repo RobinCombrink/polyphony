@@ -59,7 +59,7 @@ services:
     ports:
       - "7880:7880/tcp"
       - "7881:7881/tcp"
-      - "50000-50100:50000-50100/udp"
+      - "51000-51100:51000-51100/udp"
 
 volumes:
   postgres_data:
