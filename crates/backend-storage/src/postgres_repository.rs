@@ -1281,6 +1281,47 @@ impl ServerRepository for PostgresRepository {
         }
     }
 
+    async fn update_server_name(
+        &self,
+        server_id: ServerId,
+        actor_user_id: UserId,
+        name: String,
+    ) -> MutationResult {
+        let server_id = Uuid::from(server_id);
+        let actor_user_id = Uuid::from(actor_user_id);
+
+        let owner_user_id =
+            sqlx::query_scalar::<_, Uuid>("SELECT owner_user_id FROM servers WHERE id = $1")
+                .bind(server_id)
+                .fetch_optional(&self.pool)
+                .await;
+
+        let owner_user_id = match owner_user_id {
+            Ok(value) => value,
+            Err(_) => return MutationResult::NotFound,
+        };
+
+        let Some(owner_user_id) = owner_user_id else {
+            return MutationResult::NotFound;
+        };
+
+        if owner_user_id != actor_user_id {
+            return MutationResult::Forbidden;
+        }
+
+        let updated = sqlx::query("UPDATE servers SET name = $1 WHERE id = $2")
+            .bind(name)
+            .bind(server_id)
+            .execute(&self.pool)
+            .await;
+
+        match updated {
+            Ok(result) if result.rows_affected() > 0 => MutationResult::Updated,
+            Ok(_) => MutationResult::NotFound,
+            Err(_) => MutationResult::NotFound,
+        }
+    }
+
     async fn delete_server(&self, server_id: ServerId, actor_user_id: UserId) -> MutationResult {
         let server_id = Uuid::from(server_id);
         let actor_user_id = Uuid::from(actor_user_id);

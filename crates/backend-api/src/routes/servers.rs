@@ -15,6 +15,7 @@ use crate::{
     auth::{AuthenticatedUser, TokenVerifier},
     dto::{
         AddServerMemberRequest, CreateChannelRequest, CreateServerRequest, UpdateChannelRequest,
+        UpdateServerRequest,
     },
 };
 
@@ -219,6 +220,46 @@ where
             }),
         )
             .into_response(),
+        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
+        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
+        MutationResult::Deleted => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/servers/{server_id}",
+    request_body = UpdateServerRequest,
+    responses(
+        (status = 204, description = "Server updated"),
+        (status = 403, description = "Only server owner can update server"),
+        (status = 404, description = "Server not found"),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("server_id" = ServerId, Path, description = "Server id")),
+    tag = "backend-api"
+)]
+pub(crate) async fn update_server<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
+    State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
+    authenticated_user: AuthenticatedUser,
+    Path(server_id): Path<ServerId>,
+    Json(request): Json<UpdateServerRequest>,
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository,
+    ServerRepo: ServerRepository,
+    ChannelRepo: ChannelRepository,
+    MessageRepo: MessageRepository,
+    Verifier: TokenVerifier,
+{
+    let mutation_result = state
+        .server_repository
+        .update_server_name(server_id, authenticated_user.user_id, request.name)
+        .await;
+
+    match mutation_result {
+        MutationResult::Updated => StatusCode::NO_CONTENT.into_response(),
         MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
         MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
         MutationResult::Deleted => StatusCode::INTERNAL_SERVER_ERROR.into_response(),

@@ -31,6 +31,15 @@ Feature: Servers and channels
       When the server owner updates the channel name
       Then listing channels in server "Test" includes the updated name
 
+    Scenario: Server owner can update a server name
+      Given the user already owns server "Test"
+      When the server owner updates the server name
+      Then listing servers for the authenticated user includes the updated server name
+
+    Scenario: Updating a missing server name reports that it does not exist
+      When the user updates a server that does not exist
+      Then the action fails because the server does not exist
+
     Scenario: Non-owner cannot update a channel name
       Given a channel exists in a server owned by another user
       When the non-owner attempts to update the channel name
@@ -110,6 +119,14 @@ Feature: Servers and channels
       And "Olivia" adds "Noah" to server "Test"
       When "Noah" deletes channel "general"
       Then the delete is denied
+
+    Scenario: Non-owner cannot update a server name
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And "Olivia" owns server "Test"
+      And "Olivia" adds "Noah" to server "Test"
+      When "Noah" updates the name of server "Test"
+      Then the update is denied
 
   Rule: Friend-only invite flow controls server invitations
     Scenario: Server owner can invite a friend to server

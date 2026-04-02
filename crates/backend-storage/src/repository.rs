@@ -199,6 +199,12 @@ pub trait ServerRepository: Send + Sync {
         actor_user_id: UserId,
         user_id: UserId,
     ) -> MutationResult;
+    async fn update_server_name(
+        &self,
+        server_id: ServerId,
+        actor_user_id: UserId,
+        name: String,
+    ) -> MutationResult;
     async fn delete_server(&self, server_id: ServerId, actor_user_id: UserId) -> MutationResult;
     async fn list_server_members(&self, server_id: ServerId) -> Option<Vec<Membership>>;
 }

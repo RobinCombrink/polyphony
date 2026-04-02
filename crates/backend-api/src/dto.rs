@@ -17,6 +17,7 @@ mod update_message_request;
 mod update_notification_channel_preference_request;
 mod update_notification_global_preference_request;
 mod update_notification_server_preference_request;
+mod update_server_request;
 mod user_lookup_response;
 mod voice_connect_response;
 
@@ -39,5 +40,6 @@ pub use update_message_request::UpdateMessageRequest;
 pub use update_notification_channel_preference_request::UpdateNotificationChannelPreferenceRequest;
 pub use update_notification_global_preference_request::UpdateNotificationGlobalPreferenceRequest;
 pub use update_notification_server_preference_request::UpdateNotificationServerPreferenceRequest;
+pub use update_server_request::UpdateServerRequest;
 pub use user_lookup_response::UserLookupResponse;
 pub use voice_connect_response::VoiceConnectResponse;

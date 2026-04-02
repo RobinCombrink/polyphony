@@ -42,6 +42,7 @@ use routes::{
     servers::{
         add_server_member, create_channel, create_server, delete_channel, delete_server,
         invite_friend_to_server, list_channels, list_server_members, list_servers, update_channel,
+        update_server,
     },
     users::get_user_by_id,
     voice::create_session,
@@ -272,7 +273,7 @@ where
         .route("/api/v1/dms/search/{user_id}", get(search_direct_messages))
         .route(
             "/api/v1/servers/{server_id}",
-            axum::routing::delete(delete_server),
+            patch(update_server).delete(delete_server),
         )
         .route(
             "/api/v1/servers/{server_id}/channels",

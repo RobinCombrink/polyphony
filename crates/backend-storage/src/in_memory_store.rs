@@ -130,6 +130,29 @@ impl InMemoryStore {
         server
     }
 
+    pub(crate) fn update_server_name(
+        &mut self,
+        server_id: ServerId,
+        actor_user_id: UserId,
+        name: String,
+    ) -> MutationResult {
+        let server = match self.servers.get(&server_id) {
+            Some(existing_server) => existing_server,
+            None => return MutationResult::NotFound,
+        };
+
+        if server.owner_user_id != actor_user_id {
+            return MutationResult::Forbidden;
+        }
+
+        if let Some(server) = self.servers.get_mut(&server_id) {
+            server.name = name;
+            MutationResult::Updated
+        } else {
+            MutationResult::NotFound
+        }
+    }
+
     pub(crate) fn add_server_member(
         &mut self,
         server_id: ServerId,

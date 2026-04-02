@@ -123,6 +123,16 @@ impl ServerRepository for InMemoryRepository {
         store.is_server_member(server_id, user_id)
     }
 
+    async fn update_server_name(
+        &self,
+        server_id: ServerId,
+        actor_user_id: UserId,
+        name: String,
+    ) -> MutationResult {
+        let mut store = self.store.write().await;
+        store.update_server_name(server_id, actor_user_id, name)
+    }
+
     async fn add_server_member(
         &self,
         server_id: ServerId,

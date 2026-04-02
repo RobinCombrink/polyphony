@@ -218,6 +218,36 @@ pub(crate) async fn update_channel(
     update_channel_with_token(app, channel_id, channel_name, "valid-token").await
 }
 
+pub(crate) async fn update_server(
+    app: &axum::Router,
+    server_id: &ServerId,
+    server_name: &str,
+) -> axum::response::Response {
+    update_server_with_token(app, server_id, server_name, "valid-token").await
+}
+
+pub(crate) async fn update_server_with_token(
+    app: &axum::Router,
+    server_id: &ServerId,
+    server_name: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/servers/{server_id}"))
+                .method("PATCH")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "name": server_name }).to_string(),
+                ))
+                .expect("update server request to be valid"),
+        )
+        .await
+        .expect("update server response from app")
+}
+
 pub(crate) async fn update_channel_with_token(
     app: &axum::Router,
     channel_id: &ChannelId,

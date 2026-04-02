@@ -15,7 +15,7 @@ use common::{
         list_servers_with_token, payload_channel_id, payload_server_id, payload_user_id,
         prime_feature_test_store, response_payload_json, seeded_app_with_store,
         send_friend_request_with_token, shutdown_feature_test_store, update_channel,
-        update_channel_with_token,
+        update_channel_with_token, update_server, update_server_with_token,
     },
     entity_seeder::EntitySeeder,
 };
@@ -37,6 +37,7 @@ struct ServersAndChannelsWorld {
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
     updated_channel_name: Option<String>,
+    updated_server_name: Option<String>,
     owner_token: String,
 }
 
@@ -53,6 +54,7 @@ impl Default for ServersAndChannelsWorld {
             latest_status: None,
             latest_payload: None,
             updated_channel_name: None,
+            updated_server_name: None,
             owner_token: String::new(),
         }
     }
@@ -170,6 +172,7 @@ async fn an_authenticated_user_exists(world: &mut ServersAndChannelsWorld) {
     world.latest_status = None;
     world.latest_payload = None;
     world.updated_channel_name = None;
+    world.updated_server_name = None;
     world.owner_token = "valid-token".to_owned();
 }
 
@@ -191,6 +194,7 @@ async fn a_user_named_exists(world: &mut ServersAndChannelsWorld, name: String) 
         world.latest_status = None;
         world.latest_payload = None;
         world.updated_channel_name = None;
+        world.updated_server_name = None;
         return;
     }
 
@@ -325,6 +329,7 @@ async fn a_server_owner_exists(world: &mut ServersAndChannelsWorld) {
     world.latest_status = None;
     world.latest_payload = None;
     world.updated_channel_name = None;
+    world.updated_server_name = None;
     world.owner_token = "owner-token".to_owned();
     world.owner_name = Some("Owner".to_owned());
     world.second_name = None;
@@ -399,6 +404,7 @@ async fn a_channel_exists_in_a_server_owned_by_another_user(world: &mut ServersA
     world.latest_status = None;
     world.latest_payload = None;
     world.updated_channel_name = None;
+    world.updated_server_name = None;
 }
 
 #[when("the user creates a server")]
@@ -461,6 +467,42 @@ async fn the_server_owner_updates_the_channel_name(world: &mut ServersAndChannel
     let response =
         update_channel(world.owner_app_ref(), world.channel_id_ref(), &updated_name).await;
     world.updated_channel_name = Some(updated_name);
+    world.latest_status = Some(response.status());
+    world.latest_payload = None;
+}
+
+#[when("the server owner updates the server name")]
+async fn the_server_owner_updates_the_server_name(world: &mut ServersAndChannelsWorld) {
+    world.ensure_owner_server().await;
+    let updated_name = "updated-server-name".to_owned();
+    let response = update_server(world.owner_app_ref(), world.server_id_ref(), &updated_name).await;
+    world.updated_server_name = Some(updated_name);
+    world.latest_status = Some(response.status());
+    world.latest_payload = None;
+}
+
+#[when(regex = r#"^"([^"]+)" updates the name of server "([^"]+)"$"#)]
+async fn named_user_updates_the_name_of_server(
+    world: &mut ServersAndChannelsWorld,
+    name: String,
+    _server_name: String,
+) {
+    world.assert_second_name(&name);
+    let response = update_server_with_token(
+        world.second_app_ref(),
+        world.server_id_ref(),
+        "forbidden-server-name",
+        "member-token",
+    )
+    .await;
+    world.latest_status = Some(response.status());
+    world.latest_payload = None;
+}
+
+#[when("the user updates a server that does not exist")]
+async fn the_user_updates_a_server_that_does_not_exist(world: &mut ServersAndChannelsWorld) {
+    let missing_server_id: ServerId = Uuid::new_v4().into();
+    let response = update_server(world.owner_app_ref(), &missing_server_id, "missing-server").await;
     world.latest_status = Some(response.status());
     world.latest_payload = None;
 }
@@ -784,6 +826,24 @@ async fn listing_channels_in_named_server_includes_the_updated_name(
     _server_name: String,
 ) {
     listing_channels_in_that_server_includes_the_updated_name(world).await;
+}
+
+#[then("listing servers for the authenticated user includes the updated server name")]
+async fn listing_servers_includes_the_updated_server_name(world: &mut ServersAndChannelsWorld) {
+    let list_response = list_servers(world.owner_app_ref()).await;
+    let list_payload = response_payload_json(list_response).await;
+    let servers = list_payload
+        .as_array()
+        .expect("server list payload to be array");
+    let updated_name = world
+        .updated_server_name
+        .as_ref()
+        .expect("updated server name to be set");
+
+    assert!(servers.iter().any(|server| {
+        payload_server_id(server, "id") == *world.server_id_ref()
+            && server["name"].as_str() == Some(updated_name.as_str())
+    }));
 }
 
 #[then("the update is denied")]
