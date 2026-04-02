@@ -9,7 +9,11 @@ import "package:polyphony_flutter_client/shared/presentation/widgets/section_sta
 
 enum _PaneMenuAction { createChannel }
 
-enum _ChannelMenuAction { notificationPreferences, deleteChannel }
+enum _ChannelMenuAction {
+  notificationPreferences,
+  renameChannel,
+  deleteChannel
+}
 
 SectionStatus? buildChannelPaneStatus(ChannelsState state) {
   if (state is ChannelsValidationFailedState) {
@@ -54,10 +58,12 @@ class ChannelPaneWidget extends StatefulWidget {
     required this.onTap,
     this.onDeleteChannel,
     this.onNotificationPreferences,
+    this.onRenameChannel,
     required this.onCreateChannel,
     this.title = "Channels",
     this.createActionLabel = "Create channel",
     this.showCreateControls = true,
+    this.onTitleTap,
     this.bottomSection,
     super.key,
   });
@@ -74,6 +80,7 @@ class ChannelPaneWidget extends StatefulWidget {
   final void Function(Channel channel) onTap;
   final void Function(Channel channel)? onDeleteChannel;
   final void Function(Channel channel)? onNotificationPreferences;
+  final void Function(Channel channel)? onRenameChannel;
   final void Function({
     required String channelName,
     required ChannelType channelType,
@@ -81,6 +88,7 @@ class ChannelPaneWidget extends StatefulWidget {
   final String title;
   final String createActionLabel;
   final bool showCreateControls;
+  final VoidCallback? onTitleTap;
   final Widget? bottomSection;
 
   @override
@@ -234,7 +242,10 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
   }) async {
     final onDeleteChannel = widget.onDeleteChannel;
     final onNotificationPreferences = widget.onNotificationPreferences;
-    if (onDeleteChannel == null && onNotificationPreferences == null) {
+    final onRenameChannel = widget.onRenameChannel;
+    if (onDeleteChannel == null &&
+        onNotificationPreferences == null &&
+        onRenameChannel == null) {
       return;
     }
 
@@ -252,6 +263,11 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
           const PopupMenuItem<_ChannelMenuAction>(
             value: _ChannelMenuAction.notificationPreferences,
             child: Text("Notification preferences"),
+          ),
+        if (onRenameChannel != null)
+          const PopupMenuItem<_ChannelMenuAction>(
+            value: _ChannelMenuAction.renameChannel,
+            child: Text("Rename channel"),
           ),
         if (onDeleteChannel != null)
           PopupMenuItem<_ChannelMenuAction>(
@@ -271,6 +287,8 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
     switch (selectedAction) {
       case _ChannelMenuAction.notificationPreferences:
         onNotificationPreferences?.call(channel);
+      case _ChannelMenuAction.renameChannel:
+        onRenameChannel?.call(channel);
       case _ChannelMenuAction.deleteChannel:
         onDeleteChannel?.call(channel);
     }
@@ -311,10 +329,39 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(
-                widget.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              child: widget.onTitleTap != null
+                  ? InkWell(
+                      onTap: widget.onTitleTap,
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                widget.title,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            Icon(
+                              Icons.settings,
+                              size: 16,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : Text(
+                      widget.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
             ),
             const Divider(height: 1),
             if (widget.showCreateControls)
@@ -359,7 +406,8 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
                   return GestureDetector(
                     onSecondaryTapDown: widget.isLoading ||
                             (widget.onDeleteChannel == null &&
-                                widget.onNotificationPreferences == null)
+                                widget.onNotificationPreferences == null &&
+                                widget.onRenameChannel == null)
                         ? null
                         : (details) => unawaited(
                               _showChannelContextMenu(
@@ -370,7 +418,8 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
                             ),
                     onLongPress: widget.isLoading ||
                             (widget.onDeleteChannel == null &&
-                                widget.onNotificationPreferences == null)
+                                widget.onNotificationPreferences == null &&
+                                widget.onRenameChannel == null)
                         ? null
                         : () {
                             final renderBox =

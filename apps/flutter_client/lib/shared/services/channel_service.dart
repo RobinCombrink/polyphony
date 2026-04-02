@@ -16,4 +16,9 @@ abstract interface class ChannelService {
   Future<Result<void>> deleteChannel({
     required String channelId,
   });
+
+  Future<Result<void>> updateChannelName({
+    required String channelId,
+    required String name,
+  });
 }

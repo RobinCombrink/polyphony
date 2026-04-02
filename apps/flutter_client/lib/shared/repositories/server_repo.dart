@@ -25,6 +25,16 @@ sealed class ServerUpdateCommand {
   const ServerUpdateCommand();
 }
 
+class UpdateServerNameCommand extends ServerUpdateCommand {
+  const UpdateServerNameCommand({
+    required this.serverId,
+    required this.name,
+  }) : super();
+
+  final String serverId;
+  final String name;
+}
+
 class InviteFriendToServerCommand extends ServerUpdateCommand {
   const InviteFriendToServerCommand({
     required this.serverId,

@@ -386,9 +386,26 @@ progress:
 
 #### Phase 12: Upgrade Server and Channel experience
 Status:
-- Planned
+- Completed.
 
-Scope: 
+Progress:
+- Completed: backend `PATCH /api/v1/servers/{server_id}` endpoint added for server name updates with owner-only authorization.
+- Completed: `update_server_name` repository method added to `ServerRepository` trait with in-memory and Postgres implementations.
+- Completed: backend BDD scenarios added for server rename (owner success, non-owner denial, missing server 404) in `features/servers_and_channels.feature`.
+- Completed: backend executable BDD step definitions implemented and passing (23 scenarios, 104 steps).
+- Completed: frontend `updateServerName` added to server service interface and REST implementation.
+- Completed: `UpdateServerNameCommand` added to server repository with full BLoC event/handler wiring (`UpdateServerNameRequested`).
+- Completed: server rename accessible from right-click context menu on server avatar (owner-gated).
+- Completed: Server Settings page created at `features/servers/presentation/pages/server_settings_page.dart` with name editing and save action.
+- Completed: server name header in channel pane is tappable to navigate to Server Settings page (owner-gated, with settings icon indicator).
+- Completed: frontend `updateChannelName` added to channel service interface and REST implementation.
+- Completed: `UpdateChannelNameCommand` added to channel repository with full BLoC event/handler wiring (`UpdateChannelNameRequested`).
+- Completed: channel rename accessible from right-click context menu on channel items (owner-gated).
+- Completed: frontend BDD-style tests expanded for server rename (success + validation) and channel rename (success + validation) scenarios.
+- Validation: backend quality gates pass (`cargo clippy --workspace --all-targets -- -D warnings`, `cargo test` with 23 server/channel scenarios).
+- Validation: frontend quality gates pass (`dart analyze` clean, `flutter test` with 136 passing tests).
+
+Scope:
 - Add Server name updating to the right click context menu (And the new Server Settings page, accessed by clicking on the name of the server in the channel list)
 - Add Channel name updating to the right click context menu
 

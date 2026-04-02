@@ -48,6 +48,11 @@ class ServerRepository implements ServerRepo {
   @override
   Future<Result<void>> updateOne({required ServerUpdateCommand command}) {
     return switch (command) {
+      UpdateServerNameCommand(:final serverId, :final name) =>
+        _serverService.updateServerName(
+          serverId: serverId,
+          name: name,
+        ),
       AddServerMemberUpdateCommand(:final serverId, :final userId) =>
         _serverService.addServerMember(
           serverId: serverId,

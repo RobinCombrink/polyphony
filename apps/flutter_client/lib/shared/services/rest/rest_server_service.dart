@@ -43,6 +43,19 @@ class RestServerService extends RestRequestServiceBase
   }
 
   @override
+  Future<Result<void>> updateServerName({
+    required String serverId,
+    required String name,
+  }) {
+    return performPatchRequestWithoutResponseBody(
+      endpoint: "/api/v1/servers/$serverId",
+      operation: "update server name",
+      body: <String, dynamic>{"name": name},
+      expectedStatusCode: 204,
+    );
+  }
+
+  @override
   Future<Result<void>> addServerMember({
     required String serverId,
     required String userId,

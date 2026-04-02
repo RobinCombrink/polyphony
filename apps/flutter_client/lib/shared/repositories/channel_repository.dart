@@ -48,4 +48,12 @@ class ChannelRepository implements ChannelRepo {
       channelId: command.channelId,
     );
   }
+
+  @override
+  Future<Result<void>> updateOne({required UpdateChannelNameCommand command}) {
+    return _channelService.updateChannelName(
+      channelId: command.channelId,
+      name: command.name,
+    );
+  }
 }

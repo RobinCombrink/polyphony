@@ -30,8 +30,19 @@ class DeleteChannelCommand {
   final String channelId;
 }
 
+class UpdateChannelNameCommand {
+  const UpdateChannelNameCommand({
+    required this.channelId,
+    required this.name,
+  });
+
+  final String channelId;
+  final String name;
+}
+
 abstract interface class ChannelRepo
     with
         RepositoryGetMany<Channel, GetChannelsQuery>,
         RepositoryCreateOne<Channel, CreateChannelCommand>,
-        RepositoryDeleteOne<DeleteChannelCommand> {}
+        RepositoryDeleteOne<DeleteChannelCommand>,
+        RepositoryUpdateOne<void, UpdateChannelNameCommand> {}

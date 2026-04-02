@@ -12,6 +12,11 @@ abstract interface class ServerService {
     required String serverId,
   });
 
+  Future<Result<void>> updateServerName({
+    required String serverId,
+    required String name,
+  });
+
   Future<Result<void>> addServerMember({
     required String serverId,
     required String userId,

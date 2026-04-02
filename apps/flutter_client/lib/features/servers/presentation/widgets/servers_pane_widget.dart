@@ -182,6 +182,61 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
         );
   }
 
+  Future<void> _showRenameServerDialog(Server server) async {
+    final controller = TextEditingController(text: server.name);
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final canRename = controller.text.trim().isNotEmpty &&
+                controller.text.trim() != server.name;
+
+            return AlertDialog(
+              title: const Text("Rename server"),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                textInputAction: TextInputAction.done,
+                onChanged: (_) => setDialogState(() {}),
+                onSubmitted: (_) {
+                  if (canRename) {
+                    Navigator.of(dialogContext).pop(controller.text);
+                  }
+                },
+                decoration: const InputDecoration(labelText: "Server name"),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text("Cancel"),
+                ),
+                FilledButton(
+                  onPressed: canRename
+                      ? () => Navigator.of(dialogContext).pop(controller.text)
+                      : null,
+                  child: const Text("Rename"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (!mounted || newName == null) {
+      return;
+    }
+
+    context.read<ServersBloc>().add(
+          UpdateServerNameRequested(
+            serverId: server.id,
+            name: newName,
+          ),
+        );
+  }
+
   Future<void> _showServerNotificationPreferencesDialog(Server server) async {
     final notificationPreferencesBloc =
         context.read<NotificationPreferencesBloc>()
@@ -313,6 +368,8 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
                   _showInviteFriendToServerDialog(server.id),
               onNotificationPreferences: (server) =>
                   unawaited(_showServerNotificationPreferencesDialog(server)),
+              onRenameServer: (server) =>
+                  unawaited(_showRenameServerDialog(server)),
               onDeleteServer: (server) =>
                   unawaited(_showDeleteServerConfirmationDialog(server)),
               onCreate: () => context.read<ServersBloc>().add(

@@ -75,10 +75,31 @@ class FakeServerRepository implements ServerRepo {
     required ServerUpdateCommand command,
   }) async {
     return switch (command) {
+      UpdateServerNameCommand(:final serverId, :final name) =>
+        _updateServerName(serverId: serverId, name: name),
       AddServerMemberUpdateCommand(:final serverId, :final userId) =>
         _addServerMember(serverId: serverId, userId: userId),
       InviteFriendToServerCommand() => _inviteFriendToServer(),
     };
+  }
+
+  Result<void> _updateServerName({
+    required String serverId,
+    required String name,
+  }) {
+    final serverIndex = _servers.indexWhere((server) => server.id == serverId);
+    if (serverIndex == -1) {
+      return Error<void>(Exception("Server not found"));
+    }
+
+    final existingServer = _servers[serverIndex];
+    _servers[serverIndex] = Server(
+      id: existingServer.id,
+      name: name,
+      ownerUserId: existingServer.ownerUserId,
+    );
+
+    return const Ok<void>(null);
   }
 
   Result<void> _inviteFriendToServer() {
@@ -269,6 +290,30 @@ class FakeChannelRepository implements ChannelRepo {
     }
 
     return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> updateOne({
+    required UpdateChannelNameCommand command,
+  }) async {
+    for (final channels in _channelsByServer.values) {
+      final index =
+          channels.indexWhere((channel) => channel.id == command.channelId);
+      if (index == -1) {
+        continue;
+      }
+
+      final existing = channels[index];
+      channels[index] = switch (existing) {
+        TextChannel(:final id, :final serverId) =>
+          TextChannel(id: id, serverId: serverId, name: command.name),
+        VoiceChannel(:final id, :final serverId) =>
+          VoiceChannel(id: id, serverId: serverId, name: command.name),
+      };
+      return const Ok<void>(null);
+    }
+
+    return Error<void>(Exception("Channel not found"));
   }
 }
 

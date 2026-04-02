@@ -49,4 +49,17 @@ class RestChannelService extends RestRequestServiceBase
       expectedStatusCode: 204,
     );
   }
+
+  @override
+  Future<Result<void>> updateChannelName({
+    required String channelId,
+    required String name,
+  }) {
+    return performPatchRequestWithoutResponseBody(
+      endpoint: "/api/v1/channels/$channelId",
+      operation: "update channel name",
+      body: <String, dynamic>{"name": name},
+      expectedStatusCode: 204,
+    );
+  }
 }

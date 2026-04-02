@@ -46,6 +46,7 @@ class ServersSectionWidget extends StatefulWidget {
     required this.onAddUser,
     required this.onInviteFriend,
     required this.onNotificationPreferences,
+    required this.onRenameServer,
     required this.onDeleteServer,
     required this.onCreate,
     super.key,
@@ -62,6 +63,7 @@ class ServersSectionWidget extends StatefulWidget {
   final void Function(Server server) onAddUser;
   final void Function(Server server) onInviteFriend;
   final void Function(Server server) onNotificationPreferences;
+  final void Function(Server server) onRenameServer;
   final void Function(Server server) onDeleteServer;
   final VoidCallback onCreate;
 
@@ -125,6 +127,11 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
           onTap: () => widget.onNotificationPreferences(server),
           child: const Text("Notification preferences"),
         ),
+        if (canDeleteServer)
+          PopupMenuItem<void>(
+            onTap: () => widget.onRenameServer(server),
+            child: const Text("Rename server"),
+          ),
         if (canDeleteServer)
           PopupMenuItem<void>(
             onTap: () => widget.onDeleteServer(server),

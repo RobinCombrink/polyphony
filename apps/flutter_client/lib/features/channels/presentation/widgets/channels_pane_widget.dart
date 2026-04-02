@@ -9,6 +9,7 @@ import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dar
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/presentation/pages/server_settings_page.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_notification_preferences_section_widget.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
@@ -148,6 +149,75 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
         );
   }
 
+  Future<void> _showRenameChannelDialog(
+    BuildContext context,
+    Channel channel,
+  ) async {
+    final controller = TextEditingController(text: channel.name);
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final canRename = controller.text.trim().isNotEmpty &&
+                controller.text.trim() != channel.name;
+
+            return AlertDialog(
+              title: const Text("Rename channel"),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                textInputAction: TextInputAction.done,
+                onChanged: (_) => setDialogState(() {}),
+                onSubmitted: (_) {
+                  if (canRename) {
+                    Navigator.of(dialogContext).pop(controller.text);
+                  }
+                },
+                decoration: const InputDecoration(labelText: "Channel name"),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text("Cancel"),
+                ),
+                FilledButton(
+                  onPressed: canRename
+                      ? () => Navigator.of(dialogContext).pop(controller.text)
+                      : null,
+                  child: const Text("Rename"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (!context.mounted || newName == null) {
+      return;
+    }
+
+    context.read<ChannelsBloc>().add(
+          UpdateChannelNameRequested(
+            channelId: channel.id,
+            name: newName,
+          ),
+        );
+  }
+
+  void _openServerSettings(BuildContext context, Server server) {
+    unawaited(Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider<ServersBloc>.value(
+          value: context.read<ServersBloc>(),
+          child: ServerSettingsPage(server: server),
+        ),
+      ),
+    ));
+  }
+
   Future<void> _showChannelNotificationPreferencesDialog(
     BuildContext context,
     Channel channel,
@@ -201,6 +271,11 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
     };
     final canDeleteChannels =
         currentUserId != null && currentUserId == selectedServerOwnerUserId;
+    final canRenameChannels = canDeleteChannels;
+    final selectedServer = switch (context.watch<ServersBloc>().state) {
+      ServerSelected(:final selectedServer) => selectedServer,
+      _ => null,
+    };
 
     return BlocListener<ChannelsBloc, ChannelsState>(
       listenWhen: (previous, current) {
@@ -336,9 +411,20 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
                             ),
                           )
                       : null,
+                  onRenameChannel: canRenameChannels
+                      ? (channel) => unawaited(
+                            _showRenameChannelDialog(
+                              context,
+                              channel,
+                            ),
+                          )
+                      : null,
                   onNotificationPreferences: (channel) => unawaited(
                     _showChannelNotificationPreferencesDialog(context, channel),
                   ),
+                  onTitleTap: selectedServer != null && canDeleteChannels
+                      ? () => _openServerSettings(context, selectedServer)
+                      : null,
                 ),
               );
             },

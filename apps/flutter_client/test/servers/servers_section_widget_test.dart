@@ -35,6 +35,7 @@ void main() {
             onAddUser: (_) {},
             onInviteFriend: onInviteFriend,
             onNotificationPreferences: (_) {},
+            onRenameServer: (_) {},
             onDeleteServer: (_) {},
             onCreate: () {},
           ),

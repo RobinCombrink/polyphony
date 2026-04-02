@@ -16,6 +16,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     on<LoadChannelsRequested>(_onLoadChannelsRequested);
     on<CreateChannelRequested>(_onCreateChannelRequested);
     on<DeleteChannelRequested>(_onDeleteChannelRequested);
+    on<UpdateChannelNameRequested>(_onUpdateChannelNameRequested);
     on<SelectTextChannelRequested>(_onSelectTextChannelRequested);
     on<SelectVoiceChannelRequested>(_onSelectVoiceChannelRequested);
   }
@@ -229,6 +230,85 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
         _selectionByServerId[loadedState.serverId] = _selectionFromState(
           nextState,
         );
+      case Error<void>(:final error):
+        emit(ChannelsExceptionState(error: error));
+    }
+  }
+
+  Future<void> _onUpdateChannelNameRequested(
+    UpdateChannelNameRequested event,
+    Emitter<ChannelsState> emit,
+  ) async {
+    final loadedState = switch (state) {
+      final ChannelsLoadedState loadedState => loadedState,
+      _ => null,
+    };
+
+    if (loadedState == null) {
+      emit(ChannelsExceptionState(
+        error: Exception("Channels must be loaded before renaming a channel."),
+      ));
+      return;
+    }
+
+    final trimmedChannelId = event.channelId.trim();
+    final trimmedName = event.name.trim();
+
+    if (trimmedChannelId.isEmpty ||
+        !_allChannels(loadedState)
+            .any((channel) => channel.id == trimmedChannelId)) {
+      emit(
+        loadedState.withValidationIssue(
+          issue: ChannelsValidationIssue.channelSelectionRequired,
+        ),
+      );
+      return;
+    }
+
+    if (trimmedName.isEmpty) {
+      emit(
+        loadedState.withValidationIssue(
+          issue: ChannelsValidationIssue.channelNameRequired,
+        ),
+      );
+      return;
+    }
+
+    emit(const ChannelsLoadingState());
+
+    final updateResult = await _channelRepo.updateOne(
+      command: UpdateChannelNameCommand(
+        channelId: trimmedChannelId,
+        name: trimmedName,
+      ),
+    );
+
+    switch (updateResult) {
+      case Ok<void>():
+        final listChannelsResult = await _channelRepo.getMany(
+          query: GetChannelsQuery(serverId: loadedState.serverId),
+        );
+
+        switch (listChannelsResult) {
+          case Ok<Iterable<Channel>>(:final value):
+            final channels = value.toList();
+            final (textChannels, voiceChannels) = _partitionChannels(channels);
+
+            final nextState = _buildLoadedState(
+              previousState: state,
+              previousSelection: _selectionByServerId[loadedState.serverId],
+              serverId: loadedState.serverId,
+              textChannels: textChannels,
+              voiceChannels: voiceChannels,
+            );
+
+            _selectionByServerId[loadedState.serverId] =
+                _selectionFromState(nextState);
+
+            emit(nextState);
+          case Error<Iterable<Channel>>(:final error):
+            emit(ChannelsExceptionState(error: error));
+        }
       case Error<void>(:final error):
         emit(ChannelsExceptionState(error: error));
     }

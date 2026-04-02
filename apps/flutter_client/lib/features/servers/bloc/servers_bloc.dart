@@ -15,6 +15,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     on<LoadServersRequested>(_onLoadServersRequested);
     on<CreateServerRequested>(_onCreateServerRequested);
     on<DeleteServerRequested>(_onDeleteServerRequested);
+    on<UpdateServerNameRequested>(_onUpdateServerNameRequested);
     on<SelectServerRequested>(_onSelectServerRequested);
   }
 
@@ -137,6 +138,71 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
 
     emit(ServersExceptionState(
       error: Exception("Servers must be loaded before deleting a server."),
+    ));
+  }
+
+  Future<void> _onUpdateServerNameRequested(
+    UpdateServerNameRequested event,
+    Emitter<ServersState> emit,
+  ) async {
+    if (state case final ServersLoadedState state) {
+      final trimmedServerId = event.serverId.trim();
+      final trimmedName = event.name.trim();
+
+      if (trimmedServerId.isEmpty ||
+          !state.servers.any((server) => server.id == trimmedServerId)) {
+        emit(ServersValidationFailedState(
+          issue: ServersValidationIssue.serverSelectionRequired,
+          servers: state.servers,
+        ));
+        return;
+      }
+
+      if (trimmedName.isEmpty) {
+        emit(ServersValidationFailedState(
+          issue: ServersValidationIssue.serverNameRequired,
+          servers: state.servers,
+        ));
+        return;
+      }
+
+      emit(const ServersLoadingState());
+
+      final updateResult = await _serverRepo.updateOne(
+        command: UpdateServerNameCommand(
+          serverId: trimmedServerId,
+          name: trimmedName,
+        ),
+      );
+
+      switch (updateResult) {
+        case Ok<void>():
+          final listServersResult = await _serverRepo.getMany(
+            query: const GetServersQuery(),
+          );
+
+          switch (listServersResult) {
+            case Ok<Iterable<Server>>(:final value):
+              final servers = value.toList();
+              final updatedServer = servers.firstWhereOrNull(
+                (server) => server.id == trimmedServerId,
+              );
+
+              emit(state.loadServers(servers: servers).selectServer(
+                    incomingSelectedServer: updatedServer,
+                  ));
+            case Error<Iterable<Server>>(:final error):
+              emit(ServersExceptionState(error: error));
+          }
+        case Error<void>(:final error):
+          emit(ServersExceptionState(error: error));
+      }
+
+      return;
+    }
+
+    emit(ServersExceptionState(
+      error: Exception("Servers must be loaded before renaming a server."),
     ));
   }
 

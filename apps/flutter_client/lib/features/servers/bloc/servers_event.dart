@@ -22,6 +22,16 @@ final class DeleteServerRequested extends ServersEvent {
   final String serverId;
 }
 
+final class UpdateServerNameRequested extends ServersEvent {
+  const UpdateServerNameRequested({
+    required this.serverId,
+    required this.name,
+  });
+
+  final String serverId;
+  final String name;
+}
+
 final class SelectServerRequested extends ServersEvent {
   const SelectServerRequested({required this.serverId});
 
