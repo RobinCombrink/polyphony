@@ -1,5 +1,8 @@
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
+import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
@@ -126,69 +129,121 @@ class MessagesSectionWidget extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[index];
-                final isOwnMessage = message.authorUserId == currentUser.userId;
-                final isMentioningCurrentUser =
-                    !isOwnMessage && _isMentioningCurrentUser(message);
-                final mentionBackgroundColor = isMentioningCurrentUser
-                    ? Theme.of(context).colorScheme.secondaryContainer
-                    : null;
+            child: BlocSelector<SettingsBloc, SettingsState, bool>(
+              selector: (state) => switch (state) {
+                SettingsLoadedState(:final isDeveloperModeEnabled) =>
+                  isDeveloperModeEnabled,
+                SettingsExceptionState(:final isDeveloperModeEnabled) =>
+                  isDeveloperModeEnabled,
+                SettingsInitialState() => false,
+              },
+              builder: (context, isDeveloperModeEnabled) {
+                return ListView.builder(
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final isOwnMessage =
+                        message.authorUserId == currentUser.userId;
+                    final isMentioningCurrentUser =
+                        !isOwnMessage && _isMentioningCurrentUser(message);
+                    final mentionBackgroundColor = isMentioningCurrentUser
+                        ? Theme.of(context).colorScheme.secondaryContainer
+                        : null;
 
-                return Align(
-                  alignment: isOwnMessage
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: Card(
-                      color: mentionBackgroundColor,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: isOwnMessage
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              _authorLabel(message.authorUserId, isOwnMessage),
-                              style: Theme.of(context).textTheme.labelSmall,
+                    return Align(
+                      alignment: isOwnMessage
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 520),
+                        child: GestureDetector(
+                          onSecondaryTapDown: isDeveloperModeEnabled
+                              ? (details) async {
+                                  final action = await showMenu<String>(
+                                    context: context,
+                                    position: RelativeRect.fromLTRB(
+                                      details.globalPosition.dx,
+                                      details.globalPosition.dy,
+                                      details.globalPosition.dx,
+                                      details.globalPosition.dy,
+                                    ),
+                                    items: <PopupMenuEntry<String>>[
+                                      const PopupMenuItem<String>(
+                                        value: "copyMessageId",
+                                        child: Text("Copy message ID"),
+                                      ),
+                                    ],
+                                  );
+                                  if (action == "copyMessageId" &&
+                                      context.mounted) {
+                                    await Clipboard.setData(
+                                      ClipboardData(text: message.id.value),
+                                    );
+                                    if (!context.mounted) {
+                                      return;
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Message ID copied"),
+                                      ),
+                                    );
+                                  }
+                                }
+                              : null,
+                          child: Card(
+                            color: mentionBackgroundColor,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
                             ),
-                            const SizedBox(height: 4),
-                            SelectableText(message.content),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                IconButton(
-                                  onPressed:
-                                      isLoading ? null : () => onEdit(message),
-                                  icon: const Icon(Icons.edit),
-                                  tooltip: "Edit message",
-                                ),
-                                if (isOwnMessage)
-                                  IconButton(
-                                    onPressed: isLoading
-                                        ? null
-                                        : () => onDelete(message),
-                                    icon: const Icon(Icons.delete),
-                                    tooltip: "Delete message",
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: isOwnMessage
+                                    ? CrossAxisAlignment.end
+                                    : CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    _authorLabel(
+                                      message.authorUserId,
+                                      isOwnMessage,
+                                    ),
+                                    style:
+                                        Theme.of(context).textTheme.labelSmall,
                                   ),
-                              ],
+                                  const SizedBox(height: 4),
+                                  SelectableText(message.content),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      IconButton(
+                                        onPressed: isLoading
+                                            ? null
+                                            : () => onEdit(message),
+                                        icon: const Icon(Icons.edit),
+                                        tooltip: "Edit message",
+                                      ),
+                                      if (isOwnMessage)
+                                        IconButton(
+                                          onPressed: isLoading
+                                              ? null
+                                              : () => onDelete(message),
+                                          icon: const Icon(Icons.delete),
+                                          tooltip: "Delete message",
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             ),

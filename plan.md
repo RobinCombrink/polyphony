@@ -411,10 +411,24 @@ Scope:
 
 #### Phase 12.5: Developer experience regarding the mobile client
 Status:
-- Planned
+- Completed.
 
 Goal:
 - Improve debugability of the frontend client
+
+Progress:
+- Completed: Created `entity_ids.dart` with 7 extension types (`UserId`, `ServerId`, `ChannelId`, `MessageId`, `FriendRequestId`, `DirectMessageThreadId`, `DirectMessageId`) as zero-cost compile-time wrappers over `String`.
+- Completed: Updated all domain models (`chat_models.dart`) to use typed IDs; API models remain `String` at the JSON/HTTP boundary.
+- Completed: Updated `api_model_extensions.dart` to wrap/unwrap typed IDs at the API-to-domain bridge.
+- Completed: Updated all 10 repository interfaces and implementations to use typed IDs in commands/queries.
+- Completed: Updated all BLoC event/state/handler files, presentation widgets, and test files to use typed IDs.
+- Completed: Developer mode toggle persisted via `PreferencesStore` and managed by `SettingsBloc` (`SettingsDeveloperModeToggledRequested` event, `isDeveloperModeEnabled` on loaded/exception states).
+- Completed: Developer options widget reads persisted developer mode from `SettingsBloc` via `BlocSelector` instead of local `setState`.
+- Completed: "Copy server ID" context menu item added to server right-click menu (gated on developer mode).
+- Completed: "Copy channel ID" context menu item added to channel right-click menu (gated on developer mode).
+- Completed: "Copy user ID" context menu item added to server member right-click menu (gated on developer mode, also shows for friends).
+- Completed: "Copy message ID" context menu item added to message right-click menu (gated on developer mode).
+- Validation: `dart analyze` clean, `flutter test` 136 tests passing, `cargo clippy` clean, `cargo test` passing.
 
 Scope: 
 - add a context menu item to more entities in the frontend when developer mode is enabled. This will copy the Id of the user

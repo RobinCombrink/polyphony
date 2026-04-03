@@ -1,8 +1,11 @@
 import "dart:async";
 
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
+import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/presentation/widgets/channel_widget.dart";
+import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
@@ -13,7 +16,8 @@ enum _PaneMenuAction { createChannel }
 enum _ChannelMenuAction {
   notificationPreferences,
   renameChannel,
-  deleteChannel
+  deleteChannel,
+  copyChannelId,
 }
 
 SectionStatus? buildChannelPaneStatus(ChannelsState state) {
@@ -244,9 +248,17 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
     final onDeleteChannel = widget.onDeleteChannel;
     final onNotificationPreferences = widget.onNotificationPreferences;
     final onRenameChannel = widget.onRenameChannel;
+    final isDeveloperModeEnabled = switch (context.read<SettingsBloc>().state) {
+      SettingsLoadedState(:final isDeveloperModeEnabled) =>
+        isDeveloperModeEnabled,
+      SettingsExceptionState(:final isDeveloperModeEnabled) =>
+        isDeveloperModeEnabled,
+      SettingsInitialState() => false,
+    };
     if (onDeleteChannel == null &&
         onNotificationPreferences == null &&
-        onRenameChannel == null) {
+        onRenameChannel == null &&
+        !isDeveloperModeEnabled) {
       return;
     }
 
@@ -278,6 +290,11 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
               style: TextStyle(color: errorColor),
             ),
           ),
+        if (isDeveloperModeEnabled)
+          const PopupMenuItem<_ChannelMenuAction>(
+            value: _ChannelMenuAction.copyChannelId,
+            child: Text("Copy channel ID"),
+          ),
       ],
     );
 
@@ -292,6 +309,14 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
         onRenameChannel?.call(channel);
       case _ChannelMenuAction.deleteChannel:
         onDeleteChannel?.call(channel);
+      case _ChannelMenuAction.copyChannelId:
+        await Clipboard.setData(ClipboardData(text: channel.id.value));
+        if (!context.mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Channel ID copied")),
+        );
     }
   }
 

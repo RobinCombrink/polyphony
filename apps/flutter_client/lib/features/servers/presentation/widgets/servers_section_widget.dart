@@ -1,8 +1,11 @@
 import "dart:async";
 
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
+import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/home/presentation/widgets/workspace_destination.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
+import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
@@ -106,6 +109,13 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
   }) async {
     final errorColor = Theme.of(context).colorScheme.error;
     final canDeleteServer = widget.currentUserId == server.ownerUserId;
+    final isDeveloperModeEnabled = switch (context.read<SettingsBloc>().state) {
+      SettingsLoadedState(:final isDeveloperModeEnabled) =>
+        isDeveloperModeEnabled,
+      SettingsExceptionState(:final isDeveloperModeEnabled) =>
+        isDeveloperModeEnabled,
+      SettingsInitialState() => false,
+    };
 
     await showMenu<void>(
       context: context,
@@ -140,6 +150,21 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
               "Delete server",
               style: TextStyle(color: errorColor),
             ),
+          ),
+        if (isDeveloperModeEnabled)
+          PopupMenuItem<void>(
+            onTap: () async {
+              await Clipboard.setData(
+                ClipboardData(text: server.id.value),
+              );
+              if (!context.mounted) {
+                return;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Server ID copied")),
+              );
+            },
+            child: const Text("Copy server ID"),
           ),
       ],
     );

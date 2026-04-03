@@ -10,6 +10,7 @@ import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.da
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
+import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/auth/authentication_profile_service.dart";
@@ -276,6 +277,12 @@ void main() {
               BlocProvider<NotificationCenterBloc>.value(
                 value: notificationCenterBloc,
               ),
+              BlocProvider<SettingsBloc>(
+                create: (_) => SettingsBloc(
+                  preferencesStore: InMemoryPreferencesStore(),
+                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+                )..add(const SettingsPreferencesRestoreRequested()),
+              ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
           ),
@@ -392,6 +399,12 @@ void main() {
               BlocProvider<NotificationCenterBloc>.value(
                 value: notificationCenterBloc,
               ),
+              BlocProvider<SettingsBloc>(
+                create: (_) => SettingsBloc(
+                  preferencesStore: InMemoryPreferencesStore(),
+                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+                )..add(const SettingsPreferencesRestoreRequested()),
+              ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
           ),
@@ -492,6 +505,12 @@ void main() {
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
               BlocProvider<NotificationCenterBloc>.value(
                 value: notificationCenterBloc,
+              ),
+              BlocProvider<SettingsBloc>(
+                create: (_) => SettingsBloc(
+                  preferencesStore: InMemoryPreferencesStore(),
+                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+                )..add(const SettingsPreferencesRestoreRequested()),
               ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
@@ -600,6 +619,12 @@ void main() {
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
               BlocProvider<NotificationCenterBloc>.value(
                 value: notificationCenterBloc,
+              ),
+              BlocProvider<SettingsBloc>(
+                create: (_) => SettingsBloc(
+                  preferencesStore: InMemoryPreferencesStore(),
+                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+                )..add(const SettingsPreferencesRestoreRequested()),
               ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
@@ -719,6 +744,12 @@ void main() {
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
               BlocProvider<NotificationCenterBloc>.value(
                 value: notificationCenterBloc,
+              ),
+              BlocProvider<SettingsBloc>(
+                create: (_) => SettingsBloc(
+                  preferencesStore: InMemoryPreferencesStore(),
+                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+                )..add(const SettingsPreferencesRestoreRequested()),
               ),
             ],
             child: const MaterialApp(home: HomePageWidget()),
@@ -852,6 +883,12 @@ void main() {
               BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
               BlocProvider<NotificationCenterBloc>.value(
                 value: notificationCenterBloc,
+              ),
+              BlocProvider<SettingsBloc>(
+                create: (_) => SettingsBloc(
+                  preferencesStore: InMemoryPreferencesStore(),
+                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+                )..add(const SettingsPreferencesRestoreRequested()),
               ),
             ],
             child: const MaterialApp(home: HomePageWidget()),

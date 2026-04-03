@@ -1,11 +1,16 @@
 import "package:flutter/material.dart";
+import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/home/presentation/widgets/workspace_destination.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/servers_section_widget.dart";
+import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
+import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
+
+import "../test_doubles/chat_repository_fakes.dart";
 
 void main() {
   const listedServer = Server(
@@ -18,27 +23,33 @@ void main() {
     required void Function(Server server) onInviteFriend,
     int directMessagesUnreadCount = 0,
   }) {
-    return MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          width: 300,
-          height: 500,
-          child: ServersSectionWidget(
-            servers: const <Server>[listedServer],
-            selectedDestination: ServerSelectedWorkspaceDestination(
-                serverId: listedServer.id.value),
-            directMessagesUnreadCount: directMessagesUnreadCount,
-            currentUserId: listedServer.ownerUserId,
-            isLoading: false,
-            createController: TextEditingController(),
-            onSelectDirectMessages: () {},
-            onTap: (_) {},
-            onAddUser: (_) {},
-            onInviteFriend: onInviteFriend,
-            onNotificationPreferences: (_) {},
-            onRenameServer: (_) {},
-            onDeleteServer: (_) {},
-            onCreate: () {},
+    return BlocProvider<SettingsBloc>(
+      create: (_) => SettingsBloc(
+        preferencesStore: InMemoryPreferencesStore(),
+        audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+      )..add(const SettingsPreferencesRestoreRequested()),
+      child: MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 500,
+            child: ServersSectionWidget(
+              servers: const <Server>[listedServer],
+              selectedDestination: ServerSelectedWorkspaceDestination(
+                  serverId: listedServer.id.value),
+              directMessagesUnreadCount: directMessagesUnreadCount,
+              currentUserId: listedServer.ownerUserId,
+              isLoading: false,
+              createController: TextEditingController(),
+              onSelectDirectMessages: () {},
+              onTap: (_) {},
+              onAddUser: (_) {},
+              onInviteFriend: onInviteFriend,
+              onNotificationPreferences: (_) {},
+              onRenameServer: (_) {},
+              onDeleteServer: (_) {},
+              onCreate: () {},
+            ),
           ),
         ),
       ),

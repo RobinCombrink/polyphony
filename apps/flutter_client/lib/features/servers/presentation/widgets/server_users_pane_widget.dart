@@ -1,8 +1,10 @@
 import "dart:async";
 
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
+import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
@@ -12,6 +14,7 @@ import "package:skeletonizer/skeletonizer.dart";
 enum _ServerUserContextMenuAction {
   addFriend,
   cancelFriendRequest,
+  copyUserId,
 }
 
 SectionStatus? buildServerUsersPaneStatus(ServerMembersState state) {
@@ -112,7 +115,15 @@ class ServerUsersPaneWidget extends StatelessWidget {
     required PendingFriendRequest? pendingRequest,
     required Offset globalPosition,
   }) async {
-    if (isFriend) {
+    final isDeveloperModeEnabled = switch (context.read<SettingsBloc>().state) {
+      SettingsLoadedState(:final isDeveloperModeEnabled) =>
+        isDeveloperModeEnabled,
+      SettingsExceptionState(:final isDeveloperModeEnabled) =>
+        isDeveloperModeEnabled,
+      SettingsInitialState() => false,
+    };
+
+    if (isFriend && !isDeveloperModeEnabled) {
       return;
     }
 
@@ -127,7 +138,7 @@ class ServerUsersPaneWidget extends StatelessWidget {
         globalPosition.dy,
       ),
       items: <PopupMenuEntry<_ServerUserContextMenuAction>>[
-        if (!hasPendingRequest)
+        if (!hasPendingRequest && !isFriend)
           const PopupMenuItem<_ServerUserContextMenuAction>(
             value: _ServerUserContextMenuAction.addFriend,
             child: Text("Add friend"),
@@ -136,6 +147,11 @@ class ServerUsersPaneWidget extends StatelessWidget {
           const PopupMenuItem<_ServerUserContextMenuAction>(
             value: _ServerUserContextMenuAction.cancelFriendRequest,
             child: Text("Cancel friend request"),
+          ),
+        if (isDeveloperModeEnabled)
+          const PopupMenuItem<_ServerUserContextMenuAction>(
+            value: _ServerUserContextMenuAction.copyUserId,
+            child: Text("Copy user ID"),
           ),
       ],
     );
@@ -166,6 +182,14 @@ class ServerUsersPaneWidget extends StatelessWidget {
                 friendRequestId: pendingRequest.id,
               ),
             );
+      case _ServerUserContextMenuAction.copyUserId:
+        await Clipboard.setData(ClipboardData(text: member.userId.value));
+        if (!context.mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User ID copied")),
+        );
     }
   }
 

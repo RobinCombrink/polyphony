@@ -3,8 +3,10 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/server_users_pane_widget.dart";
+import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
+import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
 import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
@@ -31,14 +33,20 @@ class _RecordingServerMembersBloc extends ServerMembersBloc {
 }
 
 Widget _buildWidget(ServerMembersBloc bloc) {
-  return MaterialApp(
-    home: Scaffold(
-      body: BlocProvider<ServerMembersBloc>.value(
-        value: bloc,
-        child: const SizedBox(
-          width: 320,
-          height: 600,
-          child: ServerUsersPaneWidget(),
+  return BlocProvider<SettingsBloc>(
+    create: (_) => SettingsBloc(
+      preferencesStore: InMemoryPreferencesStore(),
+      audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+    )..add(const SettingsPreferencesRestoreRequested()),
+    child: MaterialApp(
+      home: Scaffold(
+        body: BlocProvider<ServerMembersBloc>.value(
+          value: bloc,
+          child: const SizedBox(
+            width: 320,
+            height: 600,
+            child: ServerUsersPaneWidget(),
+          ),
         ),
       ),
     ),
