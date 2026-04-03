@@ -1,6 +1,7 @@
 import "dart:math";
 
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 
 class ChatApiFixture {
   const ChatApiFixture({
@@ -16,7 +17,7 @@ class ChatApiFixture {
     required this.connectedVoiceSession,
   });
 
-  final String ownerUserId;
+  final UserId ownerUserId;
   final Server listedServer;
   final Server createdServer;
   final Channel listedChannel;
@@ -31,43 +32,45 @@ class ChatApiFixture {
 class EntitySeeder {
   static final _random = Random();
 
-  String authUserId({String? value}) {
-    if (value != null && value.trim().isNotEmpty) {
+  UserId authUserId({UserId? value}) {
+    if (value != null && value.value.trim().isNotEmpty) {
       return value;
     }
 
-    return "auth0|user_${_randomSegment()}";
+    return UserId("auth0|user_${_randomSegment()}");
   }
 
   ChatApiFixture chatApiFixture() {
-    const ownerUserId = "auth0|u1";
+    const ownerUserId = UserId("auth0|u1");
 
-    final listedServer = server(id: "srv-1", ownerUserId: ownerUserId);
-    final createdServer = server(id: "srv-2", ownerUserId: ownerUserId);
+    final listedServer =
+        server(id: const ServerId("srv-1"), ownerUserId: ownerUserId);
+    final createdServer =
+        server(id: const ServerId("srv-2"), ownerUserId: ownerUserId);
     final listedChannel = textChannel(
-      id: "chn-1",
+      id: const ChannelId("chn-1"),
       serverId: listedServer.id,
     );
     final createdChannel = textChannel(
-      id: "chn-2",
+      id: const ChannelId("chn-2"),
       serverId: listedServer.id,
     );
     final listedVoiceChannel = voiceChannel(
-      id: "vch-1",
+      id: const ChannelId("vch-1"),
       serverId: listedServer.id,
     );
     final createdVoiceChannel = voiceChannel(
-      id: "vch-2",
+      id: const ChannelId("vch-2"),
       serverId: listedServer.id,
     );
     final listedMessage = message(
-      id: "msg-1",
+      id: const MessageId("msg-1"),
       channelId: listedChannel.id,
       authorUserId: ownerUserId,
       content: "hello",
     );
     final createdMessage = message(
-      id: "msg-2",
+      id: const MessageId("msg-2"),
       channelId: listedChannel.id,
       authorUserId: ownerUserId,
       content: "new message",
@@ -93,24 +96,24 @@ class EntitySeeder {
     );
   }
 
-  Server server({String? id, String? name, String? ownerUserId}) {
+  Server server({ServerId? id, String? name, UserId? ownerUserId}) {
     final randomSegment = _randomSegment();
 
     return Server(
-      id: id ?? "srv-seeded-$randomSegment",
+      id: id ?? ServerId("srv-seeded-$randomSegment"),
       name: name ?? "Server-$randomSegment",
       ownerUserId: authUserId(value: ownerUserId),
     );
   }
 
   TextChannel textChannel({
-    required String serverId,
-    String? id,
+    required ServerId serverId,
+    ChannelId? id,
     String? name,
   }) {
     final randomSegment = _randomSegment();
 
-    final resolvedId = id ?? "chn-seeded-$randomSegment";
+    final resolvedId = id ?? ChannelId("chn-seeded-$randomSegment");
     final resolvedName = name ?? "Channel-$randomSegment";
 
     return TextChannel(
@@ -121,13 +124,13 @@ class EntitySeeder {
   }
 
   VoiceChannel voiceChannel({
-    required String serverId,
-    String? id,
+    required ServerId serverId,
+    ChannelId? id,
     String? name,
   }) {
     final randomSegment = _randomSegment();
 
-    final resolvedId = id ?? "chn-seeded-$randomSegment";
+    final resolvedId = id ?? ChannelId("chn-seeded-$randomSegment");
     final resolvedName = name ?? "Channel-$randomSegment";
 
     return VoiceChannel(
@@ -138,15 +141,15 @@ class EntitySeeder {
   }
 
   Message message({
-    required String channelId,
-    required String authorUserId,
-    String? id,
+    required ChannelId channelId,
+    required UserId authorUserId,
+    MessageId? id,
     String? content,
   }) {
     final randomSegment = _randomSegment();
 
     return Message(
-      id: id ?? "msg-seeded-$randomSegment",
+      id: id ?? MessageId("msg-seeded-$randomSegment"),
       channelId: channelId,
       authorUserId: authorUserId,
       content: content ?? "Message-$randomSegment",
@@ -156,8 +159,8 @@ class EntitySeeder {
   VoiceConnectSession voiceConnectSession({
     required String livekitUrl,
     required String accessToken,
-    required String channelId,
-    required String participantUserId,
+    required ChannelId channelId,
+    required UserId participantUserId,
   }) {
     return VoiceConnectSession(
       livekitUrl: livekitUrl,
@@ -169,16 +172,16 @@ class EntitySeeder {
 
   Map<String, dynamic> serverJson(Server server) {
     return <String, dynamic>{
-      "id": server.id,
+      "id": server.id.value,
       "name": server.name,
-      "owner_user_id": server.ownerUserId,
+      "owner_user_id": server.ownerUserId.value,
     };
   }
 
   Map<String, dynamic> channelJson(Channel channel) {
     return <String, dynamic>{
-      "id": channel.id,
-      "server_id": channel.serverId,
+      "id": channel.id.value,
+      "server_id": channel.serverId.value,
       "name": channel.name,
       "channel_type": channel.channelType.apiValue,
     };
@@ -186,9 +189,9 @@ class EntitySeeder {
 
   Map<String, dynamic> messageJson(Message message) {
     return <String, dynamic>{
-      "id": message.id,
-      "channel_id": message.channelId,
-      "author_user_id": message.authorUserId,
+      "id": message.id.value,
+      "channel_id": message.channelId.value,
+      "author_user_id": message.authorUserId.value,
       "content": message.content,
     };
   }
@@ -199,8 +202,8 @@ class EntitySeeder {
     return <String, dynamic>{
       "livekit_url": voiceConnectSession.livekitUrl,
       "access_token": voiceConnectSession.accessToken,
-      "channel_id": voiceConnectSession.channelId,
-      "participant_user_id": voiceConnectSession.participantUserId,
+      "channel_id": voiceConnectSession.channelId.value,
+      "participant_user_id": voiceConnectSession.participantUserId.value,
     };
   }
 

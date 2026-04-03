@@ -1,4 +1,5 @@
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
 
 class ConnectVoiceSessionCommand {
@@ -7,7 +8,7 @@ class ConnectVoiceSessionCommand {
     this.participantInstanceId,
   });
 
-  final String channelId;
+  final ChannelId channelId;
   final String? participantInstanceId;
 }
 

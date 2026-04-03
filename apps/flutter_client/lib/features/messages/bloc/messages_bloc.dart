@@ -3,6 +3,7 @@ import "dart:async";
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
@@ -31,8 +32,8 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     _runtimeTextSubscription =
         _messageRuntimeService.textMessages().listen((runtimeMessage) {
       add(RealtimeMessageReceived(
-        channelId: runtimeMessage.channelId,
-        authorUserId: runtimeMessage.authorUserId,
+        channelId: ChannelId(runtimeMessage.channelId),
+        authorUserId: UserId(runtimeMessage.authorUserId),
         content: runtimeMessage.content,
       ));
     });
@@ -76,9 +77,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     LoadMessagesRequested event,
     Emitter<MessagesState> emit,
   ) async {
-    final trimmedChannelId = event.channelId.trim();
-
-    if (trimmedChannelId.isEmpty) {
+    if (event.channelId.value.trim().isEmpty) {
       emit(
         switch (state) {
           final MessagesLoadedDataState loadedState =>
@@ -101,13 +100,13 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     final existingDisplayNamesByUserId = switch (currentState) {
       MessagesLoadedDataState(:final authorDisplayNamesByUserId) =>
         authorDisplayNamesByUserId,
-      _ => const <String, String?>{},
+      _ => const <UserId, String?>{},
     };
     emit(const MessagesLoadingState());
 
-    if (currentState?.channelId != trimmedChannelId) {
+    if (currentState?.channelId != event.channelId) {
       final connectSessionResult = await _textSessionRepo.createOne(
-        command: ConnectTextSessionCommand(channelId: trimmedChannelId),
+        command: ConnectTextSessionCommand(channelId: event.channelId),
       );
 
       final connectionResult = switch (connectSessionResult) {
@@ -127,7 +126,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     final listMessagesResult = await _messageRepo.getMany(
       query: GetMessagesQuery(
-        channelId: trimmedChannelId,
+        channelId: event.channelId,
       ),
     );
 
@@ -140,7 +139,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         );
         emit(MessagesLoadedState(
           messages: messages,
-          channelId: trimmedChannelId,
+          channelId: event.channelId,
           authorDisplayNamesByUserId: authorDisplayNamesByUserId,
         ));
       case Error<Iterable<Message>>(:final error):
@@ -152,18 +151,17 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     CreateMessageRequested event,
     Emitter<MessagesState> emit,
   ) async {
-    final trimmedChannelId = event.channelId.trim();
     final trimmedMessageContent = event.messageContent.trim();
     final loadedState = _loadedStateOrNull(state);
     final existingDisplayNamesByUserId = switch (loadedState) {
       MessagesLoadedDataState(:final authorDisplayNamesByUserId) =>
         authorDisplayNamesByUserId,
-      _ => const <String, String?>{},
+      _ => const <UserId, String?>{},
     };
     final currentMessages = loadedState?.messages ?? const <Message>[];
-    final currentChannelId = loadedState?.channelId ?? "";
+    final currentChannelId = loadedState?.channelId ?? const ChannelId("");
 
-    if (trimmedChannelId.isEmpty) {
+    if (event.channelId.value.trim().isEmpty) {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: currentMessages,
@@ -177,7 +175,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.messageContentRequired,
         messages: currentMessages,
-        channelId: trimmedChannelId,
+        channelId: event.channelId,
         authorDisplayNamesByUserId: existingDisplayNamesByUserId,
       ));
       return;
@@ -186,7 +184,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     emit(const MessagesLoadingState());
 
     final realtimeResult = await _messageRuntimeService.sendTextMessage(
-      channelId: trimmedChannelId,
+      channelId: event.channelId.value,
       content: trimmedMessageContent,
     );
 
@@ -197,7 +195,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     final createMessageResult = await _messageRepo.createOne(
       command: CreateMessageCommand(
-        channelId: trimmedChannelId,
+        channelId: event.channelId,
         content: trimmedMessageContent,
         mentionedUserId: event.mentionedUserId,
       ),
@@ -212,7 +210,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         );
         emit(MessagesLoadedState(
           messages: messages,
-          channelId: trimmedChannelId,
+          channelId: event.channelId,
           authorDisplayNamesByUserId: authorDisplayNamesByUserId,
         ));
       case Error<Message>(:final error):
@@ -224,7 +222,6 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     UpdateMessageRequested event,
     Emitter<MessagesState> emit,
   ) async {
-    final trimmedChannelId = event.channelId.trim();
     final trimmedMessageContent = event.messageContent.trim();
     final loadedState = switch (state) {
       final MessagesLoadedDataState loadedState => loadedState,
@@ -238,7 +235,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
       return;
     }
 
-    if (trimmedChannelId.isEmpty) {
+    if (event.channelId.value.trim().isEmpty) {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: loadedState.messages,
@@ -252,7 +249,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.updatedContentRequired,
         messages: loadedState.messages,
-        channelId: trimmedChannelId,
+        channelId: event.channelId,
         authorDisplayNamesByUserId: loadedState.authorDisplayNamesByUserId,
       ));
       return;
@@ -262,7 +259,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     final updateMessageResult = await _messageRepo.updateOne(
       command: UpdateMessageCommand(
-        channelId: trimmedChannelId,
+        channelId: event.channelId,
         messageId: event.messageId,
         content: trimmedMessageContent,
       ),
@@ -281,7 +278,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         );
         emit(MessagesLoadedState(
           messages: messages,
-          channelId: trimmedChannelId,
+          channelId: event.channelId,
           authorDisplayNamesByUserId: authorDisplayNamesByUserId,
         ));
       case Error<Message>(:final error):
@@ -293,7 +290,6 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     DeleteMessageRequested event,
     Emitter<MessagesState> emit,
   ) async {
-    final trimmedChannelId = event.channelId.trim();
     final loadedState = switch (state) {
       final MessagesLoadedDataState loadedState => loadedState,
       _ => null,
@@ -306,7 +302,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
       return;
     }
 
-    if (trimmedChannelId.isEmpty) {
+    if (event.channelId.value.trim().isEmpty) {
       emit(MessagesValidationFailedState(
         issue: MessagesValidationIssue.channelSelectionRequired,
         messages: loadedState.messages,
@@ -320,7 +316,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
 
     final deleteMessageResult = await _messageRepo.deleteOne(
       command: DeleteMessageCommand(
-        channelId: trimmedChannelId,
+        channelId: event.channelId,
         messageId: event.messageId,
       ),
     );
@@ -336,7 +332,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
         );
         emit(MessagesLoadedState(
           messages: messages,
-          channelId: trimmedChannelId,
+          channelId: event.channelId,
           authorDisplayNamesByUserId: authorDisplayNamesByUserId,
         ));
       case Error<void>(:final error):
@@ -374,7 +370,7 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     final messages = List<Message>.from(loadedState.messages)
       ..add(
         Message(
-          id: "rt-${DateTime.now().microsecondsSinceEpoch}",
+          id: MessageId("rt-${DateTime.now().microsecondsSinceEpoch}"),
           channelId: event.channelId,
           authorUserId: event.authorUserId,
           content: trimmedContent,
@@ -399,18 +395,18 @@ class MessagesBloc extends Bloc<MessagesEvent, MessagesState> {
     };
   }
 
-  Future<Map<String, String?>> _loadAuthorDisplayNames(
+  Future<Map<UserId, String?>> _loadAuthorDisplayNames(
     List<Message> messages, {
-    Map<String, String?> existingDisplayNamesByUserId =
-        const <String, String?>{},
+    Map<UserId, String?> existingDisplayNamesByUserId =
+        const <UserId, String?>{},
   }) async {
     final subjects = messages
         .map((message) => message.authorUserId)
-        .where((userId) => userId.trim().isNotEmpty)
+        .where((userId) => userId.value.trim().isNotEmpty)
         .toSet()
         .toList(growable: false);
 
-    final authorDisplayNamesByUserId = <String, String?>{};
+    final authorDisplayNamesByUserId = <UserId, String?>{};
     for (final userId in subjects) {
       if (existingDisplayNamesByUserId.containsKey(userId)) {
         authorDisplayNamesByUserId[userId] =

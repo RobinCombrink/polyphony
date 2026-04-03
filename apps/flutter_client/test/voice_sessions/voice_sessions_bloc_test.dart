@@ -3,6 +3,7 @@ import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
@@ -35,7 +36,7 @@ void main() {
   group("ParticipantStatusReducer", () {
     VoiceSessionsLoadedState seededLoadedState({
       required List<VoiceParticipant> participants,
-      required String selfParticipantUserId,
+      required UserId selfParticipantUserId,
       bool isSelfMuted = false,
       bool isSelfDeafened = false,
     }) {
@@ -50,7 +51,7 @@ void main() {
         activeConnection: activeConnection,
         selectedChannelId: fixture.listedVoiceChannel.id,
         participants: participants,
-        participantsByChannelId: <String, List<VoiceParticipant>>{
+        participantsByChannelId: <ChannelId, List<VoiceParticipant>>{
           fixture.listedVoiceChannel.id: participants,
         },
         participantVideoTracks: const <String, Object>{},
@@ -62,17 +63,17 @@ void main() {
 
     test("applies speaking updates to participant and speaking set", () {
       final loadedState = seededLoadedState(
-        selfParticipantUserId: "auth0|u1",
+        selfParticipantUserId: const UserId("auth0|u1"),
         participants: const <VoiceParticipant>[
           VoiceParticipant(
-            userId: "auth0|u1",
+            userId: UserId("auth0|u1"),
             displayName: "User One",
             isMuted: false,
             isDeafened: false,
             isSpeaking: false,
           ),
           VoiceParticipant(
-            userId: "auth0|u2",
+            userId: UserId("auth0|u2"),
             displayName: "User Two",
             isMuted: false,
             isDeafened: false,
@@ -95,7 +96,8 @@ void main() {
       expect(nextState, isNotNull);
       expect(
         nextState!.participants
-            .firstWhere((participant) => participant.userId == "auth0|u2")
+            .firstWhere(
+                (participant) => participant.userId == const UserId("auth0|u2"))
             .isSpeaking,
         isTrue,
       );
@@ -104,10 +106,10 @@ void main() {
     test("returns no next state when update does not change any participant",
         () {
       final loadedState = seededLoadedState(
-        selfParticipantUserId: "auth0|u1",
+        selfParticipantUserId: const UserId("auth0|u1"),
         participants: const <VoiceParticipant>[
           VoiceParticipant(
-            userId: "auth0|u1",
+            userId: UserId("auth0|u1"),
             displayName: "User One",
             isMuted: false,
             isDeafened: false,
@@ -132,10 +134,10 @@ void main() {
     test("updates self mute flag when self participant mute update is applied",
         () {
       final loadedState = seededLoadedState(
-        selfParticipantUserId: "auth0|u1",
+        selfParticipantUserId: const UserId("auth0|u1"),
         participants: const <VoiceParticipant>[
           VoiceParticipant(
-            userId: "auth0|u1",
+            userId: UserId("auth0|u1"),
             displayName: "User One",
             isMuted: false,
             isDeafened: false,
@@ -158,7 +160,8 @@ void main() {
       expect(nextState!.isSelfMuted, isTrue);
       expect(
         nextState.participants
-            .firstWhere((participant) => participant.userId == "auth0|u1")
+            .firstWhere(
+                (participant) => participant.userId == const UserId("auth0|u1"))
             .isMuted,
         isTrue,
       );
@@ -174,7 +177,7 @@ void main() {
     ),
     act: (bloc) => bloc.add(
       RefreshVoiceParticipantsRequested(
-        channelIds: <String>[fixture.listedVoiceChannel.id],
+        channelIds: <ChannelId>[fixture.listedVoiceChannel.id],
       ),
     ),
     expect: () => <Matcher>[],
@@ -185,8 +188,8 @@ void main() {
     build: () {
       countingProfileRepository = _CountingProfileRepository(
         userId: fixture.ownerUserId,
-        displayNamesByUserId: const <String, String?>{
-          "auth0|u1": "User One",
+        displayNamesByUserId: const <UserId, String?>{
+          UserId("auth0|u1"): "User One",
         },
       );
 
@@ -203,7 +206,7 @@ void main() {
           channelId: fixture.listedVoiceChannel.id))
       ..add(
         RefreshVoiceParticipantsRequested(
-          channelIds: <String>[fixture.listedVoiceChannel.id],
+          channelIds: <ChannelId>[fixture.listedVoiceChannel.id],
         ),
       ),
     verify: (bloc) {
@@ -218,8 +221,8 @@ void main() {
       voiceRuntimeService: FakeVoiceRuntimeService(),
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
-        displayNamesByUserId: const <String, String?>{
-          "auth0|local_user": "Local User",
+        displayNamesByUserId: const <UserId, String?>{
+          UserId("auth0|local_user"): "Local User",
         },
       ),
     ),
@@ -266,7 +269,7 @@ void main() {
         channelId: fixture.listedVoiceChannel.id,
       ))
       ..add(const ConnectVoiceSessionRequested(
-        channelId: "",
+        channelId: ChannelId(""),
       )),
     expect: () => <Matcher>[
       isA<VoiceSessionsLoadedState>(),
@@ -756,7 +759,8 @@ void main() {
 
       speakingRuntimeService.emitParticipantStatusUpdate(
         ParticipantSpeakingStatusUpdated(
-          participantUserId: fixture.connectedVoiceSession.participantUserId,
+          participantUserId:
+              fixture.connectedVoiceSession.participantUserId.value,
           isSpeaking: true,
         ),
       );
@@ -786,7 +790,7 @@ void main() {
     build: () {
       speakingRuntimeService = FakeVoiceRuntimeService(
         initialParticipantUserIds: <String>{
-          fixture.connectedVoiceSession.participantUserId,
+          fixture.connectedVoiceSession.participantUserId.value,
         },
       );
 
@@ -795,8 +799,8 @@ void main() {
         voiceRuntimeService: speakingRuntimeService,
         profileRepo: FakeProfileRepository(
           userId: fixture.ownerUserId,
-          displayNamesByUserId: const <String, String?>{
-            "auth0|u2": "Remote User",
+          displayNamesByUserId: const <UserId, String?>{
+            UserId("auth0|u2"): "Remote User",
           },
         ),
       );
@@ -814,7 +818,7 @@ void main() {
 
       speakingRuntimeService.emitParticipantUserIds(
         <String>{
-          fixture.connectedVoiceSession.participantUserId,
+          fixture.connectedVoiceSession.participantUserId.value,
           "auth0|u2",
         },
       );
@@ -828,9 +832,9 @@ void main() {
       isA<VoiceSessionsLoadedState>().having(
         (state) => state.participants.map((participant) => participant.userId),
         "participant user ids",
-        containsAll(<String>[
+        containsAll(<UserId>[
           fixture.connectedVoiceSession.participantUserId,
-          "auth0|u2",
+          const UserId("auth0|u2"),
         ]),
       ),
     ],
@@ -841,7 +845,7 @@ void main() {
     build: () {
       speakingRuntimeService = FakeVoiceRuntimeService(
         initialParticipantUserIds: <String>{
-          fixture.connectedVoiceSession.participantUserId,
+          fixture.connectedVoiceSession.participantUserId.value,
           "auth0|u2",
         },
       );
@@ -851,8 +855,8 @@ void main() {
         voiceRuntimeService: speakingRuntimeService,
         profileRepo: FakeProfileRepository(
           userId: fixture.ownerUserId,
-          displayNamesByUserId: const <String, String?>{
-            "auth0|u2": "Remote User",
+          displayNamesByUserId: const <UserId, String?>{
+            UserId("auth0|u2"): "Remote User",
           },
         ),
       );
@@ -883,7 +887,8 @@ void main() {
       isA<VoiceSessionsLoadedState>(),
       isA<VoiceSessionsLoadedState>().having(
         (state) => state.participants
-            .firstWhere((participant) => participant.userId == "auth0|u2")
+            .firstWhere(
+                (participant) => participant.userId == const UserId("auth0|u2"))
             .isMuted,
         "remote participant muted",
         true,
@@ -896,7 +901,7 @@ void main() {
     build: () {
       speakingRuntimeService = FakeVoiceRuntimeService(
         initialParticipantUserIds: <String>{
-          fixture.connectedVoiceSession.participantUserId,
+          fixture.connectedVoiceSession.participantUserId.value,
           "auth0|u2",
         },
       );
@@ -906,8 +911,8 @@ void main() {
         voiceRuntimeService: speakingRuntimeService,
         profileRepo: FakeProfileRepository(
           userId: fixture.ownerUserId,
-          displayNamesByUserId: const <String, String?>{
-            "auth0|u2": "Remote User",
+          displayNamesByUserId: const <UserId, String?>{
+            UserId("auth0|u2"): "Remote User",
           },
         ),
       );
@@ -938,7 +943,8 @@ void main() {
       isA<VoiceSessionsLoadedState>(),
       isA<VoiceSessionsLoadedState>().having(
         (state) => state.participants
-            .firstWhere((participant) => participant.userId == "auth0|u2")
+            .firstWhere(
+                (participant) => participant.userId == const UserId("auth0|u2"))
             .isDeafened,
         "remote participant deafened",
         true,
@@ -986,7 +992,7 @@ void main() {
     build: () {
       speakingRuntimeService = FakeVoiceRuntimeService(
         initialParticipantUserIds: <String>{
-          fixture.connectedVoiceSession.participantUserId,
+          fixture.connectedVoiceSession.participantUserId.value,
         },
       );
 
@@ -1011,7 +1017,8 @@ void main() {
 
       speakingRuntimeService.emitParticipantVideoTracks(
         <String, Object>{
-          fixture.connectedVoiceSession.participantUserId: videoTrackToken,
+          fixture.connectedVoiceSession.participantUserId.value:
+              videoTrackToken,
         },
       );
 
@@ -1023,7 +1030,7 @@ void main() {
       isA<VoiceSessionsLoadedState>(),
       isA<VoiceSessionsLoadedState>().having(
         (state) => state.participantVideoTracks
-            .containsKey(fixture.connectedVoiceSession.participantUserId),
+            .containsKey(fixture.connectedVoiceSession.participantUserId.value),
         "contains self participant video track",
         true,
       ),
@@ -1037,8 +1044,8 @@ void main() {
       voiceRuntimeService: FakeVoiceRuntimeService(),
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
-        displayNamesByUserId: const <String, String?>{
-          "auth0|local_user": "Local User",
+        displayNamesByUserId: const <UserId, String?>{
+          UserId("auth0|local_user"): "Local User",
         },
       ),
     ),

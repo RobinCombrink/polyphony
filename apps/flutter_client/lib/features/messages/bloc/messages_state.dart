@@ -22,12 +22,12 @@ sealed class MessagesLoadedDataState extends MessagesState {
   const MessagesLoadedDataState({
     required this.messages,
     required this.channelId,
-    this.authorDisplayNamesByUserId = const <String, String?>{},
+    this.authorDisplayNamesByUserId = const <UserId, String?>{},
   });
 
   final List<Message> messages;
-  final String channelId;
-  final Map<String, String?> authorDisplayNamesByUserId;
+  final ChannelId channelId;
+  final Map<UserId, String?> authorDisplayNamesByUserId;
 }
 
 final class MessagesLoadedState extends MessagesLoadedDataState {

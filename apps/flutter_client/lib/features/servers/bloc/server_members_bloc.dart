@@ -1,6 +1,7 @@
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_member_repo.dart";
@@ -52,16 +53,15 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     LoadServerMembersRequested event,
     Emitter<ServerMembersState> emit,
   ) async {
-    final trimmedServerId = event.serverId.trim();
     final loadedState = _loadedStateOrNull(state);
     final existingMembers = switch (loadedState) {
       ServerMembersLoadedDataState(:final serverId, :final members)
-          when serverId == trimmedServerId =>
+          when serverId == event.serverId =>
         members,
       _ => const <UserProfile>[],
     };
 
-    if (trimmedServerId.isEmpty) {
+    if (event.serverId.value.trim().isEmpty) {
       emit(
         switch (state) {
           final ServerMembersLoadedDataState loadedState =>
@@ -86,7 +86,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     emit(const ServerMembersLoadingState());
 
     await _loadServerMembersForServer(
-      serverId: trimmedServerId,
+      serverId: event.serverId,
       existingMembers: existingMembers,
       emit: emit,
     );
@@ -106,10 +106,10 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
       return;
     }
 
-    final trimmedServerId = event.serverId.trim();
-    final trimmedUserId = event.userId.trim();
+    final trimmedUserId = event.userId.value.trim();
 
-    if (trimmedServerId.isEmpty || trimmedServerId != loadedState.serverId) {
+    if (event.serverId.value.trim().isEmpty ||
+        event.serverId != loadedState.serverId) {
       _emitValidationFromLoadedState(
         loadedState,
         ServerMembersValidationIssue.serverSelectionRequired,
@@ -140,8 +140,8 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
 
     final addMemberResult = await _serverRepo.updateOne(
       command: AddServerMemberUpdateCommand(
-        serverId: trimmedServerId,
-        userId: trimmedUserId,
+        serverId: event.serverId,
+        userId: event.userId,
       ),
     );
 
@@ -177,10 +177,10 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
       return;
     }
 
-    final trimmedServerId = event.serverId.trim();
-    final trimmedFriendUserId = event.friendUserId.trim();
+    final trimmedFriendUserId = event.friendUserId.value.trim();
 
-    if (trimmedServerId.isEmpty || trimmedServerId != loadedState.serverId) {
+    if (event.serverId.value.trim().isEmpty ||
+        event.serverId != loadedState.serverId) {
       _emitValidationFromLoadedState(
         loadedState,
         ServerMembersValidationIssue.serverSelectionRequired,
@@ -202,8 +202,8 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
 
     final inviteResult = await _serverRepo.updateOne(
       command: InviteFriendToServerCommand(
-        serverId: trimmedServerId,
-        friendUserId: trimmedFriendUserId,
+        serverId: event.serverId,
+        friendUserId: event.friendUserId,
       ),
     );
 
@@ -226,7 +226,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
   }
 
   Future<void> _loadServerMembersForServer({
-    required String serverId,
+    required ServerId serverId,
     required List<UserProfile> existingMembers,
     required Emitter<ServerMembersState> emit,
   }) async {
@@ -268,10 +268,10 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
       return;
     }
 
-    final trimmedServerId = event.serverId.trim();
-    final trimmedTargetUserId = event.targetUserId.trim();
+    final trimmedServerId = event.serverId.value.trim();
+    final trimmedTargetUserId = event.targetUserId.value.trim();
 
-    if (trimmedServerId.isEmpty || trimmedServerId != loadedState.serverId) {
+    if (trimmedServerId.isEmpty || event.serverId != loadedState.serverId) {
       emit(ServerMembersValidationFailedState(
         issue: ServerMembersValidationIssue.serverSelectionRequired,
         serverId: loadedState.serverId,
@@ -296,7 +296,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     }
 
     if (!loadedState.members
-        .any((member) => member.userId == trimmedTargetUserId)) {
+        .any((member) => member.userId == event.targetUserId)) {
       emit(ServerMembersValidationFailedState(
         issue: ServerMembersValidationIssue.serverMemberSelectionRequired,
         serverId: loadedState.serverId,
@@ -308,7 +308,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
       return;
     }
 
-    if (loadedState.friendUserIds.contains(trimmedTargetUserId)) {
+    if (loadedState.friendUserIds.contains(event.targetUserId)) {
       emit(ServerMembersValidationFailedState(
         issue: ServerMembersValidationIssue.alreadyFriend,
         serverId: loadedState.serverId,
@@ -321,7 +321,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     }
 
     if (loadedState.pendingOutgoingFriendRequests.any(
-      (request) => request.addresseeUserId == trimmedTargetUserId,
+      (request) => request.addresseeUserId == event.targetUserId,
     )) {
       emit(ServerMembersValidationFailedState(
         issue: ServerMembersValidationIssue.sendFriendRequestConflict,
@@ -336,8 +336,8 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
 
     final sendResult = await _friendRepo.createOne(
       command: SendFriendRequestFromServerContextCommand(
-        serverId: trimmedServerId,
-        targetUserId: trimmedTargetUserId,
+        serverId: event.serverId,
+        targetUserId: event.targetUserId,
       ),
     );
 
@@ -423,7 +423,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
       return;
     }
 
-    final trimmedRequestId = event.friendRequestId.trim();
+    final trimmedRequestId = event.friendRequestId.value.trim();
     if (trimmedRequestId.isEmpty) {
       emit(ServerMembersValidationFailedState(
         issue:
@@ -438,7 +438,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     }
 
     if (!loadedState.pendingOutgoingFriendRequests
-        .any((request) => request.id == trimmedRequestId)) {
+        .any((request) => request.id == event.friendRequestId)) {
       emit(ServerMembersValidationFailedState(
         issue:
             ServerMembersValidationIssue.pendingFriendRequestSelectionRequired,
@@ -453,7 +453,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
 
     final cancelResult = await _friendRepo.deleteOne(
       command: CancelOutgoingFriendRequestCommand(
-        friendRequestId: trimmedRequestId,
+        friendRequestId: event.friendRequestId,
       ),
     );
 
@@ -465,7 +465,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
           friendUserIds: loadedState.friendUserIds,
           pendingOutgoingFriendRequests: loadedState
               .pendingOutgoingFriendRequests
-              .where((request) => request.id != trimmedRequestId)
+              .where((request) => request.id != event.friendRequestId)
               .toList(growable: false),
         ));
       case Error<void>(:final error):
@@ -514,17 +514,17 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     };
   }
 
-  Future<Set<String>> _resolveFriendUserIds() async {
+  Future<Set<UserId>> _resolveFriendUserIds() async {
     final friendsResult = await _friendRepo.getMany(
       query: const GetFriendsQuery(),
     );
 
     return switch (friendsResult) {
       Ok<Iterable<Friend>>(:final value) => value
-          .map((friend) => friend.userId.trim())
-          .where((userId) => userId.isNotEmpty)
+          .map((friend) => friend.userId)
+          .where((userId) => userId.value.trim().isNotEmpty)
           .toSet(),
-      Error<Iterable<Friend>>() => <String>{},
+      Error<Iterable<Friend>>() => <UserId>{},
     };
   }
 
@@ -536,7 +536,7 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
 
     return switch (pendingRequestsResult) {
       Ok<Iterable<PendingFriendRequest>>(:final value) => value
-          .where((request) => request.id.trim().isNotEmpty)
+          .where((request) => request.id.value.trim().isNotEmpty)
           .toList(growable: false),
       Error<Iterable<PendingFriendRequest>>() => const <PendingFriendRequest>[],
     };
@@ -547,13 +547,13 @@ class ServerMembersBloc extends Bloc<ServerMembersEvent, ServerMembersState> {
     required List<UserProfile> existingMembers,
   }) async {
     final uniqueUserIds = members
-        .map((member) => member.userId.trim())
-        .where((userId) => userId.isNotEmpty)
+        .map((member) => member.userId)
+        .where((userId) => userId.value.trim().isNotEmpty)
         .toSet()
         .toList();
-    final existingDisplayNamesByUserId = <String, String?>{
+    final existingDisplayNamesByUserId = <UserId, String?>{
       for (final profile in existingMembers)
-        profile.userId.trim(): profile.displayName?.trim(),
+        profile.userId: profile.displayName?.trim(),
     };
 
     final resolvedProfiles = <UserProfile>[];

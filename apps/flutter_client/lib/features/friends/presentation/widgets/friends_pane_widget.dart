@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/friends/bloc/friends_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 
 class FriendsPaneWidget extends StatelessWidget {
   const FriendsPaneWidget({
@@ -9,7 +10,7 @@ class FriendsPaneWidget extends StatelessWidget {
     super.key,
   });
 
-  final void Function(String userId)? onStartDirectMessage;
+  final void Function(UserId userId)? onStartDirectMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +23,7 @@ class FriendsPaneWidget extends StatelessWidget {
         builder: (context, state) {
           final loadedData = state is FriendsLoadedDataState ? state : null;
           final friends = loadedData?.friends ?? const <Friend>[];
-          final blockedUserIds = loadedData?.blockedUserIds ?? const <String>{};
+          final blockedUserIds = loadedData?.blockedUserIds ?? const <UserId>{};
 
           return Card(
             child: Padding(
@@ -66,7 +67,7 @@ class FriendsPaneWidget extends StatelessWidget {
 
                           return ListTile(
                             dense: true,
-                            title: Text(friend.userId),
+                            title: Text(friend.userId.value),
                             trailing: Wrap(
                               spacing: 4,
                               children: <Widget>[

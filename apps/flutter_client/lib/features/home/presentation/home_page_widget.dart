@@ -18,6 +18,7 @@ import "package:polyphony_flutter_client/features/servers/presentation/widgets/s
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_keybindings_focus_widget.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_quick_actions_overlay_widget.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/top_right_error_toast.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
@@ -143,10 +144,10 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     return state.entries.where(_isDirectMessageNotification).length;
   }
 
-  Future<void> _markChannelNotificationsRead(String channelId) async {
+  Future<void> _markChannelNotificationsRead(ChannelId channelId) async {
     final markReadResult = await context
         .read<NotificationService>()
-        .markChannelNotificationsRead(channelId: channelId);
+        .markChannelNotificationsRead(channelId: channelId.value);
 
     if (!mounted) {
       return;
@@ -484,7 +485,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                       createController: createServerController,
                                       selectedDestination:
                                           ServerSelectedWorkspaceDestination(
-                                        serverId: selectedServer.id,
+                                        serverId: selectedServer.id.value,
                                       ),
                                       directMessagesUnreadCount:
                                           _directMessagesUnreadCount(
@@ -707,7 +708,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     BuildContext context,
     NotificationCenterEntry entry,
   ) {
-    final serverId = entry.event.serverId.trim();
+    final serverId = ServerId(entry.event.serverId.trim());
     final serversBloc = context.read<ServersBloc>();
     final channelsBloc = context.read<ChannelsBloc>();
 
@@ -724,19 +725,19 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     final hasTargetLoaded = channelsState is ChannelsLoadedDataState &&
         channelsState.serverId == serverId &&
         channelsState.textChannels.any(
-          (channel) => channel.id == entry.event.channelId,
+          (channel) => channel.id.value == entry.event.channelId,
         );
 
     if (hasTargetLoaded) {
       channelsBloc.add(
-        SelectTextChannelRequested(channelId: entry.event.channelId),
+        SelectTextChannelRequested(channelId: ChannelId(entry.event.channelId)),
       );
       return;
     }
 
     _pendingNotificationChannelTarget = _NotificationChannelTarget(
       serverId: serverId,
-      channelId: entry.event.channelId,
+      channelId: ChannelId(entry.event.channelId),
     );
 
     channelsBloc.add(LoadChannelsRequested(serverId: serverId));
@@ -757,8 +758,8 @@ final class _NotificationChannelTarget {
     required this.channelId,
   });
 
-  final String serverId;
-  final String channelId;
+  final ServerId serverId;
+  final ChannelId channelId;
 }
 
 class _UnreadNotificationCountIconButton extends StatelessWidget {

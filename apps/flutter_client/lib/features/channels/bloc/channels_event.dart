@@ -13,7 +13,7 @@ final class LoadChannelsRequested extends ChannelsEvent {
     required this.serverId,
   });
 
-  final String serverId;
+  final ServerId serverId;
 }
 
 final class CreateChannelRequested extends ChannelsEvent {
@@ -23,7 +23,7 @@ final class CreateChannelRequested extends ChannelsEvent {
     required this.channelType,
   });
 
-  final String serverId;
+  final ServerId serverId;
   final String channelName;
   final ChannelType channelType;
 }
@@ -33,7 +33,7 @@ final class DeleteChannelRequested extends ChannelsEvent {
     required this.channelId,
   });
 
-  final String channelId;
+  final ChannelId channelId;
 }
 
 final class UpdateChannelNameRequested extends ChannelsEvent {
@@ -42,18 +42,18 @@ final class UpdateChannelNameRequested extends ChannelsEvent {
     required this.name,
   });
 
-  final String channelId;
+  final ChannelId channelId;
   final String name;
 }
 
 final class SelectTextChannelRequested extends ChannelsEvent {
   const SelectTextChannelRequested({required this.channelId});
 
-  final String channelId;
+  final ChannelId channelId;
 }
 
 final class SelectVoiceChannelRequested extends ChannelsEvent {
   const SelectVoiceChannelRequested({required this.channelId});
 
-  final String channelId;
+  final ChannelId channelId;
 }

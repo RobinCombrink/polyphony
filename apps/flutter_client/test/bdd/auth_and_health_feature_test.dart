@@ -9,6 +9,7 @@ import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dar
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/auth/authentication_profile_service.dart";
 import "package:polyphony_flutter_client/shared/auth/authentication_session_service.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
@@ -127,7 +128,7 @@ void main() {
         build: () => ProfileBloc(
           profileRepo: FakeProfileRepository(
             userId: fixture.ownerUserId,
-            displayNamesByUserId: <String, String?>{
+            displayNamesByUserId: <UserId, String?>{
               fixture.ownerUserId: "Polyphony User",
             },
           ),

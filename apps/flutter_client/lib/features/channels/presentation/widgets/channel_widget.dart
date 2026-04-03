@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 
 sealed class ChannelWidget extends StatelessWidget {
   const ChannelWidget({
@@ -21,7 +22,7 @@ sealed class ChannelWidget extends StatelessWidget {
   final int voiceParticipantCount;
   final bool isConnectedVoiceChannel;
   final List<VoiceParticipant> voiceParticipants;
-  final String? selfParticipantUserId;
+  final UserId? selfParticipantUserId;
   final bool isSelfDeafened;
   final VoidCallback? onTap;
 
@@ -32,7 +33,7 @@ sealed class ChannelWidget extends StatelessWidget {
     required int voiceParticipantCount,
     required bool isConnectedVoiceChannel,
     required List<VoiceParticipant> voiceParticipants,
-    required String? selfParticipantUserId,
+    required UserId? selfParticipantUserId,
     required bool isSelfDeafened,
     required VoidCallback? onTap,
     Key? key,

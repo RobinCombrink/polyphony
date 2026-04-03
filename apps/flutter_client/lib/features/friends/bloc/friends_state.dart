@@ -23,7 +23,7 @@ sealed class FriendsLoadedDataState extends FriendsState {
   });
 
   final List<Friend> friends;
-  final Set<String> blockedUserIds;
+  final Set<UserId> blockedUserIds;
 }
 
 final class FriendsLoadedState extends FriendsLoadedDataState {

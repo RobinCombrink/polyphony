@@ -11,7 +11,7 @@ final class LoadDirectMessageThreadsRequested extends DirectMessagesEvent {
 final class OpenDirectMessageThreadRequested extends DirectMessagesEvent {
   const OpenDirectMessageThreadRequested({required this.userId});
 
-  final String userId;
+  final UserId userId;
 }
 
 final class SelectDirectMessageThreadRequested extends DirectMessagesEvent {
@@ -20,7 +20,7 @@ final class SelectDirectMessageThreadRequested extends DirectMessagesEvent {
     this.threadsOverride,
   });
 
-  final String threadId;
+  final DirectMessageThreadId threadId;
   final List<DirectMessageThread>? threadsOverride;
 }
 

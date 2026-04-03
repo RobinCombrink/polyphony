@@ -16,7 +16,7 @@ class ChannelRepository implements ChannelRepo {
     required GetChannelsQuery query,
   }) async {
     final serviceResult = await _channelService.listChannels(
-      serverId: query.serverId,
+      serverId: query.serverId.value,
     );
 
     return switch (serviceResult) {
@@ -31,7 +31,7 @@ class ChannelRepository implements ChannelRepo {
     required CreateChannelCommand command,
   }) async {
     final serviceResult = await _channelService.createChannel(
-      serverId: command.serverId,
+      serverId: command.serverId.value,
       name: command.name,
       channelType: command.channelType,
     );
@@ -45,14 +45,14 @@ class ChannelRepository implements ChannelRepo {
   @override
   Future<Result<void>> deleteOne({required DeleteChannelCommand command}) {
     return _channelService.deleteChannel(
-      channelId: command.channelId,
+      channelId: command.channelId.value,
     );
   }
 
   @override
   Future<Result<void>> updateOne({required UpdateChannelNameCommand command}) {
     return _channelService.updateChannelName(
-      channelId: command.channelId,
+      channelId: command.channelId.value,
       name: command.name,
     );
   }

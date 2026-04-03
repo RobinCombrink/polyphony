@@ -3,6 +3,7 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/channels.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 
 final class _VoiceNotificationChannelOption {
   const _VoiceNotificationChannelOption({
@@ -127,7 +128,7 @@ class SettingsVoiceNotificationsSectionWidget extends StatelessWidget {
     required List<String> selectedChannelIds,
     required List<VoiceChannel> availableVoiceChannels,
   }) {
-    final availableById = <String, VoiceChannel>{
+    final availableById = <ChannelId, VoiceChannel>{
       for (final voiceChannel in availableVoiceChannels)
         voiceChannel.id: voiceChannel,
     };
@@ -135,7 +136,7 @@ class SettingsVoiceNotificationsSectionWidget extends StatelessWidget {
     final availableOptions = availableVoiceChannels
         .map(
           (voiceChannel) => _VoiceNotificationChannelOption(
-            id: voiceChannel.id,
+            id: voiceChannel.id.value,
             label: voiceChannel.name,
             isUnavailable: false,
           ),
@@ -143,7 +144,7 @@ class SettingsVoiceNotificationsSectionWidget extends StatelessWidget {
         .toList(growable: false);
 
     final unavailableSelectedOptions = selectedChannelIds
-        .where((channelId) => !availableById.containsKey(channelId))
+        .where((channelId) => !availableById.containsKey(ChannelId(channelId)))
         .map(
           (channelId) => _VoiceNotificationChannelOption(
             id: channelId,

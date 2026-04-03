@@ -1,6 +1,7 @@
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/block_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -81,7 +82,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
       return;
     }
 
-    final trimmedUserId = event.userId.trim();
+    final trimmedUserId = event.userId.value.trim();
     if (trimmedUserId.isEmpty) {
       emit(FriendsValidationFailedState(
         issue: FriendsValidationIssue.userSelectionRequired,
@@ -92,17 +93,14 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
     }
 
     final blockResult = await _blockRepo.createOne(
-      command: BlockUserCommand(userId: trimmedUserId),
+      command: BlockUserCommand(userId: event.userId),
     );
 
     switch (blockResult) {
       case Ok<void>():
         emit(FriendsLoadedState(
           friends: loadedState.friends,
-          blockedUserIds: <String>{
-            ...loadedState.blockedUserIds,
-            trimmedUserId
-          },
+          blockedUserIds: <UserId>{...loadedState.blockedUserIds, event.userId},
         ));
       case Error<void>(:final error):
         emit(FriendsExceptionState(error: error));
@@ -125,7 +123,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
       return;
     }
 
-    final trimmedUserId = event.userId.trim();
+    final trimmedUserId = event.userId.value.trim();
     if (trimmedUserId.isEmpty) {
       emit(FriendsValidationFailedState(
         issue: FriendsValidationIssue.userSelectionRequired,
@@ -136,7 +134,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
     }
 
     final unblockResult = await _blockRepo.deleteOne(
-      command: UnblockUserCommand(userId: trimmedUserId),
+      command: UnblockUserCommand(userId: event.userId),
     );
 
     switch (unblockResult) {
@@ -144,7 +142,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
         emit(FriendsLoadedState(
           friends: loadedState.friends,
           blockedUserIds: loadedState.blockedUserIds
-              .where((userId) => userId != trimmedUserId)
+              .where((userId) => userId != event.userId)
               .toSet(),
         ));
       case Error<void>(:final error):

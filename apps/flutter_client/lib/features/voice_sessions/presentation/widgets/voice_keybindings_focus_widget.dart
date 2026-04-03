@@ -70,7 +70,7 @@ class _VoiceKeybindingsFocusWidgetState
     }
 
     final connectedChannelId = voiceState.connectedChannelId;
-    if (connectedChannelId == null || connectedChannelId.isEmpty) {
+    if (connectedChannelId == null || connectedChannelId.value.isEmpty) {
       return KeyEventResult.ignored;
     }
 

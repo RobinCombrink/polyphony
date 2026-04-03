@@ -31,7 +31,7 @@ final class VoiceSessionsLoadingState extends VoiceSessionsState {
   });
 
   final VoiceSessionsLoadingOperation operation;
-  final String? channelId;
+  final ChannelId? channelId;
 }
 
 sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
@@ -49,9 +49,9 @@ sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
   });
 
   final VoiceConnectSession? activeConnection;
-  final String selectedChannelId;
+  final ChannelId selectedChannelId;
   final List<VoiceParticipant> participants;
-  final Map<String, List<VoiceParticipant>> participantsByChannelId;
+  final Map<ChannelId, List<VoiceParticipant>> participantsByChannelId;
   final Map<String, Object> participantVideoTracks;
   final bool isSelfMuted;
   final bool isSelfDeafened;
@@ -59,7 +59,7 @@ sealed class VoiceSessionsLoadedDataState extends VoiceSessionsState {
   final bool isEchoCancellationEnabled;
   final bool isNoiseSuppressionEnabled;
 
-  String? get connectedChannelId => activeConnection?.channelId;
+  ChannelId? get connectedChannelId => activeConnection?.channelId;
 }
 
 final class VoiceSessionsLoadedState extends VoiceSessionsLoadedDataState {

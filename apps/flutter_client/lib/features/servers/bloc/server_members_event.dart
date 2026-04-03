@@ -13,7 +13,7 @@ final class LoadServerMembersRequested extends ServerMembersEvent {
     required this.serverId,
   });
 
-  final String serverId;
+  final ServerId serverId;
 }
 
 final class AddServerMemberRequested extends ServerMembersEvent {
@@ -22,8 +22,8 @@ final class AddServerMemberRequested extends ServerMembersEvent {
     required this.userId,
   });
 
-  final String serverId;
-  final String userId;
+  final ServerId serverId;
+  final UserId userId;
 }
 
 final class InviteFriendToServerRequested extends ServerMembersEvent {
@@ -32,8 +32,8 @@ final class InviteFriendToServerRequested extends ServerMembersEvent {
     required this.friendUserId,
   });
 
-  final String serverId;
-  final String friendUserId;
+  final ServerId serverId;
+  final UserId friendUserId;
 }
 
 final class SendFriendRequestToServerMemberRequested
@@ -43,8 +43,8 @@ final class SendFriendRequestToServerMemberRequested
     required this.targetUserId,
   });
 
-  final String serverId;
-  final String targetUserId;
+  final ServerId serverId;
+  final UserId targetUserId;
 }
 
 final class CancelOutgoingFriendRequestRequested extends ServerMembersEvent {
@@ -52,5 +52,5 @@ final class CancelOutgoingFriendRequestRequested extends ServerMembersEvent {
     required this.friendRequestId,
   });
 
-  final String friendRequestId;
+  final FriendRequestId friendRequestId;
 }

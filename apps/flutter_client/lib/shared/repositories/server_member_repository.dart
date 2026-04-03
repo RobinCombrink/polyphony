@@ -16,7 +16,7 @@ class ServerMemberRepository implements ServerMemberRepo {
     required GetServerMembersQuery query,
   }) async {
     final serviceResult = await _serverService.listServerMembers(
-      serverId: query.serverId,
+      serverId: query.serverId.value,
     );
 
     return switch (serviceResult) {

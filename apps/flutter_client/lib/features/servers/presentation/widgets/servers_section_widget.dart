@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/features/home/presentation/widgets/workspace_destination.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 
 SectionStatus? buildServersSectionStatus(ServersState state) {
@@ -55,7 +56,7 @@ class ServersSectionWidget extends StatefulWidget {
   final List<Server> servers;
   final WorkspaceDestination selectedDestination;
   final int directMessagesUnreadCount;
-  final String? currentUserId;
+  final UserId? currentUserId;
   final bool isLoading;
   final TextEditingController createController;
   final VoidCallback onSelectDirectMessages;
@@ -74,7 +75,7 @@ class ServersSectionWidget extends StatefulWidget {
 class _ServersSectionWidgetState extends State<ServersSectionWidget> {
   var _isCreatingServer = false;
   var _isDirectMessagesHovered = false;
-  String? _hoveredServerId;
+  ServerId? _hoveredServerId;
 
   void _openCreateServerInput() {
     setState(() {
@@ -104,7 +105,7 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
     required Offset globalPosition,
   }) async {
     final errorColor = Theme.of(context).colorScheme.error;
-    final canDeleteServer = widget.currentUserId?.trim() == server.ownerUserId;
+    final canDeleteServer = widget.currentUserId == server.ownerUserId;
 
     await showMenu<void>(
       context: context,
@@ -317,7 +318,7 @@ class _ServersSectionWidgetState extends State<ServersSectionWidget> {
                 final server = widget.servers[index];
                 final isSelected = switch (widget.selectedDestination) {
                   ServerSelectedWorkspaceDestination(:final serverId) =>
-                    serverId == server.id,
+                    serverId == server.id.value,
                   _ => false,
                 };
 

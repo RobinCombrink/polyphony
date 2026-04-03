@@ -1,4 +1,5 @@
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
 
 class GetMessagesQuery {
@@ -6,7 +7,7 @@ class GetMessagesQuery {
     required this.channelId,
   });
 
-  final String channelId;
+  final ChannelId channelId;
 }
 
 class CreateMessageCommand {
@@ -16,9 +17,9 @@ class CreateMessageCommand {
     this.mentionedUserId,
   });
 
-  final String channelId;
+  final ChannelId channelId;
   final String content;
-  final String? mentionedUserId;
+  final UserId? mentionedUserId;
 }
 
 class UpdateMessageCommand {
@@ -28,8 +29,8 @@ class UpdateMessageCommand {
     required this.content,
   });
 
-  final String channelId;
-  final String messageId;
+  final ChannelId channelId;
+  final MessageId messageId;
   final String content;
 }
 
@@ -39,8 +40,8 @@ class DeleteMessageCommand {
     required this.messageId,
   });
 
-  final String channelId;
-  final String messageId;
+  final ChannelId channelId;
+  final MessageId messageId;
 }
 
 abstract interface class MessageRepo

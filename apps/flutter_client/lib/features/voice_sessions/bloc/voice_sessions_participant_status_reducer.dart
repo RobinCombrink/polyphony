@@ -80,7 +80,7 @@ final class ParticipantStatusReducer {
   }
 
   static _ParticipantsByChannelReduction _reduceParticipantsByChannelId({
-    required Map<String, List<VoiceParticipant>> participantsByChannelId,
+    required Map<ChannelId, List<VoiceParticipant>> participantsByChannelId,
     required ParticipantStatusUpdate statusUpdate,
   }) {
     return participantsByChannelId.entries.fold(
@@ -108,7 +108,7 @@ final class ParticipantStatusReducer {
       _ParticipantListReduction.empty(),
       (reduction, participant) {
         final updatedParticipant =
-            participant.userId == statusUpdate.participantUserId
+            participant.userId.value == statusUpdate.participantUserId
                 ? _updatedParticipant(
                     participant: participant,
                     statusUpdate: statusUpdate,
@@ -134,7 +134,7 @@ final class ParticipantStatusReducer {
       )
           when loadedState.activeConnection != null &&
               participantUserId ==
-                  loadedState.activeConnection!.participantUserId =>
+                  loadedState.activeConnection!.participantUserId.value =>
         isMuted,
       _ => loadedState.isSelfMuted,
     };
@@ -151,7 +151,7 @@ final class ParticipantStatusReducer {
       )
           when loadedState.activeConnection != null &&
               participantUserId ==
-                  loadedState.activeConnection!.participantUserId =>
+                  loadedState.activeConnection!.participantUserId.value =>
         isDeafened,
       _ => loadedState.isSelfDeafened,
     };
@@ -195,21 +195,21 @@ final class _ParticipantsByChannelReduction {
 
   factory _ParticipantsByChannelReduction.empty() {
     return const _ParticipantsByChannelReduction(
-      participantsByChannelId: <String, List<VoiceParticipant>>{},
+      participantsByChannelId: <ChannelId, List<VoiceParticipant>>{},
       didChangeParticipants: false,
     );
   }
 
-  final Map<String, List<VoiceParticipant>> participantsByChannelId;
+  final Map<ChannelId, List<VoiceParticipant>> participantsByChannelId;
   final bool didChangeParticipants;
 
   _ParticipantsByChannelReduction withEntry({
-    required String channelId,
+    required ChannelId channelId,
     required List<VoiceParticipant> participants,
     required bool didChangeParticipants,
   }) {
     return _ParticipantsByChannelReduction(
-      participantsByChannelId: <String, List<VoiceParticipant>>{
+      participantsByChannelId: <ChannelId, List<VoiceParticipant>>{
         ...participantsByChannelId,
         channelId: participants,
       },

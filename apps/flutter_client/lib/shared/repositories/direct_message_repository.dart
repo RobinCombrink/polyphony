@@ -17,7 +17,7 @@ class DirectMessageRepository implements DirectMessageRepo {
     required OpenOrGetDirectMessageThreadCommand command,
   }) async {
     final serviceResult = await _directMessageService.openOrGetThread(
-      userId: command.userId,
+      userId: command.userId.value,
     );
 
     return switch (serviceResult) {
@@ -33,7 +33,7 @@ class DirectMessageRepository implements DirectMessageRepo {
     required GetDirectMessagesQuery query,
   }) async {
     final serviceResult = await _directMessageService.listMessages(
-      threadId: query.threadId,
+      threadId: query.threadId.value,
     );
 
     return switch (serviceResult) {
@@ -65,7 +65,7 @@ class DirectMessageRepository implements DirectMessageRepo {
     required SendDirectMessageCommand command,
   }) async {
     final serviceResult = await _directMessageService.sendMessage(
-      threadId: command.threadId,
+      threadId: command.threadId.value,
       content: command.content,
     );
 
@@ -81,7 +81,7 @@ class DirectMessageRepository implements DirectMessageRepo {
     required SearchDirectMessagesForUserCommand command,
   }) async {
     final serviceResult = await _directMessageService.searchMessagesForUser(
-      userId: command.userId,
+      userId: command.userId.value,
       query: command.query,
     );
 

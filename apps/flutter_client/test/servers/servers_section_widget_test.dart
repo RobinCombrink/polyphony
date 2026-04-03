@@ -4,13 +4,14 @@ import "package:polyphony_flutter_client/features/home/presentation/widgets/work
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/servers_section_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 
 void main() {
   const listedServer = Server(
-    id: "server-1",
+    id: ServerId("server-1"),
     name: "Alpha",
-    ownerUserId: "owner-1",
+    ownerUserId: UserId("owner-1"),
   );
 
   Widget buildWidget({
@@ -24,8 +25,8 @@ void main() {
           height: 500,
           child: ServersSectionWidget(
             servers: const <Server>[listedServer],
-            selectedDestination:
-                ServerSelectedWorkspaceDestination(serverId: listedServer.id),
+            selectedDestination: ServerSelectedWorkspaceDestination(
+                serverId: listedServer.id.value),
             directMessagesUnreadCount: directMessagesUnreadCount,
             currentUserId: listedServer.ownerUserId,
             isLoading: false,

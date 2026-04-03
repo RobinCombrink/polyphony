@@ -13,12 +13,12 @@ class BlockRepository implements BlockRepo {
 
   @override
   Future<Result<void>> createOne({required BlockUserCommand command}) {
-    return _blockService.blockUser(userId: command.userId);
+    return _blockService.blockUser(userId: command.userId.value);
   }
 
   @override
   Future<Result<void>> deleteOne({required UnblockUserCommand command}) {
-    return _blockService.unblockUser(userId: command.userId);
+    return _blockService.unblockUser(userId: command.userId.value);
   }
 
   @override

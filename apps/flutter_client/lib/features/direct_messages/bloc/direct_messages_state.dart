@@ -28,9 +28,9 @@ sealed class DirectMessagesLoadedDataState extends DirectMessagesState {
   });
 
   final List<DirectMessageThread> threads;
-  final String? selectedThreadId;
+  final DirectMessageThreadId? selectedThreadId;
   final List<DirectMessage> selectedThreadMessages;
-  final Set<String> blockedUserIds;
+  final Set<UserId> blockedUserIds;
 
   DirectMessageThread? get selectedThread {
     final threadId = selectedThreadId;

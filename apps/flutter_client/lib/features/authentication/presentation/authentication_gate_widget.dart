@@ -18,6 +18,7 @@ import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/config/backend_base_url_resolver.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/block_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/block_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
@@ -455,7 +456,7 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
             BlocProvider<ProfileBloc>(
               create: (context) => ProfileBloc(
                 profileRepo: context.read<ProfileRepo>(),
-                currentUserId: widget.metadata.userId,
+                currentUserId: UserId(widget.metadata.userId),
               ),
             ),
             BlocProvider<ServerMembersBloc>(
@@ -483,7 +484,7 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
               create: (context) => DirectMessagesBloc(
                 directMessageRepo: context.read<DirectMessageRepo>(),
                 blockRepo: context.read<BlockRepo>(),
-                currentUserId: widget.metadata.userId,
+                currentUserId: UserId(widget.metadata.userId),
               ),
             ),
           ],

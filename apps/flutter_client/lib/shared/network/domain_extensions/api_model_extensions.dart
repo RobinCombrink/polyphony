@@ -1,13 +1,14 @@
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 
 extension ApiServerToDomainExtension on ApiServer {
   Server toDomainModel() {
     return Server(
-      id: id,
+      id: ServerId(id),
       name: name,
-      ownerUserId: ownerUserId,
+      ownerUserId: UserId(ownerUserId),
     );
   }
 }
@@ -15,9 +16,9 @@ extension ApiServerToDomainExtension on ApiServer {
 extension DomainServerToApiExtension on Server {
   ApiServer toApiModel() {
     return ApiServer(
-      id: id,
+      id: id.value,
       name: name,
-      ownerUserId: ownerUserId,
+      ownerUserId: ownerUserId.value,
     );
   }
 }
@@ -25,8 +26,8 @@ extension DomainServerToApiExtension on Server {
 extension ApiServerMemberToDomainExtension on ApiServerMember {
   ServerMember toDomainModel() {
     return ServerMember(
-      serverId: serverId,
-      userId: userId,
+      serverId: ServerId(serverId),
+      userId: UserId(userId),
     );
   }
 }
@@ -34,7 +35,7 @@ extension ApiServerMemberToDomainExtension on ApiServerMember {
 extension ApiFriendToDomainExtension on ApiFriend {
   Friend toDomainModel() {
     return Friend(
-      userId: userId,
+      userId: UserId(userId),
     );
   }
 }
@@ -42,25 +43,25 @@ extension ApiFriendToDomainExtension on ApiFriend {
 extension ApiFriendRequestToDomainExtension on ApiFriendRequest {
   PendingFriendRequest toDomainModel() {
     return PendingFriendRequest(
-      id: id,
-      requesterUserId: requesterUserId,
-      addresseeUserId: addresseeUserId,
+      id: FriendRequestId(id),
+      requesterUserId: UserId(requesterUserId),
+      addresseeUserId: UserId(addresseeUserId),
     );
   }
 }
 
 extension ApiBlockedUserToDomainExtension on ApiBlockedUser {
   BlockedUser toDomainModel() {
-    return BlockedUser(userId: blockedUserId);
+    return BlockedUser(userId: UserId(blockedUserId));
   }
 }
 
 extension ApiDirectMessageThreadToDomainExtension on ApiDirectMessageThread {
   DirectMessageThread toDomainModel() {
     return DirectMessageThread(
-      id: id,
-      participantAUserId: participantAUserId,
-      participantBUserId: participantBUserId,
+      id: DirectMessageThreadId(id),
+      participantAUserId: UserId(participantAUserId),
+      participantBUserId: UserId(participantBUserId),
     );
   }
 }
@@ -68,9 +69,9 @@ extension ApiDirectMessageThreadToDomainExtension on ApiDirectMessageThread {
 extension ApiDirectMessageToDomainExtension on ApiDirectMessage {
   DirectMessage toDomainModel() {
     return DirectMessage(
-      id: id,
-      threadId: threadId,
-      authorUserId: authorUserId,
+      id: DirectMessageId(id),
+      threadId: DirectMessageThreadId(threadId),
+      authorUserId: UserId(authorUserId),
       content: content,
     );
   }
@@ -79,7 +80,7 @@ extension ApiDirectMessageToDomainExtension on ApiDirectMessage {
 extension DomainFriendToApiExtension on Friend {
   ApiFriend toApiModel() {
     return ApiFriend(
-      userId: userId,
+      userId: userId.value,
     );
   }
 }
@@ -87,8 +88,8 @@ extension DomainFriendToApiExtension on Friend {
 extension DomainServerMemberToApiExtension on ServerMember {
   ApiServerMember toApiModel() {
     return ApiServerMember(
-      serverId: serverId,
-      userId: userId,
+      serverId: serverId.value,
+      userId: userId.value,
     );
   }
 }
@@ -97,13 +98,13 @@ extension ApiChannelToDomainExtension on ApiChannel {
   Channel toDomainModel() {
     return switch (channelType) {
       ChannelType.voice => VoiceChannel(
-          id: id,
-          serverId: serverId,
+          id: ChannelId(id),
+          serverId: ServerId(serverId),
           name: name,
         ),
       ChannelType.text => TextChannel(
-          id: id,
-          serverId: serverId,
+          id: ChannelId(id),
+          serverId: ServerId(serverId),
           name: name,
         ),
     };
@@ -113,8 +114,8 @@ extension ApiChannelToDomainExtension on ApiChannel {
 extension DomainChannelToApiExtension on Channel {
   ApiChannel toApiModel() {
     return ApiChannel(
-      id: id,
-      serverId: serverId,
+      id: id.value,
+      serverId: serverId.value,
       name: name,
       channelType: channelType,
     );
@@ -124,9 +125,9 @@ extension DomainChannelToApiExtension on Channel {
 extension ApiMessageToDomainExtension on ApiMessage {
   Message toDomainModel() {
     return Message(
-      id: id,
-      channelId: channelId,
-      authorUserId: authorUserId,
+      id: MessageId(id),
+      channelId: ChannelId(channelId),
+      authorUserId: UserId(authorUserId),
       content: content,
     );
   }
@@ -135,9 +136,9 @@ extension ApiMessageToDomainExtension on ApiMessage {
 extension DomainMessageToApiExtension on Message {
   ApiMessage toApiModel() {
     return ApiMessage(
-      id: id,
-      channelId: channelId,
-      authorUserId: authorUserId,
+      id: id.value,
+      channelId: channelId.value,
+      authorUserId: authorUserId.value,
       content: content,
     );
   }
@@ -148,8 +149,8 @@ extension ApiVoiceConnectSessionToDomainExtension on ApiVoiceConnectSession {
     return VoiceConnectSession(
       livekitUrl: livekitUrl,
       accessToken: accessToken,
-      channelId: channelId,
-      participantUserId: participantUserId,
+      channelId: ChannelId(channelId),
+      participantUserId: UserId(participantUserId),
     );
   }
 }
@@ -159,8 +160,8 @@ extension DomainVoiceConnectSessionToApiExtension on VoiceConnectSession {
     return ApiVoiceConnectSession(
       livekitUrl: livekitUrl,
       accessToken: accessToken,
-      channelId: channelId,
-      participantUserId: participantUserId,
+      channelId: channelId.value,
+      participantUserId: participantUserId.value,
     );
   }
 }
@@ -170,8 +171,8 @@ extension ApiTextConnectSessionToDomainExtension on ApiTextConnectSession {
     return TextConnectSession(
       livekitUrl: livekitUrl,
       accessToken: accessToken,
-      channelId: channelId,
-      participantUserId: participantUserId,
+      channelId: ChannelId(channelId),
+      participantUserId: UserId(participantUserId),
     );
   }
 }
@@ -181,8 +182,8 @@ extension DomainTextConnectSessionToApiExtension on TextConnectSession {
     return ApiTextConnectSession(
       livekitUrl: livekitUrl,
       accessToken: accessToken,
-      channelId: channelId,
-      participantUserId: participantUserId,
+      channelId: channelId.value,
+      participantUserId: participantUserId.value,
     );
   }
 }
@@ -190,7 +191,7 @@ extension DomainTextConnectSessionToApiExtension on TextConnectSession {
 extension ApiMeToDomainExtension on ApiMe {
   UserProfile toDomainModel() {
     return UserProfile(
-      userId: userId,
+      userId: UserId(userId),
       displayName: displayName,
     );
   }
@@ -199,7 +200,7 @@ extension ApiMeToDomainExtension on ApiMe {
 extension ApiUserLookupToDomainExtension on ApiUserLookup {
   UserProfile toDomainModel() {
     return UserProfile(
-      userId: id,
+      userId: UserId(id),
       displayName: displayName,
     );
   }

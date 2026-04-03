@@ -19,7 +19,7 @@ final class CreateServerRequested extends ServersEvent {
 final class DeleteServerRequested extends ServersEvent {
   const DeleteServerRequested({required this.serverId});
 
-  final String serverId;
+  final ServerId serverId;
 }
 
 final class UpdateServerNameRequested extends ServersEvent {
@@ -28,12 +28,12 @@ final class UpdateServerNameRequested extends ServersEvent {
     required this.name,
   });
 
-  final String serverId;
+  final ServerId serverId;
   final String name;
 }
 
 final class SelectServerRequested extends ServersEvent {
   const SelectServerRequested({required this.serverId});
 
-  final String serverId;
+  final ServerId serverId;
 }

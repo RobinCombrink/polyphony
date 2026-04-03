@@ -1,6 +1,7 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 
 import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
@@ -53,7 +54,8 @@ void main() {
                 channelId: fixture.listedVoiceChannel.id),
           )
           ..add(
-            const ConnectVoiceSessionRequested(channelId: "missing-channel"),
+            const ConnectVoiceSessionRequested(
+                channelId: ChannelId("missing-channel")),
           ),
         expect: () => <Matcher>[
           isA<VoiceSessionsLoadedState>(),

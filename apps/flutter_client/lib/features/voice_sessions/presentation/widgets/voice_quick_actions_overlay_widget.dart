@@ -9,6 +9,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/top_right_error_toast.dart";
 
 class VoiceQuickActionsOverlayWidget extends StatelessWidget {
@@ -62,15 +63,15 @@ class VoiceQuickActionsOverlayWidget extends StatelessWidget {
                         : null;
 
                 final connectedChannelId = activeVoiceConnection?.channelId;
-                final hasConnectedChannel =
-                    connectedChannelId != null && connectedChannelId.isNotEmpty;
+                final hasConnectedChannel = connectedChannelId != null &&
+                    connectedChannelId.value.isNotEmpty;
                 final loadingState =
                     voiceState is VoiceSessionsLoadingState ? voiceState : null;
                 final isConnecting = !hasConnectedChannel &&
                     loadingState?.operation ==
                         VoiceSessionsLoadingOperation.connecting &&
                     selectedVoiceChannelId != null &&
-                    selectedVoiceChannelId.isNotEmpty;
+                    selectedVoiceChannelId.value.isNotEmpty;
                 final isReconnecting = !hasConnectedChannel &&
                     loadingState?.operation ==
                         VoiceSessionsLoadingOperation.reconnecting;
@@ -157,8 +158,8 @@ class _VoiceQuickActionsCard extends StatelessWidget {
     required this.isNoiseSuppressionEnabled,
   });
 
-  final String? connectedChannelId;
-  final String? actionChannelId;
+  final ChannelId? connectedChannelId;
+  final ChannelId? actionChannelId;
   final _VoiceConnectionStatus connectionStatus;
   final String? connectionLocationText;
   final bool isSelfMuted;
@@ -224,12 +225,12 @@ class _VoiceQuickActionsCard extends StatelessWidget {
     final controlsEnabled =
         connectionStatus == _VoiceConnectionStatus.connected &&
             connectedChannelId != null &&
-            connectedChannelId!.isNotEmpty;
+            connectedChannelId!.value.isNotEmpty;
 
     final reconnectEnabled =
         connectionStatus == _VoiceConnectionStatus.reconnectRequired &&
             actionChannelId != null &&
-            actionChannelId!.isNotEmpty;
+            actionChannelId!.value.isNotEmpty;
 
     final colorScheme = Theme.of(context).colorScheme;
     final (statusLabel, statusColor) = switch (connectionStatus) {

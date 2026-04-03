@@ -41,9 +41,9 @@ sealed class ServerMembersLoadedDataState extends ServerMembersState {
     required this.pendingOutgoingFriendRequests,
   });
 
-  final String serverId;
+  final ServerId serverId;
   final List<UserProfile> members;
-  final Set<String> friendUserIds;
+  final Set<UserId> friendUserIds;
   final List<PendingFriendRequest> pendingOutgoingFriendRequests;
 }
 

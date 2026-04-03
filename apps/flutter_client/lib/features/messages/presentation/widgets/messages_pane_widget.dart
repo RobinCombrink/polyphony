@@ -6,6 +6,7 @@ import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.da
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_section_widget.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/pane_placeholder_widget.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
 import "package:skeletonizer/skeletonizer.dart";
@@ -23,13 +24,13 @@ class MessagesPaneWidget extends StatefulWidget {
 }
 
 class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
-  List<Message> _skeletonMessages(String channelId) {
+  List<Message> _skeletonMessages(ChannelId channelId) {
     return List<Message>.generate(
       5,
       (index) => Message(
-        id: "msg-skeleton-$index",
+        id: MessageId("msg-skeleton-$index"),
         channelId: channelId,
-        authorUserId: "author-skeleton",
+        authorUserId: const UserId("author-skeleton"),
         content: "Loading message $index",
       ),
     );
@@ -158,7 +159,7 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                     currentUser: currentUser,
                     authorDisplayNamesByUserId:
                         loadedData?.authorDisplayNamesByUserId ??
-                            const <String, String?>{},
+                            const <UserId, String?>{},
                     channelName: selectedTextChannel.name,
                     createController: widget.createController,
                     mentionCandidates: mentionCandidates,

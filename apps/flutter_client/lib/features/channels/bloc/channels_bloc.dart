@@ -2,6 +2,7 @@ import "package:collection/collection.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
@@ -22,7 +23,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
   }
 
   final ChannelRepo _channelRepo;
-  final _selectionByServerId = <String, _ServerChannelSelection>{};
+  final _selectionByServerId = <ServerId, _ServerChannelSelection>{};
 
   void _onResetChannelsRequested(
     ResetChannelsRequested event,
@@ -35,9 +36,9 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     LoadChannelsRequested event,
     Emitter<ChannelsState> emit,
   ) async {
-    final trimmedServerId = event.serverId.trim();
+    final serverId = event.serverId;
 
-    if (trimmedServerId.isEmpty) {
+    if (serverId.value.trim().isEmpty) {
       emit(
         switch (state) {
           final ChannelsLoadedState loadedState =>
@@ -56,7 +57,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
 
     final listChannelsResult = await _channelRepo.getMany(
       query: GetChannelsQuery(
-        serverId: trimmedServerId,
+        serverId: serverId,
       ),
     );
 
@@ -64,18 +65,17 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       case Ok<Iterable<Channel>>(:final value):
         final channels = value.toList();
         final (textChannels, voiceChannels) = _partitionChannels(channels);
-        final previousSelection = _selectionByServerId[trimmedServerId];
+        final previousSelection = _selectionByServerId[serverId];
 
         final loadedState = _buildLoadedState(
           previousState: state,
           previousSelection: previousSelection,
-          serverId: trimmedServerId,
+          serverId: serverId,
           textChannels: textChannels,
           voiceChannels: voiceChannels,
         );
 
-        _selectionByServerId[trimmedServerId] =
-            _selectionFromState(loadedState);
+        _selectionByServerId[serverId] = _selectionFromState(loadedState);
 
         emit(loadedState);
       case Error<Iterable<Channel>>(:final error):
@@ -87,7 +87,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
     CreateChannelRequested event,
     Emitter<ChannelsState> emit,
   ) async {
-    final trimmedServerId = event.serverId.trim();
+    final trimmedServerId = event.serverId;
     final trimmedChannelName = event.channelName.trim();
     final loadedState = switch (state) {
       final ChannelsLoadedState loadedState => loadedState,
@@ -101,7 +101,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       return;
     }
 
-    if (trimmedServerId.isEmpty) {
+    if (trimmedServerId.value.trim().isEmpty) {
       emit(
         loadedState.withValidationIssue(
           issue: ChannelsValidationIssue.serverSelectionRequired,
@@ -192,8 +192,8 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       return;
     }
 
-    final trimmedChannelId = event.channelId.trim();
-    if (trimmedChannelId.isEmpty ||
+    final trimmedChannelId = event.channelId;
+    if (trimmedChannelId.value.trim().isEmpty ||
         !_allChannels(loadedState)
             .any((channel) => channel.id == trimmedChannelId)) {
       emit(
@@ -251,10 +251,10 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       return;
     }
 
-    final trimmedChannelId = event.channelId.trim();
+    final trimmedChannelId = event.channelId;
     final trimmedName = event.name.trim();
 
-    if (trimmedChannelId.isEmpty ||
+    if (trimmedChannelId.value.trim().isEmpty ||
         !_allChannels(loadedState)
             .any((channel) => channel.id == trimmedChannelId)) {
       emit(
@@ -327,7 +327,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       return;
     }
 
-    final trimmedChannelId = event.channelId.trim();
+    final trimmedChannelId = event.channelId;
     final selectedTextChannel = loadedState.textChannels.firstWhereOrNull(
       (channel) => channel.id == trimmedChannelId,
     );
@@ -353,7 +353,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
       return;
     }
 
-    final trimmedChannelId = event.channelId.trim();
+    final trimmedChannelId = event.channelId;
     final selectedVoiceChannel = loadedState.voiceChannels.firstWhereOrNull(
       (channel) => channel.id == trimmedChannelId,
     );
@@ -394,7 +394,7 @@ class ChannelsBloc extends Bloc<ChannelsEvent, ChannelsState> {
   ChannelsLoadedState _buildLoadedState({
     required ChannelsState previousState,
     required _ServerChannelSelection? previousSelection,
-    required String serverId,
+    required ServerId serverId,
     required List<TextChannel> textChannels,
     required List<VoiceChannel> voiceChannels,
   }) {
@@ -461,11 +461,11 @@ final class NoServerChannelSelection extends _ServerChannelSelection {
 final class TextServerChannelSelection extends _ServerChannelSelection {
   const TextServerChannelSelection({required this.channelId});
 
-  final String channelId;
+  final ChannelId channelId;
 }
 
 final class VoiceServerChannelSelection extends _ServerChannelSelection {
   const VoiceServerChannelSelection({required this.channelId});
 
-  final String channelId;
+  final ChannelId channelId;
 }

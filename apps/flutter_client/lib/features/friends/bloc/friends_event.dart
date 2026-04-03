@@ -11,11 +11,11 @@ final class LoadFriendsRequested extends FriendsEvent {
 final class BlockUserFromFriendsRequested extends FriendsEvent {
   const BlockUserFromFriendsRequested({required this.userId});
 
-  final String userId;
+  final UserId userId;
 }
 
 final class UnblockUserRequested extends FriendsEvent {
   const UnblockUserRequested({required this.userId});
 
-  final String userId;
+  final UserId userId;
 }

@@ -1,4 +1,5 @@
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
 
 class GetServersQuery {
@@ -18,7 +19,7 @@ class DeleteServerCommand {
     required this.serverId,
   });
 
-  final String serverId;
+  final ServerId serverId;
 }
 
 sealed class ServerUpdateCommand {
@@ -31,7 +32,7 @@ class UpdateServerNameCommand extends ServerUpdateCommand {
     required this.name,
   }) : super();
 
-  final String serverId;
+  final ServerId serverId;
   final String name;
 }
 
@@ -41,8 +42,8 @@ class InviteFriendToServerCommand extends ServerUpdateCommand {
     required this.friendUserId,
   }) : super();
 
-  final String serverId;
-  final String friendUserId;
+  final ServerId serverId;
+  final UserId friendUserId;
 }
 
 class AddServerMemberUpdateCommand extends ServerUpdateCommand {
@@ -51,8 +52,8 @@ class AddServerMemberUpdateCommand extends ServerUpdateCommand {
     required this.userId,
   }) : super();
 
-  final String serverId;
-  final String userId;
+  final ServerId serverId;
+  final UserId userId;
 }
 
 abstract interface class ServerRepo

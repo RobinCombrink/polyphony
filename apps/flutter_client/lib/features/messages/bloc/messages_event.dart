@@ -13,7 +13,7 @@ final class LoadMessagesRequested extends MessagesEvent {
     required this.channelId,
   });
 
-  final String channelId;
+  final ChannelId channelId;
 }
 
 final class CreateMessageRequested extends MessagesEvent {
@@ -23,9 +23,9 @@ final class CreateMessageRequested extends MessagesEvent {
     this.mentionedUserId,
   });
 
-  final String channelId;
+  final ChannelId channelId;
   final String messageContent;
-  final String? mentionedUserId;
+  final UserId? mentionedUserId;
 }
 
 final class UpdateMessageRequested extends MessagesEvent {
@@ -35,8 +35,8 @@ final class UpdateMessageRequested extends MessagesEvent {
     required this.messageContent,
   });
 
-  final String channelId;
-  final String messageId;
+  final ChannelId channelId;
+  final MessageId messageId;
   final String messageContent;
 }
 
@@ -46,8 +46,8 @@ final class DeleteMessageRequested extends MessagesEvent {
     required this.messageId,
   });
 
-  final String channelId;
-  final String messageId;
+  final ChannelId channelId;
+  final MessageId messageId;
 }
 
 final class RealtimeMessageReceived extends MessagesEvent {
@@ -57,7 +57,7 @@ final class RealtimeMessageReceived extends MessagesEvent {
     required this.content,
   });
 
-  final String channelId;
-  final String authorUserId;
+  final ChannelId channelId;
+  final UserId authorUserId;
   final String content;
 }

@@ -14,6 +14,7 @@ import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sess
 import "package:polyphony_flutter_client/shared/auth/access_token_provider.dart";
 import "package:polyphony_flutter_client/shared/auth/authentication_profile_service.dart";
 import "package:polyphony_flutter_client/shared/auth/authentication_session_service.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -47,13 +48,13 @@ class _FakeAuthenticationProfileService extends AuthenticationProfileService {
   _FakeAuthenticationProfileService({required this.userId})
       : super(httpClient: http.Client());
 
-  final String userId;
+  final UserId userId;
 
   @override
   Future<Result<ApiMe>> getMe({required String bearerToken}) async {
     return Ok<ApiMe>(
       ApiMe(
-        userId: userId,
+        userId: userId.value,
         displayName: null,
         issuer: "test",
       ),
@@ -225,7 +226,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
         serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
@@ -341,7 +342,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
         serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
@@ -442,7 +443,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
         serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
@@ -547,7 +548,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
         serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
@@ -666,7 +667,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
         serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
@@ -729,11 +730,11 @@ void main() {
 
       notificationRuntimeService.emit(
         MentionedRuntimeNotificationEvent(
-          serverId: fixture.listedServer.id,
+          serverId: fixture.listedServer.id.value,
           serverName: fixture.listedServer.name,
-          channelId: fixture.listedChannel.id,
+          channelId: fixture.listedChannel.id.value,
           channelName: fixture.listedChannel.name,
-          messageId: fixture.listedMessage.id,
+          messageId: fixture.listedMessage.id.value,
         ),
       );
 
@@ -799,7 +800,7 @@ void main() {
       final serverMembersBloc = _RecordingServerMembersBloc(
         serverMemberRepo: serverMemberRepo,
         profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
         serverRepo: serverRepo,
       );
       final voiceSessionsBloc = VoiceSessionsBloc(
@@ -862,11 +863,11 @@ void main() {
 
       notificationRuntimeService.emit(
         MentionedRuntimeNotificationEvent(
-          serverId: fixture.listedServer.id,
+          serverId: fixture.listedServer.id.value,
           serverName: fixture.listedServer.name,
           channelId: "missing-channel-id",
           channelName: "missing",
-          messageId: fixture.listedMessage.id,
+          messageId: fixture.listedMessage.id.value,
         ),
       );
 

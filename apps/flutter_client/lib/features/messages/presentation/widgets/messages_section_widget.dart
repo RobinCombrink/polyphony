@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 
 SectionStatus? buildMessagesSectionStatus(MessagesState state) {
@@ -48,16 +49,16 @@ class MessagesSectionWidget extends StatelessWidget {
 
   final List<Message> messages;
   final UserProfile currentUser;
-  final Map<String, String?> authorDisplayNamesByUserId;
+  final Map<UserId, String?> authorDisplayNamesByUserId;
   final String? channelName;
   final TextEditingController createController;
   final List<UserProfile> mentionCandidates;
   final bool isLoading;
-  final void Function(String? mentionedUserId) onCreate;
+  final void Function(UserId? mentionedUserId) onCreate;
   final Future<void> Function(Message message) onEdit;
   final void Function(Message message) onDelete;
 
-  String _authorLabel(String authorUserId, bool isOwnMessage) {
+  String _authorLabel(UserId authorUserId, bool isOwnMessage) {
     final resolvedDisplayName =
         authorDisplayNamesByUserId[authorUserId]?.trim();
     final currentUserDisplayName = currentUser.displayName?.trim();
@@ -78,7 +79,7 @@ class MessagesSectionWidget extends StatelessWidget {
   bool _isMentioningCurrentUser(Message message) {
     final normalizedContent = message.content.toLowerCase();
     final mentionTargets = <String>{
-      currentUser.userId.trim().toLowerCase(),
+      currentUser.userId.value.trim().toLowerCase(),
     };
 
     final displayName = currentUser.displayName?.trim().toLowerCase();
@@ -209,7 +210,7 @@ class _MessageComposerWidget extends StatefulWidget {
   final TextEditingController createController;
   final List<UserProfile> mentionCandidates;
   final bool isLoading;
-  final void Function(String? mentionedUserId) onCreate;
+  final void Function(UserId? mentionedUserId) onCreate;
 
   @override
   State<_MessageComposerWidget> createState() => _MessageComposerWidgetState();
@@ -217,7 +218,7 @@ class _MessageComposerWidget extends StatefulWidget {
 
 class _MessageComposerWidgetState extends State<_MessageComposerWidget> {
   String? _mentionQuery;
-  String? _selectedMentionedUserId;
+  UserId? _selectedMentionedUserId;
 
   String _displayLabel(UserProfile profile) {
     final displayName = profile.displayName?.trim();
@@ -225,7 +226,7 @@ class _MessageComposerWidgetState extends State<_MessageComposerWidget> {
       return displayName;
     }
 
-    return profile.userId;
+    return profile.userId.value;
   }
 
   Iterable<UserProfile> _filteredCandidates() {
@@ -241,7 +242,7 @@ class _MessageComposerWidgetState extends State<_MessageComposerWidget> {
     return widget.mentionCandidates.where((candidate) {
       final displayLabel = _displayLabel(candidate).toLowerCase();
       return displayLabel.contains(query) ||
-          candidate.userId.toLowerCase().contains(query);
+          candidate.userId.value.toLowerCase().contains(query);
     });
   }
 
@@ -370,7 +371,7 @@ class _MessageComposerWidgetState extends State<_MessageComposerWidget> {
                 return ListTile(
                   dense: true,
                   title: Text(_displayLabel(candidate)),
-                  subtitle: Text(candidate.userId),
+                  subtitle: Text(candidate.userId.value),
                   onTap: () => _selectMentionCandidate(candidate),
                 );
               },

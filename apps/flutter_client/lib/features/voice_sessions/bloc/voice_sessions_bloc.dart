@@ -5,6 +5,7 @@ import "package:collection/collection.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -63,7 +64,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       _participantStatusUpdatesSubscription;
   StreamSubscription<Map<String, Object>>? _participantVideoTracksSubscription;
   var _speakingParticipantUserIds = const <String>{};
-  String? _lastConnectedChannelId;
+  ChannelId? _lastConnectedChannelId;
 
   Future<void> _onVoiceSessionsEvent(
     VoiceSessionsEvent event,
@@ -106,10 +107,9 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     LoadVoiceSessionsRequested event,
     Emitter<VoiceSessionsState> emit,
   ) async {
-    final trimmedChannelId = event.channelId.trim();
     final loadedState = _loadedStateOrNull(state);
 
-    if (trimmedChannelId.isEmpty) {
+    if (event.channelId.value.trim().isEmpty) {
       emit(
         switch (state) {
           final VoiceSessionsLoadedDataState loadedState =>
@@ -138,7 +138,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     }
 
     final participantsResult = await _loadParticipantsForChannel(
-      channelId: trimmedChannelId,
+      channelId: event.channelId,
       loadedState: loadedState,
     );
 
@@ -151,11 +151,11 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         (participantsResult as Ok<List<VoiceParticipant>>).value;
     final participantsByChannelId =
         _participantsByChannelIdFromState(loadedState)
-          ..[trimmedChannelId] = participants;
+          ..[event.channelId] = participants;
 
     emit(VoiceSessionsLoadedState(
       activeConnection: loadedState?.activeConnection,
-      selectedChannelId: trimmedChannelId,
+      selectedChannelId: event.channelId,
       participants: participants,
       participantsByChannelId: participantsByChannelId,
       participantVideoTracks: _participantVideoTracksFromState(loadedState),
@@ -175,13 +175,12 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     Emitter<VoiceSessionsState> emit,
   ) async {
     final loadedState = _loadedStateOrNull(state);
-    final trimmedChannelIds = event.channelIds
-        .map((channelId) => channelId.trim())
-        .where((channelId) => channelId.isNotEmpty)
+    final validChannelIds = event.channelIds
+        .where((channelId) => channelId.value.trim().isNotEmpty)
         .toSet()
         .toList();
 
-    if (trimmedChannelIds.isEmpty) {
+    if (validChannelIds.isEmpty) {
       return;
     }
 
@@ -191,7 +190,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     final participantsByChannelId =
         _participantsByChannelIdFromState(loadedState);
-    final participantEntries = await Future.wait(trimmedChannelIds.map(
+    final participantEntries = await Future.wait(validChannelIds.map(
         (channelId) => _loadParticipantsForChannel(
               channelId: channelId,
               loadedState: loadedState,
@@ -217,11 +216,11 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     final refreshedParticipantsByChannelId = {
       ...participantsByChannelId,
-      ...Map<String, List<VoiceParticipant>>.fromEntries(newParticipants),
+      ...Map<ChannelId, List<VoiceParticipant>>.fromEntries(newParticipants),
     };
 
     final selectedChannelId = loadedState.selectedChannelId;
-    final selectedParticipants = selectedChannelId.isEmpty
+    final selectedParticipants = selectedChannelId.value.isEmpty
         ? loadedState.participants
         : refreshedParticipantsByChannelId[selectedChannelId] ??
             const <VoiceParticipant>[];
@@ -247,7 +246,6 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     ConnectVoiceSessionRequested event,
     Emitter<VoiceSessionsState> emit,
   ) async {
-    final trimmedChannelId = event.channelId.trim();
     final loadedState = switch (state) {
       final VoiceSessionsLoadedDataState loadedState => loadedState,
       _ => null,
@@ -264,7 +262,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     }
     final previousConnectedChannelId = loadedState.connectedChannelId;
 
-    if (trimmedChannelId.isEmpty) {
+    if (event.channelId.value.trim().isEmpty) {
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
@@ -283,9 +281,9 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     final activeConnection = loadedState.activeConnection;
     if (activeConnection != null &&
-        activeConnection.channelId == trimmedChannelId) {
+        activeConnection.channelId == event.channelId) {
       final participantsResult = await _loadParticipantsForChannel(
-        channelId: trimmedChannelId,
+        channelId: event.channelId,
         loadedState: loadedState,
       );
       if (participantsResult case Error<List<VoiceParticipant>>(:final error)) {
@@ -296,10 +294,10 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           (participantsResult as Ok<List<VoiceParticipant>>).value;
       final participantsByChannelId = _participantsByChannelIdFromState(
         loadedState,
-      )..[trimmedChannelId] = participants;
+      )..[event.channelId] = participants;
       emit(VoiceSessionsLoadedState(
         activeConnection: activeConnection,
-        selectedChannelId: trimmedChannelId,
+        selectedChannelId: event.channelId,
         participants: participants,
         participantsByChannelId: participantsByChannelId,
         participantVideoTracks: loadedState.participantVideoTracks,
@@ -316,7 +314,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     }
 
     if (activeConnection != null &&
-        activeConnection.channelId != trimmedChannelId) {
+        activeConnection.channelId != event.channelId) {
       final runtimeDisconnectResult = await _voiceRuntimeService.disconnect();
       if (runtimeDisconnectResult case Error<void>(:final error)) {
         emit(VoiceSessionsExceptionState(error: error));
@@ -328,17 +326,17 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       VoiceSessionsLoadingState(
         operation: _isReconnectAttempt(
           loadedState: loadedState,
-          channelId: trimmedChannelId,
+          channelId: event.channelId,
         )
             ? VoiceSessionsLoadingOperation.reconnecting
             : VoiceSessionsLoadingOperation.connecting,
-        channelId: trimmedChannelId,
+        channelId: event.channelId,
       ),
     );
 
     final connectVoiceSessionResult = await _voiceSessionRepo.createOne(
       command: ConnectVoiceSessionCommand(
-        channelId: trimmedChannelId,
+        channelId: event.channelId,
       ),
     );
 
@@ -356,7 +354,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         switch (runtimeConnectResult) {
           case Ok<void>():
             final participantsResult = await _loadParticipantsForChannel(
-              channelId: trimmedChannelId,
+              channelId: event.channelId,
               loadedState: loadedState,
               activeConnection: value,
             );
@@ -371,21 +369,21 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
                 (participantsResult as Ok<List<VoiceParticipant>>).value;
             final participantsByChannelId = _participantsByChannelIdFromState(
               loadedState,
-            )..[trimmedChannelId] = participants;
+            )..[event.channelId] = participants;
 
             final switchedFromChannelId = previousConnectedChannelId;
             if (switchedFromChannelId != null &&
-                switchedFromChannelId.isNotEmpty &&
-                switchedFromChannelId != trimmedChannelId) {
+                switchedFromChannelId.value.isNotEmpty &&
+                switchedFromChannelId != event.channelId) {
               participantsByChannelId[switchedFromChannelId] =
                   const <VoiceParticipant>[];
             }
 
-            _lastConnectedChannelId = trimmedChannelId;
+            _lastConnectedChannelId = event.channelId;
 
             emit(VoiceSessionsLoadedState(
               activeConnection: value,
-              selectedChannelId: trimmedChannelId,
+              selectedChannelId: event.channelId,
               participants: participants,
               participantsByChannelId: participantsByChannelId,
               participantVideoTracks:
@@ -403,7 +401,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           case Error<void>(:final error):
             if (_emitLifecycleIssueState(
               error: error,
-              channelId: trimmedChannelId,
+              channelId: event.channelId,
               loadedState: loadedState,
               emit: emit,
             )) {
@@ -415,7 +413,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       case Error<VoiceConnectSession>(:final error):
         if (_emitLifecycleIssueState(
           error: error,
-          channelId: trimmedChannelId,
+          channelId: event.channelId,
           loadedState: loadedState,
           emit: emit,
         )) {
@@ -430,7 +428,6 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     DisconnectVoiceSessionRequested event,
     Emitter<VoiceSessionsState> emit,
   ) async {
-    final trimmedChannelId = event.channelId.trim();
     final loadedState = switch (state) {
       final VoiceSessionsLoadedDataState loadedState => loadedState,
       _ => null,
@@ -446,7 +443,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       return;
     }
 
-    if (trimmedChannelId.isEmpty) {
+    if (event.channelId.value.trim().isEmpty) {
       emit(VoiceSessionsValidationFailedState(
         issue: VoiceSessionsValidationIssue.channelSelectionRequired,
         activeConnection: loadedState.activeConnection,
@@ -466,7 +463,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     emit(
       VoiceSessionsLoadingState(
         operation: VoiceSessionsLoadingOperation.disconnecting,
-        channelId: trimmedChannelId,
+        channelId: event.channelId,
       ),
     );
 
@@ -479,11 +476,11 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
     emit(VoiceSessionsLoadedState(
       activeConnection: null,
-      selectedChannelId: trimmedChannelId,
+      selectedChannelId: event.channelId,
       participants: const <VoiceParticipant>[],
       participantsByChannelId: _participantsByChannelIdFromState(
         loadedState,
-      )..[trimmedChannelId] = const <VoiceParticipant>[],
+      )..[event.channelId] = const <VoiceParticipant>[],
       participantVideoTracks: const <String, Object>{},
       isSelfMuted: false,
       isSelfDeafened: false,
@@ -492,7 +489,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       isNoiseSuppressionEnabled: loadedState.isNoiseSuppressionEnabled,
     ));
 
-    _lastConnectedChannelId = trimmedChannelId;
+    _lastConnectedChannelId = event.channelId;
   }
 
   Future<void> _onSetSelfMutedRequested(
@@ -825,9 +822,9 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
   bool _isReconnectAttempt({
     required VoiceSessionsLoadedDataState? loadedState,
-    required String channelId,
+    required ChannelId channelId,
   }) {
-    if (channelId.isEmpty) {
+    if (channelId.value.isEmpty) {
       return false;
     }
 
@@ -847,7 +844,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
   bool _emitLifecycleIssueState({
     required Exception error,
-    required String channelId,
+    required ChannelId channelId,
     required VoiceSessionsLoadedDataState? loadedState,
     required Emitter<VoiceSessionsState> emit,
   }) {
@@ -906,18 +903,18 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     };
   }
 
-  Map<String, List<VoiceParticipant>> _participantsByChannelIdFromState(
+  Map<ChannelId, List<VoiceParticipant>> _participantsByChannelIdFromState(
     VoiceSessionsLoadedDataState? loadedState,
   ) {
     return switch (loadedState) {
       final VoiceSessionsLoadedDataState loadedState =>
-        Map<String, List<VoiceParticipant>>.fromEntries(
+        Map<ChannelId, List<VoiceParticipant>>.fromEntries(
           loadedState.participantsByChannelId.entries.map(
             (entry) =>
                 MapEntry(entry.key, List<VoiceParticipant>.from(entry.value)),
           ),
         ),
-      _ => <String, List<VoiceParticipant>>{},
+      _ => <ChannelId, List<VoiceParticipant>>{},
     };
   }
 
@@ -932,7 +929,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
   }
 
   Future<Result<List<VoiceParticipant>>> _loadParticipantsForChannel({
-    required String channelId,
+    required ChannelId channelId,
     required VoiceSessionsLoadedDataState? loadedState,
     VoiceConnectSession? activeConnection,
   }) async {
@@ -946,7 +943,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
     final runtimeParticipantUserIds = _voiceRuntimeService
         .currentParticipantUserIds()
         .toSet()
-      ..add(resolvedActiveConnection.participantUserId);
+      ..add(resolvedActiveConnection.participantUserId.value);
     final mutedParticipantUserIds =
         _voiceRuntimeService.currentMutedParticipantUserIds();
     final deafenedParticipantUserIds =
@@ -960,7 +957,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           ),
         ),
       ),
-      resolvedActiveConnection.participantUserId:
+      resolvedActiveConnection.participantUserId.value:
           _voiceRuntimeService.isSelfMuted(),
     };
     final deafenedByUserId = <String, bool>{
@@ -972,7 +969,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
           ),
         ),
       ),
-      resolvedActiveConnection.participantUserId:
+      resolvedActiveConnection.participantUserId.value:
           _voiceRuntimeService.isSelfDeafened(),
     };
     final participants = await _resolveParticipants(
@@ -1005,7 +1002,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
       displayNamesByUserId,
       participant,
     ) {
-      final trimmedUserId = participant.userId.trim();
+      final trimmedUserId = participant.userId.value.trim();
       if (trimmedUserId.isEmpty ||
           displayNamesByUserId.containsKey(trimmedUserId)) {
         return displayNamesByUserId;
@@ -1056,7 +1053,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         )
             ? existingDisplayNamesByUserId[participantUserId]
             : switch (await _profileRepo.getOne(
-                query: GetUserQuery(userId: participantUserId),
+                query: GetUserQuery(userId: UserId(participantUserId)),
               )) {
                 Ok<UserProfile>(:final value) => value.displayName?.trim(),
                 Error<UserProfile>() => null,
@@ -1068,7 +1065,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
         };
 
         return VoiceParticipant(
-          userId: participantUserId,
+          userId: UserId(participantUserId),
           displayName: resolvedParticipantDisplayName,
           isMuted: mutedByUserId[participantUserId] ?? false,
           isDeafened: deafenedByUserId[participantUserId] ?? false,
@@ -1080,7 +1077,7 @@ class VoiceSessionsBloc extends Bloc<VoiceSessionsEvent, VoiceSessionsState> {
 
   bool _isSelfMutedFromParticipants({
     required VoiceConnectSession? activeConnection,
-    required Map<String, List<VoiceParticipant>> participantsByChannelId,
+    required Map<ChannelId, List<VoiceParticipant>> participantsByChannelId,
   }) {
     final _ = participantsByChannelId;
 

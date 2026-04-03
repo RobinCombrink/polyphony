@@ -3,6 +3,7 @@ import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 
 import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
@@ -19,12 +20,12 @@ void main() {
         initialDisplayName: "Owner",
       ),
       friendRepo: FakeFriendRepository(
-        friendUserIds: <String>{fixture.ownerUserId},
+        friendUserIds: <UserId>{fixture.ownerUserId},
         initialPendingOutgoingRequests: <PendingFriendRequest>[
           const PendingFriendRequest(
-            id: "pending-request-1",
-            requesterUserId: "requester-user",
-            addresseeUserId: "auth0|pending",
+            id: FriendRequestId("pending-request-1"),
+            requesterUserId: UserId("requester-user"),
+            addresseeUserId: UserId("auth0|pending"),
           ),
         ],
       ),
@@ -56,7 +57,7 @@ void main() {
         userId: fixture.ownerUserId,
         initialDisplayName: "Owner",
       ),
-      friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+      friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
     act: (bloc) => bloc.add(
@@ -84,7 +85,7 @@ void main() {
         userId: fixture.ownerUserId,
         initialDisplayName: "Owner",
       ),
-      friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+      friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
     seed: () => ServerMembersLoadedState(
@@ -92,7 +93,7 @@ void main() {
       members: <UserProfile>[
         UserProfile(userId: fixture.ownerUserId, displayName: "Owner"),
       ],
-      friendUserIds: const <String>{},
+      friendUserIds: const <UserId>{},
       pendingOutgoingFriendRequests: const <PendingFriendRequest>[],
     ),
     act: (bloc) => bloc.add(
@@ -120,7 +121,7 @@ void main() {
         initialDisplayName: "Owner",
       ),
       friendRepo: FakeFriendRepository(
-        friendUserIds: <String>{},
+        friendUserIds: <UserId>{},
         forceCreateError: true,
         createError: const ApiRequestException(
           operation: "send friend request from server context",
@@ -135,7 +136,7 @@ void main() {
       members: <UserProfile>[
         UserProfile(userId: fixture.ownerUserId, displayName: "Owner"),
       ],
-      friendUserIds: const <String>{},
+      friendUserIds: const <UserId>{},
       pendingOutgoingFriendRequests: const <PendingFriendRequest>[],
     ),
     act: (bloc) => bloc.add(
@@ -162,34 +163,35 @@ void main() {
         initialDisplayName: "Owner",
       ),
       friendRepo: FakeFriendRepository(
-        friendUserIds: <String>{},
+        friendUserIds: <UserId>{},
         initialPendingOutgoingRequests: <PendingFriendRequest>[
           const PendingFriendRequest(
-            id: "pending-request-1",
-            requesterUserId: "requester-user",
-            addresseeUserId: "auth0|pending",
+            id: FriendRequestId("pending-request-1"),
+            requesterUserId: UserId("requester-user"),
+            addresseeUserId: UserId("auth0|pending"),
           ),
         ],
       ),
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
     seed: () => const ServerMembersLoadedState(
-      serverId: "server-1",
+      serverId: ServerId("server-1"),
       members: <UserProfile>[
-        UserProfile(userId: "auth0|pending", displayName: "Pending User"),
+        UserProfile(
+            userId: UserId("auth0|pending"), displayName: "Pending User"),
       ],
-      friendUserIds: <String>{},
+      friendUserIds: <UserId>{},
       pendingOutgoingFriendRequests: <PendingFriendRequest>[
         PendingFriendRequest(
-          id: "pending-request-1",
-          requesterUserId: "requester-user",
-          addresseeUserId: "auth0|pending",
+          id: FriendRequestId("pending-request-1"),
+          requesterUserId: UserId("requester-user"),
+          addresseeUserId: UserId("auth0|pending"),
         ),
       ],
     ),
     act: (bloc) => bloc.add(
       const CancelOutgoingFriendRequestRequested(
-        friendRequestId: "pending-request-1",
+        friendRequestId: FriendRequestId("pending-request-1"),
       ),
     ),
     expect: () => <Matcher>[
@@ -209,7 +211,7 @@ void main() {
         userId: fixture.ownerUserId,
         initialDisplayName: "Owner",
       ),
-      friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+      friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
     seed: () => ServerMembersLoadedState(
@@ -217,11 +219,11 @@ void main() {
       members: <UserProfile>[
         UserProfile(userId: fixture.ownerUserId, displayName: "Owner"),
       ],
-      friendUserIds: const <String>{},
+      friendUserIds: const <UserId>{},
       pendingOutgoingFriendRequests: <PendingFriendRequest>[
         PendingFriendRequest(
-          id: "pending-request-owner",
-          requesterUserId: "requester-user",
+          id: const FriendRequestId("pending-request-owner"),
+          requesterUserId: const UserId("requester-user"),
           addresseeUserId: fixture.ownerUserId,
         ),
       ],
@@ -250,7 +252,7 @@ void main() {
         initialDisplayName: "Owner",
       ),
       friendRepo: FakeFriendRepository(
-        friendUserIds: <String>{},
+        friendUserIds: <UserId>{},
         forceCancelError: true,
         cancelError: const ApiRequestException(
           operation: "cancel outgoing friend request",
@@ -261,22 +263,23 @@ void main() {
       serverRepo: FakeServerRepository(fixture: fixture),
     ),
     seed: () => const ServerMembersLoadedState(
-      serverId: "server-1",
+      serverId: ServerId("server-1"),
       members: <UserProfile>[
-        UserProfile(userId: "auth0|pending", displayName: "Pending User"),
+        UserProfile(
+            userId: UserId("auth0|pending"), displayName: "Pending User"),
       ],
-      friendUserIds: <String>{},
+      friendUserIds: <UserId>{},
       pendingOutgoingFriendRequests: <PendingFriendRequest>[
         PendingFriendRequest(
-          id: "pending-request-1",
-          requesterUserId: "requester-user",
-          addresseeUserId: "auth0|pending",
+          id: FriendRequestId("pending-request-1"),
+          requesterUserId: UserId("requester-user"),
+          addresseeUserId: UserId("auth0|pending"),
         ),
       ],
     ),
     act: (bloc) => bloc.add(
       const CancelOutgoingFriendRequestRequested(
-        friendRequestId: "pending-request-1",
+        friendRequestId: FriendRequestId("pending-request-1"),
       ),
     ),
     expect: () => <Matcher>[

@@ -1,6 +1,7 @@
 import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 
 import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
@@ -16,7 +17,7 @@ void main() {
           messageRepo: FakeMessageRepository(fixture: fixture),
           profileRepo: FakeProfileRepository(
             userId: fixture.ownerUserId,
-            displayNamesByUserId: <String, String?>{
+            displayNamesByUserId: <UserId, String?>{
               fixture.listedMessage.authorUserId: "Listed Author",
             },
           ),

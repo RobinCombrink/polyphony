@@ -70,7 +70,7 @@ class _DirectMessagesPaneWidgetState extends State<DirectMessagesPaneWidget> {
                             return ListTile(
                               dense: true,
                               selected: isSelected,
-                              title: Text(thread.id),
+                              title: Text(thread.id.value),
                               onTap: () {
                                 context.read<DirectMessagesBloc>().add(
                                       SelectDirectMessageThreadRequested(
@@ -110,8 +110,8 @@ class _DirectMessagesPaneWidgetState extends State<DirectMessagesPaneWidget> {
                                             return ListTile(
                                               dense: true,
                                               title: Text(message.content),
-                                              subtitle:
-                                                  Text(message.authorUserId),
+                                              subtitle: Text(
+                                                  message.authorUserId.value),
                                             );
                                           },
                                         ),

@@ -1,6 +1,7 @@
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/block_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/direct_message_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -13,7 +14,7 @@ class DirectMessagesBloc
   DirectMessagesBloc({
     required DirectMessageRepo directMessageRepo,
     required BlockRepo blockRepo,
-    required String currentUserId,
+    required UserId currentUserId,
   })  : _directMessageRepo = directMessageRepo,
         _blockRepo = blockRepo,
         _currentUserId = currentUserId,
@@ -23,7 +24,7 @@ class DirectMessagesBloc
 
   final DirectMessageRepo _directMessageRepo;
   final BlockRepo _blockRepo;
-  final String _currentUserId;
+  final UserId _currentUserId;
 
   Future<void> _onEvent(
     DirectMessagesEvent event,
@@ -43,22 +44,22 @@ class DirectMessagesBloc
     }
   }
 
-  String _peerUserIdForThread(DirectMessageThread thread) {
+  UserId _peerUserIdForThread(DirectMessageThread thread) {
     return thread.participantAUserId == _currentUserId
         ? thread.participantBUserId
         : thread.participantAUserId;
   }
 
-  Future<Set<String>> _loadBlockedUserIds() async {
+  Future<Set<UserId>> _loadBlockedUserIds() async {
     final blockedResult =
         await _blockRepo.getMany(query: const GetBlockedUsersQuery());
 
     return switch (blockedResult) {
       Ok<Iterable<BlockedUser>>(:final value) => value
-          .map((user) => user.userId.trim())
-          .where((id) => id.isNotEmpty)
+          .map((user) => user.userId)
+          .where((id) => id.value.trim().isNotEmpty)
           .toSet(),
-      Error<Iterable<BlockedUser>>() => <String>{},
+      Error<Iterable<BlockedUser>>() => <UserId>{},
     };
   }
 
@@ -102,7 +103,7 @@ class DirectMessagesBloc
       return;
     }
 
-    final trimmedUserId = event.userId.trim();
+    final trimmedUserId = event.userId.value.trim();
     if (trimmedUserId.isEmpty) {
       emit(DirectMessagesValidationFailedState(
         issue: DirectMessagesValidationIssue.userSelectionRequired,
@@ -115,7 +116,7 @@ class DirectMessagesBloc
     }
 
     final openResult = await _directMessageRepo.createOne(
-      command: OpenOrGetDirectMessageThreadCommand(userId: trimmedUserId),
+      command: OpenOrGetDirectMessageThreadCommand(userId: event.userId),
     );
 
     switch (openResult) {
@@ -146,9 +147,8 @@ class DirectMessagesBloc
     }
 
     final threads = event.threadsOverride ?? loadedState.threads;
-    final trimmedThreadId = event.threadId.trim();
     final selectedThread =
-        threads.where((thread) => thread.id == trimmedThreadId).firstOrNull;
+        threads.where((thread) => thread.id == event.threadId).firstOrNull;
 
     if (selectedThread == null) {
       emit(DirectMessagesValidationFailedState(
@@ -162,14 +162,14 @@ class DirectMessagesBloc
     }
 
     final messagesResult = await _directMessageRepo.getOne(
-      query: GetDirectMessagesQuery(threadId: trimmedThreadId),
+      query: GetDirectMessagesQuery(threadId: event.threadId),
     );
 
     switch (messagesResult) {
       case Ok<Iterable<DirectMessage>>(:final value):
         emit(DirectMessagesLoadedState(
           threads: threads,
-          selectedThreadId: trimmedThreadId,
+          selectedThreadId: event.threadId,
           selectedThreadMessages: value.toList(growable: false),
           blockedUserIds: loadedState.blockedUserIds,
         ));

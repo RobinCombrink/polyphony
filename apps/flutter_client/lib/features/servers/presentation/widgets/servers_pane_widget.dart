@@ -12,6 +12,7 @@ import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/servers_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_notification_preferences_section_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
@@ -34,7 +35,7 @@ class ServersPaneWidget extends StatefulWidget {
 }
 
 class _ServersPaneWidgetState extends State<ServersPaneWidget> {
-  Future<void> _showAddUserToServerDialog(String serverId) async {
+  Future<void> _showAddUserToServerDialog(ServerId serverId) async {
     final controller = TextEditingController();
 
     final result = await showDialog<String>(
@@ -70,7 +71,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
     context.read<ServerMembersBloc>().add(
           AddServerMemberRequested(
             serverId: serverId,
-            userId: result,
+            userId: UserId(result),
           ),
         );
   }
@@ -141,7 +142,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
         );
   }
 
-  Future<void> _showInviteFriendToServerDialog(String serverId) async {
+  Future<void> _showInviteFriendToServerDialog(ServerId serverId) async {
     final controller = TextEditingController();
 
     final result = await showDialog<String>(
@@ -177,7 +178,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
     context.read<ServerMembersBloc>().add(
           InviteFriendToServerRequested(
             serverId: serverId,
-            friendUserId: result,
+            friendUserId: UserId(result),
           ),
         );
   }
@@ -242,7 +243,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
         context.read<NotificationPreferencesBloc>()
           ..add(
             LoadNotificationPreferencesRequested(
-              serverId: server.id,
+              serverId: server.id.value,
               channelId: null,
             ),
           );
@@ -258,7 +259,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: SettingsNotificationPreferencesSectionWidget(
-                  selectedServerId: server.id,
+                  selectedServerId: server.id.value,
                   showGlobal: false,
                   showChannel: false,
                   title: "Server notification preferences",
@@ -276,9 +277,9 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
     return List<Server>.generate(
       6,
       (index) => Server(
-        id: "srv-skeleton-$index",
+        id: ServerId("srv-skeleton-$index"),
         name: "Server ${index + 1}",
-        ownerUserId: "owner-skeleton",
+        ownerUserId: const UserId("owner-skeleton"),
       ),
     );
   }
@@ -360,7 +361,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
                     .read<ServersBloc>()
                     .add(SelectServerRequested(serverId: server.id));
                 widget.onSelectDestination(
-                  ServerSelectedWorkspaceDestination(serverId: server.id),
+                  ServerSelectedWorkspaceDestination(serverId: server.id.value),
                 );
               },
               onAddUser: (server) => _showAddUserToServerDialog(server.id),

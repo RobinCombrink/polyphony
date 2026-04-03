@@ -41,7 +41,7 @@ class ServerRepository implements ServerRepo {
   @override
   Future<Result<void>> deleteOne({required DeleteServerCommand command}) {
     return _serverService.deleteServer(
-      serverId: command.serverId,
+      serverId: command.serverId.value,
     );
   }
 
@@ -50,18 +50,18 @@ class ServerRepository implements ServerRepo {
     return switch (command) {
       UpdateServerNameCommand(:final serverId, :final name) =>
         _serverService.updateServerName(
-          serverId: serverId,
+          serverId: serverId.value,
           name: name,
         ),
       AddServerMemberUpdateCommand(:final serverId, :final userId) =>
         _serverService.addServerMember(
-          serverId: serverId,
-          userId: userId,
+          serverId: serverId.value,
+          userId: userId.value,
         ),
       InviteFriendToServerCommand(:final serverId, :final friendUserId) =>
         _serverService.inviteFriendToServer(
-          serverId: serverId,
-          friendUserId: friendUserId,
+          serverId: serverId.value,
+          friendUserId: friendUserId.value,
         ),
     };
   }

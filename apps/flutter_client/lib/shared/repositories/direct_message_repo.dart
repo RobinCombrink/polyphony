@@ -1,4 +1,5 @@
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
 
 class GetDirectMessageThreadsQuery {
@@ -8,13 +9,13 @@ class GetDirectMessageThreadsQuery {
 class OpenOrGetDirectMessageThreadCommand {
   const OpenOrGetDirectMessageThreadCommand({required this.userId});
 
-  final String userId;
+  final UserId userId;
 }
 
 class GetDirectMessagesQuery {
   const GetDirectMessagesQuery({required this.threadId});
 
-  final String threadId;
+  final DirectMessageThreadId threadId;
 }
 
 class SendDirectMessageCommand {
@@ -23,7 +24,7 @@ class SendDirectMessageCommand {
     required this.content,
   });
 
-  final String threadId;
+  final DirectMessageThreadId threadId;
   final String content;
 }
 
@@ -33,7 +34,7 @@ class SearchDirectMessagesForUserCommand {
     required this.query,
   });
 
-  final String userId;
+  final UserId userId;
   final String query;
 }
 

@@ -1,4 +1,5 @@
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
 
 class GetFriendsQuery {
@@ -15,8 +16,8 @@ class SendFriendRequestFromServerContextCommand {
     required this.targetUserId,
   });
 
-  final String serverId;
-  final String targetUserId;
+  final ServerId serverId;
+  final UserId targetUserId;
 }
 
 class CancelOutgoingFriendRequestCommand {
@@ -24,7 +25,7 @@ class CancelOutgoingFriendRequestCommand {
     required this.friendRequestId,
   });
 
-  final String friendRequestId;
+  final FriendRequestId friendRequestId;
 }
 
 abstract interface class FriendRepo

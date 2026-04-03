@@ -1,5 +1,6 @@
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
 
 class GetChannelsQuery {
@@ -7,7 +8,7 @@ class GetChannelsQuery {
     required this.serverId,
   });
 
-  final String serverId;
+  final ServerId serverId;
 }
 
 class CreateChannelCommand {
@@ -17,7 +18,7 @@ class CreateChannelCommand {
     required this.channelType,
   });
 
-  final String serverId;
+  final ServerId serverId;
   final String name;
   final ChannelType channelType;
 }
@@ -27,7 +28,7 @@ class DeleteChannelCommand {
     required this.channelId,
   });
 
-  final String channelId;
+  final ChannelId channelId;
 }
 
 class UpdateChannelNameCommand {
@@ -36,7 +37,7 @@ class UpdateChannelNameCommand {
     required this.name,
   });
 
-  final String channelId;
+  final ChannelId channelId;
   final String name;
 }
 

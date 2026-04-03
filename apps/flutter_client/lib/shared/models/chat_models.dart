@@ -1,18 +1,19 @@
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 
 class Server {
   const Server(
       {required this.id, required this.name, required this.ownerUserId});
 
-  final String id;
+  final ServerId id;
   final String name;
-  final String ownerUserId;
+  final UserId ownerUserId;
 
   factory Server.fromJson(Map<String, dynamic> json) {
     return Server(
-      id: json["id"] as String,
+      id: ServerId(json["id"] as String),
       name: json["name"] as String,
-      ownerUserId: json["owner_user_id"] as String,
+      ownerUserId: UserId(json["owner_user_id"] as String),
     );
   }
 }
@@ -23,13 +24,13 @@ class ServerMember {
     required this.userId,
   });
 
-  final String serverId;
-  final String userId;
+  final ServerId serverId;
+  final UserId userId;
 
   factory ServerMember.fromJson(Map<String, dynamic> json) {
     return ServerMember(
-      serverId: json["server_id"] as String,
-      userId: json["user_id"] as String,
+      serverId: ServerId(json["server_id"] as String),
+      userId: UserId(json["user_id"] as String),
     );
   }
 }
@@ -39,11 +40,11 @@ class Friend {
     required this.userId,
   });
 
-  final String userId;
+  final UserId userId;
 
   factory Friend.fromJson(Map<String, dynamic> json) {
     return Friend(
-      userId: json["user_id"] as String,
+      userId: UserId(json["user_id"] as String),
     );
   }
 }
@@ -55,9 +56,9 @@ class PendingFriendRequest {
     required this.addresseeUserId,
   });
 
-  final String id;
-  final String requesterUserId;
-  final String addresseeUserId;
+  final FriendRequestId id;
+  final UserId requesterUserId;
+  final UserId addresseeUserId;
 }
 
 class BlockedUser {
@@ -65,7 +66,7 @@ class BlockedUser {
     required this.userId,
   });
 
-  final String userId;
+  final UserId userId;
 }
 
 class DirectMessageThread {
@@ -75,9 +76,9 @@ class DirectMessageThread {
     required this.participantBUserId,
   });
 
-  final String id;
-  final String participantAUserId;
-  final String participantBUserId;
+  final DirectMessageThreadId id;
+  final UserId participantAUserId;
+  final UserId participantBUserId;
 }
 
 class DirectMessage {
@@ -88,9 +89,9 @@ class DirectMessage {
     required this.content,
   });
 
-  final String id;
-  final String threadId;
-  final String authorUserId;
+  final DirectMessageId id;
+  final DirectMessageThreadId threadId;
+  final UserId authorUserId;
   final String content;
 }
 
@@ -101,13 +102,13 @@ sealed class Channel {
     required this.name,
   });
 
-  final String id;
-  final String serverId;
+  final ChannelId id;
+  final ServerId serverId;
   final String name;
 
   factory Channel.fromJson(Map<String, dynamic> json) {
-    final id = json["id"] as String;
-    final serverId = json["server_id"] as String;
+    final id = ChannelId(json["id"] as String);
+    final serverId = ServerId(json["server_id"] as String);
     final name = json["name"] as String;
     final channelType =
         ChannelType.fromApiValue(json["channel_type"] as String?);
@@ -160,18 +161,18 @@ class Message {
     required this.content,
   });
 
-  final String id;
-  final String channelId;
-  final String authorUserId;
+  final MessageId id;
+  final ChannelId channelId;
+  final UserId authorUserId;
   final String content;
 
   factory Message.fromJson(Map<String, dynamic> json) {
     final payload = _messagePayload(json);
 
     return Message(
-      id: _requiredString(payload, "id"),
-      channelId: _requiredString(payload, "channel_id"),
-      authorUserId: _requiredString(payload, "author_user_id"),
+      id: MessageId(_requiredString(payload, "id")),
+      channelId: ChannelId(_requiredString(payload, "channel_id")),
+      authorUserId: UserId(_requiredString(payload, "author_user_id")),
       content: _requiredString(payload, "content"),
     );
   }
@@ -206,8 +207,8 @@ class VoiceConnectSession {
 
   final String livekitUrl;
   final String accessToken;
-  final String channelId;
-  final String participantUserId;
+  final ChannelId channelId;
+  final UserId participantUserId;
 }
 
 class TextConnectSession {
@@ -220,8 +221,8 @@ class TextConnectSession {
 
   final String livekitUrl;
   final String accessToken;
-  final String channelId;
-  final String participantUserId;
+  final ChannelId channelId;
+  final UserId participantUserId;
 }
 
 class VoiceParticipant {
@@ -233,7 +234,7 @@ class VoiceParticipant {
     required this.isSpeaking,
   });
 
-  final String userId;
+  final UserId userId;
   final String displayName;
   final bool isMuted;
   final bool isDeafened;
@@ -246,6 +247,6 @@ class UserProfile {
     required this.displayName,
   });
 
-  final String userId;
+  final UserId userId;
   final String? displayName;
 }

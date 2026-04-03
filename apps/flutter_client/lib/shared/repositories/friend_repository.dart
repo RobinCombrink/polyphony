@@ -46,8 +46,8 @@ class FriendRepository implements FriendRepo {
   }) async {
     final serviceResult =
         await _friendService.sendFriendRequestFromServerContext(
-      serverId: command.serverId,
-      targetUserId: command.targetUserId,
+      serverId: command.serverId.value,
+      targetUserId: command.targetUserId.value,
     );
 
     return switch (serviceResult) {
@@ -63,7 +63,7 @@ class FriendRepository implements FriendRepo {
     required CancelOutgoingFriendRequestCommand command,
   }) {
     return _friendService.cancelOutgoingFriendRequest(
-      friendRequestId: command.friendRequestId,
+      friendRequestId: command.friendRequestId.value,
     );
   }
 }

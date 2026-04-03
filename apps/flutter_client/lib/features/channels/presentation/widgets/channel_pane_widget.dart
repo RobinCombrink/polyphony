@@ -5,6 +5,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/channels/presentation/widgets/channel_widget.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 
 enum _PaneMenuAction { createChannel }
@@ -49,7 +50,7 @@ class ChannelPaneWidget extends StatefulWidget {
     required this.selectedChannelId,
     required this.voiceParticipantCount,
     this.voiceParticipantsByChannelId =
-        const <String, List<VoiceParticipant>>{},
+        const <ChannelId, List<VoiceParticipant>>{},
     this.connectedVoiceChannelId,
     this.selfParticipantUserId,
     this.isSelfDeafened = false,
@@ -69,11 +70,11 @@ class ChannelPaneWidget extends StatefulWidget {
   });
 
   final List<Channel> channels;
-  final String? selectedChannelId;
+  final ChannelId? selectedChannelId;
   final int voiceParticipantCount;
-  final Map<String, List<VoiceParticipant>> voiceParticipantsByChannelId;
-  final String? connectedVoiceChannelId;
-  final String? selfParticipantUserId;
+  final Map<ChannelId, List<VoiceParticipant>> voiceParticipantsByChannelId;
+  final ChannelId? connectedVoiceChannelId;
+  final UserId? selfParticipantUserId;
   final bool isSelfDeafened;
   final bool isLoading;
   final TextEditingController createController;

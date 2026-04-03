@@ -2,6 +2,7 @@ import "package:collection/collection.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
@@ -99,9 +100,8 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     Emitter<ServersState> emit,
   ) async {
     if (state case final ServersLoadedState state) {
-      final trimmedServerId = event.serverId.trim();
-      if (trimmedServerId.isEmpty ||
-          !state.servers.any((server) => server.id == trimmedServerId)) {
+      if (event.serverId.value.trim().isEmpty ||
+          !state.servers.any((server) => server.id == event.serverId)) {
         emit(ServersValidationFailedState(
           issue: ServersValidationIssue.serverSelectionRequired,
           servers: state.servers,
@@ -112,7 +112,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
       emit(const ServersLoadingState());
 
       final deleteServerResult = await _serverRepo.deleteOne(
-        command: DeleteServerCommand(serverId: trimmedServerId),
+        command: DeleteServerCommand(serverId: event.serverId),
       );
 
       switch (deleteServerResult) {
@@ -146,11 +146,10 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     Emitter<ServersState> emit,
   ) async {
     if (state case final ServersLoadedState state) {
-      final trimmedServerId = event.serverId.trim();
       final trimmedName = event.name.trim();
 
-      if (trimmedServerId.isEmpty ||
-          !state.servers.any((server) => server.id == trimmedServerId)) {
+      if (event.serverId.value.trim().isEmpty ||
+          !state.servers.any((server) => server.id == event.serverId)) {
         emit(ServersValidationFailedState(
           issue: ServersValidationIssue.serverSelectionRequired,
           servers: state.servers,
@@ -170,7 +169,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
 
       final updateResult = await _serverRepo.updateOne(
         command: UpdateServerNameCommand(
-          serverId: trimmedServerId,
+          serverId: event.serverId,
           name: trimmedName,
         ),
       );
@@ -185,7 +184,7 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
             case Ok<Iterable<Server>>(:final value):
               final servers = value.toList();
               final updatedServer = servers.firstWhereOrNull(
-                (server) => server.id == trimmedServerId,
+                (server) => server.id == event.serverId,
               );
 
               emit(state.loadServers(servers: servers).selectServer(
@@ -211,9 +210,8 @@ class ServersBloc extends Bloc<ServersEvent, ServersState> {
     Emitter<ServersState> emit,
   ) {
     if (state case final ServersLoadedState state) {
-      final trimmedServerId = event.serverId.trim();
       final selectedServer = state.servers.firstWhereOrNull(
-        (server) => server.id == trimmedServerId,
+        (server) => server.id == event.serverId,
       );
 
       emit(state.selectServer(incomingSelectedServer: selectedServer));

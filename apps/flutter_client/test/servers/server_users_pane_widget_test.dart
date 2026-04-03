@@ -4,6 +4,7 @@ import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/presentation/widgets/server_users_pane_widget.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 
 import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
@@ -54,7 +55,7 @@ void main() {
         userId: fixture.ownerUserId,
         initialDisplayName: "Owner",
       ),
-      friendRepo: FakeFriendRepository(friendUserIds: <String>{}),
+      friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
       serverRepo: FakeServerRepository(fixture: fixture),
     );
   }
@@ -67,11 +68,11 @@ void main() {
     bloc.emitForTest(
       const ServerMembersValidationFailedState(
         issue: ServerMembersValidationIssue.sendFriendRequestConflict,
-        serverId: "server-1",
+        serverId: ServerId("server-1"),
         members: <UserProfile>[
-          UserProfile(userId: "auth0|u1", displayName: "Owner"),
+          UserProfile(userId: UserId("auth0|u1"), displayName: "Owner"),
         ],
-        friendUserIds: <String>{},
+        friendUserIds: <UserId>{},
         pendingOutgoingFriendRequests: <PendingFriendRequest>[],
       ),
     );
@@ -88,16 +89,16 @@ void main() {
 
     bloc.emitForTest(
       const ServerMembersLoadedState(
-        serverId: "server-1",
+        serverId: ServerId("server-1"),
         members: <UserProfile>[
-          UserProfile(userId: "auth0|u1", displayName: "Owner"),
+          UserProfile(userId: UserId("auth0|u1"), displayName: "Owner"),
         ],
-        friendUserIds: <String>{},
+        friendUserIds: <UserId>{},
         pendingOutgoingFriendRequests: <PendingFriendRequest>[
           PendingFriendRequest(
-            id: "pending-request-1",
-            requesterUserId: "auth0|self",
-            addresseeUserId: "auth0|u1",
+            id: FriendRequestId("pending-request-1"),
+            requesterUserId: UserId("auth0|self"),
+            addresseeUserId: UserId("auth0|u1"),
           ),
         ],
       ),
@@ -116,7 +117,8 @@ void main() {
         .toList(growable: false);
 
     expect(cancelEvents, hasLength(1));
-    expect(cancelEvents.first.friendRequestId, "pending-request-1");
+    expect(cancelEvents.first.friendRequestId,
+        const FriendRequestId("pending-request-1"));
   });
 
   testWidgets("long-press context menu shows cancel for pending user",
@@ -126,16 +128,16 @@ void main() {
 
     bloc.emitForTest(
       const ServerMembersLoadedState(
-        serverId: "server-1",
+        serverId: ServerId("server-1"),
         members: <UserProfile>[
-          UserProfile(userId: "auth0|u1", displayName: "Owner"),
+          UserProfile(userId: UserId("auth0|u1"), displayName: "Owner"),
         ],
-        friendUserIds: <String>{},
+        friendUserIds: <UserId>{},
         pendingOutgoingFriendRequests: <PendingFriendRequest>[
           PendingFriendRequest(
-            id: "pending-request-1",
-            requesterUserId: "auth0|self",
-            addresseeUserId: "auth0|u1",
+            id: FriendRequestId("pending-request-1"),
+            requesterUserId: UserId("auth0|self"),
+            addresseeUserId: UserId("auth0|u1"),
           ),
         ],
       ),
@@ -157,11 +159,11 @@ void main() {
 
     bloc.emitForTest(
       const ServerMembersLoadedState(
-        serverId: "server-1",
+        serverId: ServerId("server-1"),
         members: <UserProfile>[
-          UserProfile(userId: "auth0|u2", displayName: "Member Two"),
+          UserProfile(userId: UserId("auth0|u2"), displayName: "Member Two"),
         ],
-        friendUserIds: <String>{},
+        friendUserIds: <UserId>{},
         pendingOutgoingFriendRequests: <PendingFriendRequest>[],
       ),
     );
@@ -182,7 +184,7 @@ void main() {
         .toList(growable: false);
 
     expect(addEvents, hasLength(1));
-    expect(addEvents.first.serverId, "server-1");
-    expect(addEvents.first.targetUserId, "auth0|u2");
+    expect(addEvents.first.serverId, const ServerId("server-1"));
+    expect(addEvents.first.targetUserId, const UserId("auth0|u2"));
   });
 }

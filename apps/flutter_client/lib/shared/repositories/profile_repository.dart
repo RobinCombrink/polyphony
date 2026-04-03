@@ -14,7 +14,7 @@ class ProfileRepository implements ProfileRepo {
   @override
   Future<Result<UserProfile>> getOne({required GetUserQuery query}) async {
     final serviceResult = await _profileService.getUserById(
-      userId: query.userId,
+      userId: query.userId.value,
     );
 
     return switch (serviceResult) {

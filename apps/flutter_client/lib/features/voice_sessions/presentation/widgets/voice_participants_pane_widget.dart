@@ -11,6 +11,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_stream_popout_channel.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
@@ -23,7 +24,7 @@ class VoiceParticipantsPaneWidget extends StatelessWidget {
     return List<VoiceParticipant>.generate(
       6,
       (index) => VoiceParticipant(
-        userId: "participant-skeleton-$index",
+        userId: UserId("participant-skeleton-$index"),
         displayName: "Participant ${index + 1}",
         isMuted: false,
         isDeafened: false,
@@ -133,7 +134,7 @@ class _VoiceLifecycleIssueCard extends StatelessWidget {
   });
 
   final VoiceSessionsLifecycleIssue issue;
-  final String channelId;
+  final ChannelId channelId;
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +198,7 @@ class _VoiceFocusedStreamWidget extends StatefulWidget {
   });
 
   final List<VoiceParticipant> participants;
-  final String? selfParticipantUserId;
+  final UserId? selfParticipantUserId;
   final bool isSelfDeafened;
   final VoiceConnectSession? activeConnection;
   final Map<String, Object> participantVideoTracks;
@@ -482,14 +483,14 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
 
     final selfParticipantUserId = widget.selfParticipantUserId;
     if (selfParticipantUserId == null ||
-        !closedParticipantUserIds.contains(selfParticipantUserId) ||
+        !closedParticipantUserIds.contains(selfParticipantUserId.value) ||
         !mounted) {
       return;
     }
 
     final activeConnection = widget.activeConnection;
     final channelId = activeConnection?.channelId;
-    if (channelId == null || channelId.isEmpty) {
+    if (channelId == null || channelId.value.isEmpty) {
       return;
     }
 
@@ -505,9 +506,9 @@ class _VoiceFocusedStreamWidgetState extends State<_VoiceFocusedStreamWidget> {
   List<_VoiceStreamItemData> _streamItems() {
     final participantByUserId = <String, VoiceParticipant>{
       for (final participant in widget.participants)
-        participant.userId: participant,
+        participant.userId.value: participant,
     };
-    final selfUserId = widget.selfParticipantUserId;
+    final selfUserId = widget.selfParticipantUserId?.value;
 
     final participantUserIds = <String>{
       ...participantByUserId.keys,

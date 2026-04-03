@@ -1,5 +1,6 @@
 import "package:flutter_bloc/flutter_bloc.dart";
 
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
@@ -9,7 +10,7 @@ part "profile_state.dart";
 class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ProfileBloc({
     required ProfileRepo profileRepo,
-    required String currentUserId,
+    required UserId currentUserId,
   })  : _profileRepo = profileRepo,
         _currentUserId = currentUserId,
         super(const ProfileInitialState()) {
@@ -18,7 +19,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   }
 
   final ProfileRepo _profileRepo;
-  final String _currentUserId;
+  final UserId _currentUserId;
 
   Future<void> _onLoadProfileRequested(
     LoadProfileRequested event,

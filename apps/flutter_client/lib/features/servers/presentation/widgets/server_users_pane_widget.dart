@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
 import "package:skeletonizer/skeletonizer.dart";
@@ -170,7 +171,7 @@ class ServerUsersPaneWidget extends StatelessWidget {
 
   String _resolvedPendingRequestLabel({
     required PendingFriendRequest pendingRequest,
-    required Map<String, String> displayNameByUserId,
+    required Map<UserId, String> displayNameByUserId,
   }) {
     final resolvedDisplayName =
         displayNameByUserId[pendingRequest.addresseeUserId];
@@ -178,14 +179,14 @@ class ServerUsersPaneWidget extends StatelessWidget {
       return resolvedDisplayName;
     }
 
-    return pendingRequest.addresseeUserId;
+    return pendingRequest.addresseeUserId.value;
   }
 
   List<UserProfile> _skeletonMembers() {
     return List<UserProfile>.generate(
       7,
       (index) => UserProfile(
-        userId: "user-skeleton-$index",
+        userId: UserId("user-skeleton-$index"),
         displayName: "Member ${index + 1}",
       ),
     );
@@ -194,7 +195,7 @@ class ServerUsersPaneWidget extends StatelessWidget {
   String _resolvedDisplayName(UserProfile member) {
     final displayName = member.displayName?.trim();
     if (displayName == null || displayName.isEmpty) {
-      return member.userId;
+      return member.userId.value;
     }
 
     return displayName;
@@ -217,7 +218,7 @@ class ServerUsersPaneWidget extends StatelessWidget {
         }
 
         final members = loadedData?.members ?? const <UserProfile>[];
-        final friendUserIds = loadedData?.friendUserIds ?? const <String>{};
+        final friendUserIds = loadedData?.friendUserIds ?? const <UserId>{};
         final pendingOutgoingFriendRequests =
             loadedData?.pendingOutgoingFriendRequests ??
                 const <PendingFriendRequest>[];
@@ -319,7 +320,7 @@ class ServerUsersPaneWidget extends StatelessWidget {
                                   leading: const Icon(Icons.person_outline),
                                   title: Text(displayName),
                                   subtitle: hasDisplayName
-                                      ? Text(member.userId)
+                                      ? Text(member.userId.value)
                                       : null,
                                   trailing: isLoading
                                       ? null
@@ -371,7 +372,7 @@ class ServerUsersPaneWidget extends StatelessWidget {
                                       ),
                                     ),
                                     subtitle: Text(
-                                      pendingRequest.addresseeUserId,
+                                      pendingRequest.addresseeUserId.value,
                                     ),
                                     trailing: TextButton(
                                       onPressed: () {

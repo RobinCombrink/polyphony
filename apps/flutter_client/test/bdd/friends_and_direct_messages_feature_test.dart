@@ -3,6 +3,7 @@ import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/direct_messages/bloc/direct_messages_bloc.dart";
 import "package:polyphony_flutter_client/features/friends/bloc/friends_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/block_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/direct_message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
@@ -15,7 +16,7 @@ void main() {
         "Scenario: User can block and unblock a friend",
         build: () {
           final blockRepo =
-              _InMemoryBlockRepo(initialBlockedUserIds: const <String>{});
+              _InMemoryBlockRepo(initialBlockedUserIds: const <UserId>{});
           return FriendsBloc(
             friendRepo: _StaticFriendRepo(),
             blockRepo: blockRepo,
@@ -23,18 +24,18 @@ void main() {
         },
         act: (bloc) => bloc
           ..add(const LoadFriendsRequested())
-          ..add(const BlockUserFromFriendsRequested(userId: "friend-2"))
-          ..add(const UnblockUserRequested(userId: "friend-2")),
+          ..add(const BlockUserFromFriendsRequested(userId: UserId("friend-2")))
+          ..add(const UnblockUserRequested(userId: UserId("friend-2"))),
         expect: () => <Matcher>[
           isA<FriendsLoadingState>(),
           isA<FriendsLoadedState>(),
           isA<FriendsLoadedState>().having(
-            (state) => state.blockedUserIds.contains("friend-2"),
+            (state) => state.blockedUserIds.contains(const UserId("friend-2")),
             "friend blocked",
             isTrue,
           ),
           isA<FriendsLoadedState>().having(
-            (state) => state.blockedUserIds.contains("friend-2"),
+            (state) => state.blockedUserIds.contains(const UserId("friend-2")),
             "friend unblocked",
             isFalse,
           ),
@@ -46,12 +47,13 @@ void main() {
         build: () => DirectMessagesBloc(
           directMessageRepo: _InMemoryDirectMessageRepo(),
           blockRepo: _InMemoryBlockRepo(
-              initialBlockedUserIds: const <String>{"friend-2"}),
-          currentUserId: "user-1",
+              initialBlockedUserIds: const <UserId>{UserId("friend-2")}),
+          currentUserId: const UserId("user-1"),
         ),
         act: (bloc) => bloc
           ..add(const LoadDirectMessageThreadsRequested())
-          ..add(const SelectDirectMessageThreadRequested(threadId: "thread-1"))
+          ..add(const SelectDirectMessageThreadRequested(
+              threadId: DirectMessageThreadId("thread-1")))
           ..add(const SendDirectMessageRequested(content: "hello")),
         expect: () => <Matcher>[
           isA<DirectMessagesLoadingState>(),
@@ -70,12 +72,13 @@ void main() {
         build: () => DirectMessagesBloc(
           directMessageRepo: _InMemoryDirectMessageRepo(),
           blockRepo: _InMemoryBlockRepo(
-              initialBlockedUserIds: const <String>{"friend-2"}),
-          currentUserId: "user-1",
+              initialBlockedUserIds: const <UserId>{UserId("friend-2")}),
+          currentUserId: const UserId("user-1"),
         ),
         act: (bloc) => bloc
           ..add(const LoadDirectMessageThreadsRequested())
-          ..add(const SelectDirectMessageThreadRequested(threadId: "thread-1"))
+          ..add(const SelectDirectMessageThreadRequested(
+              threadId: DirectMessageThreadId("thread-1")))
           ..add(const UnblockSelectedDirectMessageUserRequested())
           ..add(const SendDirectMessageRequested(content: "hello")),
         expect: () => <Matcher>[
@@ -83,7 +86,7 @@ void main() {
           isA<DirectMessagesLoadedState>(),
           isA<DirectMessagesLoadedState>(),
           isA<DirectMessagesLoadedState>().having(
-            (state) => state.blockedUserIds.contains("friend-2"),
+            (state) => state.blockedUserIds.contains(const UserId("friend-2")),
             "friend removed from blocked list",
             isFalse,
           ),
@@ -105,8 +108,8 @@ final class _StaticFriendRepo implements FriendRepo {
   }) async {
     return Ok<PendingFriendRequest>(
       PendingFriendRequest(
-        id: "pending-${command.targetUserId}",
-        requesterUserId: "user-1",
+        id: FriendRequestId("pending-${command.targetUserId.value}"),
+        requesterUserId: const UserId("user-1"),
         addresseeUserId: command.targetUserId,
       ),
     );
@@ -123,8 +126,8 @@ final class _StaticFriendRepo implements FriendRepo {
   Future<Result<Iterable<Friend>>> getMany(
       {required GetFriendsQuery query}) async {
     return const Ok<Iterable<Friend>>(<Friend>[
-      Friend(userId: "friend-1"),
-      Friend(userId: "friend-2"),
+      Friend(userId: UserId("friend-1")),
+      Friend(userId: UserId("friend-2")),
     ]);
   }
 
@@ -137,10 +140,10 @@ final class _StaticFriendRepo implements FriendRepo {
 }
 
 final class _InMemoryBlockRepo implements BlockRepo {
-  _InMemoryBlockRepo({required Set<String> initialBlockedUserIds})
-      : _blockedUserIds = <String>{...initialBlockedUserIds};
+  _InMemoryBlockRepo({required Set<UserId> initialBlockedUserIds})
+      : _blockedUserIds = <UserId>{...initialBlockedUserIds};
 
-  final Set<String> _blockedUserIds;
+  final Set<UserId> _blockedUserIds;
 
   @override
   Future<Result<void>> createOne({required BlockUserCommand command}) async {
@@ -169,9 +172,9 @@ final class _InMemoryBlockRepo implements BlockRepo {
 final class _InMemoryDirectMessageRepo implements DirectMessageRepo {
   final _threads = const <DirectMessageThread>[
     DirectMessageThread(
-      id: "thread-1",
-      participantAUserId: "user-1",
-      participantBUserId: "friend-2",
+      id: DirectMessageThreadId("thread-1"),
+      participantAUserId: UserId("user-1"),
+      participantBUserId: UserId("friend-2"),
     ),
   ];
 
@@ -212,9 +215,9 @@ final class _InMemoryDirectMessageRepo implements DirectMessageRepo {
     required SendDirectMessageCommand command,
   }) async {
     final message = DirectMessage(
-      id: "message-${_messages.length + 1}",
+      id: DirectMessageId("message-${_messages.length + 1}"),
       threadId: command.threadId,
-      authorUserId: "user-1",
+      authorUserId: const UserId("user-1"),
       content: command.content,
     );
     _messages.add(message);

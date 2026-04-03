@@ -13,7 +13,7 @@ final class LoadVoiceSessionsRequested extends VoiceSessionsEvent {
     required this.channelId,
   });
 
-  final String channelId;
+  final ChannelId channelId;
 }
 
 final class RefreshVoiceParticipantsRequested extends VoiceSessionsEvent {
@@ -21,7 +21,7 @@ final class RefreshVoiceParticipantsRequested extends VoiceSessionsEvent {
     required this.channelIds,
   });
 
-  final List<String> channelIds;
+  final List<ChannelId> channelIds;
 }
 
 final class ConnectVoiceSessionRequested extends VoiceSessionsEvent {
@@ -29,7 +29,7 @@ final class ConnectVoiceSessionRequested extends VoiceSessionsEvent {
     required this.channelId,
   });
 
-  final String channelId;
+  final ChannelId channelId;
 }
 
 final class DisconnectVoiceSessionRequested extends VoiceSessionsEvent {
@@ -37,7 +37,7 @@ final class DisconnectVoiceSessionRequested extends VoiceSessionsEvent {
     required this.channelId,
   });
 
-  final String channelId;
+  final ChannelId channelId;
 }
 
 final class SetSelfMutedRequested extends VoiceSessionsEvent {

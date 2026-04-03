@@ -16,7 +16,7 @@ class MessageRepository implements MessageRepo {
     required GetMessagesQuery query,
   }) async {
     final serviceResult = await _messageService.listMessages(
-      channelId: query.channelId,
+      channelId: query.channelId.value,
     );
 
     return switch (serviceResult) {
@@ -32,9 +32,9 @@ class MessageRepository implements MessageRepo {
     required CreateMessageCommand command,
   }) async {
     final serviceResult = await _messageService.createMessage(
-      channelId: command.channelId,
+      channelId: command.channelId.value,
       content: command.content,
-      mentionedUserId: command.mentionedUserId,
+      mentionedUserId: command.mentionedUserId?.value,
     );
 
     return switch (serviceResult) {
@@ -48,8 +48,8 @@ class MessageRepository implements MessageRepo {
     required UpdateMessageCommand command,
   }) async {
     final serviceResult = await _messageService.updateMessage(
-      channelId: command.channelId,
-      messageId: command.messageId,
+      channelId: command.channelId.value,
+      messageId: command.messageId.value,
       content: command.content,
     );
 
@@ -62,8 +62,8 @@ class MessageRepository implements MessageRepo {
   @override
   Future<Result<void>> deleteOne({required DeleteMessageCommand command}) {
     return _messageService.deleteMessage(
-      channelId: command.channelId,
-      messageId: command.messageId,
+      channelId: command.channelId.value,
+      messageId: command.messageId.value,
     );
   }
 }

@@ -2,6 +2,7 @@ import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 
 import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
@@ -20,7 +21,7 @@ void main() {
           serverId: fixture.listedServer.id,
         ))
         ..add(const CreateChannelRequested(
-          serverId: "",
+          serverId: ServerId(""),
           channelName: "channel",
           channelType: ChannelType.text,
         ));

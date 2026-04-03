@@ -14,6 +14,7 @@ import "package:polyphony_flutter_client/features/settings/presentation/widgets/
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
@@ -34,7 +35,7 @@ class ChannelsPaneWidget extends StatefulWidget {
 class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
   var _lastVisibleVoiceChannelIdsKey = "";
 
-  String? _selectedTextChannelId(ChannelsState state) {
+  ChannelId? _selectedTextChannelId(ChannelsState state) {
     return switch (state) {
       TextChannelSelected(:final selectedTextChannel) => selectedTextChannel.id,
       TextChannelSelectedValidationFailedState(
@@ -45,7 +46,7 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
     };
   }
 
-  String? _selectedChannelId(ChannelsLoadedDataState state) {
+  ChannelId? _selectedChannelId(ChannelsLoadedDataState state) {
     return switch (state) {
       TextChannelSelected(:final selectedTextChannel) => selectedTextChannel.id,
       VoiceChannelSelected(:final selectedVoiceChannel) =>
@@ -92,8 +93,8 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
     return List<Channel>.generate(
       6,
       (index) => TextChannel(
-        id: "txt-skeleton-$index",
-        serverId: "srv-skeleton",
+        id: ChannelId("txt-skeleton-$index"),
+        serverId: const ServerId("srv-skeleton"),
         name: "channel-${index + 1}",
       ),
     );
@@ -101,7 +102,7 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
 
   void _createChannel({
     required BuildContext context,
-    required String serverId,
+    required ServerId serverId,
     required String channelName,
     required ChannelType channelType,
   }) {
@@ -227,7 +228,7 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
           ..add(
             LoadNotificationPreferencesRequested(
               serverId: null,
-              channelId: channel.id,
+              channelId: channel.id.value,
             ),
           );
 
@@ -242,7 +243,7 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: SettingsNotificationPreferencesSectionWidget(
-                  selectedChannelId: channel.id,
+                  selectedChannelId: channel.id.value,
                   showGlobal: false,
                   showServer: false,
                   title: "Channel notification preferences",
@@ -306,7 +307,7 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
           final voiceParticipantsByChannelId = switch (voiceSessionsState) {
             VoiceSessionsLoadedDataState(:final participantsByChannelId) =>
               participantsByChannelId,
-            _ => const <String, List<VoiceParticipant>>{},
+            _ => const <ChannelId, List<VoiceParticipant>>{},
           };
           final selfParticipantUserId = switch (voiceSessionsState) {
             VoiceSessionsLoadedDataState(:final activeConnection) =>
@@ -347,11 +348,11 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
               final visibleVoiceChannelIds = visibleChannels
                   .expand(
                     (channel) => switch (channel) {
-                      TextChannel() => const <String>[],
-                      VoiceChannel() => <String>[channel.id],
+                      TextChannel() => const <ChannelId>[],
+                      VoiceChannel() => <ChannelId>[channel.id],
                     },
                   )
-                  .where((channelId) => channelId.isNotEmpty)
+                  .where((channelId) => channelId.value.isNotEmpty)
                   .toList();
               final visibleVoiceChannelIdsKey =
                   visibleVoiceChannelIds.join("|");
@@ -399,7 +400,7 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
                   }) =>
                       _createChannel(
                     context: context,
-                    serverId: loadedData?.serverId ?? "",
+                    serverId: loadedData?.serverId ?? const ServerId(""),
                     channelName: channelName,
                     channelType: channelType,
                   ),

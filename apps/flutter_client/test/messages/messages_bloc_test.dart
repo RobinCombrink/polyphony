@@ -2,6 +2,7 @@ import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
@@ -34,7 +35,7 @@ void main() {
     build: () {
       countingProfileRepository = _CountingProfileRepository(
         userId: fixture.ownerUserId,
-        displayNamesByUserId: <String, String?>{
+        displayNamesByUserId: <UserId, String?>{
           fixture.listedMessage.authorUserId: "Listed Author",
         },
       );
@@ -69,7 +70,7 @@ void main() {
       messageRepo: FakeMessageRepository(fixture: fixture),
       profileRepo: FakeProfileRepository(
         userId: fixture.ownerUserId,
-        displayNamesByUserId: <String, String?>{
+        displayNamesByUserId: <UserId, String?>{
           fixture.listedMessage.authorUserId: "Listed Author",
         },
       ),

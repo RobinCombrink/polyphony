@@ -10,7 +10,7 @@ sealed class ChannelsState {
   const ChannelsState();
 
   ChannelsLoadedState loadChannels({
-    required String serverId,
+    required ServerId serverId,
     required List<TextChannel> textChannels,
     required List<VoiceChannel> voiceChannels,
   }) {
@@ -51,11 +51,11 @@ sealed class ChannelsLoadedDataState extends ChannelsState {
 
   final List<TextChannel> textChannels;
   final List<VoiceChannel> voiceChannels;
-  final String serverId;
+  final ServerId serverId;
 
   @override
   ChannelsLoadedState loadChannels({
-    required String serverId,
+    required ServerId serverId,
     required List<TextChannel> textChannels,
     required List<VoiceChannel> voiceChannels,
   }) {
@@ -185,7 +185,7 @@ sealed class ChannelsLoadedState extends ChannelsLoadedDataState {
   }
 
   ChannelsLoadedState deleteChannel({
-    required String channelId,
+    required ChannelId channelId,
     required List<TextChannel> nextTextChannels,
     required List<VoiceChannel> nextVoiceChannels,
   }) {

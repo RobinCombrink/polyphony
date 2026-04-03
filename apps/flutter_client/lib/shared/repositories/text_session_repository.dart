@@ -17,7 +17,7 @@ class TextSessionRepository implements TextSessionRepo {
     required ConnectTextSessionCommand command,
   }) async {
     final serviceResult = await _textSessionService.connectTextSession(
-      channelId: command.channelId,
+      channelId: command.channelId.value,
     );
 
     return switch (serviceResult) {

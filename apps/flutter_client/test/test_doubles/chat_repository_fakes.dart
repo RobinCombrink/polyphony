@@ -2,6 +2,7 @@ import "dart:async";
 
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
@@ -27,9 +28,9 @@ class FakeServerRepository implements ServerRepo {
     this.inviteFriendError,
     this.forceDeleteError = false,
   })  : _servers = <Server>[fixture.listedServer],
-        _membersByServerId = <String, Set<String>>{
-          fixture.listedServer.id: <String>{fixture.ownerUserId},
-          fixture.createdServer.id: <String>{fixture.ownerUserId},
+        _membersByServerId = <ServerId, Set<UserId>>{
+          fixture.listedServer.id: <UserId>{fixture.ownerUserId},
+          fixture.createdServer.id: <UserId>{fixture.ownerUserId},
         },
         _createdServer = fixture.createdServer;
 
@@ -39,7 +40,7 @@ class FakeServerRepository implements ServerRepo {
   final Exception? inviteFriendError;
   final bool forceDeleteError;
   final List<Server> _servers;
-  final Map<String, Set<String>> _membersByServerId;
+  final Map<ServerId, Set<UserId>> _membersByServerId;
   final Server _createdServer;
 
   @override
@@ -84,7 +85,7 @@ class FakeServerRepository implements ServerRepo {
   }
 
   Result<void> _updateServerName({
-    required String serverId,
+    required ServerId serverId,
     required String name,
   }) {
     final serverIndex = _servers.indexWhere((server) => server.id == serverId);
@@ -113,15 +114,15 @@ class FakeServerRepository implements ServerRepo {
   }
 
   Result<void> _addServerMember({
-    required String serverId,
-    required String userId,
+    required ServerId serverId,
+    required UserId userId,
   }) {
     if (forceAddMemberError) {
       return Error<void>(
           addMemberError ?? Exception("Failed to add server member"));
     }
 
-    _membersByServerId.putIfAbsent(serverId, () => <String>{}).add(userId);
+    _membersByServerId.putIfAbsent(serverId, () => <UserId>{}).add(userId);
 
     return const Ok<void>(null);
   }
@@ -130,12 +131,12 @@ class FakeServerRepository implements ServerRepo {
 class FakeServerMemberRepository implements ServerMemberRepo {
   FakeServerMemberRepository({
     required ChatApiFixture fixture,
-  }) : _membersByServerId = <String, Set<String>>{
-          fixture.listedServer.id: <String>{fixture.ownerUserId},
-          fixture.createdServer.id: <String>{fixture.ownerUserId},
+  }) : _membersByServerId = <ServerId, Set<UserId>>{
+          fixture.listedServer.id: <UserId>{fixture.ownerUserId},
+          fixture.createdServer.id: <UserId>{fixture.ownerUserId},
         };
 
-  final Map<String, Set<String>> _membersByServerId;
+  final Map<ServerId, Set<UserId>> _membersByServerId;
 
   @override
   Future<Result<Iterable<ServerMember>>> getMany({
@@ -168,7 +169,7 @@ class FakeFriendRepository implements FriendRepo {
     this.cancelError,
   });
 
-  final Set<String> friendUserIds;
+  final Set<UserId> friendUserIds;
   final List<PendingFriendRequest> initialPendingOutgoingRequests;
   final bool forceCreateError;
   final Exception? createError;
@@ -192,8 +193,8 @@ class FakeFriendRepository implements FriendRepo {
     }
 
     final pendingRequest = PendingFriendRequest(
-      id: "pending-${command.targetUserId}",
-      requesterUserId: "requester-user",
+      id: FriendRequestId("pending-${command.targetUserId.value}"),
+      requesterUserId: const UserId("requester-user"),
       addresseeUserId: command.targetUserId,
     );
     _pendingRequests.add(pendingRequest);
@@ -242,7 +243,7 @@ class FakeChannelRepository implements ChannelRepo {
   FakeChannelRepository({
     required ChatApiFixture fixture,
     this.forceDeleteError = false,
-  })  : _channelsByServer = <String, List<Channel>>{
+  })  : _channelsByServer = <ServerId, List<Channel>>{
           fixture.listedServer.id: <Channel>[
             fixture.listedChannel,
             fixture.listedVoiceChannel,
@@ -251,7 +252,7 @@ class FakeChannelRepository implements ChannelRepo {
         _createdTextChannel = fixture.createdChannel;
 
   final bool forceDeleteError;
-  final Map<String, List<Channel>> _channelsByServer;
+  final Map<ServerId, List<Channel>> _channelsByServer;
   final Channel _createdTextChannel;
 
   @override
@@ -322,14 +323,14 @@ class FakeMessageRepository implements MessageRepo {
     required ChatApiFixture fixture,
     this.forceUpdateNotFound = false,
     this.forceDeleteNotFound = false,
-  })  : _messagesByChannel = <String, List<Message>>{
+  })  : _messagesByChannel = <ChannelId, List<Message>>{
           fixture.listedChannel.id: <Message>[fixture.listedMessage],
         },
         _createdMessage = fixture.createdMessage;
 
   final bool forceUpdateNotFound;
   final bool forceDeleteNotFound;
-  final Map<String, List<Message>> _messagesByChannel;
+  final Map<ChannelId, List<Message>> _messagesByChannel;
   final Message _createdMessage;
 
   @override
@@ -1059,14 +1060,14 @@ class FakeProfileRepository implements ProfileRepo {
     this.initialDisplayName,
     this.forceGetError = false,
     this.forceUpdateError = false,
-    this.displayNamesByUserId = const <String, String?>{},
+    this.displayNamesByUserId = const <UserId, String?>{},
   }) : _displayName = initialDisplayName;
 
-  final String userId;
+  final UserId userId;
   final String? initialDisplayName;
   final bool forceGetError;
   final bool forceUpdateError;
-  final Map<String, String?> displayNamesByUserId;
+  final Map<UserId, String?> displayNamesByUserId;
   String? _displayName;
 
   @override
@@ -1075,7 +1076,7 @@ class FakeProfileRepository implements ProfileRepo {
       return Error<UserProfile>(Exception("Failed to get profile"));
     }
 
-    final resolvedUserId = query.userId.trim();
+    final resolvedUserId = UserId(query.userId.value.trim());
     final displayName = displayNamesByUserId.containsKey(resolvedUserId)
         ? displayNamesByUserId[resolvedUserId]
         : (resolvedUserId == userId ? _displayName : null);
