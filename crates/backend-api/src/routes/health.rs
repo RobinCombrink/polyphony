@@ -8,7 +8,7 @@ use crate::dto::HealthResponse;
     responses(
         (status = 200, description = "Backend API health status", body = HealthResponse)
     ),
-    tag = "backend-api"
+    tag = "Health"
 )]
 pub(crate) async fn health() -> impl IntoResponse {
     Json(HealthResponse {

@@ -33,7 +33,7 @@ use serde::Deserialize;
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    tag = "backend-api"
+    tag = "Notifications"
 )]
 pub(crate) async fn global_notification_preference<
     UserRepo,
@@ -86,7 +86,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("server_id" = ServerId, Path, description = "Server id")),
-    tag = "backend-api"
+    tag = "Notifications"
 )]
 pub(crate) async fn server_notification_preference<
     UserRepo,
@@ -155,7 +155,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("channel_id" = ChannelId, Path, description = "Channel id")),
-    tag = "backend-api"
+    tag = "Notifications"
 )]
 pub(crate) async fn channel_notification_preference<
     UserRepo,
@@ -229,7 +229,7 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    tag = "backend-api"
+    tag = "Notifications"
 )]
 pub(crate) async fn update_global_notification_preference<
     UserRepo,
@@ -291,7 +291,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("server_id" = ServerId, Path, description = "Server id")),
-    tag = "backend-api"
+    tag = "Notifications"
 )]
 pub(crate) async fn update_server_notification_preference<
     UserRepo,
@@ -359,7 +359,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("channel_id" = ChannelId, Path, description = "Channel id")),
-    tag = "backend-api"
+    tag = "Notifications"
 )]
 pub(crate) async fn mute_channel_notifications<
     UserRepo,
@@ -428,7 +428,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("channel_id" = ChannelId, Path, description = "Channel id")),
-    tag = "backend-api"
+    tag = "Notifications"
 )]
 pub(crate) async fn update_channel_notification_preference<
     UserRepo,
@@ -485,7 +485,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("channel_id" = ChannelId, Path, description = "Channel id")),
-    tag = "backend-api"
+    tag = "Notifications"
 )]
 pub(crate) async fn unmute_channel_notifications<
     UserRepo,
@@ -534,7 +534,7 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    tag = "backend-api"
+    tag = "Notifications"
 )]
 pub(crate) async fn unread_notifications_count<
     UserRepo,
@@ -575,7 +575,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("channel_id" = ChannelId, Path, description = "Channel id")),
-    tag = "backend-api"
+    tag = "Notifications"
 )]
 pub(crate) async fn mark_channel_notifications_read<
     UserRepo,

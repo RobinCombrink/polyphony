@@ -31,7 +31,7 @@ type AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier> =
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    tag = "backend-api"
+    tag = "Servers"
 )]
 pub(crate) async fn create_server<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
@@ -61,7 +61,7 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    tag = "backend-api"
+    tag = "Servers"
 )]
 pub(crate) async fn list_servers<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
@@ -92,7 +92,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("server_id" = ServerId, Path, description = "Server id")),
-    tag = "backend-api"
+    tag = "Servers"
 )]
 pub(crate) async fn list_server_members<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
@@ -128,7 +128,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("server_id" = ServerId, Path, description = "Server id")),
-    tag = "backend-api"
+    tag = "Servers"
 )]
 pub(crate) async fn add_server_member<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
@@ -177,7 +177,7 @@ where
         ("server_id" = ServerId, Path, description = "Server id"),
         ("friend_user_id" = backend_domain::UserId, Path, description = "Friend user id")
     ),
-    tag = "backend-api"
+    tag = "Servers"
 )]
 pub(crate) async fn invite_friend_to_server<
     UserRepo,
@@ -238,7 +238,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("server_id" = ServerId, Path, description = "Server id")),
-    tag = "backend-api"
+    tag = "Servers"
 )]
 pub(crate) async fn update_server<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
@@ -277,7 +277,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("server_id" = ServerId, Path, description = "Server id")),
-    tag = "backend-api"
+    tag = "Servers"
 )]
 pub(crate) async fn delete_server<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
@@ -315,7 +315,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("server_id" = ServerId, Path, description = "Server id")),
-    tag = "backend-api"
+    tag = "Channels"
 )]
 pub(crate) async fn create_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
@@ -355,7 +355,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("channel_id" = ChannelId, Path, description = "Channel id")),
-    tag = "backend-api"
+    tag = "Channels"
 )]
 pub(crate) async fn update_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
@@ -394,7 +394,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("channel_id" = ChannelId, Path, description = "Channel id")),
-    tag = "backend-api"
+    tag = "Channels"
 )]
 pub(crate) async fn delete_channel<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
@@ -432,7 +432,7 @@ where
     ),
     security(("bearer_auth" = [])),
     params(("server_id" = ServerId, Path, description = "Server id")),
-    tag = "backend-api"
+    tag = "Channels"
 )]
 pub(crate) async fn list_channels<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,

@@ -30,7 +30,7 @@ use crate::{
         ("channel_id" = ChannelId, Path, description = "Channel id"),
         ("message_id" = MessageId, Path, description = "Message id")
     ),
-    tag = "backend-api"
+    tag = "Messages"
 )]
 pub(crate) async fn update_message<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,

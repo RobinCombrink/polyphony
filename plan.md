@@ -528,14 +528,19 @@ Acceptance criteria:
 - BDD covers settings discoverability and persistence of major toggles.
 
 #### Phase 13.1: Automatic openapi wiring
-Status: Planned.
+Status:
+- Completed.
 
 Goals:
 - Improve api spec dev experience
 
-Scope:
-- Automatically register openapi endpoints instead of having to manually specify them
-- Add tags based on entity for each endpoint
+Progress:
+- Completed: added `utoipa-axum` dependency and replaced manual `Router::new().route(...)` with `OpenApiRouter` and `routes!()` macro so OpenAPI paths are registered automatically alongside route handlers.
+- Completed: removed manual `paths(...)` list from `#[openapi]` derive in `openapi.rs`; paths are now collected by `OpenApiRouter` at router composition time.
+- Completed: added `#[utoipa::path]` annotations and `ToSchema` derives to all friends, blocks, and direct message route handlers that were previously undocumented in the OpenAPI spec.
+- Completed: replaced single `"backend-api"` tag with entity-based tags across all endpoints: Health, Identity, Users, Servers, Channels, Messages, Voice, Notifications, Friends, Blocks, Direct Messages.
+- Completed: all notification and friends/DMs schemas were added to OpenAPI component schemas.
+- Validation: backend quality gates pass (`cargo clippy --workspace --all-targets -- -D warnings`, `cargo test` with 97 BDD scenarios).
 
 #### Phase 13.2: Improve cucumber dev experience and readability
 Status:

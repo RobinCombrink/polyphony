@@ -29,7 +29,7 @@ use crate::{
     ),
     security(("bearer_auth" = [])),
     params(("channel_id" = ChannelId, Path, description = "Channel id")),
-    tag = "backend-api"
+    tag = "Messages"
 )]
 pub(crate) async fn create_message<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,

@@ -15,7 +15,7 @@ use crate::{
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    tag = "backend-api"
+    tag = "Identity"
 )]
 pub(crate) async fn me<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
@@ -53,7 +53,7 @@ where
         (status = 401, description = "Authentication failed")
     ),
     security(("bearer_auth" = [])),
-    tag = "backend-api"
+    tag = "Identity"
 )]
 pub(crate) async fn update_me<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,

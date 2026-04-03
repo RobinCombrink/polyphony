@@ -12,8 +12,8 @@ pub use backend_storage as storage;
 use std::{collections::HashSet, net::SocketAddr, sync::Arc};
 
 use auth::{AuthState, JwksTokenVerifier};
-use axum::routing::{patch, post};
-use axum::{Router, routing::get};
+use axum::Router;
+use axum::routing::get;
 use backend_storage::{
     BlockRepository, ChannelRepository, DirectMessageRepository, FriendRepository,
     MessageRepository, NotificationRepository, PostgresRepository, ServerRepository,
@@ -23,16 +23,31 @@ use http::{HeaderValue, Method, Request, header::AUTHORIZATION};
 use openapi::ApiDocumentation;
 use routes::{
     friends_and_dms::{
-        accept_friend_request, block_user, cancel_friend_request, decline_friend_request,
-        list_blocked_users, list_direct_message_threads, list_direct_messages, list_friends,
+        __path_accept_friend_request, __path_block_user, __path_cancel_friend_request,
+        __path_decline_friend_request, __path_list_blocked_users,
+        __path_list_direct_message_threads, __path_list_direct_messages, __path_list_friends,
+        __path_list_incoming_friend_requests, __path_list_outgoing_friend_requests,
+        __path_open_or_get_direct_message_thread, __path_search_direct_messages,
+        __path_send_direct_message, __path_send_friend_request,
+        __path_send_friend_request_from_server_context, __path_unblock_user, accept_friend_request,
+        block_user, cancel_friend_request, decline_friend_request, list_blocked_users,
+        list_direct_message_threads, list_direct_messages, list_friends,
         list_incoming_friend_requests, list_outgoing_friend_requests,
         open_or_get_direct_message_thread, search_direct_messages, send_direct_message,
         send_friend_request, send_friend_request_from_server_context, unblock_user,
     },
-    health::health,
-    me::{me, update_me},
-    messages::{create_message, delete_message, list_messages, update_message},
+    health::{__path_health, health},
+    me::{__path_me, __path_update_me, me, update_me},
+    messages::{
+        __path_create_message, __path_delete_message, __path_list_messages, __path_update_message,
+        create_message, delete_message, list_messages, update_message,
+    },
     notifications::{
+        __path_channel_notification_preference, __path_global_notification_preference,
+        __path_mark_channel_notifications_read, __path_mute_channel_notifications,
+        __path_server_notification_preference, __path_unmute_channel_notifications,
+        __path_unread_notifications_count, __path_update_channel_notification_preference,
+        __path_update_global_notification_preference, __path_update_server_notification_preference,
         channel_notification_preference, global_notification_preference,
         mark_channel_notifications_read, mute_channel_notifications,
         server_notification_preference, unmute_channel_notifications, unread_notifications_count,
@@ -40,18 +55,23 @@ use routes::{
         update_server_notification_preference, websocket_notifications,
     },
     servers::{
-        add_server_member, create_channel, create_server, delete_channel, delete_server,
-        invite_friend_to_server, list_channels, list_server_members, list_servers, update_channel,
-        update_server,
+        __path_add_server_member, __path_create_channel, __path_create_server,
+        __path_delete_channel, __path_delete_server, __path_invite_friend_to_server,
+        __path_list_channels, __path_list_server_members, __path_list_servers,
+        __path_update_channel, __path_update_server, add_server_member, create_channel,
+        create_server, delete_channel, delete_server, invite_friend_to_server, list_channels,
+        list_server_members, list_servers, update_channel, update_server,
     },
-    users::get_user_by_id,
-    voice::create_session,
+    users::{__path_get_user_by_id, get_user_by_id},
+    voice::{__path_create_session, create_session},
 };
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer;
 use tower_http::trace::{DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use url::form_urlencoded;
 use utoipa::OpenApi;
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_axum::routes;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::auth::TokenVerifier;
@@ -222,119 +242,56 @@ where
         + 'static,
     Verifier: auth::TokenVerifier + Send + Sync + 'static,
 {
-    let router = Router::new()
-        .route("/health", get(health))
-        .route("/api/v1/me", get(me).patch(update_me))
-        .route("/api/v1/users/{user_id}", get(get_user_by_id))
-        .route("/api/v1/servers", post(create_server).get(list_servers))
-        .route("/api/v1/friends", get(list_friends))
-        .route(
-            "/api/v1/friends/requests/incoming",
-            get(list_incoming_friend_requests),
-        )
-        .route(
-            "/api/v1/friends/requests/outgoing",
-            get(list_outgoing_friend_requests),
-        )
-        .route(
-            "/api/v1/friends/requests/{user_id}",
-            post(send_friend_request),
-        )
-        .route(
-            "/api/v1/servers/{server_id}/friends/requests/{user_id}",
-            post(send_friend_request_from_server_context),
-        )
-        .route(
-            "/api/v1/friends/requests/{friend_request_id}/accept",
-            post(accept_friend_request),
-        )
-        .route(
-            "/api/v1/friends/requests/{friend_request_id}/decline",
-            post(decline_friend_request),
-        )
-        .route(
-            "/api/v1/friends/requests/{friend_request_id}/cancel",
-            post(cancel_friend_request),
-        )
-        .route("/api/v1/blocks", get(list_blocked_users))
-        .route(
-            "/api/v1/blocks/{user_id}",
-            post(block_user).delete(unblock_user),
-        )
-        .route("/api/v1/dms/threads", get(list_direct_message_threads))
-        .route(
-            "/api/v1/dms/threads/{user_id}",
-            post(open_or_get_direct_message_thread),
-        )
-        .route(
-            "/api/v1/dms/threads/{thread_id}/messages",
-            post(send_direct_message).get(list_direct_messages),
-        )
-        .route("/api/v1/dms/search/{user_id}", get(search_direct_messages))
-        .route(
-            "/api/v1/servers/{server_id}",
-            patch(update_server).delete(delete_server),
-        )
-        .route(
-            "/api/v1/servers/{server_id}/channels",
-            post(create_channel).get(list_channels),
-        )
-        .route(
-            "/api/v1/servers/{server_id}/members",
-            post(add_server_member).get(list_server_members),
-        )
-        .route(
-            "/api/v1/servers/{server_id}/invite/friends/{friend_user_id}",
-            post(invite_friend_to_server),
-        )
-        .route(
-            "/api/v1/channels/{channel_id}/messages",
-            post(create_message).get(list_messages),
-        )
-        .route(
-            "/api/v1/channels/{channel_id}",
-            patch(update_channel).delete(delete_channel),
-        )
-        .route(
-            "/api/v1/channels/{channel_id}/messages/{message_id}",
-            patch(update_message).delete(delete_message),
-        )
-        .route(
-            "/api/v1/channels/{channel_id}/session",
-            post(create_session),
-        )
-        .route(
-            "/api/v1/channels/{channel_id}/notifications/read",
-            post(mark_channel_notifications_read),
-        )
-        .route(
-            "/api/v1/channels/{channel_id}/notifications/preferences",
-            get(channel_notification_preference).patch(update_channel_notification_preference),
-        )
-        .route(
-            "/api/v1/channels/{channel_id}/notifications/preferences/mute",
-            post(mute_channel_notifications),
-        )
-        .route(
-            "/api/v1/channels/{channel_id}/notifications/preferences/unmute",
-            post(unmute_channel_notifications),
-        )
-        .route(
-            "/api/v1/notifications/unread-count",
-            get(unread_notifications_count),
-        )
-        .route(
-            "/api/v1/notifications/preferences/global",
-            get(global_notification_preference).patch(update_global_notification_preference),
-        )
-        .route(
-            "/api/v1/servers/{server_id}/notifications/preferences",
-            get(server_notification_preference).patch(update_server_notification_preference),
-        )
+    let (router, api) = OpenApiRouter::with_openapi(ApiDocumentation::openapi())
+        .routes(routes!(health))
+        .routes(routes!(me, update_me))
+        .routes(routes!(get_user_by_id))
+        .routes(routes!(create_server, list_servers))
+        .routes(routes!(list_friends))
+        .routes(routes!(list_incoming_friend_requests))
+        .routes(routes!(list_outgoing_friend_requests))
+        .routes(routes!(send_friend_request))
+        .routes(routes!(send_friend_request_from_server_context))
+        .routes(routes!(accept_friend_request))
+        .routes(routes!(decline_friend_request))
+        .routes(routes!(cancel_friend_request))
+        .routes(routes!(list_blocked_users))
+        .routes(routes!(block_user, unblock_user))
+        .routes(routes!(list_direct_message_threads))
+        .routes(routes!(open_or_get_direct_message_thread))
+        .routes(routes!(send_direct_message, list_direct_messages))
+        .routes(routes!(search_direct_messages))
+        .routes(routes!(update_server, delete_server))
+        .routes(routes!(create_channel, list_channels))
+        .routes(routes!(add_server_member, list_server_members))
+        .routes(routes!(invite_friend_to_server))
+        .routes(routes!(create_message, list_messages))
+        .routes(routes!(update_channel, delete_channel))
+        .routes(routes!(update_message, delete_message))
+        .routes(routes!(create_session))
+        .routes(routes!(mark_channel_notifications_read))
+        .routes(routes!(
+            channel_notification_preference,
+            update_channel_notification_preference
+        ))
+        .routes(routes!(mute_channel_notifications))
+        .routes(routes!(unmute_channel_notifications))
+        .routes(routes!(unread_notifications_count))
+        .routes(routes!(
+            global_notification_preference,
+            update_global_notification_preference
+        ))
+        .routes(routes!(
+            server_notification_preference,
+            update_server_notification_preference
+        ))
+        .split_for_parts();
+
+    let router = router
         .route("/api/v1/notifications/ws", get(websocket_notifications))
         .merge(
             SwaggerUi::new("/openapi")
-                .url("/api-docs/openapi.json", ApiDocumentation::openapi())
+                .url("/api-docs/openapi.json", api)
                 .config(Config::default().try_it_out_enabled(true)),
         )
         .with_state(state)

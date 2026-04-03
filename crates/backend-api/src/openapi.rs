@@ -5,34 +5,23 @@ use utoipa::openapi::{
 };
 use utoipa::{Modify, OpenApi};
 
+use crate::dto::ApiErrorResponse;
 use crate::dto::{
     AddServerMemberRequest, CreateChannelRequest, CreateMessageRequest, CreateServerRequest,
-    CreateSessionRequest, HealthResponse, MeResponse, UpdateChannelRequest, UpdateMeRequest,
-    UpdateMessageRequest, UserLookupResponse, VoiceConnectResponse,
+    CreateSessionRequest, HealthResponse, MeResponse, MuteChannelNotificationsRequest,
+    NotificationChannelPreferenceResponse, NotificationGlobalPreferenceResponse,
+    NotificationServerPreferenceResponse, NotificationUnreadCountResponse, UpdateChannelRequest,
+    UpdateMeRequest, UpdateMessageRequest, UpdateNotificationChannelPreferenceRequest,
+    UpdateNotificationGlobalPreferenceRequest, UpdateNotificationServerPreferenceRequest,
+    UpdateServerRequest, UserLookupResponse, VoiceConnectResponse,
+};
+use crate::routes::friends_and_dms::{
+    BlockRelationshipResponse, DirectMessageResponse, DirectMessageThreadResponse,
+    FriendRequestResponse, FriendSummaryResponse, SendDirectMessageRequest,
 };
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(
-        crate::routes::health::health,
-        crate::routes::me::me,
-        crate::routes::me::update_me,
-        crate::routes::users::get_user_by_id,
-        crate::routes::servers::create_server,
-        crate::routes::servers::list_servers,
-        crate::routes::servers::list_server_members,
-        crate::routes::servers::add_server_member,
-        crate::routes::servers::delete_server,
-        crate::routes::servers::create_channel,
-        crate::routes::servers::update_channel,
-        crate::routes::servers::delete_channel,
-        crate::routes::servers::list_channels,
-        crate::routes::messages::create::create_message,
-        crate::routes::messages::update::update_message,
-        crate::routes::messages::delete::delete_message,
-        crate::routes::messages::list::list_messages,
-        crate::routes::voice::create_session
-    ),
     components(schemas(
         HealthResponse,
         MeResponse,
@@ -48,11 +37,39 @@ use crate::dto::{
         CreateChannelRequest,
         CreateSessionRequest,
         UpdateChannelRequest,
+        UpdateServerRequest,
         CreateMessageRequest,
-        UpdateMessageRequest
+        UpdateMessageRequest,
+        ApiErrorResponse,
+        MuteChannelNotificationsRequest,
+        NotificationGlobalPreferenceResponse,
+        NotificationServerPreferenceResponse,
+        NotificationChannelPreferenceResponse,
+        NotificationUnreadCountResponse,
+        UpdateNotificationGlobalPreferenceRequest,
+        UpdateNotificationServerPreferenceRequest,
+        UpdateNotificationChannelPreferenceRequest,
+        FriendSummaryResponse,
+        FriendRequestResponse,
+        BlockRelationshipResponse,
+        DirectMessageThreadResponse,
+        DirectMessageResponse,
+        SendDirectMessageRequest,
     )),
     modifiers(&ApiSecurityAddon),
-    tags((name = "backend-api", description = "Polyphony backend API"))
+    tags(
+        (name = "Health", description = "Health check endpoints"),
+        (name = "Identity", description = "Authenticated user identity"),
+        (name = "Users", description = "User lookup"),
+        (name = "Servers", description = "Server management"),
+        (name = "Channels", description = "Channel management"),
+        (name = "Messages", description = "Channel messages"),
+        (name = "Voice", description = "Voice session management"),
+        (name = "Notifications", description = "Notification preferences and unread counts"),
+        (name = "Friends", description = "Friend relationships and requests"),
+        (name = "Blocks", description = "User block list management"),
+        (name = "Direct Messages", description = "Direct messaging between users"),
+    )
 )]
 pub(crate) struct ApiDocumentation;
 

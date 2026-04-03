@@ -12,6 +12,7 @@ use backend_storage::{
 };
 use serde::Deserialize;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::{
     ApiState,
@@ -20,12 +21,12 @@ use crate::{
     notification_hub::{NotificationEnvelope, NotificationEvent},
 };
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct FriendSummaryResponse {
     pub user_id: UserId,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct FriendRequestResponse {
     pub id: FriendRequestId,
     pub requester_user_id: UserId,
@@ -33,19 +34,19 @@ pub struct FriendRequestResponse {
     pub state: FriendRequestState,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct BlockRelationshipResponse {
     pub blocked_user_id: UserId,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct DirectMessageThreadResponse {
     pub id: DirectMessageThreadId,
     pub participant_a_user_id: UserId,
     pub participant_b_user_id: UserId,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct DirectMessageResponse {
     pub id: backend_domain::DirectMessageId,
     pub thread_id: DirectMessageThreadId,
@@ -85,7 +86,7 @@ impl From<backend_domain::DirectMessage> for DirectMessageResponse {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct SendDirectMessageRequest {
     pub content: String,
 }
@@ -95,6 +96,16 @@ pub struct SearchDirectMessagesQuery {
     pub q: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/friends",
+    responses(
+        (status = 200, description = "Friends listed", body = [FriendSummaryResponse]),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "Friends"
+)]
 pub(crate) async fn list_friends<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
@@ -133,6 +144,16 @@ where
     (StatusCode::OK, Json(friends)).into_response()
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/friends/requests/incoming",
+    responses(
+        (status = 200, description = "Incoming friend requests listed", body = [FriendRequestResponse]),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "Friends"
+)]
 pub(crate) async fn list_incoming_friend_requests<
     UserRepo,
     ServerRepo,
@@ -168,6 +189,16 @@ where
     (StatusCode::OK, Json(requests)).into_response()
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/friends/requests/outgoing",
+    responses(
+        (status = 200, description = "Outgoing friend requests listed", body = [FriendRequestResponse]),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "Friends"
+)]
 pub(crate) async fn list_outgoing_friend_requests<
     UserRepo,
     ServerRepo,
@@ -203,6 +234,20 @@ where
     (StatusCode::OK, Json(requests)).into_response()
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/friends/requests/{user_id}",
+    responses(
+        (status = 201, description = "Friend request sent", body = FriendRequestResponse),
+        (status = 403, description = "Operation forbidden or users blocked", body = ApiErrorResponse),
+        (status = 404, description = "Target user not found", body = ApiErrorResponse),
+        (status = 409, description = "Already friends or request already pending", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("user_id" = UserId, Path, description = "Target user id")),
+    tag = "Friends"
+)]
 pub(crate) async fn send_friend_request<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
@@ -283,6 +328,23 @@ where
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/servers/{server_id}/friends/requests/{user_id}",
+    responses(
+        (status = 201, description = "Friend request sent from server context", body = FriendRequestResponse),
+        (status = 403, description = "Operation forbidden or users blocked", body = ApiErrorResponse),
+        (status = 404, description = "Server or user not found", body = ApiErrorResponse),
+        (status = 409, description = "Already friends or request already pending", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(
+        ("server_id" = backend_domain::ServerId, Path, description = "Server id"),
+        ("user_id" = UserId, Path, description = "Target user id")
+    ),
+    tag = "Friends"
+)]
 pub(crate) async fn send_friend_request_from_server_context<
     UserRepo,
     ServerRepo,
@@ -410,6 +472,20 @@ where
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/friends/requests/{friend_request_id}/accept",
+    responses(
+        (status = 200, description = "Friend request accepted", body = FriendRequestResponse),
+        (status = 403, description = "Operation forbidden", body = ApiErrorResponse),
+        (status = 404, description = "Friend request not found", body = ApiErrorResponse),
+        (status = 409, description = "Invalid state transition", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("friend_request_id" = FriendRequestId, Path, description = "Friend request id")),
+    tag = "Friends"
+)]
 pub(crate) async fn accept_friend_request<
     UserRepo,
     ServerRepo,
@@ -484,6 +560,20 @@ where
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/friends/requests/{friend_request_id}/decline",
+    responses(
+        (status = 200, description = "Friend request declined", body = FriendRequestResponse),
+        (status = 403, description = "Operation forbidden", body = ApiErrorResponse),
+        (status = 404, description = "Friend request not found", body = ApiErrorResponse),
+        (status = 409, description = "Invalid state transition", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("friend_request_id" = FriendRequestId, Path, description = "Friend request id")),
+    tag = "Friends"
+)]
 pub(crate) async fn decline_friend_request<
     UserRepo,
     ServerRepo,
@@ -547,6 +637,20 @@ where
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/friends/requests/{friend_request_id}/cancel",
+    responses(
+        (status = 200, description = "Friend request cancelled", body = FriendRequestResponse),
+        (status = 403, description = "Operation forbidden", body = ApiErrorResponse),
+        (status = 404, description = "Friend request not found", body = ApiErrorResponse),
+        (status = 409, description = "Invalid state transition", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("friend_request_id" = FriendRequestId, Path, description = "Friend request id")),
+    tag = "Friends"
+)]
 pub(crate) async fn cancel_friend_request<
     UserRepo,
     ServerRepo,
@@ -610,6 +714,16 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/blocks",
+    responses(
+        (status = 200, description = "Blocked users listed", body = [BlockRelationshipResponse]),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "Blocks"
+)]
 pub(crate) async fn list_blocked_users<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
@@ -641,6 +755,20 @@ where
     (StatusCode::OK, Json(blocked_users)).into_response()
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/blocks/{user_id}",
+    responses(
+        (status = 201, description = "User blocked"),
+        (status = 200, description = "User already blocked"),
+        (status = 403, description = "Operation forbidden", body = ApiErrorResponse),
+        (status = 404, description = "Target user not found", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("user_id" = UserId, Path, description = "User id to block")),
+    tag = "Blocks"
+)]
 pub(crate) async fn block_user<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
@@ -683,6 +811,19 @@ where
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/v1/blocks/{user_id}",
+    responses(
+        (status = 204, description = "User unblocked"),
+        (status = 403, description = "Operation forbidden", body = ApiErrorResponse),
+        (status = 404, description = "Block relationship not found", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("user_id" = UserId, Path, description = "User id to unblock")),
+    tag = "Blocks"
+)]
 pub(crate) async fn unblock_user<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
@@ -726,6 +867,16 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/dms/threads",
+    responses(
+        (status = 200, description = "Direct message threads listed", body = [DirectMessageThreadResponse]),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "Direct Messages"
+)]
 pub(crate) async fn list_direct_message_threads<
     UserRepo,
     ServerRepo,
@@ -761,6 +912,19 @@ where
     (StatusCode::OK, Json(threads)).into_response()
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/dms/threads/{user_id}",
+    responses(
+        (status = 200, description = "Direct message thread opened or retrieved", body = DirectMessageThreadResponse),
+        (status = 403, description = "Operation forbidden or users blocked", body = ApiErrorResponse),
+        (status = 404, description = "Target user not found", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("user_id" = UserId, Path, description = "Other participant user id")),
+    tag = "Direct Messages"
+)]
 pub(crate) async fn open_or_get_direct_message_thread<
     UserRepo,
     ServerRepo,
@@ -820,6 +984,18 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/dms/threads/{thread_id}/messages",
+    responses(
+        (status = 200, description = "Direct messages listed", body = [DirectMessageResponse]),
+        (status = 403, description = "Operation forbidden", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("thread_id" = DirectMessageThreadId, Path, description = "DM thread id")),
+    tag = "Direct Messages"
+)]
 pub(crate) async fn list_direct_messages<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
@@ -864,6 +1040,20 @@ where
         .into_response()
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/dms/threads/{thread_id}/messages",
+    request_body = SendDirectMessageRequest,
+    responses(
+        (status = 201, description = "Direct message sent", body = DirectMessageResponse),
+        (status = 403, description = "Operation forbidden or users blocked", body = ApiErrorResponse),
+        (status = 404, description = "DM thread not found", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(("thread_id" = DirectMessageThreadId, Path, description = "DM thread id")),
+    tag = "Direct Messages"
+)]
 pub(crate) async fn send_direct_message<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
     authenticated_user: AuthenticatedUser,
@@ -918,6 +1108,21 @@ where
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/dms/search/{user_id}",
+    responses(
+        (status = 200, description = "Search results returned", body = [DirectMessageResponse]),
+        (status = 403, description = "Operation forbidden", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed")
+    ),
+    security(("bearer_auth" = [])),
+    params(
+        ("user_id" = UserId, Path, description = "User id to search DM history with"),
+        ("q" = Option<String>, Query, description = "Search query text")
+    ),
+    tag = "Direct Messages"
+)]
 pub(crate) async fn search_direct_messages<
     UserRepo,
     ServerRepo,

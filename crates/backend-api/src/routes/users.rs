@@ -25,7 +25,7 @@ use crate::{
         (status = 404, description = "User not found")
     ),
     security(("bearer_auth" = [])),
-    tag = "backend-api"
+    tag = "Users"
 )]
 pub(crate) async fn get_user_by_id<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
