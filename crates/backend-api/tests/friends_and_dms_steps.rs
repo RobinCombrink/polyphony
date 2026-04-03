@@ -307,7 +307,7 @@ async fn unblock_user(
         .expect("unblock user response from app")
 }
 
-#[given(regex = r#"^a user named "([^"]+)" exists$"#)]
+#[given(expr = r#"a user named {string} exists"#)]
 async fn a_user_named_exists(world: &mut FriendsAndDirectMessagesWorld, name: String) {
     if world.actors.contains_key(&name) {
         return;
@@ -322,7 +322,7 @@ async fn a_user_named_exists(world: &mut FriendsAndDirectMessagesWorld, name: St
     world.actors.insert(name, actor);
 }
 
-#[given(regex = r#"^"([^"]+)" sent a friend request to "([^"]+)"$"#)]
+#[given(expr = r#"{string} sent a friend request to {string}"#)]
 async fn named_user_sent_friend_request_to_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     requester_name: String,
@@ -346,7 +346,7 @@ async fn named_user_sent_friend_request_to_named_user(
     );
 }
 
-#[given(regex = r#"^"([^"]+)" and "([^"]+)" are friends$"#)]
+#[given(expr = r#"{string} and {string} are friends"#)]
 async fn named_users_are_friends(
     world: &mut FriendsAndDirectMessagesWorld,
     first_name: String,
@@ -364,7 +364,7 @@ async fn named_users_are_friends(
     assert_eq!(response.status(), StatusCode::OK);
 }
 
-#[given(regex = r#"^a direct message thread exists between "([^"]+)" and "([^"]+)"$"#)]
+#[given(expr = r#"a direct message thread exists between {string} and {string}"#)]
 async fn direct_message_thread_exists_between_named_users(
     world: &mut FriendsAndDirectMessagesWorld,
     first_name: String,
@@ -387,7 +387,7 @@ async fn direct_message_thread_exists_between_named_users(
     );
 }
 
-#[given(regex = r#"^"([^"]+)" sent a direct message containing "([^"]+)" to "([^"]+)"$"#)]
+#[given(expr = r#"{string} sent a direct message containing {string} to {string}"#)]
 async fn named_user_sent_direct_message_containing_text_to_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     author_name: String,
@@ -414,7 +414,7 @@ async fn named_user_sent_direct_message_containing_text_to_named_user(
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
-#[given(regex = r#"^"([^"]+)" blocked "([^"]+)"$"#)]
+#[given(expr = r#"{string} blocked {string}"#)]
 async fn named_user_blocked_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     blocker_name: String,
@@ -427,7 +427,7 @@ async fn named_user_blocked_named_user(
     assert!(response.status() == StatusCode::CREATED || response.status() == StatusCode::OK);
 }
 
-#[given(regex = r#"^a server named "([^"]+)" owned by "([^"]+)" exists$"#)]
+#[given(expr = r#"a server named {string} owned by {string} exists"#)]
 async fn a_server_named_owned_by_named_user_exists(
     world: &mut FriendsAndDirectMessagesWorld,
     server_name: String,
@@ -442,7 +442,7 @@ async fn a_server_named_owned_by_named_user_exists(
     assert_eq!(world.latest_status_ref(), StatusCode::CREATED);
 }
 
-#[given(regex = r#"^"([^"]+)" adds "([^"]+)" to server "([^"]+)"$"#)]
+#[given(expr = r#"{string} adds {string} to server {string}"#)]
 async fn named_user_adds_named_user_to_server(
     world: &mut FriendsAndDirectMessagesWorld,
     owner_name: String,
@@ -469,7 +469,7 @@ async fn named_user_adds_named_user_to_server(
     ));
 }
 
-#[when(regex = r#"^"([^"]+)" sends a friend request to "([^"]+)"$"#)]
+#[when(expr = r#"{string} sends a friend request to {string}"#)]
 async fn named_user_sends_friend_request_to_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     requester_name: String,
@@ -494,7 +494,7 @@ async fn named_user_sends_friend_request_to_named_user(
     }
 }
 
-#[when(regex = r#"^"([^"]+)" accepts the friend request from "([^"]+)"$"#)]
+#[when(expr = r#"{string} accepts the friend request from {string}"#)]
 async fn named_user_accepts_the_friend_request_from_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     actor_name: String,
@@ -510,7 +510,7 @@ async fn named_user_accepts_the_friend_request_from_named_user(
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[when(regex = r#"^"([^"]+)" declines the friend request from "([^"]+)"$"#)]
+#[when(expr = r#"{string} declines the friend request from {string}"#)]
 async fn named_user_declines_the_friend_request_from_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     actor_name: String,
@@ -526,7 +526,7 @@ async fn named_user_declines_the_friend_request_from_named_user(
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[when(regex = r#"^"([^"]+)" cancels the friend request to "([^"]+)"$"#)]
+#[when(expr = r#"{string} cancels the friend request to {string}"#)]
 async fn named_user_cancels_the_friend_request_to_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     actor_name: String,
@@ -542,7 +542,7 @@ async fn named_user_cancels_the_friend_request_to_named_user(
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[given(regex = r#"^"([^"]+)" cancels the friend request to "([^"]+)"$"#)]
+#[given(expr = r#"{string} cancels the friend request to {string}"#)]
 async fn named_user_cancels_the_friend_request_to_named_user_given(
     world: &mut FriendsAndDirectMessagesWorld,
     actor_name: String,
@@ -551,7 +551,7 @@ async fn named_user_cancels_the_friend_request_to_named_user_given(
     named_user_cancels_the_friend_request_to_named_user(world, actor_name, addressee_name).await;
 }
 
-#[when(regex = r#"^"([^"]+)" opens a direct message thread with "([^"]+)"$"#)]
+#[when(expr = r#"{string} opens a direct message thread with {string}"#)]
 async fn named_user_opens_direct_message_thread_with_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     actor_name: String,
@@ -583,7 +583,7 @@ async fn named_user_opens_direct_message_thread_with_named_user(
     }
 }
 
-#[when(regex = r#"^"([^"]+)" opens a direct message thread with "([^"]+)" again$"#)]
+#[when(expr = r#"{string} opens a direct message thread with {string} again"#)]
 async fn named_user_opens_direct_message_thread_with_named_user_again(
     world: &mut FriendsAndDirectMessagesWorld,
     actor_name: String,
@@ -592,7 +592,7 @@ async fn named_user_opens_direct_message_thread_with_named_user_again(
     named_user_opens_direct_message_thread_with_named_user(world, actor_name, other_name).await;
 }
 
-#[when(regex = r#"^"([^"]+)" sends a direct message to "([^"]+)"$"#)]
+#[when(expr = r#"{string} sends a direct message to {string}"#)]
 async fn named_user_sends_a_direct_message_to_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     author_name: String,
@@ -616,7 +616,7 @@ async fn named_user_sends_a_direct_message_to_named_user(
     world.latest_payload = Some(response_payload_json(open_response).await);
 }
 
-#[when(regex = r#"^"([^"]+)" searches direct messages with "([^"]+)" for "([^"]+)"$"#)]
+#[when(expr = r#"{string} searches direct messages with {string} for {string}"#)]
 async fn named_user_searches_direct_messages_with_named_user_for_query(
     world: &mut FriendsAndDirectMessagesWorld,
     actor_name: String,
@@ -631,7 +631,7 @@ async fn named_user_searches_direct_messages_with_named_user_for_query(
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[when(regex = r#"^"([^"]+)" blocks "([^"]+)"$"#)]
+#[when(expr = r#"{string} blocks {string}"#)]
 async fn named_user_blocks_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     blocker_name: String,
@@ -645,7 +645,7 @@ async fn named_user_blocks_named_user(
     world.latest_payload = None;
 }
 
-#[when(regex = r#"^"([^"]+)" unblocks "([^"]+)"$"#)]
+#[when(expr = r#"{string} unblocks {string}"#)]
 async fn named_user_unblocks_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     blocker_name: String,
@@ -659,7 +659,7 @@ async fn named_user_unblocks_named_user(
     world.latest_payload = None;
 }
 
-#[when(regex = r#"^"([^"]+)" sends a friend request to "([^"]+)" from server "([^"]+)"$"#)]
+#[when(expr = r#"{string} sends a friend request to {string} from server {string}"#)]
 async fn named_user_sends_friend_request_to_named_user_from_server(
     world: &mut FriendsAndDirectMessagesWorld,
     requester_name: String,
@@ -696,7 +696,7 @@ async fn friend_request_from_server_context_is_denied_because_users_do_not_share
     assert_eq!(world.latest_status_ref(), StatusCode::FORBIDDEN);
 }
 
-#[then(regex = r#"^"([^"]+)" is included in the friend list for "([^"]+)"$"#)]
+#[then(expr = r#"{string} is included in the friend list for {string}"#)]
 async fn named_user_is_included_in_friend_list_for_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     expected_friend_name: String,
@@ -717,7 +717,7 @@ async fn named_user_is_included_in_friend_list_for_named_user(
     );
 }
 
-#[then(regex = r#"^"([^"]+)" is not included in the friend list for "([^"]+)"$"#)]
+#[then(expr = r#"{string} is not included in the friend list for {string}"#)]
 async fn named_user_is_not_included_in_friend_list_for_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     unexpected_friend_name: String,
@@ -736,7 +736,7 @@ async fn named_user_is_not_included_in_friend_list_for_named_user(
     }));
 }
 
-#[then(regex = r#"^"([^"]+)" has no pending friend request from "([^"]+)"$"#)]
+#[then(expr = r#"{string} has no pending friend request from {string}"#)]
 async fn named_user_has_no_pending_friend_request_from_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     addressee_name: String,
@@ -757,7 +757,7 @@ async fn named_user_has_no_pending_friend_request_from_named_user(
     }));
 }
 
-#[then(regex = r#"^"([^"]+)" has no outgoing friend request to "([^"]+)"$"#)]
+#[then(expr = r#"{string} has no outgoing friend request to {string}"#)]
 async fn named_user_has_no_outgoing_friend_request_to_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     requester_name: String,
@@ -789,9 +789,7 @@ async fn both_thread_openings_resolve_to_the_same_direct_message_thread(
     );
 }
 
-#[then(
-    regex = r#"^listing direct messages between "([^"]+)" and "([^"]+)" includes the new message$"#
-)]
+#[then(expr = r#"listing direct messages between {string} and {string} includes the new message"#)]
 async fn listing_direct_messages_between_named_users_includes_the_new_message(
     world: &mut FriendsAndDirectMessagesWorld,
     first_name: String,
@@ -832,7 +830,7 @@ async fn direct_message_search_is_denied(world: &mut FriendsAndDirectMessagesWor
     assert_eq!(world.latest_status_ref(), StatusCode::FORBIDDEN);
 }
 
-#[then(regex = r#"^"([^"]+)" cannot send a friend request to "([^"]+)"$"#)]
+#[then(expr = r#"{string} cannot send a friend request to {string}"#)]
 async fn named_user_cannot_send_friend_request_to_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     requester_name: String,
@@ -842,7 +840,7 @@ async fn named_user_cannot_send_friend_request_to_named_user(
     assert_eq!(world.latest_status_ref(), StatusCode::FORBIDDEN);
 }
 
-#[then(regex = r#"^"([^"]+)" cannot send a direct message to "([^"]+)"$"#)]
+#[then(expr = r#"{string} cannot send a direct message to {string}"#)]
 async fn named_user_cannot_send_direct_message_to_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     sender_name: String,
@@ -852,7 +850,7 @@ async fn named_user_cannot_send_direct_message_to_named_user(
     assert_eq!(world.latest_status_ref(), StatusCode::FORBIDDEN);
 }
 
-#[then(regex = r#"^"([^"]+)" has a pending friend request from "([^"]+)"$"#)]
+#[then(expr = r#"{string} has a pending friend request from {string}"#)]
 async fn named_user_has_a_pending_friend_request_from_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     addressee_name: String,
@@ -874,7 +872,7 @@ async fn named_user_has_a_pending_friend_request_from_named_user(
     }));
 }
 
-#[then(regex = r#"^"([^"]+)" receives one friend request notification from "([^"]+)"$"#)]
+#[then(expr = r#"{string} receives one friend request notification from {string}"#)]
 async fn named_user_receives_one_friend_request_notification_from_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     recipient_name: String,
@@ -894,7 +892,7 @@ async fn named_user_receives_one_friend_request_notification_from_named_user(
     assert_eq!(count, 1);
 }
 
-#[then(regex = r#"^"([^"]+)" receives one friend request accepted notification from "([^"]+)"$"#)]
+#[then(expr = r#"{string} receives one friend request accepted notification from {string}"#)]
 async fn named_user_receives_one_friend_request_accepted_notification_from_named_user(
     world: &mut FriendsAndDirectMessagesWorld,
     recipient_name: String,

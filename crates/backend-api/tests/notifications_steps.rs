@@ -221,7 +221,7 @@ impl Drop for NotificationsWorld {
     }
 }
 
-#[given(regex = r#"^a user named "([^"]+)" exists$"#)]
+#[given(expr = r#"a user named {string} exists"#)]
 async fn a_user_named_exists(world: &mut NotificationsWorld, name: String) {
     if world.actors.contains_key(&name) {
         return;
@@ -238,7 +238,7 @@ async fn a_user_named_exists(world: &mut NotificationsWorld, name: String) {
     world.actors.insert(name, actor);
 }
 
-#[given(regex = r#"^a server named "([^"]+)" owned by "([^"]+)" exists$"#)]
+#[given(expr = r#"a server named {string} owned by {string} exists"#)]
 async fn a_server_named_owned_by_named_user_exists(
     world: &mut NotificationsWorld,
     server_name: String,
@@ -248,7 +248,7 @@ async fn a_server_named_owned_by_named_user_exists(
     world.server_id = Some(server_id);
 }
 
-#[given(regex = r#"^a text channel exists in server "([^"]+)" created by "([^"]+)"$"#)]
+#[given(expr = r#"a text channel exists in server {string} created by {string}"#)]
 async fn a_text_channel_exists_in_named_server_created_by_named_user(
     world: &mut NotificationsWorld,
     server_name: String,
@@ -264,7 +264,7 @@ async fn a_text_channel_exists_in_named_server_created_by_named_user(
     world.channel_id = Some(channel_id);
 }
 
-#[given(regex = r#"^a voice channel exists in server "([^"]+)" created by "([^"]+)"$"#)]
+#[given(expr = r#"a voice channel exists in server {string} created by {string}"#)]
 async fn a_voice_channel_exists_in_named_server_created_by_named_user(
     world: &mut NotificationsWorld,
     server_name: String,
@@ -290,9 +290,7 @@ async fn a_voice_channel_exists_in_named_server_created_by_named_user(
     world.channel_id = Some(payload_channel_id(&channel_payload, "id"));
 }
 
-#[given(
-    regex = r#"^a voice channel named "([^"]+)" exists in server "([^"]+)" created by "([^"]+)"$"#
-)]
+#[given(expr = r#"a voice channel named {string} exists in server {string} created by {string}"#)]
 async fn a_voice_channel_named_exists_in_named_server_created_by_named_user(
     world: &mut NotificationsWorld,
     channel_name: String,
@@ -316,9 +314,7 @@ async fn a_voice_channel_named_exists_in_named_server_created_by_named_user(
         .insert(channel_name.to_owned(), channel_id);
 }
 
-#[given(
-    regex = r#"^a text channel named "([^"]+)" exists in server "([^"]+)" created by "([^"]+)"$"#
-)]
+#[given(expr = r#"a text channel named {string} exists in server {string} created by {string}"#)]
 async fn a_text_channel_named_exists_in_named_server_created_by_named_user(
     world: &mut NotificationsWorld,
     channel_name: String,
@@ -332,7 +328,7 @@ async fn a_text_channel_named_exists_in_named_server_created_by_named_user(
         .insert(channel_name.clone(), channel_id);
 }
 
-#[given(regex = r#"^"([^"]+)" adds "([^"]+)" to server "([^"]+)"$"#)]
+#[given(expr = r#"{string} adds {string} to server {string}"#)]
 async fn named_user_adds_named_user_to_named_server(
     world: &mut NotificationsWorld,
     owner_name: String,
@@ -352,7 +348,7 @@ async fn named_user_adds_named_user_to_named_server(
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
-#[given(regex = r#"^"([^"]+)" has muted server "([^"]+)"$"#)]
+#[given(expr = r#"{string} has muted server {string}"#)]
 async fn named_user_has_muted_named_server(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -372,7 +368,7 @@ async fn named_user_has_muted_named_server(
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
-#[given(regex = r#"^"([^"]+)" has globally muted notifications$"#)]
+#[given(expr = r#"{string} has globally muted notifications"#)]
 async fn named_user_has_globally_muted_notifications(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -387,7 +383,7 @@ async fn named_user_has_globally_muted_notifications(
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
-#[given(regex = r#"^"([^"]+)" has temporarily muted channel "([^"]+)" for ([0-9]+) minutes$"#)]
+#[given(expr = r#"{string} has temporarily muted channel {string} for {int} minutes"#)]
 async fn named_user_has_temporarily_muted_named_channel_for_minutes(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -406,7 +402,7 @@ async fn named_user_has_temporarily_muted_named_channel_for_minutes(
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
-#[given(regex = r#"^"([^"]+)" is subscribed to live notifications$"#)]
+#[given(expr = r#"{string} is subscribed to live notifications"#)]
 async fn named_user_is_subscribed_to_live_notifications(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -414,7 +410,7 @@ async fn named_user_is_subscribed_to_live_notifications(
     world.connect_actor_ws_notifications(&actor_name).await;
 }
 
-#[given(regex = r#"^"([^"]+)" has all-messages channel default notifications$"#)]
+#[given(expr = r#"{string} has all-messages channel default notifications"#)]
 async fn named_user_has_all_messages_channel_default_notifications(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -439,7 +435,7 @@ async fn named_user_has_all_messages_channel_default_notifications(
     assert_eq!(channel_default_response.status(), StatusCode::NO_CONTENT);
 }
 
-#[given(regex = r#"^"([^"]+)" has only-mentions channel default notifications$"#)]
+#[given(expr = r#"{string} has only-mentions channel default notifications"#)]
 async fn named_user_has_only_mentions_channel_default_notifications(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -464,7 +460,7 @@ async fn named_user_has_only_mentions_channel_default_notifications(
     assert_eq!(channel_default_response.status(), StatusCode::NO_CONTENT);
 }
 
-#[given(regex = r#"^"([^"]+)" has none channel default notifications$"#)]
+#[given(expr = r#"{string} has none channel default notifications"#)]
 async fn named_user_has_none_channel_default_notifications(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -489,7 +485,7 @@ async fn named_user_has_none_channel_default_notifications(
     assert_eq!(channel_default_response.status(), StatusCode::NO_CONTENT);
 }
 
-#[when(regex = r#"^"([^"]+)" posts a message in channel "([^"]+)"$"#)]
+#[when(expr = r#"{string} posts a message in channel {string}"#)]
 async fn named_user_posts_a_message_in_channel_named(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -505,7 +501,7 @@ async fn named_user_posts_a_message_in_channel_named(
     .await;
 }
 
-#[when(regex = r#"^"([^"]+)" sends a friend request to "([^"]+)"$"#)]
+#[when(expr = r#"{string} sends a friend request to {string}"#)]
 async fn named_user_sends_friend_request_to_named_user(
     world: &mut NotificationsWorld,
     requester_name: String,
@@ -546,7 +542,7 @@ async fn named_user_sends_friend_request_to_named_user(
     }
 }
 
-#[given(regex = r#"^"([^"]+)" sent a friend request to "([^"]+)"$"#)]
+#[given(expr = r#"{string} sent a friend request to {string}"#)]
 async fn named_user_sent_friend_request_to_named_user(
     world: &mut NotificationsWorld,
     requester_name: String,
@@ -556,7 +552,7 @@ async fn named_user_sent_friend_request_to_named_user(
     assert_eq!(world.latest_status(), StatusCode::CREATED);
 }
 
-#[when(regex = r#"^"([^"]+)" accepts the friend request from "([^"]+)"$"#)]
+#[when(expr = r#"{string} accepts the friend request from {string}"#)]
 async fn named_user_accepts_the_friend_request_from_named_user(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -585,7 +581,7 @@ async fn named_user_accepts_the_friend_request_from_named_user(
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[when(regex = r#"^"([^"]+)" declines the friend request from "([^"]+)"$"#)]
+#[when(expr = r#"{string} declines the friend request from {string}"#)]
 async fn named_user_declines_the_friend_request_from_named_user(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -614,7 +610,7 @@ async fn named_user_declines_the_friend_request_from_named_user(
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[when(regex = r#"^"([^"]+)" cancels the friend request to "([^"]+)"$"#)]
+#[when(expr = r#"{string} cancels the friend request to {string}"#)]
 async fn named_user_cancels_the_friend_request_to_named_user(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -643,7 +639,7 @@ async fn named_user_cancels_the_friend_request_to_named_user(
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[when(regex = r#"^"([^"]+)" posts a plain message in channel "([^"]+)"$"#)]
+#[when(expr = r#"{string} posts a plain message in channel {string}"#)]
 async fn named_user_posts_a_plain_message_in_channel_named(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -672,7 +668,7 @@ async fn named_user_posts_a_plain_message_in_channel_named(
     }
 }
 
-#[when(regex = r#"^"([^"]+)" posts a message mentioning "([^"]+)" in channel "([^"]+)"$"#)]
+#[when(expr = r#"{string} posts a message mentioning {string} in channel {string}"#)]
 async fn named_user_posts_a_message_mentioning_named_user_in_channel_named(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -704,7 +700,7 @@ async fn named_user_posts_a_message_mentioning_named_user_in_channel_named(
     }
 }
 
-#[when(regex = r#"^"([^"]+)" connects to voice for channel "([^"]+)"$"#)]
+#[when(expr = r#"{string} connects to voice for channel {string}"#)]
 async fn named_user_connects_to_voice_for_channel_named(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -720,7 +716,7 @@ async fn named_user_connects_to_voice_for_channel_named(
     assert_eq!(world.latest_status(), StatusCode::OK);
 }
 
-#[when(regex = r#"^"([^"]+)" marks channel "([^"]+)" notifications as read$"#)]
+#[when(expr = r#"{string} marks channel {string} notifications as read"#)]
 async fn named_user_marks_channel_notifications_as_read(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -735,7 +731,7 @@ async fn named_user_marks_channel_notifications_as_read(
     assert_eq!(world.latest_status(), StatusCode::NO_CONTENT);
 }
 
-#[when(regex = r#"^the temporary mute expires for "([^"]+)" in channel "([^"]+)"$"#)]
+#[when(expr = r#"the temporary mute expires for {string} in channel {string}"#)]
 async fn temporary_mute_expires_for_named_user_in_named_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -748,7 +744,7 @@ async fn temporary_mute_expires_for_named_user_in_named_channel(
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
-#[when(regex = r#"^"([^"]+)" globally unmutes notifications$"#)]
+#[when(expr = r#"{string} globally unmutes notifications"#)]
 async fn named_user_globally_unmutes_notifications(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -763,7 +759,7 @@ async fn named_user_globally_unmutes_notifications(
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
-#[when(regex = r#"^"([^"]+)" unmutes server "([^"]+)"$"#)]
+#[when(expr = r#"{string} unmutes server {string}"#)]
 async fn named_user_unmutes_named_server(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -784,7 +780,7 @@ async fn named_user_unmutes_named_server(
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
-#[then(regex = r#"^a durable notification record is stored for "([^"]+)"$"#)]
+#[then(expr = r#"a durable notification record is stored for {string}"#)]
 async fn a_durable_notification_record_is_stored_for_named_user(
     world: &mut NotificationsWorld,
     recipient_name: String,
@@ -804,7 +800,7 @@ async fn a_durable_notification_record_is_stored_for_named_user(
     );
 }
 
-#[then(regex = r#"^no durable notification record is stored for "([^"]+)" for the last message$"#)]
+#[then(expr = r#"no durable notification record is stored for {string} for the last message"#)]
 async fn no_durable_notification_record_is_stored_for_named_user_for_last_message(
     world: &mut NotificationsWorld,
     recipient_name: String,
@@ -824,7 +820,7 @@ async fn no_durable_notification_record_is_stored_for_named_user_for_last_messag
     );
 }
 
-#[then(regex = r#"^no durable notification record is stored for "([^"]+)"$"#)]
+#[then(expr = r#"no durable notification record is stored for {string}"#)]
 async fn no_durable_notification_record_is_stored_for_named_user(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -845,7 +841,7 @@ async fn no_durable_notification_record_is_stored_for_named_user(
     );
 }
 
-#[then(regex = r#"^unread count for "([^"]+)" in channel "([^"]+)" is zero$"#)]
+#[then(expr = r#"unread count for {string} in channel {string} is zero"#)]
 async fn unread_count_for_named_user_in_named_channel_is_zero(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -859,7 +855,7 @@ async fn unread_count_for_named_user_in_named_channel_is_zero(
     assert_eq!(unread_count, 0);
 }
 
-#[then(regex = r#"^unread count increments for "([^"]+)" in channel "([^"]+)"$"#)]
+#[then(expr = r#"unread count increments for {string} in channel {string}"#)]
 async fn unread_count_increments_for_named_user_in_named_channel(
     world: &mut NotificationsWorld,
     recipient_name: String,
@@ -873,7 +869,7 @@ async fn unread_count_increments_for_named_user_in_named_channel(
     assert_eq!(unread_count, 1);
 }
 
-#[then(regex = r#"^"([^"]+)" sees total unread notification count of ([0-9]+)$"#)]
+#[then(expr = r#"{string} sees total unread notification count of {int}"#)]
 async fn named_user_sees_total_unread_notification_count_of(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -891,7 +887,7 @@ async fn named_user_sees_total_unread_notification_count_of(
     assert_eq!(total_unread_count, expected_total);
 }
 
-#[then(regex = r#"^"([^"]+)" sees global notification preference mute state is (muted|unmuted)$"#)]
+#[then(expr = r#"{string} sees global notification preference mute state is {word}"#)]
 async fn named_user_sees_global_notification_preference_mute_state_is(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -909,7 +905,7 @@ async fn named_user_sees_global_notification_preference_mute_state_is(
     assert_eq!(mute_state, expected_state);
 }
 
-#[then(regex = r#"^"([^"]+)" sees server notification preference mute state is (muted|unmuted)$"#)]
+#[then(expr = r#"{string} sees server notification preference mute state is {word}"#)]
 async fn named_user_sees_server_notification_preference_mute_state_is(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -929,9 +925,7 @@ async fn named_user_sees_server_notification_preference_mute_state_is(
     assert_eq!(mute_state, expected_state);
 }
 
-#[then(
-    regex = r#"^"([^"]+)" sees channel "([^"]+)" notification preference mute state is (muted|unmuted)$"#
-)]
+#[then(expr = r#"{string} sees channel {string} notification preference mute state is {word}"#)]
 async fn named_user_sees_named_channel_notification_preference_mute_state_is(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -952,7 +946,7 @@ async fn named_user_sees_named_channel_notification_preference_mute_state_is(
     assert_eq!(mute_state, expected_state);
 }
 
-#[then(regex = r#"^"([^"]+)" sees channel "([^"]+)" mute expiry timestamp is (present|absent)$"#)]
+#[then(expr = r#"{string} sees channel {string} mute expiry timestamp is {word}"#)]
 async fn named_user_sees_named_channel_mute_expiry_timestamp_is(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -975,7 +969,7 @@ async fn named_user_sees_named_channel_mute_expiry_timestamp_is(
     }
 }
 
-#[then(regex = r#"^"([^"]+)" receives a message-created live notification for channel "([^"]+)"$"#)]
+#[then(expr = r#"{string} receives a message-created live notification for channel {string}"#)]
 async fn named_user_receives_message_created_live_notification_for_named_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -1023,7 +1017,7 @@ async fn named_user_receives_message_created_live_notification_for_named_channel
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
-#[then(regex = r#"^"([^"]+)" receives a mentioned live notification for channel "([^"]+)"$"#)]
+#[then(expr = r#"{string} receives a mentioned live notification for channel {string}"#)]
 async fn named_user_receives_mentioned_live_notification_for_named_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -1062,7 +1056,7 @@ async fn named_user_receives_mentioned_live_notification_for_named_channel(
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
-#[then(regex = r#"^"([^"]+)" receives an unread-message live notification for channel "([^"]+)"$"#)]
+#[then(expr = r#"{string} receives an unread-message live notification for channel {string}"#)]
 async fn named_user_receives_unread_message_live_notification_for_named_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -1102,7 +1096,7 @@ async fn named_user_receives_unread_message_live_notification_for_named_channel(
 }
 
 #[then(
-    regex = r#"^"([^"]+)" receives a friend-joined-voice live notification for channel "([^"]+)" from "([^"]+)"$"#
+    expr = r#"{string} receives a friend-joined-voice live notification for channel {string} from {string}"#
 )]
 async fn named_user_receives_friend_joined_voice_live_notification_for_named_channel_from_named_user(
     world: &mut NotificationsWorld,
@@ -1156,9 +1150,7 @@ async fn named_user_receives_friend_joined_voice_live_notification_for_named_cha
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
-#[then(
-    regex = r#"^"([^"]+)" receives a friend-request-received live notification from "([^"]+)"$"#
-)]
+#[then(expr = r#"{string} receives a friend-request-received live notification from {string}"#)]
 async fn named_user_receives_friend_request_received_live_notification_from_named_user(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -1193,9 +1185,7 @@ async fn named_user_receives_friend_request_received_live_notification_from_name
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
-#[then(
-    regex = r#"^"([^"]+)" receives a friend-request-accepted live notification from "([^"]+)"$"#
-)]
+#[then(expr = r#"{string} receives a friend-request-accepted live notification from {string}"#)]
 async fn named_user_receives_friend_request_accepted_live_notification_from_named_user(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -1244,7 +1234,7 @@ async fn named_user_does_not_receive_live_notification_events_for_that_channel(
     assert_eq!(ws_connection.actor_name, actor_name);
 }
 
-#[then(regex = r#"^"([^"]+)" does not receive live notifications for channel "([^"]+)"$"#)]
+#[then(expr = r#"{string} does not receive live notifications for channel {string}"#)]
 async fn named_user_does_not_receive_live_notification_events_for_named_channel(
     world: &mut NotificationsWorld,
     actor_name: String,
@@ -1259,7 +1249,7 @@ async fn posting_is_denied_because_that_channel_does_not_support_messaging(
     assert_eq!(world.latest_status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
 
-#[then(regex = r#"^posting is denied because channel "([^"]+)" does not support messaging$"#)]
+#[then(expr = r#"posting is denied because channel {string} does not support messaging"#)]
 async fn posting_is_denied_because_named_channel_does_not_support_messaging(
     world: &mut NotificationsWorld,
     _channel_name: String,

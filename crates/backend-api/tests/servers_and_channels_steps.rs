@@ -176,7 +176,7 @@ async fn an_authenticated_user_exists(world: &mut ServersAndChannelsWorld) {
     world.owner_token = "valid-token".to_owned();
 }
 
-#[given(regex = r#"^a user named "([^"]+)" exists$"#)]
+#[given(expr = r#"a user named {string} exists"#)]
 async fn a_user_named_exists(world: &mut ServersAndChannelsWorld, name: String) {
     if world.owner_name.is_none() {
         let shared = fresh_shared_store().await;
@@ -217,7 +217,7 @@ async fn named_user_owns_a_server(world: &mut ServersAndChannelsWorld, name: Str
     world.ensure_owner_server().await;
 }
 
-#[given(regex = r#"^"([^"]+)" owns server "([^"]+)"$"#)]
+#[given(expr = r#"{string} owns server {string}"#)]
 async fn named_user_owns_named_server(
     world: &mut ServersAndChannelsWorld,
     name: String,
@@ -231,7 +231,7 @@ async fn a_channel_exists_in_named_users_server(world: &mut ServersAndChannelsWo
     world.ensure_owner_channel().await;
 }
 
-#[given(regex = r#"^a channel exists in server "([^"]+)" owned by "([^"]+)"$"#)]
+#[given(expr = r#"a channel exists in server {string} owned by {string}"#)]
 async fn a_channel_exists_in_named_server_owned_by_named_user(
     world: &mut ServersAndChannelsWorld,
     _server_name: String,
@@ -250,7 +250,7 @@ async fn named_user_adds_named_user_to_the_server(
     add_second_user_as_a_member(world).await;
 }
 
-#[given(regex = r#"^"([^"]+)" adds "([^"]+)" to server "([^"]+)"$"#)]
+#[given(expr = r#"{string} adds {string} to server {string}"#)]
 async fn named_user_adds_named_user_to_named_server(
     world: &mut ServersAndChannelsWorld,
     owner_name: String,
@@ -260,7 +260,7 @@ async fn named_user_adds_named_user_to_named_server(
     named_user_adds_named_user_to_the_server(world, owner_name, member_name).await;
 }
 
-#[given(regex = r#"^"([^"]+)" and "([^"]+)" are friends$"#)]
+#[given(expr = r#"{string} and {string} are friends"#)]
 async fn named_users_are_friends(
     world: &mut ServersAndChannelsWorld,
     requester_name: String,
@@ -295,7 +295,7 @@ async fn the_user_already_owns_a_server(world: &mut ServersAndChannelsWorld) {
     world.ensure_owner_server().await;
 }
 
-#[given(regex = r#"^the user already owns server "([^"]+)"$"#)]
+#[given(expr = r#"the user already owns server {string}"#)]
 async fn the_user_already_owns_named_server(
     world: &mut ServersAndChannelsWorld,
     _server_name: String,
@@ -307,7 +307,7 @@ async fn a_channel_exists_in_the_users_server(world: &mut ServersAndChannelsWorl
     world.ensure_owner_channel().await;
 }
 
-#[given(regex = r#"^a channel exists in server "([^"]+)" for the authenticated user$"#)]
+#[given(expr = r#"a channel exists in server {string} for the authenticated user"#)]
 async fn a_channel_exists_in_named_server_for_the_authenticated_user(
     world: &mut ServersAndChannelsWorld,
     _server_name: String,
@@ -422,7 +422,7 @@ async fn the_user_lists_their_servers(world: &mut ServersAndChannelsWorld) {
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[when(regex = r#"^"([^"]+)" lists their servers$"#)]
+#[when(expr = r#"{string} lists their servers"#)]
 async fn named_user_lists_their_servers(world: &mut ServersAndChannelsWorld, name: String) {
     world.assert_second_name(&name);
     second_user_lists_their_servers(world).await;
@@ -437,7 +437,7 @@ async fn the_user_creates_a_channel_in_that_server(world: &mut ServersAndChannel
     world.channel_id = Some(payload_channel_id(world.latest_payload_ref(), "id"));
 }
 
-#[when(regex = r#"^the user creates a channel in server "([^"]+)"$"#)]
+#[when(expr = r#"the user creates a channel in server {string}"#)]
 async fn the_user_creates_a_channel_in_named_server(
     world: &mut ServersAndChannelsWorld,
     _server_name: String,
@@ -452,7 +452,7 @@ async fn the_user_lists_channels_in_that_server(world: &mut ServersAndChannelsWo
     world.latest_payload = Some(response_payload_json(response).await);
 }
 
-#[when(regex = r#"^the user lists channels in server "([^"]+)"$"#)]
+#[when(expr = r#"the user lists channels in server {string}"#)]
 async fn the_user_lists_channels_in_named_server(
     world: &mut ServersAndChannelsWorld,
     _server_name: String,
@@ -481,7 +481,7 @@ async fn the_server_owner_updates_the_server_name(world: &mut ServersAndChannels
     world.latest_payload = None;
 }
 
-#[when(regex = r#"^"([^"]+)" updates the name of server "([^"]+)"$"#)]
+#[when(expr = r#"{string} updates the name of server {string}"#)]
 async fn named_user_updates_the_name_of_server(
     world: &mut ServersAndChannelsWorld,
     name: String,
@@ -507,7 +507,7 @@ async fn the_user_updates_a_server_that_does_not_exist(world: &mut ServersAndCha
     world.latest_payload = None;
 }
 
-#[when(regex = r#"^"([^"]+)" invites friend "([^"]+)" to server "([^"]+)"$"#)]
+#[when(expr = r#"{string} invites friend {string} to server {string}"#)]
 async fn named_user_invites_friend_to_server_named(
     world: &mut ServersAndChannelsWorld,
     owner_name: String,
@@ -615,7 +615,7 @@ async fn the_second_user_lists_channels_in_that_server(world: &mut ServersAndCha
     world.latest_payload = None;
 }
 
-#[when(regex = r#"^"([^"]+)" lists channels in server "([^"]+)"$"#)]
+#[when(expr = r#"{string} lists channels in server {string}"#)]
 async fn named_user_lists_channels_in_named_server(
     world: &mut ServersAndChannelsWorld,
     name: String,
@@ -655,7 +655,7 @@ async fn named_user_tries_to_add_a_different_user_to_that_server(
     the_second_user_tries_to_add_a_different_user_to_that_server(world).await;
 }
 
-#[when(regex = r#"^"([^"]+)" tries to add a different user to server "([^"]+)"$"#)]
+#[when(expr = r#"{string} tries to add a different user to server {string}"#)]
 async fn named_user_tries_to_add_a_different_user_to_named_server(
     world: &mut ServersAndChannelsWorld,
     name: String,
@@ -670,7 +670,7 @@ async fn the_server_owner_deletes_that_server(world: &mut ServersAndChannelsWorl
     world.latest_payload = None;
 }
 
-#[when(regex = r#"^the server owner deletes server "([^"]+)"$"#)]
+#[when(expr = r#"the server owner deletes server {string}"#)]
 async fn the_server_owner_deletes_named_server(
     world: &mut ServersAndChannelsWorld,
     _server_name: String,
@@ -694,7 +694,7 @@ async fn named_user_deletes_that_server(world: &mut ServersAndChannelsWorld, nam
     the_second_user_deletes_that_server(world).await;
 }
 
-#[when(regex = r#"^"([^"]+)" deletes server "([^"]+)"$"#)]
+#[when(expr = r#"{string} deletes server {string}"#)]
 async fn named_user_deletes_named_server(
     world: &mut ServersAndChannelsWorld,
     name: String,
@@ -717,7 +717,7 @@ async fn the_server_owner_deletes_that_channel(world: &mut ServersAndChannelsWor
     world.latest_payload = None;
 }
 
-#[when(regex = r#"^the server owner deletes channel "([^"]+)"$"#)]
+#[when(expr = r#"the server owner deletes channel {string}"#)]
 async fn the_server_owner_deletes_named_channel(
     world: &mut ServersAndChannelsWorld,
     _channel_name: String,
@@ -741,7 +741,7 @@ async fn named_user_deletes_that_channel(world: &mut ServersAndChannelsWorld, na
     the_second_user_deletes_that_channel(world).await;
 }
 
-#[when(regex = r#"^"([^"]+)" deletes channel "([^"]+)"$"#)]
+#[when(expr = r#"{string} deletes channel {string}"#)]
 async fn named_user_deletes_named_channel(
     world: &mut ServersAndChannelsWorld,
     name: String,
@@ -820,7 +820,7 @@ async fn listing_channels_in_that_server_includes_the_updated_name(
     }));
 }
 
-#[then(regex = r#"^listing channels in server "([^"]+)" includes the updated name$"#)]
+#[then(expr = r#"listing channels in server {string} includes the updated name"#)]
 async fn listing_channels_in_named_server_includes_the_updated_name(
     world: &mut ServersAndChannelsWorld,
     _server_name: String,
@@ -944,7 +944,7 @@ async fn listing_channels_in_that_server_returns_no_channels(world: &mut Servers
     );
 }
 
-#[then(regex = r#"^listing channels in server "([^"]+)" returns no channels$"#)]
+#[then(expr = r#"listing channels in server {string} returns no channels"#)]
 async fn listing_channels_in_named_server_returns_no_channels(
     world: &mut ServersAndChannelsWorld,
     _server_name: String,

@@ -538,7 +538,8 @@ Scope:
 - Add tags based on entity for each endpoint
 
 #### Phase 13.2: Improve cucumber dev experience and readability
-Status: Planned.
+Status:
+- Completed.
 
 Goals:
 - Improve cucumber test dev experience and ease of understanding
@@ -548,6 +549,16 @@ Scope:
 
 Implementation notes:
 - cucumber implementations for steps should overwhelmingly (entirely) use "{*name*}" instead of the equivalent regex with typed where possible
+
+Progress:
+- Completed: all `#[given/when/then(regex = ...)]` step attributes across 5 BDD step definition files were converted to `#[given/when/then(expr = ...)]` using cucumber expression syntax.
+- Completed: `"([^"]+)"` regex capture groups replaced with `{string}` named parameters across all step files.
+- Completed: `([0-9]+)` regex capture groups replaced with `{int}` named parameters for integer step parameters.
+- Completed: `(muted|unmuted)` and `(present|absent)` regex alternation groups replaced with `{word}` named parameters for enum-like step parameters.
+- Completed: 108 regex step definitions converted across `servers_and_channels_steps.rs`, `messages_steps.rs`, `voice_sessions_steps.rs`, `notifications_steps.rs`, and `friends_and_dms_steps.rs`.
+- Completed: `auth_and_health_steps.rs` and `identity_and_users_steps.rs` already used plain string step matching (no regex patterns to convert).
+- Validation: `cargo clippy --workspace --all-targets -- -D warnings` passes clean.
+- Validation: `cargo test --workspace` passes with 97 BDD scenarios (all passing).
 
 
 #### Phase 13.3: Rust backend maintainability, type safety, and performance hardening
