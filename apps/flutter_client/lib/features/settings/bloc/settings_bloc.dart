@@ -19,6 +19,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<SettingsPreferencesRestoreRequested>(
       _onSettingsPreferencesRestoreRequested,
     );
+    on<SettingsDeveloperModeToggledRequested>(
+      _onSettingsDeveloperModeToggledRequested,
+    );
     on<SettingsDarkModeToggledRequested>(_onSettingsDarkModeToggledRequested);
     on<SettingsChannelJoinNotificationsToggledRequested>(
       _onSettingsChannelJoinNotificationsToggledRequested,
@@ -64,6 +67,8 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     final previousSnapshot = _snapshotFromState(state);
 
     try {
+      final isDeveloperModeEnabled =
+          await _preferencesStore.readDeveloperModeEnabled();
       final isDarkModeEnabled = await _preferencesStore.readDarkModeEnabled();
       final isChannelJoinNotificationsEnabled =
           await _preferencesStore.readChannelJoinNotificationsEnabled();
@@ -94,6 +99,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
 
       emit(
         SettingsLoadedState(
+          isDeveloperModeEnabled: isDeveloperModeEnabled,
           isDarkModeEnabled: isDarkModeEnabled,
           isChannelJoinNotificationsEnabled: isChannelJoinNotificationsEnabled,
           channelJoinNotificationChannelIds: channelJoinNotificationChannelIds,
@@ -107,6 +113,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       emit(
         SettingsExceptionState(
           error: error,
+          isDeveloperModeEnabled: previousSnapshot.isDeveloperModeEnabled,
           isDarkModeEnabled: previousSnapshot.isDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               previousSnapshot.isChannelJoinNotificationsEnabled,
@@ -123,6 +130,53 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     }
   }
 
+  Future<void> _onSettingsDeveloperModeToggledRequested(
+    SettingsDeveloperModeToggledRequested event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final nextDeveloperModeEnabled = event.enabled;
+    final currentSnapshot = _snapshotFromState(state);
+
+    emit(
+      SettingsLoadedState(
+        isDeveloperModeEnabled: nextDeveloperModeEnabled,
+        isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
+        isChannelJoinNotificationsEnabled:
+            currentSnapshot.isChannelJoinNotificationsEnabled,
+        channelJoinNotificationChannelIds:
+            currentSnapshot.channelJoinNotificationChannelIds,
+        audioInputDevices: currentSnapshot.audioInputDevices,
+        audioOutputDevices: currentSnapshot.audioOutputDevices,
+        selectedAudioInputDeviceId: currentSnapshot.selectedAudioInputDeviceId,
+        selectedAudioOutputDeviceId:
+            currentSnapshot.selectedAudioOutputDeviceId,
+      ),
+    );
+
+    try {
+      await _preferencesStore
+          .writeDeveloperModeEnabled(nextDeveloperModeEnabled);
+    } on Exception catch (error) {
+      emit(
+        SettingsExceptionState(
+          error: error,
+          isDeveloperModeEnabled: nextDeveloperModeEnabled,
+          isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
+          isChannelJoinNotificationsEnabled:
+              currentSnapshot.isChannelJoinNotificationsEnabled,
+          channelJoinNotificationChannelIds:
+              currentSnapshot.channelJoinNotificationChannelIds,
+          audioInputDevices: currentSnapshot.audioInputDevices,
+          audioOutputDevices: currentSnapshot.audioOutputDevices,
+          selectedAudioInputDeviceId:
+              currentSnapshot.selectedAudioInputDeviceId,
+          selectedAudioOutputDeviceId:
+              currentSnapshot.selectedAudioOutputDeviceId,
+        ),
+      );
+    }
+  }
+
   Future<void> _onSettingsDarkModeToggledRequested(
     SettingsDarkModeToggledRequested event,
     Emitter<SettingsState> emit,
@@ -132,6 +186,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
 
     emit(
       SettingsLoadedState(
+        isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
         isDarkModeEnabled: nextDarkModeEnabled,
         isChannelJoinNotificationsEnabled:
             currentSnapshot.isChannelJoinNotificationsEnabled,
@@ -151,6 +206,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       emit(
         SettingsExceptionState(
           error: error,
+          isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
           isDarkModeEnabled: nextDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               currentSnapshot.isChannelJoinNotificationsEnabled,
@@ -176,6 +232,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
 
     emit(
       SettingsLoadedState(
+        isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
         isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
         isChannelJoinNotificationsEnabled: nextChannelJoinNotificationsEnabled,
         channelJoinNotificationChannelIds:
@@ -196,6 +253,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       emit(
         SettingsExceptionState(
           error: error,
+          isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
           isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               nextChannelJoinNotificationsEnabled,
@@ -226,6 +284,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
 
     emit(
       SettingsLoadedState(
+        isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
         isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
         isChannelJoinNotificationsEnabled:
             currentSnapshot.isChannelJoinNotificationsEnabled,
@@ -246,6 +305,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       emit(
         SettingsExceptionState(
           error: error,
+          isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
           isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               currentSnapshot.isChannelJoinNotificationsEnabled,
@@ -288,6 +348,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
 
       emit(
         SettingsLoadedState(
+          isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
           isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               currentSnapshot.isChannelJoinNotificationsEnabled,
@@ -303,6 +364,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       emit(
         SettingsExceptionState(
           error: error,
+          isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
           isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               currentSnapshot.isChannelJoinNotificationsEnabled,
@@ -331,6 +393,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
 
     emit(
       SettingsLoadedState(
+        isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
         isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
         isChannelJoinNotificationsEnabled:
             currentSnapshot.isChannelJoinNotificationsEnabled,
@@ -357,6 +420,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       emit(
         SettingsExceptionState(
           error: error,
+          isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
           isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               currentSnapshot.isChannelJoinNotificationsEnabled,
@@ -385,6 +449,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
 
     emit(
       SettingsLoadedState(
+        isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
         isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
         isChannelJoinNotificationsEnabled:
             currentSnapshot.isChannelJoinNotificationsEnabled,
@@ -410,6 +475,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       emit(
         SettingsExceptionState(
           error: error,
+          isDeveloperModeEnabled: currentSnapshot.isDeveloperModeEnabled,
           isDarkModeEnabled: currentSnapshot.isDarkModeEnabled,
           isChannelJoinNotificationsEnabled:
               currentSnapshot.isChannelJoinNotificationsEnabled,
@@ -480,6 +546,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   _SettingsSnapshot _snapshotFromState(SettingsState currentState) {
     return switch (currentState) {
       SettingsLoadedState(
+        :final isDeveloperModeEnabled,
         :final isDarkModeEnabled,
         :final isChannelJoinNotificationsEnabled,
         :final channelJoinNotificationChannelIds,
@@ -489,6 +556,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         :final selectedAudioOutputDeviceId,
       ) =>
         _SettingsSnapshot(
+          isDeveloperModeEnabled: isDeveloperModeEnabled,
           isDarkModeEnabled: isDarkModeEnabled,
           isChannelJoinNotificationsEnabled: isChannelJoinNotificationsEnabled,
           channelJoinNotificationChannelIds: channelJoinNotificationChannelIds,
@@ -498,6 +566,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           selectedAudioOutputDeviceId: selectedAudioOutputDeviceId,
         ),
       SettingsExceptionState(
+        :final isDeveloperModeEnabled,
         :final isDarkModeEnabled,
         :final isChannelJoinNotificationsEnabled,
         :final channelJoinNotificationChannelIds,
@@ -507,6 +576,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         :final selectedAudioOutputDeviceId,
       ) =>
         _SettingsSnapshot(
+          isDeveloperModeEnabled: isDeveloperModeEnabled,
           isDarkModeEnabled: isDarkModeEnabled,
           isChannelJoinNotificationsEnabled: isChannelJoinNotificationsEnabled,
           channelJoinNotificationChannelIds: channelJoinNotificationChannelIds,
@@ -522,6 +592,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
 
 final class _SettingsSnapshot {
   const _SettingsSnapshot({
+    this.isDeveloperModeEnabled = false,
     this.isDarkModeEnabled = false,
     this.isChannelJoinNotificationsEnabled = false,
     this.channelJoinNotificationChannelIds = const <String>[],
@@ -531,6 +602,7 @@ final class _SettingsSnapshot {
     this.selectedAudioOutputDeviceId,
   });
 
+  final bool isDeveloperModeEnabled;
   final bool isDarkModeEnabled;
   final bool isChannelJoinNotificationsEnabled;
   final List<String> channelJoinNotificationChannelIds;

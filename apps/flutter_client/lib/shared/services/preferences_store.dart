@@ -89,6 +89,8 @@ final class KeybindingsPreferences {
 }
 
 abstract interface class PreferencesStore {
+  Future<bool> readDeveloperModeEnabled();
+  Future<void> writeDeveloperModeEnabled(bool enabled);
   Future<bool> readDarkModeEnabled();
   Future<void> writeDarkModeEnabled(bool enabled);
   Future<bool> readChannelJoinNotificationsEnabled();
@@ -113,6 +115,7 @@ abstract interface class PreferencesStore {
 
 final class SharedPreferencesBackedPreferencesStore
     implements PreferencesStore {
+  static const _developerModeEnabledKey = "settings.developer_mode_enabled";
   static const _darkModeEnabledKey = "settings.dark_mode_enabled";
   static const _channelJoinNotificationsEnabledKey =
       "settings.channel_join_notifications_enabled";
@@ -125,6 +128,7 @@ final class SharedPreferencesBackedPreferencesStore
   static const _keybindingsKey = "settings.keybindings";
   static const _backendBaseUrlOverrideKey = "settings.backend_base_url";
   static const _allowList = <String>{
+    _developerModeEnabledKey,
     _darkModeEnabledKey,
     _channelJoinNotificationsEnabledKey,
     _channelJoinNotificationChannelIdsKey,
@@ -144,6 +148,18 @@ final class SharedPreferencesBackedPreferencesStore
         );
 
   final Future<SharedPreferencesWithCache> _sharedPreferencesWithCacheFuture;
+
+  @override
+  Future<bool> readDeveloperModeEnabled() async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    return sharedPreferences.getBool(_developerModeEnabledKey) ?? false;
+  }
+
+  @override
+  Future<void> writeDeveloperModeEnabled(bool enabled) async {
+    final sharedPreferences = await _sharedPreferencesWithCacheFuture;
+    await sharedPreferences.setBool(_developerModeEnabledKey, enabled);
+  }
 
   @override
   Future<bool> readDarkModeEnabled() async {
@@ -350,6 +366,7 @@ final class SharedPreferencesBackedPreferencesStore
 }
 
 final class InMemoryPreferencesStore implements PreferencesStore {
+  var _developerModeEnabled = false;
   var _darkModeEnabled = false;
   var _channelJoinNotificationsEnabled = false;
   var _channelJoinNotificationChannelIds = const <String>[];
@@ -359,6 +376,16 @@ final class InMemoryPreferencesStore implements PreferencesStore {
   String? _rememberedEmailAddress;
   var _keybindingsPreferences = const KeybindingsPreferences.unset();
   String? _backendBaseUrlOverride;
+
+  @override
+  Future<bool> readDeveloperModeEnabled() async {
+    return _developerModeEnabled;
+  }
+
+  @override
+  Future<void> writeDeveloperModeEnabled(bool enabled) async {
+    _developerModeEnabled = enabled;
+  }
 
   @override
   Future<bool> readDarkModeEnabled() async {
@@ -478,6 +505,16 @@ final class InMemoryPreferencesStore implements PreferencesStore {
 
 final class WebPreferencesStore implements PreferencesStore {
   const WebPreferencesStore();
+
+  @override
+  Future<bool> readDeveloperModeEnabled() async {
+    return false;
+  }
+
+  @override
+  Future<void> writeDeveloperModeEnabled(bool enabled) async {
+    return;
+  }
 
   @override
   Future<bool> readDarkModeEnabled() async {

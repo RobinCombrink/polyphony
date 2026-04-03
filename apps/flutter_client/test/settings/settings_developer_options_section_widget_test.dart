@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_test/flutter_test.dart";
+import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_developer_profile_bloc.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_developer_options_section_widget.dart";
 import "package:polyphony_flutter_client/shared/config/polyphony_config.dart";
@@ -9,6 +10,8 @@ import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 import "package:provider/provider.dart";
+
+import "../test_doubles/chat_repository_fakes.dart";
 
 class _FakeProfileService implements ProfileService {
   const _FakeProfileService({required this.meResult});
@@ -36,17 +39,24 @@ Widget _buildTestApp({
   required ProfileService profileService,
   PreferencesStore? preferencesStore,
 }) {
+  final store = preferencesStore ?? InMemoryPreferencesStore();
   return MaterialApp(
     home: Scaffold(
       body: SingleChildScrollView(
         child: Provider<PreferencesStore>(
-          create: (_) => preferencesStore ?? InMemoryPreferencesStore(),
-          child: BlocProvider<SettingsDeveloperProfileBloc>(
-            create: (_) => SettingsDeveloperProfileBloc(
-              profileService: profileService,
-            ),
-            child: SettingsDeveloperOptionsSectionWidget(
-              bearerToken: token,
+          create: (_) => store,
+          child: BlocProvider<SettingsBloc>(
+            create: (_) => SettingsBloc(
+              preferencesStore: store,
+              audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+            )..add(const SettingsPreferencesRestoreRequested()),
+            child: BlocProvider<SettingsDeveloperProfileBloc>(
+              create: (_) => SettingsDeveloperProfileBloc(
+                profileService: profileService,
+              ),
+              child: SettingsDeveloperOptionsSectionWidget(
+                bearerToken: token,
+              ),
             ),
           ),
         ),

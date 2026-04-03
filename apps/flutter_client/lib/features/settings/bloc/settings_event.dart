@@ -8,6 +8,12 @@ final class SettingsPreferencesRestoreRequested extends SettingsEvent {
   const SettingsPreferencesRestoreRequested();
 }
 
+final class SettingsDeveloperModeToggledRequested extends SettingsEvent {
+  const SettingsDeveloperModeToggledRequested({required this.enabled});
+
+  final bool enabled;
+}
+
 final class SettingsDarkModeToggledRequested extends SettingsEvent {
   const SettingsDarkModeToggledRequested({required this.enabled});
 

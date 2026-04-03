@@ -8,12 +8,23 @@ import "../test_doubles/chat_repository_fakes.dart";
 final class _TestPreferencesStore implements PreferencesStore {
   _TestPreferencesStore();
 
+  var developerModeEnabled = false;
   var darkModeEnabled = false;
   var channelJoinNotificationsEnabled = false;
   var channelJoinNotificationChannelIds = const <String>[];
   String? audioInputDeviceId;
   String? audioOutputDeviceId;
   String? backendBaseUrlOverride;
+
+  @override
+  Future<bool> readDeveloperModeEnabled() async {
+    return developerModeEnabled;
+  }
+
+  @override
+  Future<void> writeDeveloperModeEnabled(bool enabled) async {
+    developerModeEnabled = enabled;
+  }
 
   @override
   Future<bool> readDarkModeEnabled() async {

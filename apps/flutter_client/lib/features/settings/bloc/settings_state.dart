@@ -10,6 +10,7 @@ final class SettingsInitialState extends SettingsState {
 
 final class SettingsLoadedState extends SettingsState {
   const SettingsLoadedState({
+    required this.isDeveloperModeEnabled,
     required this.isDarkModeEnabled,
     required this.isChannelJoinNotificationsEnabled,
     required this.channelJoinNotificationChannelIds,
@@ -19,6 +20,7 @@ final class SettingsLoadedState extends SettingsState {
     required this.selectedAudioOutputDeviceId,
   });
 
+  final bool isDeveloperModeEnabled;
   final bool isDarkModeEnabled;
   final bool isChannelJoinNotificationsEnabled;
   final List<String> channelJoinNotificationChannelIds;
@@ -31,6 +33,7 @@ final class SettingsLoadedState extends SettingsState {
 final class SettingsExceptionState extends SettingsState {
   const SettingsExceptionState({
     required this.error,
+    required this.isDeveloperModeEnabled,
     required this.isDarkModeEnabled,
     required this.isChannelJoinNotificationsEnabled,
     required this.channelJoinNotificationChannelIds,
@@ -41,6 +44,7 @@ final class SettingsExceptionState extends SettingsState {
   });
 
   final Exception error;
+  final bool isDeveloperModeEnabled;
   final bool isDarkModeEnabled;
   final bool isChannelJoinNotificationsEnabled;
   final List<String> channelJoinNotificationChannelIds;
