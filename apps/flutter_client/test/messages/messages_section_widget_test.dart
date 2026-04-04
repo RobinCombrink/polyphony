@@ -6,6 +6,7 @@ import "package:polyphony_flutter_client/features/messages/presentation/widgets/
 import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
+import "package:polyphony_flutter_client/shared/services/emote_service.dart";
 import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:provider/provider.dart";
@@ -19,11 +20,19 @@ Widget _buildWidget({
   UserId? currentUserId,
   String? currentUserDisplayName,
   LinkPreviewService? linkPreviewService,
+  EmoteService? emoteService,
 }) {
   final resolvedUserId = currentUserId ?? _currentUserId;
 
-  return Provider<LinkPreviewService>(
-    create: (_) => linkPreviewService ?? FakeLinkPreviewService(),
+  return MultiProvider(
+    providers: [
+      Provider<LinkPreviewService>(
+        create: (_) => linkPreviewService ?? FakeLinkPreviewService(),
+      ),
+      Provider<EmoteService>(
+        create: (_) => emoteService ?? FakeEmoteService(),
+      ),
+    ],
     child: BlocProvider<SettingsBloc>(
       create: (_) => SettingsBloc(
         preferencesStore: InMemoryPreferencesStore(),
@@ -223,6 +232,103 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining("Example Title"), findsNothing);
+    });
+  });
+
+  group("MessagesSectionWidget emote picker", () {
+    testWidgets("shows emote button in composer", (tester) async {
+      await tester.pumpWidget(
+        _buildWidget(messages: const []),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.emoji_emotions_outlined), findsOneWidget);
+    });
+
+    testWidgets("opens emote picker dialog when emote button tapped",
+        (tester) async {
+      await tester.pumpWidget(
+        _buildWidget(messages: const []),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.emoji_emotions_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Search emotes..."), findsOneWidget);
+      expect(find.text("\u{1F44D}"), findsOneWidget);
+      expect(find.text("\u{2764}\u{FE0F}"), findsOneWidget);
+    });
+
+    testWidgets("inserts emote shortcode into text field when tapped",
+        (tester) async {
+      final controller = TextEditingController();
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<LinkPreviewService>(
+              create: (_) => FakeLinkPreviewService(),
+            ),
+            Provider<EmoteService>(
+              create: (_) => FakeEmoteService(),
+            ),
+          ],
+          child: BlocProvider<SettingsBloc>(
+            create: (_) => SettingsBloc(
+              preferencesStore: InMemoryPreferencesStore(),
+              audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+            )..add(const SettingsPreferencesRestoreRequested()),
+            child: MaterialApp(
+              home: Scaffold(
+                body: MessagesSectionWidget(
+                  messages: const [],
+                  currentUser: const UserProfile(
+                    userId: _currentUserId,
+                    displayName: null,
+                  ),
+                  authorDisplayNamesByUserId: const <UserId, String?>{},
+                  createController: controller,
+                  mentionCandidates: const <UserProfile>[],
+                  isLoading: false,
+                  onCreate: (_) {},
+                  onEdit: (_) async {},
+                  onDelete: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.emoji_emotions_outlined));
+      await tester.pumpAndSettle();
+
+      // Tap the thumbsup emoji
+      await tester.tap(find.text("\u{1F44D}"));
+      await tester.pumpAndSettle();
+
+      expect(controller.text, ":thumbsup:");
+    });
+
+    testWidgets("filters emotes when searching", (tester) async {
+      await tester.pumpWidget(
+        _buildWidget(messages: const []),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.emoji_emotions_outlined));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextField, "Search emotes..."),
+        "heart",
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text("\u{2764}\u{FE0F}"), findsOneWidget);
+      expect(find.text("\u{1F44D}"), findsNothing);
     });
   });
 }

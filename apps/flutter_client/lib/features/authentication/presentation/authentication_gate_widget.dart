@@ -44,6 +44,7 @@ import "package:polyphony_flutter_client/shared/repositories/voice_session_repos
 import "package:polyphony_flutter_client/shared/services/block_service.dart";
 import "package:polyphony_flutter_client/shared/services/channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/direct_message_service.dart";
+import "package:polyphony_flutter_client/shared/services/emote_service.dart";
 import "package:polyphony_flutter_client/shared/services/friend_service.dart";
 import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
@@ -57,6 +58,7 @@ import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_block_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_channel_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_direct_message_service.dart";
+import "package:polyphony_flutter_client/shared/services/rest/rest_emote_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_friend_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_message_service.dart";
@@ -344,6 +346,11 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
           ),
           Provider<LinkPreviewService>(
             create: (context) => RestLinkPreviewService(
+              dio: context.read<Dio>(),
+            ),
+          ),
+          Provider<EmoteService>(
+            create: (context) => RestEmoteService(
               dio: context.read<Dio>(),
             ),
           ),

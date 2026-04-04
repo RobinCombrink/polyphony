@@ -6,6 +6,7 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_markdown_plus/flutter_markdown_plus.dart";
 import "package:markdown/markdown.dart" as md;
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/presentation/widgets/emote_picker_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/link_preview_card_widget.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
@@ -447,6 +448,33 @@ class _MessageComposerWidgetState extends State<_MessageComposerWidget> {
     });
   }
 
+  void _showEmotePicker(BuildContext context) {
+    unawaited(showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        contentPadding: EdgeInsets.zero,
+        content: EmotePickerWidget(
+          onEmoteSelected: (emote) {
+            final controller = widget.createController;
+            final text = controller.text;
+            final selection = controller.selection;
+            final insertOffset =
+                selection.isValid ? selection.baseOffset : text.length;
+            final newText =
+                "${text.substring(0, insertOffset)}${emote.shortcode}${text.substring(insertOffset)}";
+            controller.value = TextEditingValue(
+              text: newText,
+              selection: TextSelection.collapsed(
+                offset: insertOffset + emote.shortcode.length,
+              ),
+            );
+            Navigator.of(dialogContext).pop();
+          },
+        ),
+      ),
+    ));
+  }
+
   void _submitMessage() {
     widget.onCreate(_selectedMentionedUserId);
     setState(() {
@@ -501,6 +529,12 @@ class _MessageComposerWidgetState extends State<_MessageComposerWidget> {
                   hintText: "Type @ to mention a member",
                 ),
               ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.emoji_emotions_outlined),
+              tooltip: "Emotes",
+              onPressed: () => _showEmotePicker(context),
             ),
             const SizedBox(width: 8),
             FilledButton(

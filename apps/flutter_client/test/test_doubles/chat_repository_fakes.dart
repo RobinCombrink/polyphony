@@ -13,6 +13,7 @@ import "package:polyphony_flutter_client/shared/repositories/text_session_repo.d
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/audio_device_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/emote_service.dart";
 import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
@@ -1126,5 +1127,28 @@ class FakeLinkPreviewService implements LinkPreviewService {
         description: "Example description for $url",
       ),
     );
+  }
+}
+
+class FakeEmoteService implements EmoteService {
+  FakeEmoteService({List<Emote>? emotes})
+      : _emotes = emotes ??
+            const [
+              Emote(
+                  id: "thumbsup",
+                  shortcode: ":thumbsup:",
+                  emojiChar: "\u{1F44D}"),
+              Emote(
+                  id: "heart",
+                  shortcode: ":heart:",
+                  emojiChar: "\u{2764}\u{FE0F}"),
+              Emote(id: "laugh", shortcode: ":laugh:", emojiChar: "\u{1F602}"),
+            ];
+
+  final List<Emote> _emotes;
+
+  @override
+  Future<Result<List<Emote>>> listEmotes() async {
+    return Ok<List<Emote>>(_emotes);
   }
 }
