@@ -1,17 +1,19 @@
 use async_trait::async_trait;
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
-    DirectMessageThreadId, ExternalReference, FriendNotificationEventType, FriendRequest,
+    DirectMessageThreadId, EmoteId, ExternalReference, FriendNotificationEventType, FriendRequest,
     FriendRequestId, FriendRequestState, Friendship, Membership, Message, MessageId,
-    NotificationCategoryPreference, NotificationMuteState, Server, ServerId, User, UserId,
+    NotificationCategoryPreference, NotificationMuteState, ReactionSummary, Server, ServerId, User,
+    UserId,
 };
 use tokio::sync::RwLock;
 
 use crate::{
     BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
     DirectMessageRepository, FriendRepository, InMemoryStore, MessageRepository, MutationResult,
-    NotificationRepository, OpenOrGetDirectMessageThreadResult, SendDirectMessageResult,
-    SendFriendRequestResult, ServerRepository, UpdateFriendRequestResult, UserRepository,
+    NotificationRepository, OpenOrGetDirectMessageThreadResult, ReactionRepository,
+    SendDirectMessageResult, SendFriendRequestResult, ServerRepository, ToggleReactionResult,
+    UpdateFriendRequestResult, UserRepository,
 };
 
 #[derive(Debug, Default)]
@@ -552,5 +554,27 @@ impl DirectMessageRepository for InMemoryRepository {
     ) -> Option<Vec<DirectMessage>> {
         let store = self.store.read().await;
         store.search_direct_messages_for_person(actor_user_id, other_user_id, query)
+    }
+}
+
+#[async_trait]
+impl ReactionRepository for InMemoryRepository {
+    async fn toggle_reaction(
+        &self,
+        message_id: MessageId,
+        user_id: UserId,
+        emote_id: &EmoteId,
+    ) -> ToggleReactionResult {
+        let mut store = self.store.write().await;
+        store.toggle_reaction(message_id, user_id, emote_id)
+    }
+
+    async fn list_reaction_summaries(
+        &self,
+        message_id: MessageId,
+        current_user_id: UserId,
+    ) -> Vec<ReactionSummary> {
+        let store = self.store.read().await;
+        store.list_reaction_summaries(message_id, current_user_id)
     }
 }

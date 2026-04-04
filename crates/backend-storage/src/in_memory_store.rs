@@ -1,16 +1,16 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{Duration, SystemTime};
 
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
-    DirectMessageThreadId, DisplayName, ExternalReference, FriendNotificationEventType,
+    DirectMessageThreadId, DisplayName, EmoteId, ExternalReference, FriendNotificationEventType,
     FriendRequest, FriendRequestId, FriendRequestState, Friendship, FriendshipId, Membership,
     Message, MessageId, NotificationCategoryPreference, NotificationEventType,
-    NotificationMuteState, Server, ServerId, User, UserId,
+    NotificationMuteState, ReactionSummary, Server, ServerId, User, UserId,
 };
 use uuid::Uuid;
 
-use crate::{CreateMessageResult, MutationResult};
+use crate::{CreateMessageResult, MutationResult, ToggleReactionResult};
 
 #[derive(Debug, Default)]
 pub(crate) struct InMemoryStore {
@@ -43,6 +43,7 @@ pub(crate) struct InMemoryStore {
     pub(crate) direct_message_thread_id_by_user_pair:
         HashMap<(UserId, UserId), DirectMessageThreadId>,
     pub(crate) direct_messages_by_thread_id: HashMap<DirectMessageThreadId, Vec<DirectMessage>>,
+    pub(crate) reactions: HashSet<(MessageId, UserId, EmoteId)>,
 }
 
 impl InMemoryStore {
@@ -1085,5 +1086,58 @@ impl InMemoryStore {
             .collect::<Vec<_>>();
 
         Some(messages)
+    }
+
+    fn message_exists(&self, message_id: MessageId) -> bool {
+        self.messages_by_channel
+            .values()
+            .any(|messages| messages.iter().any(|m| m.id() == message_id))
+    }
+
+    pub(crate) fn toggle_reaction(
+        &mut self,
+        message_id: MessageId,
+        user_id: UserId,
+        emote_id: &EmoteId,
+    ) -> ToggleReactionResult {
+        if !self.message_exists(message_id) {
+            return ToggleReactionResult::MessageNotFound;
+        }
+
+        let key = (message_id, user_id, emote_id.clone());
+        if self.reactions.remove(&key) {
+            ToggleReactionResult::Removed
+        } else {
+            self.reactions.insert(key);
+            ToggleReactionResult::Added
+        }
+    }
+
+    pub(crate) fn list_reaction_summaries(
+        &self,
+        message_id: MessageId,
+        current_user_id: UserId,
+    ) -> Vec<ReactionSummary> {
+        let mut counts: HashMap<&EmoteId, (u32, bool)> = HashMap::new();
+
+        for (mid, uid, emote_id) in &self.reactions {
+            if *mid != message_id {
+                continue;
+            }
+            let entry = counts.entry(emote_id).or_insert((0, false));
+            entry.0 += 1;
+            if *uid == current_user_id {
+                entry.1 = true;
+            }
+        }
+
+        counts
+            .into_iter()
+            .map(|(emote_id, (count, reacted))| ReactionSummary {
+                emote_id: emote_id.clone(),
+                count,
+                reacted_by_current_user: reacted,
+            })
+            .collect()
     }
 }

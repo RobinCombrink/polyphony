@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
-    DirectMessageThreadId, DisplayName, ExternalReference, FriendNotificationEventType,
+    DirectMessageThreadId, DisplayName, EmoteId, ExternalReference, FriendNotificationEventType,
     FriendRequest, FriendRequestId, FriendRequestState, Friendship, Membership, Message, MessageId,
-    NotificationCategoryPreference, NotificationEventType, NotificationMuteState, Server, ServerId,
-    User, UserId,
+    NotificationCategoryPreference, NotificationEventType, NotificationMuteState, ReactionSummary,
+    Server, ServerId, User, UserId,
 };
 use sqlx::migrate::Migrator;
 use sqlx::{
@@ -16,8 +16,9 @@ use uuid::Uuid;
 use crate::{
     BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
     DirectMessageRepository, FriendRepository, MessageRepository, MutationResult,
-    NotificationRepository, OpenOrGetDirectMessageThreadResult, SendDirectMessageResult,
-    SendFriendRequestResult, ServerRepository, UpdateFriendRequestResult, UserRepository,
+    NotificationRepository, OpenOrGetDirectMessageThreadResult, ReactionRepository,
+    SendDirectMessageResult, SendFriendRequestResult, ServerRepository, ToggleReactionResult,
+    UpdateFriendRequestResult, UserRepository,
 };
 
 #[cfg(target_family = "windows")]
@@ -2374,5 +2375,94 @@ impl DirectMessageRepository for PostgresRepository {
         .collect::<Vec<_>>();
 
         Some(matches)
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct ReactionSummaryRow {
+    emote_id: String,
+    count: i64,
+    reacted_by_current_user: bool,
+}
+
+#[async_trait]
+impl ReactionRepository for PostgresRepository {
+    async fn toggle_reaction(
+        &self,
+        message_id: MessageId,
+        user_id: UserId,
+        emote_id: &EmoteId,
+    ) -> ToggleReactionResult {
+        let message_exists =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM messages WHERE id = $1")
+                .bind(message_id.as_uuid())
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
+
+        if message_exists == 0 {
+            return ToggleReactionResult::MessageNotFound;
+        }
+
+        let existing = sqlx::query_scalar::<_, Uuid>(
+            "SELECT id FROM message_reactions
+             WHERE message_id = $1 AND user_id = $2 AND emote_id = $3",
+        )
+        .bind(message_id.as_uuid())
+        .bind(user_id.as_uuid())
+        .bind(emote_id.as_ref())
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten();
+
+        if let Some(existing_id) = existing {
+            let _ = sqlx::query("DELETE FROM message_reactions WHERE id = $1")
+                .bind(existing_id)
+                .execute(&self.pool)
+                .await;
+            ToggleReactionResult::Removed
+        } else {
+            let _ = sqlx::query(
+                "INSERT INTO message_reactions (message_id, user_id, emote_id)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (message_id, user_id, emote_id) DO NOTHING",
+            )
+            .bind(message_id.as_uuid())
+            .bind(user_id.as_uuid())
+            .bind(emote_id.as_ref())
+            .execute(&self.pool)
+            .await;
+            ToggleReactionResult::Added
+        }
+    }
+
+    async fn list_reaction_summaries(
+        &self,
+        message_id: MessageId,
+        current_user_id: UserId,
+    ) -> Vec<ReactionSummary> {
+        sqlx::query_as::<_, ReactionSummaryRow>(
+            "SELECT
+                 emote_id,
+                 COUNT(*) AS count,
+                 BOOL_OR(user_id = $2) AS reacted_by_current_user
+             FROM message_reactions
+             WHERE message_id = $1
+             GROUP BY emote_id
+             ORDER BY MIN(date_created) ASC",
+        )
+        .bind(message_id.as_uuid())
+        .bind(current_user_id.as_uuid())
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|row| ReactionSummary {
+            emote_id: EmoteId::from(row.emote_id),
+            count: u32::try_from(row.count).unwrap_or(0),
+            reacted_by_current_user: row.reacted_by_current_user,
+        })
+        .collect()
     }
 }

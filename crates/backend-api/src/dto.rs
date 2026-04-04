@@ -13,6 +13,8 @@ mod notification_channel_preference_response;
 mod notification_global_preference_response;
 mod notification_server_preference_response;
 mod notification_unread_count_response;
+mod reaction_summary_response;
+mod toggle_reaction_request;
 mod update_channel_request;
 mod update_me_request;
 mod update_message_request;
@@ -38,6 +40,8 @@ pub use notification_channel_preference_response::NotificationChannelPreferenceR
 pub use notification_global_preference_response::NotificationGlobalPreferenceResponse;
 pub use notification_server_preference_response::NotificationServerPreferenceResponse;
 pub use notification_unread_count_response::NotificationUnreadCountResponse;
+pub use reaction_summary_response::ReactionSummaryResponse;
+pub use toggle_reaction_request::ToggleReactionRequest;
 pub use update_channel_request::UpdateChannelRequest;
 pub use update_me_request::UpdateMeRequest;
 pub use update_message_request::UpdateMessageRequest;

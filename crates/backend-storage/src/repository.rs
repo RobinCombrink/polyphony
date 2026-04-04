@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
-    ExternalReference, FriendNotificationEventType, FriendRequest, FriendRequestId,
+    EmoteId, ExternalReference, FriendNotificationEventType, FriendRequest, FriendRequestId,
     FriendRequestState, Friendship, Membership, Message, MessageId, NotificationCategoryPreference,
-    NotificationMuteState, Server, ServerId, User, UserId,
+    NotificationMuteState, ReactionSummary, Server, ServerId, User, UserId,
 };
 
 use crate::MutationResult;
@@ -289,4 +289,26 @@ pub trait DirectMessageRepository: Send + Sync {
         other_user_id: UserId,
         query: &str,
     ) -> Option<Vec<DirectMessage>>;
+}
+
+pub enum ToggleReactionResult {
+    Added,
+    Removed,
+    MessageNotFound,
+}
+
+#[async_trait]
+pub trait ReactionRepository: Send + Sync {
+    async fn toggle_reaction(
+        &self,
+        message_id: MessageId,
+        user_id: UserId,
+        emote_id: &EmoteId,
+    ) -> ToggleReactionResult;
+
+    async fn list_reaction_summaries(
+        &self,
+        message_id: MessageId,
+        current_user_id: UserId,
+    ) -> Vec<ReactionSummary>;
 }

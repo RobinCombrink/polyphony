@@ -16,8 +16,8 @@ use axum::Router;
 use axum::routing::get;
 use backend_storage::{
     BlockRepository, ChannelRepository, DirectMessageRepository, FriendRepository,
-    MessageRepository, NotificationRepository, PostgresRepository, ServerRepository,
-    UserRepository,
+    MessageRepository, NotificationRepository, PostgresRepository, ReactionRepository,
+    ServerRepository, UserRepository,
 };
 use http::{HeaderValue, Method, Request, header::AUTHORIZATION};
 use openapi::ApiDocumentation;
@@ -43,6 +43,9 @@ use routes::{
     messages::{
         __path_create_message, __path_delete_message, __path_list_messages, __path_update_message,
         create_message, delete_message, list_messages, update_message,
+    },
+    reactions::{
+        __path_list_reactions, __path_toggle_reaction, list_reactions, toggle_reaction,
     },
     notifications::{
         __path_channel_notification_preference, __path_global_notification_preference,
@@ -212,6 +215,7 @@ where
         + FriendRepository
         + BlockRepository
         + DirectMessageRepository
+        + ReactionRepository
         + Send
         + Sync
         + 'static,
@@ -239,6 +243,7 @@ where
         + FriendRepository
         + BlockRepository
         + DirectMessageRepository
+        + ReactionRepository
         + Send
         + Sync
         + 'static,
@@ -272,6 +277,7 @@ where
         .routes(routes!(create_message, list_messages))
         .routes(routes!(update_channel, delete_channel))
         .routes(routes!(update_message, delete_message))
+        .routes(routes!(toggle_reaction, list_reactions))
         .routes(routes!(create_session))
         .routes(routes!(mark_channel_notifications_read))
         .routes(routes!(

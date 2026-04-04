@@ -6,6 +6,7 @@ mod friend_relationship;
 mod ids;
 mod membership;
 mod message;
+mod message_reaction;
 mod notification_category_preference;
 mod notification_event_type;
 mod notification_mute_state;
@@ -18,11 +19,12 @@ pub use display_name::DisplayName;
 pub use friend_notification_event_type::FriendNotificationEventType;
 pub use friend_relationship::{BlockRelationship, FriendRequest, FriendRequestState, Friendship};
 pub use ids::{
-    BlockRelationshipId, ChannelId, DirectMessageId, DirectMessageThreadId, ExternalReference,
-    FriendRequestId, FriendshipId, MessageId, ServerId, UserId,
+    BlockRelationshipId, ChannelId, DirectMessageId, DirectMessageThreadId, EmoteId,
+    ExternalReference, FriendRequestId, FriendshipId, MessageId, ReactionId, ServerId, UserId,
 };
 pub use membership::Membership;
 pub use message::{MentionedMessage, Message, RegularMessage};
+pub use message_reaction::{MessageReaction, ReactionSummary};
 pub use notification_category_preference::NotificationCategoryPreference;
 pub use notification_event_type::NotificationEventType;
 pub use notification_mute_state::NotificationMuteState;

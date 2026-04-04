@@ -1,4 +1,5 @@
 use axum::{Json, http::StatusCode, response::IntoResponse};
+use backend_domain::EmoteId;
 
 use crate::dto::EmoteResponse;
 
@@ -47,7 +48,7 @@ pub(crate) async fn list_emotes() -> impl IntoResponse {
     let emotes: Vec<EmoteResponse> = EMOTE_CATALOG
         .iter()
         .map(|(id, emoji)| EmoteResponse {
-            id: (*id).to_owned(),
+            id: EmoteId::from(*id),
             shortcode: format!(":{id}:"),
             emoji_char: (*emoji).to_owned(),
         })
@@ -71,7 +72,7 @@ mod tests {
     fn emote_response_has_correct_shortcode_format() {
         let (id, emoji) = EMOTE_CATALOG[0];
         let response = EmoteResponse {
-            id: id.to_owned(),
+            id: EmoteId::from(id),
             shortcode: format!(":{id}:"),
             emoji_char: emoji.to_owned(),
         };

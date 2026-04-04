@@ -5,6 +5,7 @@ pub(crate) mod link_preview;
 pub(crate) mod me;
 pub(crate) mod messages;
 pub(crate) mod notifications;
+pub(crate) mod reactions;
 pub(crate) mod servers;
 pub(crate) mod users;
 pub(crate) mod voice;

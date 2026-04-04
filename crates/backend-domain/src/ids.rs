@@ -103,3 +103,45 @@ define_uuid_id!(FriendshipId);
 define_uuid_id!(BlockRelationshipId);
 define_uuid_id!(DirectMessageThreadId);
 define_uuid_id!(DirectMessageId);
+define_uuid_id!(ReactionId);
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[serde(transparent)]
+pub struct EmoteId(String);
+
+impl EmoteId {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl Display for EmoteId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl AsRef<str> for EmoteId {
+    fn as_ref(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl From<String> for EmoteId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for EmoteId {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl From<EmoteId> for String {
+    fn from(value: EmoteId) -> Self {
+        value.0
+    }
+}
