@@ -214,25 +214,22 @@ struct ChannelRow {
     id: Uuid,
     server_id: Uuid,
     name: String,
-    channel_type: String,
+    channel_type: ChannelType,
 }
 
-impl TryFrom<ChannelRow> for Channel {
-    type Error = ();
-
-    fn try_from(value: ChannelRow) -> Result<Self, Self::Error> {
-        match value.channel_type.as_str() {
-            "text" => Ok(Channel::new_text(
+impl From<ChannelRow> for Channel {
+    fn from(value: ChannelRow) -> Self {
+        match value.channel_type {
+            ChannelType::Text => Channel::new_text(
                 value.id.into(),
                 value.server_id.into(),
                 value.name,
-            )),
-            "voice" => Ok(Channel::new_voice(
+            ),
+            ChannelType::Voice => Channel::new_voice(
                 value.id.into(),
                 value.server_id.into(),
                 value.name,
-            )),
-            _ => Err(()),
+            ),
         }
     }
 }
@@ -497,7 +494,7 @@ impl MessageRepository for PostgresRepository {
         };
 
         let payload = serde_json::json!({
-            "event_type": event_type.as_str(),
+            "event_type": event_type.as_ref(),
             "message_id": message_id,
             "channel_id": message_channel_id,
             "author_user_id": message_author_user_id,
@@ -517,7 +514,7 @@ impl MessageRepository for PostgresRepository {
                  VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
                  ON CONFLICT (event_type, message_id, recipient_user_id) DO NOTHING",
             )
-            .bind(String::from(event_type))
+            .bind(event_type)
             .bind(message_id)
             .bind(message_channel_id)
             .bind(recipient_user_id)
@@ -851,7 +848,7 @@ impl NotificationRepository for PostgresRepository {
         &self,
         user_id: UserId,
     ) -> NotificationCategoryPreference {
-        sqlx::query_scalar::<_, String>(
+        sqlx::query_scalar::<_, NotificationCategoryPreference>(
             "SELECT COALESCE(notification_category, 'only_mentions')
              FROM notification_user_preferences
              WHERE user_id = $1",
@@ -861,7 +858,6 @@ impl NotificationRepository for PostgresRepository {
         .await
         .ok()
         .flatten()
-        .and_then(|value| value.parse().ok())
         .unwrap_or_default()
     }
 
@@ -869,7 +865,7 @@ impl NotificationRepository for PostgresRepository {
         &self,
         user_id: UserId,
     ) -> NotificationCategoryPreference {
-        sqlx::query_scalar::<_, String>(
+        sqlx::query_scalar::<_, NotificationCategoryPreference>(
             "SELECT COALESCE(channel_default_category, 'only_mentions')
              FROM notification_user_preferences
              WHERE user_id = $1",
@@ -879,7 +875,6 @@ impl NotificationRepository for PostgresRepository {
         .await
         .ok()
         .flatten()
-        .and_then(|value| value.parse().ok())
         .unwrap_or_default()
     }
 
@@ -888,7 +883,7 @@ impl NotificationRepository for PostgresRepository {
         user_id: UserId,
         server_id: ServerId,
     ) -> Option<NotificationCategoryPreference> {
-        sqlx::query_scalar::<_, String>(
+        sqlx::query_scalar::<_, NotificationCategoryPreference>(
             "SELECT notification_category
              FROM notification_server_preferences
              WHERE user_id = $1
@@ -900,7 +895,6 @@ impl NotificationRepository for PostgresRepository {
         .await
         .ok()
         .flatten()
-        .and_then(|value| value.parse().ok())
     }
 
     async fn channel_notification_category_for_user(
@@ -908,7 +902,7 @@ impl NotificationRepository for PostgresRepository {
         user_id: UserId,
         channel_id: ChannelId,
     ) -> Option<NotificationCategoryPreference> {
-        sqlx::query_scalar::<_, String>(
+        sqlx::query_scalar::<_, NotificationCategoryPreference>(
             "SELECT notification_category
              FROM notification_channel_preferences
              WHERE user_id = $1
@@ -920,7 +914,6 @@ impl NotificationRepository for PostgresRepository {
         .await
         .ok()
         .flatten()
-        .and_then(|value| value.parse().ok())
     }
 
     async fn set_global_notification_category_for_user(
@@ -943,7 +936,7 @@ impl NotificationRepository for PostgresRepository {
                            updated_at = NOW()",
         )
         .bind(Uuid::from(user_id))
-        .bind(category.as_str())
+        .bind(category)
         .bind(category == NotificationCategoryPreference::None)
         .execute(&self.pool)
         .await;
@@ -968,7 +961,7 @@ impl NotificationRepository for PostgresRepository {
                            updated_at = NOW()",
         )
         .bind(Uuid::from(user_id))
-        .bind(category.as_str())
+        .bind(category)
         .execute(&self.pool)
         .await;
     }
@@ -993,7 +986,7 @@ impl NotificationRepository for PostgresRepository {
         )
         .bind(Uuid::from(user_id))
         .bind(Uuid::from(server_id))
-        .bind(category.as_str())
+        .bind(category)
         .execute(&self.pool)
         .await;
     }
@@ -1018,7 +1011,7 @@ impl NotificationRepository for PostgresRepository {
         )
         .bind(Uuid::from(user_id))
         .bind(Uuid::from(channel_id))
-        .bind(category.as_str())
+        .bind(category)
         .execute(&self.pool)
         .await;
     }
@@ -1461,11 +1454,6 @@ impl ChannelRepository for PostgresRepository {
 
         let server_id = Uuid::from(server_id);
 
-        let channel_type_value = match channel_type {
-            ChannelType::Text => "text",
-            ChannelType::Voice => "voice",
-        };
-
         sqlx::query_as::<_, ChannelRow>(
             "INSERT INTO channels (id, server_id, name, channel_type)
             VALUES (gen_random_uuid(), $1, $2, $3)
@@ -1473,11 +1461,11 @@ impl ChannelRepository for PostgresRepository {
         )
         .bind(server_id)
         .bind(name)
-        .bind(channel_type_value)
+        .bind(channel_type)
         .fetch_one(&self.pool)
         .await
         .ok()
-        .and_then(|row| Channel::try_from(row).ok())
+        .map(Channel::from)
     }
 
     async fn update_channel_name(
@@ -1582,7 +1570,7 @@ impl ChannelRepository for PostgresRepository {
         .await
         .ok()?
         .into_iter()
-        .filter_map(|row| Channel::try_from(row).ok())
+        .map(Channel::from)
         .collect();
 
         Some(channels)
@@ -1600,7 +1588,7 @@ impl ChannelRepository for PostgresRepository {
         .fetch_optional(&self.pool)
         .await
         .ok()?
-        .and_then(|row| Channel::try_from(row).ok())
+        .map(Channel::from)
     }
 
     async fn is_channel_member(&self, channel_id: ChannelId, user_id: UserId) -> Option<bool> {

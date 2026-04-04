@@ -1,10 +1,26 @@
 use serde::{Deserialize, Serialize};
+use strum::{AsRefStr, Display, EnumString};
 use utoipa::ToSchema;
 
 use crate::{ChannelId, ServerId};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    EnumString,
+    Display,
+    AsRefStr,
+    sqlx::Type,
+)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[sqlx(type_name = "channel_type", rename_all = "snake_case")]
 pub enum ChannelType {
     Text,
     Voice,

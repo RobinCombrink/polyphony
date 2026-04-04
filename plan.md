@@ -685,28 +685,32 @@ Progress:
 
 #### Phase 13.3: Rust backend maintainability, type safety, and performance hardening
 Status:
-- Planned.
+- In progress.
 
 Goals:
 - Improve backend maintainability and runtime performance by favoring immutability, pure functions, and compile-time safety.
 - Reduce invalid-state and schema-drift risk by encoding constraints in types and validated boundaries.
 
-Scope:
-- Introduce typestate-driven transitions for friend request lifecycle operations where valid transitions can be enforced at compile time.
-- Refactor mutable domain update paths to immutable transition methods that return new values rather than mutating existing state.
-- Expand validated value-object boundaries (for example display-name and external-reference invariants) using `TryFrom`/`FromStr` and typed error models.
-- Replace manual enum string conversion/parsing with derive-driven conversion patterns (`strum`, `sqlx::Type`) and Postgres enum backing where applicable.
-- Tighten repository error modeling to separate business outcomes (forbidden/not-found/conflict) from infrastructure/storage failures.
-- Tighten and centralize repository error to api error response conversion (mutation not found to http not found etc) 
-- Reduce dynamic allocation overhead in async repository traits by moving from boxed async-trait patterns to native async trait patterns where toolchain support allows.
-- Centralize policy-resolution logic (for example notification precedence) into shared pure functions used by both in-memory and postgres paths.
-- Migrate DB enum-like text columns to explicit Postgres enum types where domain enums already exist.
-- Adopt compile-time SQL validation with `sqlx::query!`/`query_as!`/`query_scalar!` and offline metadata in CI, with migration updates as the source of truth.
+Sub-phases:
 
-Implementation notes:
-- Keep domain transitions explicit and side-effect free; keep side effects at repository/API boundaries.
-- Prefer standard conversion traits and avoid ad-hoc conversion helpers when no additional context is required.
-- Stage rollout by subsystem (messages, channels, friends, notifications) to keep migrations and refactors reviewable.
+##### 13.3a — Derive-driven enums and Postgres enum migration
+Status:
+- Planned.
+
+Scope:
+- Add `strum` derives (`EnumString`, `Display`, `AsRefStr`) and `sqlx::Type` with `rename_all = "snake_case"` to `NotificationCategoryPreference`, `NotificationEventType`, `ChannelType`, and `NotificationMuteState` in `backend-domain`.
+- Remove the manual `FromStr`, `Display`, `as_str()` implementations and custom error types from `NotificationCategoryPreference` and `NotificationEventType` (replaced by strum derives).
+- Add Postgres enum type migrations for `channel_type` and `notification_category_preference` and `notification_event_type`, migrating the existing TEXT columns (with CHECK constraints) to native Postgres enum types.
+- Replace the manual `ChannelRow` string-match `TryFrom` with a `sqlx::Type`-derived `ChannelType` that maps directly from the Postgres enum, and the manual `channel_type_value` match in create_channel.
+- Replace the `.parse().ok()` calls for notification category/event type in postgres_repository with direct sqlx enum binding.
+- Remove the `From<NotificationEventType> for String` impl (superseded by strum `Display`/`AsRefStr`).
+- Export `ParseNotificationCategoryPreferenceError` and `ParseNotificationEventTypeError` removal from lib.rs if they become unused.
+
+Acceptance criteria:
+- All domain enums that are persisted use derive-driven strum + sqlx::Type patterns with no manual string mapping.
+- Migrations convert TEXT columns to Postgres enum types without data loss.
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
+
 
 Acceptance criteria:
 - Illegal friend-request transition paths are unrepresentable or rejected through typed transition APIs.
