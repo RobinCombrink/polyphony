@@ -1,5 +1,6 @@
 pub(crate) mod friends_and_dms;
 pub(crate) mod health;
+pub(crate) mod link_preview;
 pub(crate) mod me;
 pub(crate) mod messages;
 pub(crate) mod notifications;

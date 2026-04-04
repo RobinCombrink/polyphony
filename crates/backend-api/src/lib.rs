@@ -37,6 +37,7 @@ use routes::{
         send_friend_request, send_friend_request_from_server_context, unblock_user,
     },
     health::{__path_health, health},
+    link_preview::{__path_link_preview, link_preview},
     me::{__path_me, __path_update_me, me, update_me},
     messages::{
         __path_create_message, __path_delete_message, __path_list_messages, __path_update_message,
@@ -244,6 +245,7 @@ where
 {
     let (router, api) = OpenApiRouter::with_openapi(ApiDocumentation::openapi())
         .routes(routes!(health))
+        .routes(routes!(link_preview))
         .routes(routes!(me, update_me))
         .routes(routes!(get_user_by_id))
         .routes(routes!(create_server, list_servers))

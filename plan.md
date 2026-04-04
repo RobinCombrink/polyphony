@@ -437,56 +437,98 @@ Scope:
 
 #### Phase 12.7 (Weeks 7-10): Text chat enhancements (media, reactions, threading, retrieval)
 Status:
-- Planned.
+- In progress.
 
 Goals:
 - Improve message expressiveness and discoverability while maintaining moderation and performance guardrails.
 
 Scope:
+- Rich text messages — markdown format while maintaining safety, including emote shortcode rendering.
 - Website previews (link unfurl metadata cards).
-- Link-based image rendering fallback when upload is unavailable.
-- Preset emotes (global).
-- Message reactions using emotes, including:
-	- Notification behavior.
-	- Quick list of most-used emotes.
-- Threaded conversations:
-	- A reply to a message creates a reply link (first reply stays inline in the channel).
-	- When a second reply is sent to the same message, the conversation automatically becomes a thread.
-	- Threads open in a dedicated right-hand pane showing only the messages inside the thread.
-	- Thread-level notification controls: auto-follow on reply, manual follow/unfollow.
-	- Optional "also send to channel" toggle when posting inside a thread.
-	- Thread reply count and latest-reply preview displayed inline on the parent message in the channel.
-	- "Threads" inbox view aggregating all threads the user is following, with unread indicators.
+- Preset emotes catalog (global).
+- Message reactions using emotes, including notification behavior and quick most-used emotes.
+- Server-wide pinned messages with source channel context and auditability.
 - Mark message as unread in a chat.
-- Server-wide pinned messages:
-	- Any member with permission can pin a message from any channel to a server-wide pinned collection.
-	- Pinned messages serve as highlights or memorable/funny moments that the community wants to return to.
-	- Dedicated "Pinned Messages" pane accessible from the server header or navigation.
-	- Each pin retains source channel context and links back to the original message location.
-	- Pin/unpin actions are auditable (who pinned, when).
 - Search through messages in a channel.
-- Rich text messages - markdown format while maintaining safety.
+
+Sub-phases:
+- **12.7a** — Rich text (markdown) rendering (frontend-only, no backend changes). Includes emote shortcode→emoji rendering.
+- **12.7b** — Link previews / unfurl (backend metadata fetch + frontend card).
+- **12.7c** — Preset emotes catalog (backend endpoint + frontend picker).
+- **12.7d** — Message reactions (backend + frontend, depends on 12.7c emotes catalog).
+- **12.7e** — Server-wide pinned messages (backend + frontend).
+- **12.7f** — Mark message as unread (backend + frontend).
+- **12.7g** — Channel message search (backend + frontend).
+
+Threading is deferred to Phase 12.8.
+
+Progress:
+- Completed: 12.7a — Rich text (markdown) rendering with emote shortcode support.
+  - Added `flutter_markdown_plus`, `markdown`, and `url_launcher` dependencies.
+  - Replaced `SelectableText(message.content)` with `MarkdownBody` in `messages_section_widget.dart`.
+  - Uses `ExtensionSet.gitHubWeb` for GitHub-flavored markdown plus emoji shortcodes (`:thumbsup:` → 👍).
+  - Markdown links open via `url_launcher` with scheme validation (http/https only).
+  - Image markdown renders as alt text instead of loading remote images (privacy/safety).
+  - 9 widget tests added for markdown rendering: plain text, bold, italic, inline code, code blocks, emoji shortcodes, links, image safety, no raw SelectableText.
+  - Validation: `dart analyze` clean, 145 `flutter test` passing.
+- Completed: 12.7b — Link previews (unfurl) with backend metadata fetch and frontend card.
+  - Backend: added `GET /api/v1/link-preview?url={url}` endpoint in `routes/link_preview.rs` with SSRF protection (private/loopback IP rejection, post-redirect host validation), 3s timeout, 256KB max response, http/https-only scheme validation.
+  - Backend: `LinkPreviewResponse` DTO with `url`, `title?`, `description?`, `image_url?`.
+  - Backend: HTML parsing via `scraper` crate extracting `og:title`, `og:description`, `og:image` with `<title>`/`<meta name="description">` fallback.
+  - Backend: added `reqwest` and `scraper` dependencies; 6 unit tests for SSRF protection and metadata extraction.
+  - Frontend: `LinkPreviewService` interface + `RestLinkPreviewService` with in-memory URL cache.
+  - Frontend: `LinkPreviewCardWidget` rendering title, description, and URL in a left-bordered card.
+  - Frontend: `_MessageLinkPreviewWidget` in messages section detects first URL via regex, fetches preview, renders card below message content.
+  - Frontend: `FakeLinkPreviewService` test double; 3 widget tests for link preview rendering (with URL, without URL, empty preview).
+  - Validation: `dart analyze` clean, 148 `flutter test` passing, `cargo clippy` clean, backend unit tests passing.
 
 Implementation notes:
-- Thread promotion (reply -> thread) should be backend-authoritative: when a second reply targets the same parent, the backend creates a thread entity and reparents existing replies.
-- Thread message streams should be independently paginated from channel message streams.
+- Markdown rendering is frontend-only; messages stored as plain text, interpreted at display time.
+- Link preview is backend-proxied to avoid CORS and enable SSRF protection.
+- Emotes start as a hardcoded catalog; custom server emotes deferred to a stretch goal.
+- Reactions use toggle semantics (add/remove same endpoint).
+- Search starts with `ILIKE`; full-text search upgrade deferred.
+- Server-wide pins are a lightweight join (pin metadata + message reference), not a message copy.
 - Reactions and reply/thread notifications should be user-configurable and rate-limited to reduce spam.
 - Channel search should support pagination and ranking to avoid full-scan behavior.
-- Server-wide pins should be a lightweight join (pin metadata + message reference), not a message copy, so pin always reflects the current message state.
 
 Acceptance criteria:
+- Markdown renders bold, italic, code, code blocks, links, lists, and headings safely (no raw HTML).
+- Emote shortcodes (e.g., `:thumbsup:`) render as emoji in message display.
 - Link previews fail gracefully without blocking message send.
-- Linked images render consistently across desktop/mobile.
-- A single reply stays inline; a second reply to the same parent automatically promotes to a thread.
-- Thread pane displays only thread messages and is independently scrollable from the channel view.
-- Thread notification subscriptions are independent of channel-level notification settings.
-- "Threads" inbox shows all followed threads with accurate unread state.
 - Reaction notifications respect user preference settings.
 - Server-wide pinned messages are visible from any channel context and link back to the source.
 - Pin/unpin operations are durable, auditable, and reflected across all clients.
 - Mark-unread operations are durable and reflected in unread counters.
 - Channel message search returns relevant results with stable ordering.
-- BDD scenarios cover threading promotion/lifecycle, thread-pane rendering, server-wide pin/unpin, media/reaction/unread/search behavior.
+- BDD scenarios cover server-wide pin/unpin, media/reaction/unread/search behavior.
+
+#### Phase 12.8: Threaded conversations
+Status:
+- Planned.
+
+Goals:
+- Add threaded conversation support for focused, context-preserving discussions within channels.
+
+Scope:
+- A reply to a message creates a reply link (first reply stays inline in the channel).
+- When a second reply is sent to the same message, the conversation automatically becomes a thread.
+- Threads open in a dedicated right-hand pane showing only the messages inside the thread.
+- Thread-level notification controls: auto-follow on reply, manual follow/unfollow.
+- Optional "also send to channel" toggle when posting inside a thread.
+- Thread reply count and latest-reply preview displayed inline on the parent message in the channel.
+- "Threads" inbox view aggregating all threads the user is following, with unread indicators.
+
+Implementation notes:
+- Thread promotion (reply → thread) should be backend-authoritative: when a second reply targets any of the other messages in the reply, the backend creates a thread entity and reparents existing replies.
+- Thread message streams should be independently paginated from channel message streams.
+
+Acceptance criteria:
+- A single reply stays inline; a reply to either of the replies automatically promotes to a thread.
+- Thread pane displays only thread messages and is independently scrollable from the channel view.
+- Thread notification subscriptions are independent of channel-level notification settings.
+- "Threads" inbox shows all followed threads with accurate unread state.
+- BDD scenarios cover threading promotion/lifecycle and thread-pane rendering.
 
 #### Phase 12.9: Push notifications
 Status:

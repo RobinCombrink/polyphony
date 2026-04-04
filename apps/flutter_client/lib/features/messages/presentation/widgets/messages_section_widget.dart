@@ -1,11 +1,19 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
+import "package:flutter_markdown_plus/flutter_markdown_plus.dart";
+import "package:markdown/markdown.dart" as md;
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/presentation/widgets/link_preview_card_widget.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
+import "package:url_launcher/url_launcher.dart";
 
 SectionStatus? buildMessagesSectionStatus(MessagesState state) {
   if (state is MessagesValidationFailedState) {
@@ -215,7 +223,30 @@ class MessagesSectionWidget extends StatelessWidget {
                                         Theme.of(context).textTheme.labelSmall,
                                   ),
                                   const SizedBox(height: 4),
-                                  SelectableText(message.content),
+                                  MarkdownBody(
+                                    data: message.content,
+                                    selectable: true,
+                                    extensionSet: md.ExtensionSet.gitHubWeb,
+                                    onTapLink: (text, href, title) async {
+                                      if (href == null) {
+                                        return;
+                                      }
+                                      final uri = Uri.tryParse(href);
+                                      if (uri == null) {
+                                        return;
+                                      }
+                                      if (uri.scheme != "http" &&
+                                          uri.scheme != "https") {
+                                        return;
+                                      }
+                                      await launchUrl(uri);
+                                    },
+                                    imageBuilder: (uri, title, alt) =>
+                                        Text(alt ?? uri.toString()),
+                                  ),
+                                  _MessageLinkPreviewWidget(
+                                    content: message.content,
+                                  ),
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: <Widget>[
@@ -250,6 +281,83 @@ class MessagesSectionWidget extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+final _urlPattern = RegExp(
+  r"https?://[^\s<>\)\]]+",
+  caseSensitive: false,
+);
+
+class _MessageLinkPreviewWidget extends StatefulWidget {
+  const _MessageLinkPreviewWidget({required this.content});
+
+  final String content;
+
+  @override
+  State<_MessageLinkPreviewWidget> createState() =>
+      _MessageLinkPreviewWidgetState();
+}
+
+class _MessageLinkPreviewWidgetState extends State<_MessageLinkPreviewWidget> {
+  LinkPreview? _preview;
+  var _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_fetchPreview());
+  }
+
+  @override
+  void didUpdateWidget(covariant _MessageLinkPreviewWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.content != widget.content) {
+      unawaited(_fetchPreview());
+    }
+  }
+
+  Future<void> _fetchPreview() async {
+    final match = _urlPattern.firstMatch(widget.content);
+    if (match == null) {
+      setState(() {
+        _preview = null;
+        _loading = false;
+      });
+      return;
+    }
+
+    final url = match.group(0)!;
+    final service = context.read<LinkPreviewService>();
+
+    setState(() {
+      _loading = true;
+    });
+
+    final result = await service.fetchPreview(url: url);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _loading = false;
+      _preview = switch (result) {
+        Ok<LinkPreview>(:final value) when value.hasContent => value,
+        _ => null,
+      };
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading || _preview == null) {
+      return const SizedBox.shrink();
+    }
+
+    return LinkPreviewCardWidget(
+      title: _preview!.title ?? "",
+      description: _preview!.description,
+      url: _preview!.url,
     );
   }
 }

@@ -13,6 +13,7 @@ import "package:polyphony_flutter_client/shared/repositories/text_session_repo.d
 import "package:polyphony_flutter_client/shared/repositories/voice_session_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/audio_device_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
@@ -1102,6 +1103,27 @@ class FakeProfileRepository implements ProfileRepo {
       UserProfile(
         userId: userId,
         displayName: _displayName,
+      ),
+    );
+  }
+}
+
+class FakeLinkPreviewService implements LinkPreviewService {
+  FakeLinkPreviewService({this.preview});
+
+  final LinkPreview? preview;
+
+  @override
+  Future<Result<LinkPreview>> fetchPreview({required String url}) async {
+    if (preview != null) {
+      return Ok<LinkPreview>(preview!);
+    }
+
+    return Ok<LinkPreview>(
+      LinkPreview(
+        url: url,
+        title: "Example Title",
+        description: "Example description for $url",
       ),
     );
   }
