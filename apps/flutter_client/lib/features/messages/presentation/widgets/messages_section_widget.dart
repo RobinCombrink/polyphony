@@ -58,6 +58,7 @@ class MessagesSectionWidget extends StatelessWidget {
     required this.onDelete,
     this.onPin,
     this.onViewPins,
+    this.onMarkUnread,
     this.channelName,
     super.key,
   });
@@ -74,6 +75,7 @@ class MessagesSectionWidget extends StatelessWidget {
   final void Function(Message message) onDelete;
   final void Function(Message message)? onPin;
   final VoidCallback? onViewPins;
+  final void Function(Message message)? onMarkUnread;
 
   String _authorLabel(UserId authorUserId, bool isOwnMessage) {
     final resolvedDisplayName =
@@ -192,6 +194,11 @@ class MessagesSectionWidget extends StatelessWidget {
                                   value: "pinMessage",
                                   child: Text("Pin message"),
                                 ),
+                              if (onMarkUnread != null)
+                                const PopupMenuItem<String>(
+                                  value: "markUnread",
+                                  child: Text("Mark as unread"),
+                                ),
                               if (isDeveloperModeEnabled)
                                 const PopupMenuItem<String>(
                                   value: "copyMessageId",
@@ -220,6 +227,8 @@ class MessagesSectionWidget extends StatelessWidget {
 
                             if (action == "pinMessage") {
                               onPin?.call(message);
+                            } else if (action == "markUnread") {
+                              onMarkUnread?.call(message);
                             } else if (action == "copyMessageId") {
                               await Clipboard.setData(
                                 ClipboardData(text: message.id.value),

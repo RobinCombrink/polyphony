@@ -151,6 +151,14 @@ class _FakeNotificationService implements NotificationService {
   }
 
   @override
+  Future<Result<void>> markMessageAsUnread({
+    required String channelId,
+    required String messageId,
+  }) async {
+    return const Ok<void>(null);
+  }
+
+  @override
   Future<Result<void>> muteChannelNotifications({
     required String channelId,
     required int durationMinutes,

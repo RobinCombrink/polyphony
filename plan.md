@@ -481,6 +481,31 @@ Progress:
   - Frontend: `_MessageLinkPreviewWidget` in messages section detects first URL via regex, fetches preview, renders card below message content.
   - Frontend: `FakeLinkPreviewService` test double; 3 widget tests for link preview rendering (with URL, without URL, empty preview).
   - Validation: `dart analyze` clean, 148 `flutter test` passing, `cargo clippy` clean, backend unit tests passing.
+- Completed: 12.7c — Preset emotes catalog (backend endpoint + frontend picker).
+- Completed: 12.7d — Message reactions (backend + frontend).
+- Completed: 12.7e — Server-wide pinned messages (backend + frontend).
+  - Backend: `PinnedMessageId` UUID domain type, `PinnedMessage` entity with server/channel/message/author/pin metadata.
+  - Backend: `pinned_messages` migration with UNIQUE(server_id, message_id), FK constraints, server_id index.
+  - Backend: `PinnedMessageRepository` trait with `pin_message`/`unpin_message`/`list_pinned_messages`; in-memory and Postgres implementations.
+  - Backend: `POST /api/v1/servers/{server_id}/pins`, `GET /api/v1/servers/{server_id}/pins`, `DELETE /api/v1/servers/{server_id}/pins/{message_id}` routes with auth and 6 unit tests.
+  - Backend: 4 BDD scenarios for pin/unpin/not-found/channel-context in `messages.feature`.
+  - Frontend: `PinnedMessageService` interface + `RestPinnedMessageService` REST implementation.
+  - Frontend: `PinnedMessageRepo` interface with GetMany/CreateOne/DeleteOne mixins + implementation.
+  - Frontend: `PinnedMessagesBloc` with Load/Pin/Unpin events and Initial/Loading/Loaded/Exception states.
+  - Frontend: `PinnedMessagesDialogWidget` dialog UI with empty state, list view, unpin buttons.
+  - Frontend: Pin icon button in messages header, "Pin message" in context menu.
+  - Frontend: 7 BLoC tests for load/empty/error/pin-refresh/pin-error/unpin-refresh/unpin-error.
+  - Validation: `dart analyze` clean, 162 `flutter test` passing, `cargo clippy` clean, 32 backend tests passing.
+- Completed: 12.7f — Mark message as unread (backend + frontend).
+  - Backend: `MarkUnreadFromMessageResult` enum (Updated/MessageNotFound) in repository trait.
+  - Backend: `mark_unread_from_message` method counts messages from target message's `created_order` onward, sets `unread_count` via upsert.
+  - Backend: In-memory implementation uses message position index; Postgres uses `created_order` subquery.
+  - Backend: `POST /api/v1/channels/{channel_id}/notifications/unread-from` route with `MarkUnreadRequest` DTO.
+  - Backend: 3 BDD scenarios in `notifications.feature` for mark-unread counting, earliest message, nonexistent message.
+  - Frontend: `markMessageAsUnread` method added to `NotificationService` interface and `RestNotificationService`.
+  - Frontend: "Mark as unread" context menu item in `MessagesSectionWidget`, wired through `MessagesPaneWidget`.
+  - Frontend: After marking unread, refreshes `NotificationCenterBloc` unread count and shows snackbar confirmation.
+  - Validation: `dart analyze` clean, 162 `flutter test` passing, `cargo clippy` clean, 32 backend tests passing.
 
 Implementation notes:
 - Markdown rendering is frontend-only; messages stored as plain text, interpreted at display time.
@@ -530,7 +555,22 @@ Acceptance criteria:
 - "Threads" inbox shows all followed threads with accurate unread state.
 - BDD scenarios cover threading promotion/lifecycle and thread-pane rendering.
 
-#### Phase 12.9: Push notifications
+#### Phase 12.9: Feature file parity update
+Status:
+- Planned.
+
+Scope: 
+- Update/add BDD feature file(s) where they are missing scenarios/features from the existing application. 
+- Update the frontend bdd style feature tests with missing scenarios/features
+
+#### Phase 12.10: message reactions bloc
+Status: 
+- Planned.
+
+Scope: 
+- Change the message reaction state management to a BLoC (for each message) to match the rest of the architecture and be more maintanable
+
+#### Phase 12.11: Push notifications
 Status:
 - Planned.
 

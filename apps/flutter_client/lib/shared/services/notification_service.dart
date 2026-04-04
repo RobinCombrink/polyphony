@@ -8,6 +8,11 @@ abstract interface class NotificationService {
     required String channelId,
   });
 
+  Future<Result<void>> markMessageAsUnread({
+    required String channelId,
+    required String messageId,
+  });
+
   Future<Result<ApiNotificationGlobalPreference>>
       getGlobalNotificationPreference();
 

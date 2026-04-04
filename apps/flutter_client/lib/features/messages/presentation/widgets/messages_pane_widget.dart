@@ -8,12 +8,15 @@ import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.da
 import "package:polyphony_flutter_client/features/messages/bloc/pinned_messages_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_section_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/pinned_messages_dialog_widget.dart";
+import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/pane_placeholder_widget.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
+import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
 class MessagesPaneWidget extends StatefulWidget {
@@ -65,6 +68,36 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
         ),
       ),
     ));
+  }
+
+  Future<void> _markMessageAsUnread(
+    BuildContext context,
+    ChannelId channelId,
+    Message message,
+  ) async {
+    final notificationService = context.read<NotificationService>();
+    final result = await notificationService.markMessageAsUnread(
+      channelId: channelId.value,
+      messageId: message.id.value,
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    switch (result) {
+      case Ok<void>():
+        context
+            .read<NotificationCenterBloc>()
+            .add(const NotificationCenterUnreadCountRefreshRequested());
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Marked as unread")),
+        );
+      case Error<void>(:final error):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to mark as unread: $error")),
+        );
+    }
   }
 
   List<Message> _skeletonMessages(ChannelId channelId) {
@@ -238,6 +271,11 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                     onViewPins: _selectedServerId(context) != null
                         ? () => _showPinnedMessagesDialog(context)
                         : null,
+                    onMarkUnread: (message) => _markMessageAsUnread(
+                      context,
+                      selectedTextChannel.id,
+                      message,
+                    ),
                   ),
                 );
               },

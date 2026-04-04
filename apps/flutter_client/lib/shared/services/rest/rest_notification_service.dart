@@ -31,6 +31,19 @@ class RestNotificationService extends RestRequestServiceBase
   }
 
   @override
+  Future<Result<void>> markMessageAsUnread({
+    required String channelId,
+    required String messageId,
+  }) {
+    return performPostRequestWithoutResponseBody(
+      endpoint: "/api/v1/channels/$channelId/notifications/unread-from",
+      operation: "mark message as unread",
+      body: <String, dynamic>{"message_id": messageId},
+      expectedStatusCode: 204,
+    );
+  }
+
+  @override
   Future<Result<ApiNotificationGlobalPreference>>
       getGlobalNotificationPreference() {
     return performGetRequest<ApiNotificationGlobalPreference>(
