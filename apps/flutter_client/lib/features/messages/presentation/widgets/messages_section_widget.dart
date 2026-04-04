@@ -8,6 +8,7 @@ import "package:markdown/markdown.dart" as md;
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/emote_picker_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/link_preview_card_widget.dart";
+import "package:polyphony_flutter_client/features/messages/presentation/widgets/message_reactions_widget.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
@@ -247,6 +248,10 @@ class MessagesSectionWidget extends StatelessWidget {
                                   ),
                                   _MessageLinkPreviewWidget(
                                     content: message.content,
+                                  ),
+                                  MessageReactionsWidget(
+                                    channelId: message.channelId,
+                                    messageId: message.id,
                                   ),
                                   Row(
                                     mainAxisSize: MainAxisSize.min,

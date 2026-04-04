@@ -18,6 +18,7 @@ import "package:polyphony_flutter_client/shared/services/link_preview_service.da
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 
 import "../entity_seeder.dart";
 
@@ -1150,5 +1151,32 @@ class FakeEmoteService implements EmoteService {
   @override
   Future<Result<List<Emote>>> listEmotes() async {
     return Ok<List<Emote>>(_emotes);
+  }
+}
+
+class FakeReactionService implements ReactionService {
+  FakeReactionService({
+    List<ReactionSummary>? reactions,
+  }) : _reactions = reactions ?? const [];
+
+  final List<ReactionSummary> _reactions;
+  final List<String> toggledEmoteIds = [];
+
+  @override
+  Future<Result<List<ReactionSummary>>> listReactions({
+    required ChannelId channelId,
+    required MessageId messageId,
+  }) async {
+    return Ok<List<ReactionSummary>>(_reactions);
+  }
+
+  @override
+  Future<Result<void>> toggleReaction({
+    required ChannelId channelId,
+    required MessageId messageId,
+    required String emoteId,
+  }) async {
+    toggledEmoteIds.add(emoteId);
+    return const Ok<void>(null);
   }
 }

@@ -9,6 +9,7 @@ import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/services/emote_service.dart";
 import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
+import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 import "package:provider/provider.dart";
 
 import "../test_doubles/chat_repository_fakes.dart";
@@ -21,6 +22,7 @@ Widget _buildWidget({
   String? currentUserDisplayName,
   LinkPreviewService? linkPreviewService,
   EmoteService? emoteService,
+  ReactionService? reactionService,
 }) {
   final resolvedUserId = currentUserId ?? _currentUserId;
 
@@ -31,6 +33,9 @@ Widget _buildWidget({
       ),
       Provider<EmoteService>(
         create: (_) => emoteService ?? FakeEmoteService(),
+      ),
+      Provider<ReactionService>(
+        create: (_) => reactionService ?? FakeReactionService(),
       ),
     ],
     child: BlocProvider<SettingsBloc>(
@@ -273,6 +278,9 @@ void main() {
             Provider<EmoteService>(
               create: (_) => FakeEmoteService(),
             ),
+            Provider<ReactionService>(
+              create: (_) => FakeReactionService(),
+            ),
           ],
           child: BlocProvider<SettingsBloc>(
             create: (_) => SettingsBloc(
@@ -329,6 +337,54 @@ void main() {
 
       expect(find.text("\u{2764}\u{FE0F}"), findsOneWidget);
       expect(find.text("\u{1F44D}"), findsNothing);
+    });
+  });
+
+  group("MessagesSectionWidget reactions", () {
+    testWidgets("shows add reaction button for each message", (tester) async {
+      await tester.pumpWidget(
+        _buildWidget(
+          messages: [_messageWith(content: "hello")],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.add_reaction_outlined), findsOneWidget);
+    });
+
+    testWidgets("renders reaction chips when reactions exist", (tester) async {
+      await tester.pumpWidget(
+        _buildWidget(
+          messages: [_messageWith(content: "hello")],
+          reactionService: FakeReactionService(
+            reactions: const [
+              ReactionSummary(
+                emoteId: "thumbsup",
+                count: 3,
+                reactedByCurrentUser: true,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text("thumbsup 3"), findsOneWidget);
+    });
+
+    testWidgets("shows emote picker when add reaction button tapped",
+        (tester) async {
+      await tester.pumpWidget(
+        _buildWidget(
+          messages: [_messageWith(content: "hello")],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add_reaction_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Search emotes..."), findsOneWidget);
     });
   });
 }

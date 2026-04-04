@@ -19,10 +19,13 @@ import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/emote_service.dart";
+import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
+import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 import "package:provider/provider.dart";
 
 import "../entity_seeder.dart";
@@ -264,6 +267,15 @@ void main() {
             Provider<NotificationRuntimeService>(
               create: (_) => notificationRuntimeService,
             ),
+            Provider<EmoteService>(
+              create: (_) => FakeEmoteService(),
+            ),
+            Provider<LinkPreviewService>(
+              create: (_) => FakeLinkPreviewService(),
+            ),
+            Provider<ReactionService>(
+              create: (_) => FakeReactionService(),
+            ),
           ],
           child: MultiBlocProvider(
             providers: [
@@ -386,6 +398,15 @@ void main() {
             Provider<NotificationRuntimeService>(
               create: (_) => notificationRuntimeService,
             ),
+            Provider<EmoteService>(
+              create: (_) => FakeEmoteService(),
+            ),
+            Provider<LinkPreviewService>(
+              create: (_) => FakeLinkPreviewService(),
+            ),
+            Provider<ReactionService>(
+              create: (_) => FakeReactionService(),
+            ),
           ],
           child: MultiBlocProvider(
             providers: [
@@ -492,6 +513,15 @@ void main() {
             ),
             Provider<NotificationRuntimeService>(
               create: (_) => notificationRuntimeService,
+            ),
+            Provider<EmoteService>(
+              create: (_) => FakeEmoteService(),
+            ),
+            Provider<LinkPreviewService>(
+              create: (_) => FakeLinkPreviewService(),
+            ),
+            Provider<ReactionService>(
+              create: (_) => FakeReactionService(),
             ),
           ],
           child: MultiBlocProvider(
@@ -603,6 +633,15 @@ void main() {
             ),
             Provider<NotificationRuntimeService>(
               create: (_) => notificationRuntimeService,
+            ),
+            Provider<EmoteService>(
+              create: (_) => FakeEmoteService(),
+            ),
+            Provider<LinkPreviewService>(
+              create: (_) => FakeLinkPreviewService(),
+            ),
+            Provider<ReactionService>(
+              create: (_) => FakeReactionService(),
             ),
             Provider<NotificationService>(
               create: (_) => _FakeNotificationService(),
@@ -728,6 +767,15 @@ void main() {
             ),
             Provider<NotificationRuntimeService>(
               create: (_) => notificationRuntimeService,
+            ),
+            Provider<EmoteService>(
+              create: (_) => FakeEmoteService(),
+            ),
+            Provider<LinkPreviewService>(
+              create: (_) => FakeLinkPreviewService(),
+            ),
+            Provider<ReactionService>(
+              create: (_) => FakeReactionService(),
             ),
             Provider<NotificationService>(
               create: (_) => _FakeNotificationService(),
@@ -867,6 +915,15 @@ void main() {
             ),
             Provider<NotificationRuntimeService>(
               create: (_) => notificationRuntimeService,
+            ),
+            Provider<EmoteService>(
+              create: (_) => FakeEmoteService(),
+            ),
+            Provider<LinkPreviewService>(
+              create: (_) => FakeLinkPreviewService(),
+            ),
+            Provider<ReactionService>(
+              create: (_) => FakeReactionService(),
             ),
             Provider<NotificationService>(
               create: (_) => _FakeNotificationService(),
