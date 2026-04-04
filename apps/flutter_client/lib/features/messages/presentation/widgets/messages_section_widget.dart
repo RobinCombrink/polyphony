@@ -59,6 +59,7 @@ class MessagesSectionWidget extends StatelessWidget {
     this.onPin,
     this.onViewPins,
     this.onMarkUnread,
+    this.onSearch,
     this.channelName,
     super.key,
   });
@@ -76,6 +77,7 @@ class MessagesSectionWidget extends StatelessWidget {
   final void Function(Message message)? onPin;
   final VoidCallback? onViewPins;
   final void Function(Message message)? onMarkUnread;
+  final VoidCallback? onSearch;
 
   String _authorLabel(UserId authorUserId, bool isOwnMessage) {
     final resolvedDisplayName =
@@ -131,6 +133,12 @@ class MessagesSectionWidget extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
+                if (onSearch != null)
+                  IconButton(
+                    icon: const Icon(Icons.search, size: 20),
+                    tooltip: "Search messages",
+                    onPressed: onSearch,
+                  ),
                 if (onViewPins != null)
                   IconButton(
                     icon: const Icon(Icons.push_pin_outlined, size: 20),

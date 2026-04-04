@@ -67,4 +67,18 @@ class RestMessageService extends RestRequestServiceBase
       expectedStatusCode: 204,
     );
   }
+
+  @override
+  Future<Result<List<ApiMessage>>> searchMessages({
+    required String channelId,
+    required String query,
+  }) {
+    final encodedQuery = Uri.encodeQueryComponent(query);
+    return performListRequest<ApiMessage>(
+      endpoint:
+          "/api/v1/channels/$channelId/messages/search?q=$encodedQuery",
+      operation: "search messages",
+      decodeItem: ApiMessage.fromJson,
+    );
+  }
 }

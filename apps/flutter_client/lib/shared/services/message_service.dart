@@ -22,4 +22,9 @@ abstract interface class MessageService {
     required String channelId,
     required String messageId,
   });
+
+  Future<Result<List<ApiMessage>>> searchMessages({
+    required String channelId,
+    required String query,
+  });
 }

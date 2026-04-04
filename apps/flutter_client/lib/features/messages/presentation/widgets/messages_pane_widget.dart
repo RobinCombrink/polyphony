@@ -6,6 +6,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/pinned_messages_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/presentation/widgets/message_search_dialog_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_section_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/pinned_messages_dialog_widget.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
@@ -16,6 +17,7 @@ import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/pane_placeholder_widget.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/message_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
@@ -66,6 +68,30 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
             ),
           ],
         ),
+      ),
+    ));
+  }
+
+  void _showSearchDialog(BuildContext context, ChannelId channelId) {
+    final messageService = context.read<MessageService>();
+    unawaited(showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Search Messages"),
+        content: SizedBox(
+          width: 400,
+          height: 400,
+          child: MessageSearchDialogWidget(
+            messageService: messageService,
+            channelId: channelId,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Close"),
+          ),
+        ],
       ),
     ));
   }
@@ -275,6 +301,10 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                       context,
                       selectedTextChannel.id,
                       message,
+                    ),
+                    onSearch: () => _showSearchDialog(
+                      context,
+                      selectedTextChannel.id,
                     ),
                   ),
                 );
