@@ -1,3 +1,4 @@
+pub(crate) mod emotes;
 pub(crate) mod friends_and_dms;
 pub(crate) mod health;
 pub(crate) mod link_preview;

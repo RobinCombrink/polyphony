@@ -22,6 +22,7 @@ use backend_storage::{
 use http::{HeaderValue, Method, Request, header::AUTHORIZATION};
 use openapi::ApiDocumentation;
 use routes::{
+    emotes::{__path_list_emotes, list_emotes},
     friends_and_dms::{
         __path_accept_friend_request, __path_block_user, __path_cancel_friend_request,
         __path_decline_friend_request, __path_list_blocked_users,
@@ -246,6 +247,7 @@ where
     let (router, api) = OpenApiRouter::with_openapi(ApiDocumentation::openapi())
         .routes(routes!(health))
         .routes(routes!(link_preview))
+        .routes(routes!(list_emotes))
         .routes(routes!(me, update_me))
         .routes(routes!(get_user_by_id))
         .routes(routes!(create_server, list_servers))
