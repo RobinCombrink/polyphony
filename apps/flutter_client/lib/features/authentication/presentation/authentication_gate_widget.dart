@@ -11,6 +11,7 @@ import "package:polyphony_flutter_client/features/friends/bloc/friends_bloc.dart
 import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/bloc/pinned_messages_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
@@ -31,6 +32,8 @@ import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repository.dart";
+import "package:polyphony_flutter_client/shared/repositories/pinned_message_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/pinned_message_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_member_repo.dart";
@@ -53,6 +56,7 @@ import "package:polyphony_flutter_client/shared/services/message_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_service.dart";
+import "package:polyphony_flutter_client/shared/services/pinned_message_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
@@ -64,6 +68,7 @@ import "package:polyphony_flutter_client/shared/services/rest/rest_friend_servic
 import "package:polyphony_flutter_client/shared/services/rest/rest_link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_message_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_notification_service.dart";
+import "package:polyphony_flutter_client/shared/services/rest/rest_pinned_message_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_profile_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_reaction_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_server_service.dart";
@@ -361,6 +366,11 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
               dio: context.read<Dio>(),
             ),
           ),
+          Provider<PinnedMessageService>(
+            create: (context) => RestPinnedMessageService(
+              dio: context.read<Dio>(),
+            ),
+          ),
           Provider<NotificationService>(
             create: (context) => RestNotificationService(
               dio: context.read<Dio>(),
@@ -416,6 +426,11 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
               notificationService: context.read<NotificationService>(),
             ),
           ),
+          Provider<PinnedMessageRepo>(
+            create: (context) => PinnedMessageRepository(
+              pinnedMessageService: context.read<PinnedMessageService>(),
+            ),
+          ),
           Provider<ProfileRepo>(
             create: (context) => ProfileRepository(
               profileService: context.read<ProfileService>(),
@@ -453,6 +468,11 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
                 profileRepo: context.read<ProfileRepo>(),
                 textSessionRepo: context.read<TextSessionRepo>(),
                 messageRuntimeService: context.read<MessageRuntimeService>(),
+              ),
+            ),
+            BlocProvider<PinnedMessagesBloc>(
+              create: (context) => PinnedMessagesBloc(
+                pinnedMessageRepo: context.read<PinnedMessageRepo>(),
               ),
             ),
             BlocProvider<NotificationCenterBloc>(

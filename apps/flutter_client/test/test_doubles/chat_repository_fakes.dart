@@ -6,6 +6,7 @@ import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/pinned_message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_member_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
@@ -18,9 +19,66 @@ import "package:polyphony_flutter_client/shared/services/link_preview_service.da
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/pinned_message_service.dart";
 import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 
 import "../entity_seeder.dart";
+
+class FakePinnedMessageRepository implements PinnedMessageRepo {
+  FakePinnedMessageRepository({
+    List<PinnedMessage>? pinnedMessages,
+    this.forceGetManyError = false,
+    this.forceCreateOneError = false,
+    this.forceDeleteOneError = false,
+  }) : _pinnedMessages = pinnedMessages != null
+            ? List<PinnedMessage>.of(pinnedMessages)
+            : <PinnedMessage>[];
+
+  final bool forceGetManyError;
+  final bool forceCreateOneError;
+  final bool forceDeleteOneError;
+  final List<PinnedMessage> _pinnedMessages;
+
+  @override
+  Future<Result<Iterable<PinnedMessage>>> getMany({
+    required ListPinnedMessagesQuery query,
+  }) async {
+    if (forceGetManyError) {
+      return Error<Iterable<PinnedMessage>>(
+        Exception("Failed to list pinned messages"),
+      );
+    }
+
+    return Ok<Iterable<PinnedMessage>>(
+      List<PinnedMessage>.unmodifiable(_pinnedMessages),
+    );
+  }
+
+  @override
+  Future<Result<void>> createOne({
+    required PinMessageCommand command,
+  }) async {
+    if (forceCreateOneError) {
+      return Error<void>(Exception("Failed to pin message"));
+    }
+
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> deleteOne({
+    required UnpinMessageCommand command,
+  }) async {
+    if (forceDeleteOneError) {
+      return Error<void>(Exception("Failed to unpin message"));
+    }
+
+    _pinnedMessages.removeWhere(
+      (pm) => pm.messageId == command.messageId,
+    );
+    return const Ok<void>(null);
+  }
+}
 
 class FakeServerRepository implements ServerRepo {
   FakeServerRepository({

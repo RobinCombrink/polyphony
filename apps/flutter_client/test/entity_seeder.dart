@@ -2,6 +2,7 @@ import "dart:math";
 
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
+import "package:polyphony_flutter_client/shared/services/pinned_message_service.dart";
 
 class ChatApiFixture {
   const ChatApiFixture({
@@ -214,5 +215,27 @@ class EntitySeeder {
       8,
       (_) => alphabet[_random.nextInt(alphabet.length)],
     ).join();
+  }
+
+  PinnedMessage pinnedMessage({
+    required ServerId serverId,
+    required ChannelId channelId,
+    required MessageId messageId,
+    required UserId pinnedByUserId,
+    required UserId authorUserId,
+    String? id,
+    String? content,
+  }) {
+    final randomSegment = _randomSegment();
+
+    return PinnedMessage(
+      id: id ?? "pin-seeded-$randomSegment",
+      serverId: serverId,
+      channelId: channelId,
+      messageId: messageId,
+      pinnedByUserId: pinnedByUserId,
+      content: content ?? "Pinned-$randomSegment",
+      authorUserId: authorUserId,
+    );
   }
 }

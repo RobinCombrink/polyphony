@@ -1,10 +1,15 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/bloc/pinned_messages_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_section_widget.dart";
+import "package:polyphony_flutter_client/features/messages/presentation/widgets/pinned_messages_dialog_widget.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
+import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/pane_placeholder_widget.dart";
@@ -24,6 +29,44 @@ class MessagesPaneWidget extends StatefulWidget {
 }
 
 class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
+  ServerId? _selectedServerId(BuildContext context) {
+    final serversState = context.read<ServersBloc>().state;
+    return switch (serversState) {
+      ServerSelected(:final selectedServer) => selectedServer.id,
+      _ => null,
+    };
+  }
+
+  void _showPinnedMessagesDialog(BuildContext context) {
+    final serverId = _selectedServerId(context);
+    if (serverId == null) {
+      return;
+    }
+    context.read<PinnedMessagesBloc>().add(
+          LoadPinnedMessagesRequested(serverId: serverId),
+        );
+    unawaited(showDialog<void>(
+      context: context,
+      builder: (_) => BlocProvider.value(
+        value: context.read<PinnedMessagesBloc>(),
+        child: AlertDialog(
+          title: const Text("Pinned Messages"),
+          content: const SizedBox(
+            width: 400,
+            height: 300,
+            child: PinnedMessagesDialogWidget(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Close"),
+            ),
+          ],
+        ),
+      ),
+    ));
+  }
+
   List<Message> _skeletonMessages(ChannelId channelId) {
     return List<Message>.generate(
       5,
@@ -179,6 +222,22 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
                             messageId: message.id,
                           ),
                         ),
+                    onPin: _selectedServerId(context) != null
+                        ? (message) {
+                            final serverId = _selectedServerId(context);
+                            if (serverId != null) {
+                              context.read<PinnedMessagesBloc>().add(
+                                    PinMessageRequested(
+                                      serverId: serverId,
+                                      messageId: message.id,
+                                    ),
+                                  );
+                            }
+                          }
+                        : null,
+                    onViewPins: _selectedServerId(context) != null
+                        ? () => _showPinnedMessagesDialog(context)
+                        : null,
                   ),
                 );
               },

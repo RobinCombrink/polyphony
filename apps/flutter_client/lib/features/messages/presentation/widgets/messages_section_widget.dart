@@ -56,6 +56,8 @@ class MessagesSectionWidget extends StatelessWidget {
     required this.onCreate,
     required this.onEdit,
     required this.onDelete,
+    this.onPin,
+    this.onViewPins,
     this.channelName,
     super.key,
   });
@@ -70,6 +72,8 @@ class MessagesSectionWidget extends StatelessWidget {
   final void Function(UserId? mentionedUserId) onCreate;
   final Future<void> Function(Message message) onEdit;
   final void Function(Message message) onDelete;
+  final void Function(Message message)? onPin;
+  final VoidCallback? onViewPins;
 
   String _authorLabel(UserId authorUserId, bool isOwnMessage) {
     final resolvedDisplayName =
@@ -115,10 +119,24 @@ class MessagesSectionWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child:
-                Text("Messages", style: TextStyle(fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    "Messages",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (onViewPins != null)
+                  IconButton(
+                    icon: const Icon(Icons.push_pin_outlined, size: 20),
+                    tooltip: "View pinned messages",
+                    onPressed: onViewPins,
+                  ),
+              ],
+            ),
           ),
           if (channelName != null)
             Padding(
@@ -167,39 +185,55 @@ class MessagesSectionWidget extends StatelessWidget {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 520),
                         child: GestureDetector(
-                          onSecondaryTapDown: isDeveloperModeEnabled
-                              ? (details) async {
-                                  final action = await showMenu<String>(
-                                    context: context,
-                                    position: RelativeRect.fromLTRB(
-                                      details.globalPosition.dx,
-                                      details.globalPosition.dy,
-                                      details.globalPosition.dx,
-                                      details.globalPosition.dy,
-                                    ),
-                                    items: <PopupMenuEntry<String>>[
-                                      const PopupMenuItem<String>(
-                                        value: "copyMessageId",
-                                        child: Text("Copy message ID"),
-                                      ),
-                                    ],
-                                  );
-                                  if (action == "copyMessageId" &&
-                                      context.mounted) {
-                                    await Clipboard.setData(
-                                      ClipboardData(text: message.id.value),
-                                    );
-                                    if (!context.mounted) {
-                                      return;
-                                    }
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("Message ID copied"),
-                                      ),
-                                    );
-                                  }
-                                }
-                              : null,
+                          onSecondaryTapDown: (details) async {
+                            final menuItems = <PopupMenuEntry<String>>[
+                              if (onPin != null)
+                                const PopupMenuItem<String>(
+                                  value: "pinMessage",
+                                  child: Text("Pin message"),
+                                ),
+                              if (isDeveloperModeEnabled)
+                                const PopupMenuItem<String>(
+                                  value: "copyMessageId",
+                                  child: Text("Copy message ID"),
+                                ),
+                            ];
+
+                            if (menuItems.isEmpty) {
+                              return;
+                            }
+
+                            final action = await showMenu<String>(
+                              context: context,
+                              position: RelativeRect.fromLTRB(
+                                details.globalPosition.dx,
+                                details.globalPosition.dy,
+                                details.globalPosition.dx,
+                                details.globalPosition.dy,
+                              ),
+                              items: menuItems,
+                            );
+
+                            if (!context.mounted) {
+                              return;
+                            }
+
+                            if (action == "pinMessage") {
+                              onPin?.call(message);
+                            } else if (action == "copyMessageId") {
+                              await Clipboard.setData(
+                                ClipboardData(text: message.id.value),
+                              );
+                              if (!context.mounted) {
+                                return;
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Message ID copied"),
+                                ),
+                              );
+                            }
+                          },
                           child: Card(
                             color: mentionBackgroundColor,
                             margin: const EdgeInsets.symmetric(
