@@ -75,8 +75,7 @@ class RestMessageService extends RestRequestServiceBase
   }) {
     final encodedQuery = Uri.encodeQueryComponent(query);
     return performListRequest<ApiMessage>(
-      endpoint:
-          "/api/v1/channels/$channelId/messages/search?q=$encodedQuery",
+      endpoint: "/api/v1/channels/$channelId/messages/search?q=$encodedQuery",
       operation: "search messages",
       decodeItem: ApiMessage.fromJson,
     );

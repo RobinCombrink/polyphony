@@ -612,7 +612,7 @@ Acceptance criteria:
 
 #### Phase 13 (Weeks 11-12): Settings IA and discoverability
 Status:
-- Planned.
+- Completed.
 
 Goals:
 - Make the growing configuration surface navigable and understandable.
@@ -621,6 +621,18 @@ Scope:
 - Settings search with indexed sections for account, notifications, friends/DMs, chat behavior, and accessibility.
 - Full configuration surfaces for all new notification and social/chat features.
 - Clear defaults and reset-to-default behavior for each settings group.
+
+Progress:
+- Completed: settings search index (`settings_search_index.dart`) with indexed sections for account, appearance, notifications, voice notifications, audio, keybindings, and developer.
+- Completed: search bar added to settings page with real-time filtering by title, category label, and keyword synonyms.
+- Completed: settings page reorganized with category headers (Account, Appearance, Notifications, Audio, Keybindings, Developer) grouping related sections.
+- Completed: "Reset to default" button added to each resettable section (appearance, notifications, voice notifications, audio devices, keybindings, developer).
+- Completed: empty-state message shown when no settings match the search query.
+- Completed: clear button on search field restores all sections.
+- Completed: unit tests for search index covering title/keyword/category matching, case-insensitivity, and synonym discoverability.
+- Completed: widget-level tests for settings page search filtering, empty state, clear search, and reset button visibility.
+- Completed: BDD-style feature test suite at `test/bdd/settings_feature_test.dart` covering search discoverability for all feature toggles from phases 5-8.
+- Validation: `dart analyze` clean, 198 `flutter test` passing.
 
 Implementation notes:
 - Keep settings state semantic in BLoCs and move all display text decisions to widgets.
