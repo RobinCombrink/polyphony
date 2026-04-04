@@ -103,10 +103,16 @@ impl Message {
         matches!(self, Self::Mentioned(_))
     }
 
-    pub fn set_content(&mut self, content: String) {
+    pub fn with_content(self, content: String) -> Self {
         match self {
-            Self::Regular(message) => message.common.content = content,
-            Self::Mentioned(message) => message.common.content = content,
+            Self::Regular(mut message) => {
+                message.common.content = content;
+                Self::Regular(message)
+            }
+            Self::Mentioned(mut message) => {
+                message.common.content = content;
+                Self::Mentioned(message)
+            }
         }
     }
 }

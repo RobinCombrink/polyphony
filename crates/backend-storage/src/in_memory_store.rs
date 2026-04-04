@@ -111,10 +111,10 @@ impl InMemoryStore {
     pub(crate) fn set_user_display_name(
         &mut self,
         user_id: UserId,
-        display_name: String,
+        display_name: DisplayName,
     ) -> Option<User> {
         let mut user = self.find_user_by_id(user_id)?;
-        user.display_name = Some(DisplayName::new(display_name));
+        user.display_name = Some(display_name);
         self.users_by_id.insert(user_id, user.clone());
         Some(user)
     }
@@ -454,18 +454,20 @@ impl InMemoryStore {
             None => return MutationResult::NotFound,
         };
 
-        let maybe_message = messages
-            .iter_mut()
-            .find(|message| message.id() == message_id);
+        let Some(index) = messages
+            .iter()
+            .position(|message| message.id() == message_id)
+        else {
+            return MutationResult::NotFound;
+        };
 
-        match maybe_message {
-            Some(message) if message.author_user_id() == author_user_id => {
-                message.set_content(content);
-                MutationResult::Updated
-            }
-            Some(_) => MutationResult::Forbidden,
-            None => MutationResult::NotFound,
+        if messages[index].author_user_id() != author_user_id {
+            return MutationResult::Forbidden;
         }
+
+        let message = messages.remove(index);
+        messages.insert(index, message.with_content(content));
+        MutationResult::Updated
     }
 
     pub(crate) fn delete_message(
@@ -671,20 +673,12 @@ impl InMemoryStore {
         server_id: ServerId,
         channel_id: ChannelId,
     ) -> NotificationCategoryPreference {
-        let scoped_category = self
-            .channel_notification_category_for_user(user_id, channel_id)
-            .or_else(|| self.server_notification_category_for_user(user_id, server_id))
-            .unwrap_or_else(|| self.global_channel_default_notification_category_for_user(user_id));
-
-        let global_category = self.global_notification_category_for_user(user_id);
-        match (global_category, scoped_category) {
-            (NotificationCategoryPreference::None, _) => NotificationCategoryPreference::None,
-            (
-                NotificationCategoryPreference::OnlyMentions,
-                NotificationCategoryPreference::AllMessages,
-            ) => NotificationCategoryPreference::OnlyMentions,
-            _ => scoped_category,
-        }
+        NotificationCategoryPreference::effective_for_channel(
+            self.global_notification_category_for_user(user_id),
+            self.global_channel_default_notification_category_for_user(user_id),
+            self.server_notification_category_for_user(user_id, server_id),
+            self.channel_notification_category_for_user(user_id, channel_id),
+        )
     }
 
     pub(crate) fn are_friends(&self, user_id: UserId, other_user_id: UserId) -> bool {

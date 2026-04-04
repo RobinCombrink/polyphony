@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
-    DirectMessageThreadId, EmoteId, ExternalReference, FriendNotificationEventType, FriendRequest,
-    FriendRequestId, FriendRequestState, Friendship, Membership, Message, MessageId,
+    DirectMessageThreadId, DisplayName, EmoteId, ExternalReference, FriendNotificationEventType,
+    FriendRequest, FriendRequestId, FriendRequestState, Friendship, Membership, Message, MessageId,
     NotificationCategoryPreference, NotificationMuteState, PinnedMessage, ReactionSummary, Server,
     ServerId, User, UserId,
 };
@@ -98,7 +98,7 @@ impl UserRepository for InMemoryRepository {
         store.get_or_create_user_by_external_reference(external_reference)
     }
 
-    async fn set_user_display_name(&self, user_id: UserId, display_name: String) -> Option<User> {
+    async fn set_user_display_name(&self, user_id: UserId, display_name: DisplayName) -> Option<User> {
         let mut store = self.store.write().await;
         store.set_user_display_name(user_id, display_name)
     }
@@ -268,7 +268,7 @@ impl NotificationRepository for InMemoryRepository {
             None => return MarkUnreadFromMessageResult::MessageNotFound,
         };
 
-        let unread_count = (messages.len() - target_index) as u64;
+        let unread_count = u64::try_from(messages.len() - target_index).unwrap_or(0);
         store
             .unread_counts_by_user_channel
             .insert((user_id, channel_id), unread_count);

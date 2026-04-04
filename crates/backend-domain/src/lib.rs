@@ -16,7 +16,7 @@ mod user;
 
 pub use channel::{Channel, ChannelType};
 pub use direct_message::{DirectMessage, DirectMessageThread};
-pub use display_name::DisplayName;
+pub use display_name::{DisplayName, DisplayNameError};
 pub use friend_notification_event_type::FriendNotificationEventType;
 pub use friend_relationship::{BlockRelationship, FriendRequest, FriendRequestState, Friendship};
 pub use ids::{

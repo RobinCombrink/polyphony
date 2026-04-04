@@ -1,4 +1,5 @@
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use backend_domain::DisplayName;
 use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
 
 use crate::{
@@ -67,15 +68,14 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let trimmed_display_name = request.display_name.trim();
-
-    if trimmed_display_name.is_empty() {
-        return StatusCode::BAD_REQUEST.into_response();
-    }
+    let display_name = match DisplayName::new(request.display_name) {
+        Ok(name) => name,
+        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+    };
 
     let updated_user = state
         .user_repository
-        .set_user_display_name(authenticated_user.user_id, trimmed_display_name.to_owned())
+        .set_user_display_name(authenticated_user.user_id, display_name)
         .await;
 
     let Some(updated_user) = updated_user else {

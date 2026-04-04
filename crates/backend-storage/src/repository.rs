@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
-    EmoteId, ExternalReference, FriendNotificationEventType, FriendRequest, FriendRequestId,
-    FriendRequestState, Friendship, Membership, Message, MessageId, NotificationCategoryPreference,
-    NotificationMuteState, PinnedMessage, ReactionSummary, Server, ServerId, User, UserId,
+    DisplayName, EmoteId, ExternalReference, FriendNotificationEventType, FriendRequest,
+    FriendRequestId, FriendRequestState, Friendship, Membership, Message, MessageId,
+    NotificationCategoryPreference, NotificationMuteState, PinnedMessage, ReactionSummary, Server,
+    ServerId, User, UserId,
 };
 
 use crate::MutationResult;
@@ -197,7 +198,7 @@ pub trait UserRepository: Send + Sync {
         &self,
         external_reference: &ExternalReference,
     ) -> User;
-    async fn set_user_display_name(&self, user_id: UserId, display_name: String) -> Option<User>;
+    async fn set_user_display_name(&self, user_id: UserId, display_name: DisplayName) -> Option<User>;
 }
 
 #[async_trait]

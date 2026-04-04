@@ -172,7 +172,7 @@ impl From<UserRow> for User {
         Self {
             id: value.id.into(),
             external_reference: value.external_reference.into(),
-            display_name: value.display_name.map(DisplayName::new),
+            display_name: value.display_name.and_then(|s| DisplayName::new(s).ok()),
         }
     }
 }
@@ -220,16 +220,12 @@ struct ChannelRow {
 impl From<ChannelRow> for Channel {
     fn from(value: ChannelRow) -> Self {
         match value.channel_type {
-            ChannelType::Text => Channel::new_text(
-                value.id.into(),
-                value.server_id.into(),
-                value.name,
-            ),
-            ChannelType::Voice => Channel::new_voice(
-                value.id.into(),
-                value.server_id.into(),
-                value.name,
-            ),
+            ChannelType::Text => {
+                Channel::new_text(value.id.into(), value.server_id.into(), value.name)
+            }
+            ChannelType::Voice => {
+                Channel::new_voice(value.id.into(), value.server_id.into(), value.name)
+            }
         }
     }
 }
@@ -333,31 +329,15 @@ impl PostgresRepository {
         server_id: ServerId,
         channel_id: ChannelId,
     ) -> NotificationCategoryPreference {
-        let scoped_category = if let Some(channel_category) = self
-            .channel_notification_category_for_user(user_id, channel_id)
-            .await
-        {
-            channel_category
-        } else if let Some(server_category) = self
-            .server_notification_category_for_user(user_id, server_id)
-            .await
-        {
-            server_category
-        } else {
+        NotificationCategoryPreference::effective_for_channel(
+            self.global_notification_category_for_user(user_id).await,
             self.global_channel_default_notification_category_for_user(user_id)
-                .await
-        };
-
-        let global_category = self.global_notification_category_for_user(user_id).await;
-
-        match (global_category, scoped_category) {
-            (NotificationCategoryPreference::None, _) => NotificationCategoryPreference::None,
-            (
-                NotificationCategoryPreference::OnlyMentions,
-                NotificationCategoryPreference::AllMessages,
-            ) => NotificationCategoryPreference::OnlyMentions,
-            _ => scoped_category,
-        }
+                .await,
+            self.server_notification_category_for_user(user_id, server_id)
+                .await,
+            self.channel_notification_category_for_user(user_id, channel_id)
+                .await,
+        )
     }
 }
 
@@ -740,7 +720,11 @@ impl UserRepository for PostgresRepository {
             })
     }
 
-    async fn set_user_display_name(&self, user_id: UserId, display_name: String) -> Option<User> {
+    async fn set_user_display_name(
+        &self,
+        user_id: UserId,
+        display_name: DisplayName,
+    ) -> Option<User> {
         let user_id_uuid = Uuid::from(user_id);
 
         let _ = sqlx::query(
@@ -749,7 +733,7 @@ impl UserRepository for PostgresRepository {
              WHERE id = $1",
         )
         .bind(user_id_uuid)
-        .bind(display_name)
+        .bind(String::from(display_name))
         .execute(&self.pool)
         .await;
 
