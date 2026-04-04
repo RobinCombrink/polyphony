@@ -568,6 +568,37 @@ pub(crate) async fn list_messages_with_token(
         .expect("list messages response from app")
 }
 
+pub(crate) async fn search_messages(
+    app: &axum::Router,
+    channel_id: &ChannelId,
+    query: &str,
+) -> axum::response::Response {
+    search_messages_with_token(app, channel_id, query, "valid-token").await
+}
+
+pub(crate) async fn search_messages_with_token(
+    app: &axum::Router,
+    channel_id: &ChannelId,
+    query: &str,
+    bearer_token: &str,
+) -> axum::response::Response {
+    let uri = if query.is_empty() {
+        format!("/api/v1/channels/{channel_id}/messages/search")
+    } else {
+        format!("/api/v1/channels/{channel_id}/messages/search?q={query}")
+    };
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(uri)
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("search messages request to be valid"),
+        )
+        .await
+        .expect("search messages response from app")
+}
+
 pub(crate) async fn list_servers(app: &axum::Router) -> axum::response::Response {
     list_servers_with_token(app, "valid-token").await
 }

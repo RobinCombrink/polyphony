@@ -93,3 +93,31 @@ Feature: Channel messages
       And the message is pinned in server "Test"
       When the user lists pinned messages for server "Test"
       Then each pinned message includes the source channel id
+
+  Rule: Channel members can search messages by content
+    Background:
+      Given an authenticated user exists
+      And a channel exists in server "Test" for the authenticated user
+
+    Scenario: Searching with a matching query returns matching messages
+      Given the user posted a message "hello world" in channel "general"
+      And the user posted a message "foo bar" in channel "general"
+      And the user posted a message "hello again" in channel "general"
+      When the user searches for "hello" in channel "general"
+      Then the search returns 2 messages
+
+    Scenario: Searching with a non-matching query returns no messages
+      Given the user posted a message "hello world" in channel "general"
+      When the user searches for "xyz" in channel "general"
+      Then the search returns 0 messages
+
+    Scenario: Searching is case-insensitive
+      Given the user posted a message "Hello World" in channel "general"
+      When the user searches for "hello" in channel "general"
+      Then the search returns 1 messages
+
+    Scenario: Searching with an empty query returns all messages
+      Given the user posted a message "first" in channel "general"
+      And the user posted a message "second" in channel "general"
+      When the user searches with an empty query in channel "general"
+      Then the search returns 2 messages

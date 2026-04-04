@@ -9,8 +9,9 @@ use common::{
         create_message_with_token, create_server_with_token, default_shared_store, delete_message,
         delete_message_with_token, fresh_shared_store, list_messages, list_messages_with_token,
         list_pinned_messages, payload_channel_id, payload_message_id, payload_server_id,
-        pin_message, prime_feature_test_store, response_payload_json, seeded_app_with_store,
-        shutdown_feature_test_store, unpin_message, update_message, update_message_with_token,
+        pin_message, prime_feature_test_store, response_payload_json, search_messages,
+        seeded_app_with_store, shutdown_feature_test_store, unpin_message, update_message,
+        update_message_with_token,
     },
     entity_seeder::EntitySeeder,
 };
@@ -33,6 +34,7 @@ struct MessagesWorld {
     owner_token: String,
     owner_name: Option<String>,
     second_name: Option<String>,
+    search_result_count: Option<usize>,
 }
 
 impl Default for MessagesWorld {
@@ -49,6 +51,7 @@ impl Default for MessagesWorld {
             owner_token: String::new(),
             owner_name: None,
             second_name: None,
+            search_result_count: None,
         }
     }
 }
@@ -821,6 +824,54 @@ async fn each_pinned_message_includes_the_source_channel_id(world: &mut Messages
         let channel_id = payload_channel_id(pin, "channel_id");
         assert_eq!(channel_id, *world.channel_id_ref());
     }
+}
+
+#[given(expr = r#"the user posted a message {string} in channel {string}"#)]
+async fn user_posted_named_message_in_channel(
+    world: &mut MessagesWorld,
+    content: String,
+    _channel_name: String,
+) {
+    let channel_id = world.channel_id_ref();
+    let response =
+        create_message_with_token(&world.owner_app, channel_id, &content, &world.owner_token)
+            .await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+}
+
+#[when(expr = r#"the user searches for {string} in channel {string}"#)]
+async fn user_searches_in_channel(
+    world: &mut MessagesWorld,
+    query: String,
+    _channel_name: String,
+) {
+    let channel_id = world.channel_id_ref();
+    let response = search_messages(&world.owner_app, channel_id, &query).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = response_payload_json(response).await;
+    let results = payload.as_array().expect("search results to be an array");
+    world.search_result_count = Some(results.len());
+}
+
+#[when(expr = "the user searches with an empty query in channel {string}")]
+async fn user_searches_empty_query_in_channel(
+    world: &mut MessagesWorld,
+    _channel_name: String,
+) {
+    let channel_id = world.channel_id_ref();
+    let response = search_messages(&world.owner_app, channel_id, "").await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = response_payload_json(response).await;
+    let results = payload.as_array().expect("search results to be an array");
+    world.search_result_count = Some(results.len());
+}
+
+#[then(expr = "the search returns {int} messages")]
+async fn search_returns_n_messages(world: &mut MessagesWorld, expected_count: usize) {
+    let actual = world
+        .search_result_count
+        .expect("search result count to be set");
+    assert_eq!(actual, expected_count);
 }
 
 #[tokio::test]

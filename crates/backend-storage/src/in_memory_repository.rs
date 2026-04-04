@@ -68,6 +68,11 @@ impl MessageRepository for InMemoryRepository {
         let store = self.store.read().await;
         store.list_messages(channel_id)
     }
+
+    async fn search_messages(&self, channel_id: ChannelId, query: &str) -> Vec<Message> {
+        let store = self.store.read().await;
+        store.search_messages(channel_id, query)
+    }
 }
 
 #[async_trait]

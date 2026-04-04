@@ -183,6 +183,7 @@ pub trait MessageRepository: Send + Sync {
         author_user_id: UserId,
     ) -> MutationResult;
     async fn list_messages(&self, channel_id: ChannelId) -> Vec<Message>;
+    async fn search_messages(&self, channel_id: ChannelId, query: &str) -> Vec<Message>;
 }
 
 #[async_trait]

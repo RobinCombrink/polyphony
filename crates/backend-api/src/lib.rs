@@ -41,11 +41,9 @@ use routes::{
     link_preview::{__path_link_preview, link_preview},
     me::{__path_me, __path_update_me, me, update_me},
     messages::{
-        __path_create_message, __path_delete_message, __path_list_messages, __path_update_message,
-        create_message, delete_message, list_messages, update_message,
-    },
-    reactions::{
-        __path_list_reactions, __path_toggle_reaction, list_reactions, toggle_reaction,
+        __path_create_message, __path_delete_message, __path_list_messages, __path_search_messages,
+        __path_update_message, create_message, delete_message, list_messages, search_messages,
+        update_message,
     },
     notifications::{
         __path_channel_notification_preference, __path_global_notification_preference,
@@ -64,6 +62,7 @@ use routes::{
         __path_list_pinned_messages, __path_pin_message, __path_unpin_message,
         list_pinned_messages, pin_message, unpin_message,
     },
+    reactions::{__path_list_reactions, __path_toggle_reaction, list_reactions, toggle_reaction},
     servers::{
         __path_add_server_member, __path_create_channel, __path_create_server,
         __path_delete_channel, __path_delete_server, __path_invite_friend_to_server,
@@ -282,6 +281,7 @@ where
         .routes(routes!(add_server_member, list_server_members))
         .routes(routes!(invite_friend_to_server))
         .routes(routes!(create_message, list_messages))
+        .routes(routes!(search_messages))
         .routes(routes!(update_channel, delete_channel))
         .routes(routes!(update_message, delete_message))
         .routes(routes!(toggle_reaction, list_reactions))

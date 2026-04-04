@@ -506,6 +506,15 @@ Progress:
   - Frontend: "Mark as unread" context menu item in `MessagesSectionWidget`, wired through `MessagesPaneWidget`.
   - Frontend: After marking unread, refreshes `NotificationCenterBloc` unread count and shows snackbar confirmation.
   - Validation: `dart analyze` clean, 162 `flutter test` passing, `cargo clippy` clean, 32 backend tests passing.
+- Completed: 12.7g — Channel message search (backend + frontend).
+  - Backend: `search_messages` method added to `MessageRepository` trait.
+  - Backend: In-memory implementation uses case-insensitive `contains`; Postgres uses `ILIKE CONCAT('%', $2, '%')` ordered by `created_order ASC`.
+  - Backend: `GET /api/v1/channels/{channel_id}/messages/search?q=` endpoint with `SearchMessagesQuery` DTO.
+  - Backend: 4 unit tests (matching, case-insensitive, no-match, empty-query) and 4 BDD scenarios in `messages.feature`.
+  - Frontend: `searchMessages` method added to `MessageService` interface and `RestMessageService` with `Uri.encodeQueryComponent`.
+  - Frontend: `MessageSearchDialogWidget` with debounced search input, loading/empty/error/results states.
+  - Frontend: Search icon button in `MessagesSectionWidget` header, dialog wired through `MessagesPaneWidget`.
+  - Validation: `dart analyze` clean, 162 `flutter test` passing, `cargo clippy` clean, 36 backend tests passing.
 
 Implementation notes:
 - Markdown rendering is frontend-only; messages stored as plain text, interpreted at display time.

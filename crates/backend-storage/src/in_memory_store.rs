@@ -431,6 +431,17 @@ impl InMemoryStore {
             .unwrap_or_default()
     }
 
+    pub(crate) fn search_messages(&self, channel_id: ChannelId, query: &str) -> Vec<Message> {
+        let query_lower = query.to_lowercase();
+        self.messages_by_channel
+            .get(&channel_id)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|message| message.content().to_lowercase().contains(&query_lower))
+            .collect()
+    }
+
     pub(crate) fn update_message(
         &mut self,
         channel_id: ChannelId,

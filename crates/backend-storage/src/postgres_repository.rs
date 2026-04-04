@@ -664,6 +664,26 @@ impl MessageRepository for PostgresRepository {
         .map(Message::from)
         .collect()
     }
+
+    async fn search_messages(&self, channel_id: ChannelId, query: &str) -> Vec<Message> {
+        let channel_id = Uuid::from(channel_id);
+
+        sqlx::query_as::<_, MessageRow>(
+            "SELECT id, channel_id, author_user_id, content, mentioned_user_id
+             FROM messages
+             WHERE channel_id = $1
+               AND content ILIKE CONCAT('%', $2, '%')
+             ORDER BY created_order ASC",
+        )
+        .bind(channel_id)
+        .bind(query)
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(Message::from)
+        .collect()
+    }
 }
 
 #[async_trait]
