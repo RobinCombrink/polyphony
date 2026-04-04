@@ -67,3 +67,29 @@ Feature: Channel messages
       And a channel exists in server "Test" owned by "Olivia"
       When "Noah" lists messages in channel "shared-channel"
       Then message listing is denied
+
+  Rule: Server members can pin and unpin messages
+    Background:
+      Given an authenticated user exists
+      And a channel exists in server "Test" for the authenticated user
+
+    Scenario: Server member can pin a message
+      Given the user already has a message in channel "general"
+      When the user pins the message in server "Test"
+      Then listing pinned messages for server "Test" includes the pinned message
+
+    Scenario: Server member can unpin a pinned message
+      Given the user already has a message in channel "general"
+      And the message is pinned in server "Test"
+      When the user unpins the message in server "Test"
+      Then listing pinned messages for server "Test" does not include the unpinned message
+
+    Scenario: Pinning a non-existent message fails
+      When the user pins a message that does not exist in server "Test"
+      Then the pin action fails because the message does not exist
+
+    Scenario: Listing pinned messages returns source channel context
+      Given the user already has a message in channel "general"
+      And the message is pinned in server "Test"
+      When the user lists pinned messages for server "Test"
+      Then each pinned message includes the source channel id

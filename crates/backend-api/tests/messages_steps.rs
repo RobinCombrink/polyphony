@@ -8,9 +8,9 @@ use common::{
         ChannelId, MessageId, ServerId, SharedTestStore, create_channel_with_token, create_message,
         create_message_with_token, create_server_with_token, default_shared_store, delete_message,
         delete_message_with_token, fresh_shared_store, list_messages, list_messages_with_token,
-        payload_channel_id, payload_message_id, payload_server_id, prime_feature_test_store,
-        response_payload_json, seeded_app_with_store, shutdown_feature_test_store, update_message,
-        update_message_with_token,
+        list_pinned_messages, payload_channel_id, payload_message_id, payload_server_id,
+        pin_message, prime_feature_test_store, response_payload_json, seeded_app_with_store,
+        shutdown_feature_test_store, unpin_message, update_message, update_message_with_token,
     },
     entity_seeder::EntitySeeder,
 };
@@ -708,6 +708,119 @@ async fn posting_is_denied_because_named_channel_does_not_support_messaging(
     _channel_name: String,
 ) {
     posting_is_denied_because_that_channel_does_not_support_messaging(world).await;
+}
+
+#[given(expr = r#"the message is pinned in server {string}"#)]
+async fn the_message_is_pinned_in_server(world: &mut MessagesWorld, _server_name: String) {
+    let response = pin_message(
+        world.owner_app_ref(),
+        world.server_id_ref(),
+        world.message_id_ref(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[when(expr = r#"the user pins the message in server {string}"#)]
+async fn the_user_pins_the_message_in_server(world: &mut MessagesWorld, _server_name: String) {
+    let response = pin_message(
+        world.owner_app_ref(),
+        world.server_id_ref(),
+        world.message_id_ref(),
+    )
+    .await;
+    world.latest_status = Some(response.status());
+    world.latest_payload = None;
+}
+
+#[when(expr = r#"the user unpins the message in server {string}"#)]
+async fn the_user_unpins_the_message_in_server(world: &mut MessagesWorld, _server_name: String) {
+    let response = unpin_message(
+        world.owner_app_ref(),
+        world.server_id_ref(),
+        world.message_id_ref(),
+    )
+    .await;
+    world.latest_status = Some(response.status());
+    world.latest_payload = None;
+}
+
+#[when(expr = r#"the user pins a message that does not exist in server {string}"#)]
+async fn the_user_pins_a_message_that_does_not_exist_in_server(
+    world: &mut MessagesWorld,
+    _server_name: String,
+) {
+    world.ensure_owner_server().await;
+    let missing_message_id: MessageId = Uuid::new_v4().into();
+    let response = pin_message(
+        world.owner_app_ref(),
+        world.server_id_ref(),
+        &missing_message_id,
+    )
+    .await;
+    world.latest_status = Some(response.status());
+    world.latest_payload = None;
+}
+
+#[when(expr = r#"the user lists pinned messages for server {string}"#)]
+async fn the_user_lists_pinned_messages_for_server(
+    world: &mut MessagesWorld,
+    _server_name: String,
+) {
+    let response = list_pinned_messages(world.owner_app_ref(), world.server_id_ref()).await;
+    world.latest_status = Some(response.status());
+    world.latest_payload = Some(response_payload_json(response).await);
+}
+
+#[then(expr = r#"listing pinned messages for server {string} includes the pinned message"#)]
+async fn listing_pinned_messages_for_server_includes_the_pinned_message(
+    world: &mut MessagesWorld,
+    _server_name: String,
+) {
+    let payload = response_payload_json(
+        list_pinned_messages(world.owner_app_ref(), world.server_id_ref()).await,
+    )
+    .await;
+    let pins = payload.as_array().expect("pinned messages to be array");
+    assert!(
+        pins.iter()
+            .any(|pin| payload_message_id(pin, "message_id") == *world.message_id_ref())
+    );
+}
+
+#[then(
+    expr = r#"listing pinned messages for server {string} does not include the unpinned message"#
+)]
+async fn listing_pinned_messages_for_server_does_not_include_the_unpinned_message(
+    world: &mut MessagesWorld,
+    _server_name: String,
+) {
+    let payload = response_payload_json(
+        list_pinned_messages(world.owner_app_ref(), world.server_id_ref()).await,
+    )
+    .await;
+    let pins = payload.as_array().expect("pinned messages to be array");
+    assert!(
+        !pins
+            .iter()
+            .any(|pin| payload_message_id(pin, "message_id") == *world.message_id_ref())
+    );
+}
+
+#[then("the pin action fails because the message does not exist")]
+async fn the_pin_action_fails_because_the_message_does_not_exist(world: &mut MessagesWorld) {
+    assert_eq!(world.latest_status(), StatusCode::NOT_FOUND);
+}
+
+#[then("each pinned message includes the source channel id")]
+async fn each_pinned_message_includes_the_source_channel_id(world: &mut MessagesWorld) {
+    let payload = world.latest_payload_ref();
+    let pins = payload.as_array().expect("pinned messages to be array");
+    assert!(!pins.is_empty());
+    for pin in pins {
+        let channel_id = payload_channel_id(pin, "channel_id");
+        assert_eq!(channel_id, *world.channel_id_ref());
+    }
 }
 
 #[tokio::test]

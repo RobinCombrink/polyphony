@@ -104,6 +104,7 @@ define_uuid_id!(BlockRelationshipId);
 define_uuid_id!(DirectMessageThreadId);
 define_uuid_id!(DirectMessageId);
 define_uuid_id!(ReactionId);
+define_uuid_id!(PinnedMessageId);
 
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]

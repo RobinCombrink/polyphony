@@ -13,6 +13,8 @@ mod notification_channel_preference_response;
 mod notification_global_preference_response;
 mod notification_server_preference_response;
 mod notification_unread_count_response;
+mod pin_message_request;
+mod pinned_message_response;
 mod reaction_summary_response;
 mod toggle_reaction_request;
 mod update_channel_request;
@@ -40,6 +42,8 @@ pub use notification_channel_preference_response::NotificationChannelPreferenceR
 pub use notification_global_preference_response::NotificationGlobalPreferenceResponse;
 pub use notification_server_preference_response::NotificationServerPreferenceResponse;
 pub use notification_unread_count_response::NotificationUnreadCountResponse;
+pub use pin_message_request::PinMessageRequest;
+pub use pinned_message_response::PinnedMessageResponse;
 pub use reaction_summary_response::ReactionSummaryResponse;
 pub use toggle_reaction_request::ToggleReactionRequest;
 pub use update_channel_request::UpdateChannelRequest;

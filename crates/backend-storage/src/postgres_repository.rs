@@ -3,8 +3,8 @@ use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
     DirectMessageThreadId, DisplayName, EmoteId, ExternalReference, FriendNotificationEventType,
     FriendRequest, FriendRequestId, FriendRequestState, Friendship, Membership, Message, MessageId,
-    NotificationCategoryPreference, NotificationEventType, NotificationMuteState, ReactionSummary,
-    Server, ServerId, User, UserId,
+    NotificationCategoryPreference, NotificationEventType, NotificationMuteState, PinnedMessage,
+    PinnedMessageId, ReactionSummary, Server, ServerId, User, UserId,
 };
 use sqlx::migrate::Migrator;
 use sqlx::{
@@ -16,8 +16,9 @@ use uuid::Uuid;
 use crate::{
     BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
     DirectMessageRepository, FriendRepository, MessageRepository, MutationResult,
-    NotificationRepository, OpenOrGetDirectMessageThreadResult, ReactionRepository,
-    SendDirectMessageResult, SendFriendRequestResult, ServerRepository, ToggleReactionResult,
+    NotificationRepository, OpenOrGetDirectMessageThreadResult, PinMessageResult,
+    PinnedMessageRepository, ReactionRepository, SendDirectMessageResult,
+    SendFriendRequestResult, ServerRepository, ToggleReactionResult, UnpinMessageResult,
     UpdateFriendRequestResult, UserRepository,
 };
 
@@ -2462,6 +2463,101 @@ impl ReactionRepository for PostgresRepository {
             emote_id: EmoteId::from(row.emote_id),
             count: u32::try_from(row.count).unwrap_or(0),
             reacted_by_current_user: row.reacted_by_current_user,
+        })
+        .collect()
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct PinnedMessageRow {
+    id: Uuid,
+    server_id: Uuid,
+    channel_id: Uuid,
+    message_id: Uuid,
+    pinned_by_user_id: Uuid,
+    content: String,
+    author_user_id: Uuid,
+}
+
+#[async_trait]
+impl PinnedMessageRepository for PostgresRepository {
+    async fn pin_message(
+        &self,
+        server_id: ServerId,
+        message_id: MessageId,
+        pinned_by_user_id: UserId,
+    ) -> PinMessageResult {
+        let message_exists =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM messages WHERE id = $1")
+                .bind(message_id.as_uuid())
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
+
+        if message_exists == 0 {
+            return PinMessageResult::MessageNotFound;
+        }
+
+        let result = sqlx::query(
+            "INSERT INTO pinned_messages (server_id, channel_id, message_id, pinned_by_user_id)
+             SELECT $1, m.channel_id, $2, $3
+             FROM messages m WHERE m.id = $2
+             ON CONFLICT (server_id, message_id) DO NOTHING",
+        )
+        .bind(server_id.as_uuid())
+        .bind(message_id.as_uuid())
+        .bind(pinned_by_user_id.as_uuid())
+        .execute(&self.pool)
+        .await;
+
+        match result {
+            Ok(r) if r.rows_affected() > 0 => PinMessageResult::Pinned,
+            Ok(_) => PinMessageResult::AlreadyPinned,
+            Err(_) => PinMessageResult::MessageNotFound,
+        }
+    }
+
+    async fn unpin_message(
+        &self,
+        server_id: ServerId,
+        message_id: MessageId,
+    ) -> UnpinMessageResult {
+        let result = sqlx::query(
+            "DELETE FROM pinned_messages WHERE server_id = $1 AND message_id = $2",
+        )
+        .bind(server_id.as_uuid())
+        .bind(message_id.as_uuid())
+        .execute(&self.pool)
+        .await;
+
+        match result {
+            Ok(r) if r.rows_affected() > 0 => UnpinMessageResult::Unpinned,
+            _ => UnpinMessageResult::NotPinned,
+        }
+    }
+
+    async fn list_pinned_messages(&self, server_id: ServerId) -> Vec<PinnedMessage> {
+        sqlx::query_as::<_, PinnedMessageRow>(
+            "SELECT pm.id, pm.server_id, pm.channel_id, pm.message_id,
+                    pm.pinned_by_user_id, m.content, m.author_user_id
+             FROM pinned_messages pm
+             JOIN messages m ON m.id = pm.message_id
+             WHERE pm.server_id = $1
+             ORDER BY pm.date_created DESC",
+        )
+        .bind(server_id.as_uuid())
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|row| PinnedMessage {
+            id: PinnedMessageId::from(row.id),
+            server_id: ServerId::from(row.server_id),
+            channel_id: ChannelId::from(row.channel_id),
+            message_id: MessageId::from(row.message_id),
+            pinned_by_user_id: UserId::from(row.pinned_by_user_id),
+            content: row.content,
+            author_user_id: UserId::from(row.author_user_id),
         })
         .collect()
     }

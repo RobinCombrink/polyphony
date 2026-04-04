@@ -6,7 +6,8 @@ use backend_domain::{
     DirectMessageThreadId, DisplayName, EmoteId, ExternalReference, FriendNotificationEventType,
     FriendRequest, FriendRequestId, FriendRequestState, Friendship, FriendshipId, Membership,
     Message, MessageId, NotificationCategoryPreference, NotificationEventType,
-    NotificationMuteState, ReactionSummary, Server, ServerId, User, UserId,
+    NotificationMuteState, PinnedMessage, PinnedMessageId, ReactionSummary, Server, ServerId, User,
+    UserId,
 };
 use uuid::Uuid;
 
@@ -44,6 +45,7 @@ pub(crate) struct InMemoryStore {
         HashMap<(UserId, UserId), DirectMessageThreadId>,
     pub(crate) direct_messages_by_thread_id: HashMap<DirectMessageThreadId, Vec<DirectMessage>>,
     pub(crate) reactions: HashSet<(MessageId, UserId, EmoteId)>,
+    pub(crate) pinned_messages: Vec<PinnedMessage>,
 }
 
 impl InMemoryStore {
@@ -1138,6 +1140,65 @@ impl InMemoryStore {
                 count,
                 reacted_by_current_user: reacted,
             })
+            .collect()
+    }
+
+    pub(crate) fn pin_message(
+        &mut self,
+        server_id: ServerId,
+        message_id: MessageId,
+        pinned_by_user_id: UserId,
+    ) -> crate::PinMessageResult {
+        let message = self
+            .messages_by_channel
+            .values()
+            .flatten()
+            .find(|m| m.id() == message_id);
+
+        let Some(message) = message else {
+            return crate::PinMessageResult::MessageNotFound;
+        };
+
+        if self
+            .pinned_messages
+            .iter()
+            .any(|p| p.server_id == server_id && p.message_id == message_id)
+        {
+            return crate::PinMessageResult::AlreadyPinned;
+        }
+
+        self.pinned_messages.push(PinnedMessage {
+            id: PinnedMessageId::from(Uuid::new_v4()),
+            server_id,
+            channel_id: message.channel_id(),
+            message_id,
+            pinned_by_user_id,
+            content: message.content().to_owned(),
+            author_user_id: message.author_user_id(),
+        });
+        crate::PinMessageResult::Pinned
+    }
+
+    pub(crate) fn unpin_message(
+        &mut self,
+        server_id: ServerId,
+        message_id: MessageId,
+    ) -> crate::UnpinMessageResult {
+        let before_len = self.pinned_messages.len();
+        self.pinned_messages
+            .retain(|p| !(p.server_id == server_id && p.message_id == message_id));
+        if self.pinned_messages.len() < before_len {
+            crate::UnpinMessageResult::Unpinned
+        } else {
+            crate::UnpinMessageResult::NotPinned
+        }
+    }
+
+    pub(crate) fn list_pinned_messages(&self, server_id: ServerId) -> Vec<PinnedMessage> {
+        self.pinned_messages
+            .iter()
+            .filter(|p| p.server_id == server_id)
+            .cloned()
             .collect()
     }
 }

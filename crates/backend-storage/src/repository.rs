@@ -3,7 +3,7 @@ use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
     EmoteId, ExternalReference, FriendNotificationEventType, FriendRequest, FriendRequestId,
     FriendRequestState, Friendship, Membership, Message, MessageId, NotificationCategoryPreference,
-    NotificationMuteState, ReactionSummary, Server, ServerId, User, UserId,
+    NotificationMuteState, PinnedMessage, ReactionSummary, Server, ServerId, User, UserId,
 };
 
 use crate::MutationResult;
@@ -311,4 +311,30 @@ pub trait ReactionRepository: Send + Sync {
         message_id: MessageId,
         current_user_id: UserId,
     ) -> Vec<ReactionSummary>;
+}
+
+pub enum PinMessageResult {
+    Pinned,
+    AlreadyPinned,
+    MessageNotFound,
+}
+
+pub enum UnpinMessageResult {
+    Unpinned,
+    NotPinned,
+}
+
+#[async_trait]
+pub trait PinnedMessageRepository: Send + Sync {
+    async fn pin_message(
+        &self,
+        server_id: ServerId,
+        message_id: MessageId,
+        pinned_by_user_id: UserId,
+    ) -> PinMessageResult;
+
+    async fn unpin_message(&self, server_id: ServerId, message_id: MessageId)
+    -> UnpinMessageResult;
+
+    async fn list_pinned_messages(&self, server_id: ServerId) -> Vec<PinnedMessage>;
 }

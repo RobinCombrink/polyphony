@@ -3,17 +3,18 @@ use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
     DirectMessageThreadId, EmoteId, ExternalReference, FriendNotificationEventType, FriendRequest,
     FriendRequestId, FriendRequestState, Friendship, Membership, Message, MessageId,
-    NotificationCategoryPreference, NotificationMuteState, ReactionSummary, Server, ServerId, User,
-    UserId,
+    NotificationCategoryPreference, NotificationMuteState, PinnedMessage, ReactionSummary, Server,
+    ServerId, User, UserId,
 };
 use tokio::sync::RwLock;
 
 use crate::{
     BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
     DirectMessageRepository, FriendRepository, InMemoryStore, MessageRepository, MutationResult,
-    NotificationRepository, OpenOrGetDirectMessageThreadResult, ReactionRepository,
-    SendDirectMessageResult, SendFriendRequestResult, ServerRepository, ToggleReactionResult,
-    UpdateFriendRequestResult, UserRepository,
+    NotificationRepository, OpenOrGetDirectMessageThreadResult, PinMessageResult,
+    PinnedMessageRepository, ReactionRepository, SendDirectMessageResult, SendFriendRequestResult,
+    ServerRepository, ToggleReactionResult, UnpinMessageResult, UpdateFriendRequestResult,
+    UserRepository,
 };
 
 #[derive(Debug, Default)]
@@ -576,5 +577,32 @@ impl ReactionRepository for InMemoryRepository {
     ) -> Vec<ReactionSummary> {
         let store = self.store.read().await;
         store.list_reaction_summaries(message_id, current_user_id)
+    }
+}
+
+#[async_trait]
+impl PinnedMessageRepository for InMemoryRepository {
+    async fn pin_message(
+        &self,
+        server_id: ServerId,
+        message_id: MessageId,
+        pinned_by_user_id: UserId,
+    ) -> PinMessageResult {
+        let mut store = self.store.write().await;
+        store.pin_message(server_id, message_id, pinned_by_user_id)
+    }
+
+    async fn unpin_message(
+        &self,
+        server_id: ServerId,
+        message_id: MessageId,
+    ) -> UnpinMessageResult {
+        let mut store = self.store.write().await;
+        store.unpin_message(server_id, message_id)
+    }
+
+    async fn list_pinned_messages(&self, server_id: ServerId) -> Vec<PinnedMessage> {
+        let store = self.store.read().await;
+        store.list_pinned_messages(server_id)
     }
 }

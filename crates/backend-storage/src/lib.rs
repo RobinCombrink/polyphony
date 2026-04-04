@@ -11,7 +11,7 @@ pub use postgres_repository::PostgresRepository;
 pub use repository::{
     BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
     DirectMessageRepository, FriendRepository, MessageRepository, NotificationRepository,
-    OpenOrGetDirectMessageThreadResult, ReactionRepository, SendDirectMessageResult,
-    SendFriendRequestResult, ServerRepository, ToggleReactionResult, UpdateFriendRequestResult,
-    UserRepository,
+    OpenOrGetDirectMessageThreadResult, PinMessageResult, PinnedMessageRepository,
+    ReactionRepository, SendDirectMessageResult, SendFriendRequestResult, ServerRepository,
+    ToggleReactionResult, UnpinMessageResult, UpdateFriendRequestResult, UserRepository,
 };

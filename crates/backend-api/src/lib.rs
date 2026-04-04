@@ -16,8 +16,8 @@ use axum::Router;
 use axum::routing::get;
 use backend_storage::{
     BlockRepository, ChannelRepository, DirectMessageRepository, FriendRepository,
-    MessageRepository, NotificationRepository, PostgresRepository, ReactionRepository,
-    ServerRepository, UserRepository,
+    MessageRepository, NotificationRepository, PinnedMessageRepository, PostgresRepository,
+    ReactionRepository, ServerRepository, UserRepository,
 };
 use http::{HeaderValue, Method, Request, header::AUTHORIZATION};
 use openapi::ApiDocumentation;
@@ -58,6 +58,10 @@ use routes::{
         server_notification_preference, unmute_channel_notifications, unread_notifications_count,
         update_channel_notification_preference, update_global_notification_preference,
         update_server_notification_preference, websocket_notifications,
+    },
+    pinned_messages::{
+        __path_list_pinned_messages, __path_pin_message, __path_unpin_message,
+        list_pinned_messages, pin_message, unpin_message,
     },
     servers::{
         __path_add_server_member, __path_create_channel, __path_create_server,
@@ -216,6 +220,7 @@ where
         + BlockRepository
         + DirectMessageRepository
         + ReactionRepository
+        + PinnedMessageRepository
         + Send
         + Sync
         + 'static,
@@ -244,6 +249,7 @@ where
         + BlockRepository
         + DirectMessageRepository
         + ReactionRepository
+        + PinnedMessageRepository
         + Send
         + Sync
         + 'static,
@@ -278,6 +284,8 @@ where
         .routes(routes!(update_channel, delete_channel))
         .routes(routes!(update_message, delete_message))
         .routes(routes!(toggle_reaction, list_reactions))
+        .routes(routes!(pin_message, list_pinned_messages))
+        .routes(routes!(unpin_message))
         .routes(routes!(create_session))
         .routes(routes!(mark_channel_notifications_read))
         .routes(routes!(

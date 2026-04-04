@@ -1243,6 +1243,88 @@ pub(crate) async fn outbox_count_for_friend_notification(
     }
 }
 
+pub(crate) async fn pin_message(
+    app: &axum::Router,
+    server_id: &ServerId,
+    message_id: &MessageId,
+) -> axum::response::Response {
+    pin_message_with_token(app, server_id, message_id, "valid-token").await
+}
+
+pub(crate) async fn pin_message_with_token(
+    app: &axum::Router,
+    server_id: &ServerId,
+    message_id: &MessageId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/servers/{server_id}/pins"))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "message_id": message_id.to_string() }).to_string(),
+                ))
+                .expect("pin message request to be valid"),
+        )
+        .await
+        .expect("pin message response from app")
+}
+
+pub(crate) async fn unpin_message(
+    app: &axum::Router,
+    server_id: &ServerId,
+    message_id: &MessageId,
+) -> axum::response::Response {
+    unpin_message_with_token(app, server_id, message_id, "valid-token").await
+}
+
+pub(crate) async fn unpin_message_with_token(
+    app: &axum::Router,
+    server_id: &ServerId,
+    message_id: &MessageId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/servers/{server_id}/pins/{message_id}"))
+                .method("DELETE")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("unpin message request to be valid"),
+        )
+        .await
+        .expect("unpin message response from app")
+}
+
+pub(crate) async fn list_pinned_messages(
+    app: &axum::Router,
+    server_id: &ServerId,
+) -> axum::response::Response {
+    list_pinned_messages_with_token(app, server_id, "valid-token").await
+}
+
+pub(crate) async fn list_pinned_messages_with_token(
+    app: &axum::Router,
+    server_id: &ServerId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/servers/{server_id}/pins"))
+                .method("GET")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .body(Body::empty())
+                .expect("list pinned messages request to be valid"),
+        )
+        .await
+        .expect("list pinned messages response from app")
+}
+
 async fn feature_postgres_test_env() -> Arc<PostgresTestEnv> {
     {
         let guard = FEATURE_POSTGRES_TEST_ENV.lock().await;
