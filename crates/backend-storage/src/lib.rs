@@ -10,8 +10,9 @@ pub use mutation_result::MutationResult;
 pub use postgres_repository::PostgresRepository;
 pub use repository::{
     BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
-    DirectMessageRepository, FriendRepository, MessageRepository, NotificationRepository,
-    OpenOrGetDirectMessageThreadResult, PinMessageResult, PinnedMessageRepository,
-    ReactionRepository, SendDirectMessageResult, SendFriendRequestResult, ServerRepository,
-    ToggleReactionResult, UnpinMessageResult, UpdateFriendRequestResult, UserRepository,
+    DirectMessageRepository, FriendRepository, MarkUnreadFromMessageResult, MessageRepository,
+    NotificationRepository, OpenOrGetDirectMessageThreadResult, PinMessageResult,
+    PinnedMessageRepository, ReactionRepository, SendDirectMessageResult,
+    SendFriendRequestResult, ServerRepository, ToggleReactionResult, UnpinMessageResult,
+    UpdateFriendRequestResult, UserRepository,
 };

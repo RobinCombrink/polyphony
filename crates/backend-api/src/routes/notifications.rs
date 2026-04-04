@@ -10,14 +10,16 @@ use axum::{
 };
 use backend_domain::{ChannelId, NotificationMuteState, ServerId};
 use backend_storage::{
-    ChannelRepository, MessageRepository, NotificationRepository, ServerRepository, UserRepository,
+    ChannelRepository, MarkUnreadFromMessageResult, MessageRepository, NotificationRepository,
+    ServerRepository, UserRepository,
 };
 
 use crate::{
     ApiState,
     auth::{AuthError, AuthenticatedUser, TokenVerifier},
     dto::{
-        ApiErrorResponse, MuteChannelNotificationsRequest, NotificationChannelPreferenceResponse,
+        ApiErrorResponse, MarkUnreadRequest, MuteChannelNotificationsRequest,
+        NotificationChannelPreferenceResponse,
         NotificationGlobalPreferenceResponse, NotificationServerPreferenceResponse,
         NotificationUnreadCountResponse, UpdateNotificationChannelPreferenceRequest,
         UpdateNotificationGlobalPreferenceRequest, UpdateNotificationServerPreferenceRequest,
@@ -614,6 +616,62 @@ where
         .await;
 
     StatusCode::NO_CONTENT
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/channels/{channel_id}/notifications/unread-from",
+    request_body = MarkUnreadRequest,
+    responses(
+        (status = 204, description = "Unread count updated from specified message"),
+        (status = 401, description = "Authentication failed"),
+        (status = 403, description = "Not a channel member"),
+        (status = 404, description = "Channel or message not found")
+    ),
+    security(("bearer_auth" = [])),
+    params(("channel_id" = ChannelId, Path, description = "Channel id")),
+    tag = "Notifications"
+)]
+pub(crate) async fn mark_message_as_unread<
+    UserRepo,
+    ServerRepo,
+    ChannelRepo,
+    MessageRepo,
+    Verifier,
+>(
+    State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
+    authenticated_user: AuthenticatedUser,
+    Path(channel_id): Path<ChannelId>,
+    Json(body): Json<MarkUnreadRequest>,
+) -> impl IntoResponse
+where
+    UserRepo: UserRepository + Send + Sync + 'static,
+    ServerRepo: ServerRepository + Send + Sync + 'static,
+    ChannelRepo: ChannelRepository + Send + Sync + 'static,
+    MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
+    Verifier: TokenVerifier + Send + Sync + 'static,
+{
+    let is_channel_member = match state
+        .channel_repository
+        .is_channel_member(channel_id, authenticated_user.user_id)
+        .await
+    {
+        Some(value) => value,
+        None => return StatusCode::NOT_FOUND,
+    };
+
+    if !is_channel_member {
+        return StatusCode::FORBIDDEN;
+    }
+
+    match state
+        .message_repository
+        .mark_unread_from_message(authenticated_user.user_id, channel_id, body.message_id)
+        .await
+    {
+        MarkUnreadFromMessageResult::Updated => StatusCode::NO_CONTENT,
+        MarkUnreadFromMessageResult::MessageNotFound => StatusCode::NOT_FOUND,
+    }
 }
 
 pub(crate) async fn websocket_notifications<

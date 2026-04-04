@@ -246,6 +246,34 @@ Feature: Notifications
       Then unread count for "Noah" in channel "engineering" is zero
       And "Noah" sees total unread notification count of 1
 
+  Rule: Mark message as unread sets unread count from that message onward
+    Background:
+      Given a user named "Olivia" exists
+      And a user named "Noah" exists
+      And a server named "Test" owned by "Olivia" exists
+      And a text channel named "general" exists in server "Test" created by "Olivia"
+      And "Olivia" adds "Noah" to server "Test"
+
+    Scenario: Marking a message as unread counts remaining messages from that point
+      When "Olivia" posts a message "first" in channel "general"
+      And "Olivia" posts a message "second" in channel "general"
+      And "Olivia" posts a message "third" in channel "general"
+      And "Noah" marks channel "general" notifications as read
+      Then unread count for "Noah" in channel "general" is zero
+      When "Noah" marks message "second" as unread in channel "general"
+      Then unread count for "Noah" in channel "general" is 2
+
+    Scenario: Marking the earliest message as unread counts all messages
+      When "Olivia" posts a message "alpha" in channel "general"
+      And "Olivia" posts a message "beta" in channel "general"
+      And "Noah" marks channel "general" notifications as read
+      When "Noah" marks message "alpha" as unread in channel "general"
+      Then unread count for "Noah" in channel "general" is 2
+
+    Scenario: Marking a nonexistent message as unread returns not found
+      When "Noah" marks a nonexistent message as unread in channel "general"
+      Then the response status is 404
+
   Rule: Notification policy precedence controls unread increments
     Background:
       Given a user named "Olivia" exists

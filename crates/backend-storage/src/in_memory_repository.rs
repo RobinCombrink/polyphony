@@ -10,11 +10,11 @@ use tokio::sync::RwLock;
 
 use crate::{
     BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
-    DirectMessageRepository, FriendRepository, InMemoryStore, MessageRepository, MutationResult,
-    NotificationRepository, OpenOrGetDirectMessageThreadResult, PinMessageResult,
-    PinnedMessageRepository, ReactionRepository, SendDirectMessageResult, SendFriendRequestResult,
-    ServerRepository, ToggleReactionResult, UnpinMessageResult, UpdateFriendRequestResult,
-    UserRepository,
+    DirectMessageRepository, FriendRepository, InMemoryStore, MarkUnreadFromMessageResult,
+    MessageRepository, MutationResult, NotificationRepository, OpenOrGetDirectMessageThreadResult,
+    PinMessageResult, PinnedMessageRepository, ReactionRepository, SendDirectMessageResult,
+    SendFriendRequestResult, ServerRepository, ToggleReactionResult, UnpinMessageResult,
+    UpdateFriendRequestResult, UserRepository,
 };
 
 #[derive(Debug, Default)]
@@ -243,6 +243,32 @@ impl NotificationRepository for InMemoryRepository {
         store
             .unread_counts_by_user_channel
             .remove(&(user_id, channel_id));
+    }
+
+    async fn mark_unread_from_message(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        message_id: MessageId,
+    ) -> MarkUnreadFromMessageResult {
+        let mut store = self.store.write().await;
+
+        let messages = match store.messages_by_channel.get(&channel_id) {
+            Some(msgs) => msgs,
+            None => return MarkUnreadFromMessageResult::MessageNotFound,
+        };
+
+        let target_index = match messages.iter().position(|m| m.id() == message_id) {
+            Some(idx) => idx,
+            None => return MarkUnreadFromMessageResult::MessageNotFound,
+        };
+
+        let unread_count = (messages.len() - target_index) as u64;
+        store
+            .unread_counts_by_user_channel
+            .insert((user_id, channel_id), unread_count);
+
+        MarkUnreadFromMessageResult::Updated
     }
 
     async fn global_notification_category_for_user(

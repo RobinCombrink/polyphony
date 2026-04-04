@@ -14,7 +14,8 @@ use common::bdd_support::{
     connect_voice_session_with_token, create_actor_with_notification_hub,
     create_channel_with_token, create_message_with_token, create_message_with_token_and_mention,
     create_server_with_token, global_notification_preference_with_token,
-    mark_channel_notifications_read_with_token, mute_channel_notifications_with_token,
+    mark_channel_notifications_read_with_token, mark_message_as_unread_with_token,
+    mute_channel_notifications_with_token,
     outbox_count_for_message_recipient, outbox_total_count_for_recipient, payload_channel_id,
     payload_message_id, payload_server_id, prime_feature_test_store, response_payload_json,
     server_notification_preference_with_token, shutdown_feature_test_store,
@@ -64,6 +65,7 @@ struct NotificationsWorld {
     latest_status: Option<StatusCode>,
     latest_payload: Option<Value>,
     latest_message_id: Option<MessageId>,
+    message_ids_by_content: HashMap<String, MessageId>,
     friend_request_ids_by_pair: HashMap<(String, String), String>,
     outbox_totals_before_post_by_actor: HashMap<String, u64>,
     active_ws_connection: Option<WsConnection>,
@@ -83,6 +85,7 @@ impl Default for NotificationsWorld {
             latest_status: None,
             latest_payload: None,
             latest_message_id: None,
+            message_ids_by_content: HashMap::new(),
             friend_request_ids_by_pair: HashMap::new(),
             outbox_totals_before_post_by_actor: HashMap::new(),
             active_ws_connection: None,
@@ -729,6 +732,85 @@ async fn named_user_marks_channel_notifications_as_read(
 
     world.latest_status = Some(response.status());
     assert_eq!(world.latest_status(), StatusCode::NO_CONTENT);
+}
+
+#[when(expr = r#"{string} posts a message {string} in channel {string}"#)]
+async fn named_user_posts_named_message_in_channel(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    content: String,
+    channel_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let response =
+        create_message_with_token(&actor.app, &channel_id, &content, &actor.token).await;
+
+    world.latest_status = Some(response.status());
+    if response.status() == StatusCode::CREATED {
+        let payload = response_payload_json(response).await;
+        let message_id = payload_message_id(&payload, "id");
+        world
+            .message_ids_by_content
+            .insert(content, message_id);
+        world.latest_message_id = Some(message_id);
+        world.latest_payload = Some(payload);
+    }
+}
+
+#[when(expr = r#"{string} marks message {string} as unread in channel {string}"#)]
+async fn named_user_marks_message_as_unread_in_channel(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    content: String,
+    channel_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let message_id = world
+        .message_ids_by_content
+        .get(&content)
+        .unwrap_or_else(|| panic!("message with content '{content}' to be tracked"));
+    let response =
+        mark_message_as_unread_with_token(&actor.app, &channel_id, message_id, &actor.token).await;
+
+    world.latest_status = Some(response.status());
+}
+
+#[when(expr = r#"{string} marks a nonexistent message as unread in channel {string}"#)]
+async fn named_user_marks_nonexistent_message_as_unread_in_channel(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let fake_message_id = MessageId::from(uuid::Uuid::new_v4());
+    let response =
+        mark_message_as_unread_with_token(&actor.app, &channel_id, &fake_message_id, &actor.token)
+            .await;
+
+    world.latest_status = Some(response.status());
+}
+
+#[then(expr = r#"unread count for {string} in channel {string} is {int}"#)]
+async fn unread_count_for_named_user_in_named_channel_is(
+    world: &mut NotificationsWorld,
+    actor_name: String,
+    channel_name: String,
+    expected_count: u64,
+) {
+    let actor = world.actor_ref(&actor_name);
+    let channel_id = *world.channel_id_by_name_ref(&channel_name);
+    let unread_count =
+        unread_count_for_channel(&world.shared_store, actor.user_id, channel_id).await;
+
+    assert_eq!(unread_count, expected_count);
+}
+
+#[then(expr = "the response status is {int}")]
+async fn response_status_is(world: &mut NotificationsWorld, expected_status: u16) {
+    assert_eq!(world.latest_status().as_u16(), expected_status);
 }
 
 #[when(expr = r#"the temporary mute expires for {string} in channel {string}"#)]

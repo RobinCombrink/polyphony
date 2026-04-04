@@ -794,6 +794,30 @@ pub(crate) async fn mark_channel_notifications_read_with_token(
         .expect("mark channel notifications read response from app")
 }
 
+pub(crate) async fn mark_message_as_unread_with_token(
+    app: &axum::Router,
+    channel_id: &ChannelId,
+    message_id: &MessageId,
+    bearer_token: &str,
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/channels/{channel_id}/notifications/unread-from"
+                ))
+                .method("POST")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer_token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "message_id": message_id }).to_string(),
+                ))
+                .expect("mark message as unread request to be valid"),
+        )
+        .await
+        .expect("mark message as unread response from app")
+}
+
 pub(crate) async fn update_global_notification_preference_with_token(
     app: &axum::Router,
     mute_state: NotificationMuteState,

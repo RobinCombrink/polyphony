@@ -49,12 +49,13 @@ use routes::{
     },
     notifications::{
         __path_channel_notification_preference, __path_global_notification_preference,
-        __path_mark_channel_notifications_read, __path_mute_channel_notifications,
-        __path_server_notification_preference, __path_unmute_channel_notifications,
-        __path_unread_notifications_count, __path_update_channel_notification_preference,
+        __path_mark_channel_notifications_read, __path_mark_message_as_unread,
+        __path_mute_channel_notifications, __path_server_notification_preference,
+        __path_unmute_channel_notifications, __path_unread_notifications_count,
+        __path_update_channel_notification_preference,
         __path_update_global_notification_preference, __path_update_server_notification_preference,
         channel_notification_preference, global_notification_preference,
-        mark_channel_notifications_read, mute_channel_notifications,
+        mark_channel_notifications_read, mark_message_as_unread, mute_channel_notifications,
         server_notification_preference, unmute_channel_notifications, unread_notifications_count,
         update_channel_notification_preference, update_global_notification_preference,
         update_server_notification_preference, websocket_notifications,
@@ -288,6 +289,7 @@ where
         .routes(routes!(unpin_message))
         .routes(routes!(create_session))
         .routes(routes!(mark_channel_notifications_read))
+        .routes(routes!(mark_message_as_unread))
         .routes(routes!(
             channel_notification_preference,
             update_channel_notification_preference

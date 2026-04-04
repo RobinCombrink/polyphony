@@ -15,11 +15,11 @@ use uuid::Uuid;
 
 use crate::{
     BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
-    DirectMessageRepository, FriendRepository, MessageRepository, MutationResult,
-    NotificationRepository, OpenOrGetDirectMessageThreadResult, PinMessageResult,
-    PinnedMessageRepository, ReactionRepository, SendDirectMessageResult,
-    SendFriendRequestResult, ServerRepository, ToggleReactionResult, UnpinMessageResult,
-    UpdateFriendRequestResult, UserRepository,
+    DirectMessageRepository, FriendRepository, MarkUnreadFromMessageResult, MessageRepository,
+    MutationResult, NotificationRepository, OpenOrGetDirectMessageThreadResult, PinMessageResult,
+    PinnedMessageRepository, ReactionRepository, SendDirectMessageResult, SendFriendRequestResult,
+    ServerRepository, ToggleReactionResult, UnpinMessageResult, UpdateFriendRequestResult,
+    UserRepository,
 };
 
 #[cfg(target_family = "windows")]
@@ -782,6 +782,49 @@ impl NotificationRepository for PostgresRepository {
         .bind(Uuid::from(channel_id))
         .execute(&self.pool)
         .await;
+    }
+
+    async fn mark_unread_from_message(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        message_id: MessageId,
+    ) -> MarkUnreadFromMessageResult {
+        let user_uuid = Uuid::from(user_id);
+        let channel_uuid = Uuid::from(channel_id);
+        let message_uuid = Uuid::from(message_id);
+
+        let count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*)
+             FROM messages m
+             WHERE m.channel_id = $1
+               AND m.created_order >= (
+                   SELECT created_order FROM messages WHERE id = $2 AND channel_id = $1
+               )",
+        )
+        .bind(channel_uuid)
+        .bind(message_uuid)
+        .fetch_one(&self.pool)
+        .await;
+
+        let count = match count {
+            Ok(c) if c > 0 => c,
+            _ => return MarkUnreadFromMessageResult::MessageNotFound,
+        };
+
+        let _ = sqlx::query(
+            "INSERT INTO notification_unread_counts (user_id, channel_id, unread_count)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, channel_id)
+             DO UPDATE SET unread_count = $3, updated_at = NOW()",
+        )
+        .bind(user_uuid)
+        .bind(channel_uuid)
+        .bind(count)
+        .execute(&self.pool)
+        .await;
+
+        MarkUnreadFromMessageResult::Updated
     }
 
     async fn global_notification_category_for_user(
@@ -2522,13 +2565,12 @@ impl PinnedMessageRepository for PostgresRepository {
         server_id: ServerId,
         message_id: MessageId,
     ) -> UnpinMessageResult {
-        let result = sqlx::query(
-            "DELETE FROM pinned_messages WHERE server_id = $1 AND message_id = $2",
-        )
-        .bind(server_id.as_uuid())
-        .bind(message_id.as_uuid())
-        .execute(&self.pool)
-        .await;
+        let result =
+            sqlx::query("DELETE FROM pinned_messages WHERE server_id = $1 AND message_id = $2")
+                .bind(server_id.as_uuid())
+                .bind(message_id.as_uuid())
+                .execute(&self.pool)
+                .await;
 
         match result {
             Ok(r) if r.rows_affected() > 0 => UnpinMessageResult::Unpinned,

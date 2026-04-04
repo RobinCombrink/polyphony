@@ -55,11 +55,22 @@ pub enum SendDirectMessageResult {
     NotFound,
 }
 
+pub enum MarkUnreadFromMessageResult {
+    Updated,
+    MessageNotFound,
+}
+
 #[async_trait]
 pub trait NotificationRepository: Send + Sync {
     async fn unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> u64;
     async fn total_unread_count_for_user(&self, user_id: UserId) -> u64;
     async fn clear_unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId);
+    async fn mark_unread_from_message(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        message_id: MessageId,
+    ) -> MarkUnreadFromMessageResult;
     async fn global_notification_category_for_user(
         &self,
         user_id: UserId,
