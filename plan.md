@@ -781,7 +781,7 @@ Acceptance criteria:
 
 #### Phase 14.4: Service-layer memory cache defaults
 Status:
-- Planned.
+- Completed.
 
 Goals:
 - Introduce consistent caching behavior with safe defaults.
@@ -789,12 +789,22 @@ Goals:
 Scope:
 - Add reusable `MemoryCache<T>` primitive(s) in the service layer with a default TTL so call sites are not required to specify TTL for every use.
 
+Progress:
+- Completed: created `MemoryCache<T>` utility at `lib/shared/services/cache/memory_cache.dart` with default 5-minute TTL, key-based get/set/invalidate/invalidateWhere/clear API, and lazy expiry eviction.
+- Completed: 8 unit tests covering get-miss, get-hit, get-expired, set-overwrite, invalidate, invalidateWhere, clear, and custom-TTL at `test/shared/services/cache/memory_cache_test.dart`.
+- Completed: migrated `RestEmoteService` from `List<Emote>?` to `MemoryCache<List<Emote>>` with 30-minute TTL (static catalog).
+- Completed: migrated `RestLinkPreviewService` from `Map<String, LinkPreview>` to `MemoryCache<LinkPreview>` with 15-minute TTL (external metadata snapshot, prevents unbounded growth).
+- Completed: added `MemoryCache<ApiMe>` (10-minute TTL) and `MemoryCache<ApiUserLookup>` (10-minute TTL) to `RestProfileService`; `getMe` cache invalidated after `updateDisplayName` succeeds.
+- Completed: added `MemoryCache<List<ReactionSummary>>` (2-minute TTL) to `RestReactionService`; `listReactions` cache invalidated after `toggleReaction` succeeds for the same channelId+messageId.
+- Completed: added `MemoryCache<List<PinnedMessage>>` (default 5-minute TTL) to `RestPinnedMessageService`; `listPinnedMessages` cache invalidated after `pinMessage` or `unpinMessage` succeeds for the same serverId.
+- Validation: `dart analyze` clean, 206 `flutter test` passing.
+
 Acceptance criteria:
 - Service caches have a documented and tested default TTL, with optional overrides where required.
 
 #### Phase 14.5: Entity-specific cache invalidation strategies
 Status:
-- Planned.
+- Completed (delivered as part of Phase 14.4).
 
 Goals:
 - Prevent stale-data bugs by matching invalidation rules to entity behavior.
@@ -802,6 +812,18 @@ Goals:
 Scope:
 - Define and implement explicit invalidation policies per entity surface (messages, servers, channels, friends/DMs, notification preferences, identity), including event-driven invalidation hooks and time-based expiry behavior where applicable.
 - Document expected invalidation triggers for create/update/delete and membership/relationship changes.
+
+Progress:
+- Completed: invalidation policies implemented per entity surface:
+  - Emotes: TTL-only (30 min) — static preset catalog, no mutation-driven invalidation needed.
+  - Link previews: TTL-only (15 min) — external metadata snapshots, TTL prevents unbounded growth.
+  - Profile (getMe): TTL (10 min) + invalidation after `updateDisplayName` succeeds.
+  - Profile (getUserById): TTL-only (10 min) — other users' profiles change infrequently.
+  - Reactions (listReactions): TTL (2 min) + invalidation after `toggleReaction` succeeds for same message.
+  - Pinned messages (listPinnedMessages): TTL (5 min) + invalidation after `pinMessage`/`unpinMessage` succeeds for same server.
+- Completed: explicitly decided NOT to cache BLoC-managed data (servers, channels, messages, friends, blocks, DMs, notification counts/preferences) because those are already held in BLoC state and a service cache underneath would cause stale-state bugs when BLoC requests fresh data.
+- Completed: explicitly decided NOT to cache session tokens (voice/text) — one-time-use credentials that must never be cached.
+- Completed: explicitly decided NOT to cache search results — variable query strings have low cache-hit rates and high staleness risk.
 
 Acceptance criteria:
 - Cache invalidation behavior is deterministic per entity category and covered by automated tests for high-risk flows.

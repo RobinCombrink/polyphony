@@ -1,4 +1,5 @@
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/cache/memory_cache.dart";
 import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_request_service_base.dart";
 
@@ -6,11 +7,11 @@ class RestLinkPreviewService extends RestRequestServiceBase
     implements LinkPreviewService {
   RestLinkPreviewService({required super.dio});
 
-  final _cache = <String, LinkPreview>{};
+  final _cache = MemoryCache<LinkPreview>(ttl: const Duration(minutes: 15));
 
   @override
   Future<Result<LinkPreview>> fetchPreview({required String url}) async {
-    final cached = _cache[url];
+    final cached = _cache.get(url);
     if (cached != null) {
       return Ok<LinkPreview>(cached);
     }
@@ -30,7 +31,7 @@ class RestLinkPreviewService extends RestRequestServiceBase
     );
 
     if (result case Ok<LinkPreview>(:final value)) {
-      _cache[url] = value;
+      _cache.set(url, value);
     }
 
     return result;

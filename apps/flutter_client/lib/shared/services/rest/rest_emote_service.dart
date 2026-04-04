@@ -1,16 +1,18 @@
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/cache/memory_cache.dart";
 import "package:polyphony_flutter_client/shared/services/emote_service.dart";
 import "package:polyphony_flutter_client/shared/services/rest/rest_request_service_base.dart";
 
 class RestEmoteService extends RestRequestServiceBase implements EmoteService {
   RestEmoteService({required super.dio});
 
-  List<Emote>? _cachedEmotes;
+  final _cache = MemoryCache<List<Emote>>(ttl: const Duration(minutes: 30));
 
   @override
   Future<Result<List<Emote>>> listEmotes() async {
-    if (_cachedEmotes != null) {
-      return Ok<List<Emote>>(_cachedEmotes!);
+    final cached = _cache.get("emotes");
+    if (cached != null) {
+      return Ok<List<Emote>>(cached);
     }
 
     final result = await performListRequest<Emote>(
@@ -24,7 +26,7 @@ class RestEmoteService extends RestRequestServiceBase implements EmoteService {
     );
 
     if (result case Ok<List<Emote>>(:final value)) {
-      _cachedEmotes = value;
+      _cache.set("emotes", value);
     }
 
     return result;
