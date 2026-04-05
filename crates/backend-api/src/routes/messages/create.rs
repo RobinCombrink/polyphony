@@ -49,18 +49,20 @@ where
         .find_channel_by_id(channel_id)
         .await
     {
-        Some(channel) => channel,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(Some(channel)) => channel,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
     let server_name = match state
         .server_repository
         .list_servers_for_user(authenticated_user.user_id)
         .await
-        .into_iter()
-        .find(|candidate| candidate.id == channel.server_id())
     {
-        Some(server) => server.name,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(servers) => match servers.into_iter().find(|c| c.id == channel.server_id()) {
+            Some(server) => server.name,
+            None => return StatusCode::NOT_FOUND.into_response(),
+        },
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     let is_channel_member = match state
@@ -68,15 +70,16 @@ where
         .is_channel_member(channel_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     if !is_channel_member {
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    let created_message = state
+    let Ok(created_message) = state
         .message_repository
         .create_message(
             channel_id,
@@ -84,7 +87,10 @@ where
             request.content,
             request.mentioned_user_id,
         )
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match created_message {
         CreateMessageResult::Created {

@@ -50,15 +50,19 @@ where
         .find_user_by_external_reference(&authenticated_user.external_reference)
         .await;
 
-    let Some(user) = user else {
+    let Some(user) = user.ok().flatten() else {
         return StatusCode::UNAUTHORIZED.into_response();
     };
 
-    match state
+    let Ok(result) = state
         .message_repository
         .toggle_reaction(message_id, user.id, &request.emote_id)
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         ToggleReactionResult::Added => StatusCode::OK.into_response(),
         ToggleReactionResult::Removed => StatusCode::OK.into_response(),
         ToggleReactionResult::MessageNotFound => StatusCode::NOT_FOUND.into_response(),
@@ -96,14 +100,19 @@ where
         .find_user_by_external_reference(&authenticated_user.external_reference)
         .await;
 
-    let Some(user) = user else {
+    let Some(user) = user.ok().flatten() else {
         return StatusCode::UNAUTHORIZED.into_response();
     };
 
-    let summaries: Vec<ReactionSummaryResponse> = state
+    let Ok(summaries_raw) = state
         .message_repository
         .list_reaction_summaries(message_id, user.id)
         .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let summaries: Vec<ReactionSummaryResponse> = summaries_raw
         .into_iter()
         .map(ReactionSummaryResponse::from)
         .collect();
@@ -131,15 +140,18 @@ mod tests {
 
         let user = repo
             .get_or_create_user_by_external_reference(&"test-user".into())
-            .await;
-        let server = repo.create_server("test".into(), user.id).await;
+            .await
+            .unwrap();
+        let server = repo.create_server("test".into(), user.id).await.unwrap();
         let channel = repo
             .create_channel(server.id, "general".into(), ChannelType::Text)
             .await
+            .unwrap()
             .unwrap();
         let result = repo
             .create_message(channel.id(), user.id, "hello".into(), None)
-            .await;
+            .await
+            .unwrap();
         let message_id = match result {
             backend_storage::CreateMessageResult::Created { message, .. } => message.id(),
             _ => panic!("Expected Created"),
@@ -147,10 +159,11 @@ mod tests {
 
         let toggle = repo
             .toggle_reaction(message_id, user.id, &EmoteId::from("thumbsup"))
-            .await;
+            .await
+            .unwrap();
         assert!(matches!(toggle, ToggleReactionResult::Added));
 
-        let summaries = repo.list_reaction_summaries(message_id, user.id).await;
+        let summaries = repo.list_reaction_summaries(message_id, user.id).await.unwrap();
         assert_eq!(summaries.len(), 1);
         assert_eq!(summaries[0].emote_id.as_ref(), "thumbsup");
         assert_eq!(summaries[0].count, 1);
@@ -163,28 +176,33 @@ mod tests {
 
         let user = repo
             .get_or_create_user_by_external_reference(&"test-user".into())
-            .await;
-        let server = repo.create_server("test".into(), user.id).await;
+            .await
+            .unwrap();
+        let server = repo.create_server("test".into(), user.id).await.unwrap();
         let channel = repo
             .create_channel(server.id, "general".into(), ChannelType::Text)
             .await
+            .unwrap()
             .unwrap();
         let result = repo
             .create_message(channel.id(), user.id, "hello".into(), None)
-            .await;
+            .await
+            .unwrap();
         let message_id = match result {
             backend_storage::CreateMessageResult::Created { message, .. } => message.id(),
             _ => panic!("Expected Created"),
         };
 
         repo.toggle_reaction(message_id, user.id, &EmoteId::from("thumbsup"))
-            .await;
+            .await
+            .unwrap();
         let toggle = repo
             .toggle_reaction(message_id, user.id, &EmoteId::from("thumbsup"))
-            .await;
+            .await
+            .unwrap();
         assert!(matches!(toggle, ToggleReactionResult::Removed));
 
-        let summaries = repo.list_reaction_summaries(message_id, user.id).await;
+        let summaries = repo.list_reaction_summaries(message_id, user.id).await.unwrap();
         assert!(summaries.is_empty());
     }
 
@@ -196,7 +214,8 @@ mod tests {
 
         let toggle = repo
             .toggle_reaction(fake_message_id, fake_user_id, &EmoteId::from("thumbsup"))
-            .await;
+            .await
+            .unwrap();
         assert!(matches!(toggle, ToggleReactionResult::MessageNotFound));
     }
 
@@ -206,36 +225,42 @@ mod tests {
 
         let user1 = repo
             .get_or_create_user_by_external_reference(&"user-1".into())
-            .await;
+            .await
+            .unwrap();
         let user2 = repo
             .get_or_create_user_by_external_reference(&"user-2".into())
-            .await;
-        let server = repo.create_server("test".into(), user1.id).await;
-        repo.add_server_member(server.id, user1.id, user2.id).await;
+            .await
+            .unwrap();
+        let server = repo.create_server("test".into(), user1.id).await.unwrap();
+        repo.add_server_member(server.id, user1.id, user2.id).await.unwrap();
         let channel = repo
             .create_channel(server.id, "general".into(), ChannelType::Text)
             .await
+            .unwrap()
             .unwrap();
         let result = repo
             .create_message(channel.id(), user1.id, "hello".into(), None)
-            .await;
+            .await
+            .unwrap();
         let message_id = match result {
             backend_storage::CreateMessageResult::Created { message, .. } => message.id(),
             _ => panic!("Expected Created"),
         };
 
         repo.toggle_reaction(message_id, user1.id, &EmoteId::from("thumbsup"))
-            .await;
+            .await
+            .unwrap();
         repo.toggle_reaction(message_id, user2.id, &EmoteId::from("thumbsup"))
-            .await;
+            .await
+            .unwrap();
 
-        let summaries = repo.list_reaction_summaries(message_id, user1.id).await;
+        let summaries = repo.list_reaction_summaries(message_id, user1.id).await.unwrap();
         assert_eq!(summaries.len(), 1);
         assert_eq!(summaries[0].emote_id.as_ref(), "thumbsup");
         assert_eq!(summaries[0].count, 2);
         assert!(summaries[0].reacted_by_current_user);
 
-        let summaries_user2 = repo.list_reaction_summaries(message_id, user2.id).await;
+        let summaries_user2 = repo.list_reaction_summaries(message_id, user2.id).await.unwrap();
         assert!(summaries_user2[0].reacted_by_current_user);
     }
 }

@@ -41,10 +41,13 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let mutation_result = state
+    let Ok(mutation_result) = state
         .message_repository
         .delete_message(channel_id, message_id, authenticated_user.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match mutation_result {
         MutationResult::Deleted => StatusCode::NO_CONTENT.into_response(),

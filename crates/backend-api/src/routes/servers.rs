@@ -45,12 +45,15 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let created_server = state
+    let Ok(created_server) = state
         .server_repository
         .create_server(request.name, authenticated_user.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
-    (StatusCode::CREATED, Json(created_server))
+    (StatusCode::CREATED, Json(created_server)).into_response()
 }
 
 #[utoipa::path(
@@ -74,12 +77,15 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let servers = state
+    let Ok(servers) = state
         .server_repository
         .list_servers_for_user(authenticated_user.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
-    (StatusCode::OK, Json(servers))
+    (StatusCode::OK, Json(servers)).into_response()
 }
 
 #[utoipa::path(
@@ -108,7 +114,9 @@ where
 {
     let _ = authenticated_user;
 
-    let members = state.server_repository.list_server_members(server_id).await;
+    let Ok(members) = state.server_repository.list_server_members(server_id).await else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match members {
         Some(server_members) => (StatusCode::OK, Json(server_members)).into_response(),
@@ -143,10 +151,13 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let mutation_result = state
+    let Ok(mutation_result) = state
         .server_repository
         .add_server_member(server_id, authenticated_user.user_id, request.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match mutation_result {
         MutationResult::Updated => (
@@ -197,19 +208,25 @@ where
     MessageRepo: MessageRepository + FriendRepository,
     Verifier: TokenVerifier,
 {
-    let are_friends = state
+    let Ok(are_friends) = state
         .message_repository
         .are_friends(authenticated_user.user_id, friend_user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     if !are_friends {
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    let mutation_result = state
+    let Ok(mutation_result) = state
         .server_repository
         .add_server_member(server_id, authenticated_user.user_id, friend_user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match mutation_result {
         MutationResult::Updated => (
@@ -253,10 +270,13 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let mutation_result = state
+    let Ok(mutation_result) = state
         .server_repository
         .update_server_name(server_id, authenticated_user.user_id, request.name)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match mutation_result {
         MutationResult::Updated => StatusCode::NO_CONTENT.into_response(),
@@ -291,10 +311,13 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let mutation_result = state
+    let Ok(mutation_result) = state
         .server_repository
         .delete_server(server_id, authenticated_user.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match mutation_result {
         MutationResult::Deleted => StatusCode::NO_CONTENT.into_response(),
@@ -332,10 +355,13 @@ where
 {
     let _ = authenticated_user;
 
-    let created_channel = state
+    let Ok(created_channel) = state
         .channel_repository
         .create_channel(server_id, request.name, request.channel_type)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match created_channel {
         Some(channel) => (StatusCode::CREATED, Json(channel)).into_response(),
@@ -370,10 +396,13 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let mutation_result = state
+    let Ok(mutation_result) = state
         .channel_repository
         .update_channel_name(channel_id, authenticated_user.user_id, request.name)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match mutation_result {
         MutationResult::Updated => StatusCode::NO_CONTENT.into_response(),
@@ -408,10 +437,13 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let mutation_result = state
+    let Ok(mutation_result) = state
         .channel_repository
         .delete_channel(channel_id, authenticated_user.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match mutation_result {
         MutationResult::Deleted => StatusCode::NO_CONTENT.into_response(),
@@ -451,18 +483,22 @@ where
         .is_server_member(server_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     if !is_server_member {
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    let channels = state
+    let Ok(channels) = state
         .channel_repository
         .list_channels_for_server(server_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match channels {
         Some(mut server_channels) => {

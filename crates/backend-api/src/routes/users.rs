@@ -39,7 +39,11 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let Some(user) = state.user_repository.find_user_by_id(user_id).await else {
+    let Ok(user) = state.user_repository.find_user_by_id(user_id).await else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let Some(user) = user else {
         return StatusCode::NOT_FOUND.into_response();
     };
 

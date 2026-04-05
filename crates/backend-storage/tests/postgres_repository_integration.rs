@@ -40,26 +40,31 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
         .get_or_create_user_by_external_reference(&ExternalReference::from(
             "auth0|integration-user",
         ))
-        .await;
+        .await
+        .unwrap();
 
     let member_user = repository
         .get_or_create_user_by_external_reference(&ExternalReference::from(
             "auth0|integration-member",
         ))
-        .await;
+        .await
+        .unwrap();
 
     let server = repository
         .create_server("Integration Server".to_owned(), user.id)
-        .await;
+        .await
+        .unwrap();
 
     let membership_result = repository
         .add_server_member(server.id, user.id, member_user.id)
-        .await;
+        .await
+        .unwrap();
     assert_eq!(membership_result, backend_storage::MutationResult::Updated);
 
     let channel = repository
         .create_channel(server.id, "general".to_owned(), ChannelType::Text)
         .await
+        .unwrap()
         .expect("channel to be created");
 
     let message = repository
@@ -69,7 +74,8 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
             "hello from integration".to_owned(),
             Some(member_user.id),
         )
-        .await;
+        .await
+        .unwrap();
 
     let message = match message {
         CreateMessageResult::Created {
@@ -83,7 +89,7 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
         CreateMessageResult::NotFound => panic!("message creation should find text channel"),
     };
 
-    let listed_messages = repository.list_messages(channel.id()).await;
+    let listed_messages = repository.list_messages(channel.id()).await.unwrap();
 
     assert_eq!(listed_messages.len(), 1);
     assert_eq!(listed_messages[0].id(), message.id());
@@ -101,6 +107,7 @@ async fn migrations_apply_and_uuid_user_identity_flow_works() {
     let _voice_channel = repository
         .create_channel(server.id, "voice".to_owned(), ChannelType::Voice)
         .await
+        .unwrap()
         .expect("voice channel to be created");
 
     assert_date_created_columns(&pool).await;

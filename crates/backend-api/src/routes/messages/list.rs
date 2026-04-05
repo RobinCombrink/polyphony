@@ -43,15 +43,18 @@ where
         .is_channel_member(channel_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     if !is_channel_member {
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    let messages = state.message_repository.list_messages(channel_id).await;
+    let Ok(messages) = state.message_repository.list_messages(channel_id).await else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     (StatusCode::OK, Json(messages)).into_response()
 }

@@ -194,7 +194,8 @@ where
             let verified_user = auth_state.token_verifier.verify(&bearer_token).await?;
             let user = user_repository
                 .get_or_create_user_by_external_reference(&verified_user.external_reference)
-                .await;
+                .await
+                .map_err(|e| AuthError::InvalidToken(e.to_string()))?;
 
             Ok(AuthenticatedUser {
                 user_id: user.id,

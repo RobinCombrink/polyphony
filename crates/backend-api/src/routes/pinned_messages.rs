@@ -50,15 +50,19 @@ where
         .find_user_by_external_reference(&authenticated_user.external_reference)
         .await;
 
-    let Some(user) = user else {
+    let Some(user) = user.ok().flatten() else {
         return StatusCode::UNAUTHORIZED.into_response();
     };
 
-    match state
+    let Ok(result) = state
         .message_repository
         .pin_message(server_id, request.message_id, user.id)
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         PinMessageResult::Pinned => StatusCode::OK.into_response(),
         PinMessageResult::AlreadyPinned => StatusCode::CONFLICT.into_response(),
         PinMessageResult::MessageNotFound => StatusCode::NOT_FOUND.into_response(),
@@ -97,15 +101,19 @@ where
         .find_user_by_external_reference(&authenticated_user.external_reference)
         .await;
 
-    let Some(_user) = user else {
+    let Some(_user) = user.ok().flatten() else {
         return StatusCode::UNAUTHORIZED.into_response();
     };
 
-    match state
+    let Ok(result) = state
         .message_repository
         .unpin_message(server_id, message_id)
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         backend_storage::UnpinMessageResult::Unpinned => StatusCode::OK.into_response(),
         backend_storage::UnpinMessageResult::NotPinned => StatusCode::NOT_FOUND.into_response(),
     }
@@ -141,14 +149,19 @@ where
         .find_user_by_external_reference(&authenticated_user.external_reference)
         .await;
 
-    let Some(_user) = user else {
+    let Some(_user) = user.ok().flatten() else {
         return StatusCode::UNAUTHORIZED.into_response();
     };
 
-    let pinned: Vec<PinnedMessageResponse> = state
+    let Ok(pinned_raw) = state
         .message_repository
         .list_pinned_messages(server_id)
         .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let pinned: Vec<PinnedMessageResponse> = pinned_raw
         .into_iter()
         .map(PinnedMessageResponse::from)
         .collect();
@@ -175,24 +188,27 @@ mod tests {
         let repo = create_repo();
         let user = repo
             .get_or_create_user_by_external_reference(&"test-user".into())
-            .await;
-        let server = repo.create_server("test".into(), user.id).await;
+            .await
+            .unwrap();
+        let server = repo.create_server("test".into(), user.id).await.unwrap();
         let channel = repo
             .create_channel(server.id, "general".into(), ChannelType::Text)
             .await
+            .unwrap()
             .unwrap();
         let message_id = match repo
             .create_message(channel.id(), user.id, "important".into(), None)
             .await
+            .unwrap()
         {
             backend_storage::CreateMessageResult::Created { message, .. } => message.id(),
             _ => panic!("Expected Created"),
         };
 
-        let result = repo.pin_message(server.id, message_id, user.id).await;
+        let result = repo.pin_message(server.id, message_id, user.id).await.unwrap();
         assert!(matches!(result, PinMessageResult::Pinned));
 
-        let pins = repo.list_pinned_messages(server.id).await;
+        let pins = repo.list_pinned_messages(server.id).await.unwrap();
         assert_eq!(pins.len(), 1);
         assert_eq!(pins[0].message_id, message_id);
         assert_eq!(pins[0].content, "important");
@@ -204,22 +220,25 @@ mod tests {
         let repo = create_repo();
         let user = repo
             .get_or_create_user_by_external_reference(&"test-user".into())
-            .await;
-        let server = repo.create_server("test".into(), user.id).await;
+            .await
+            .unwrap();
+        let server = repo.create_server("test".into(), user.id).await.unwrap();
         let channel = repo
             .create_channel(server.id, "general".into(), ChannelType::Text)
             .await
+            .unwrap()
             .unwrap();
         let message_id = match repo
             .create_message(channel.id(), user.id, "important".into(), None)
             .await
+            .unwrap()
         {
             backend_storage::CreateMessageResult::Created { message, .. } => message.id(),
             _ => panic!("Expected Created"),
         };
 
-        repo.pin_message(server.id, message_id, user.id).await;
-        let result = repo.pin_message(server.id, message_id, user.id).await;
+        repo.pin_message(server.id, message_id, user.id).await.unwrap();
+        let result = repo.pin_message(server.id, message_id, user.id).await.unwrap();
         assert!(matches!(result, PinMessageResult::AlreadyPinned));
     }
 
@@ -228,11 +247,12 @@ mod tests {
         let repo = create_repo();
         let user = repo
             .get_or_create_user_by_external_reference(&"test-user".into())
-            .await;
-        let server = repo.create_server("test".into(), user.id).await;
+            .await
+            .unwrap();
+        let server = repo.create_server("test".into(), user.id).await.unwrap();
         let fake_message_id = backend_domain::MessageId::from(uuid::Uuid::new_v4());
 
-        let result = repo.pin_message(server.id, fake_message_id, user.id).await;
+        let result = repo.pin_message(server.id, fake_message_id, user.id).await.unwrap();
         assert!(matches!(result, PinMessageResult::MessageNotFound));
     }
 
@@ -241,28 +261,31 @@ mod tests {
         let repo = create_repo();
         let user = repo
             .get_or_create_user_by_external_reference(&"test-user".into())
-            .await;
-        let server = repo.create_server("test".into(), user.id).await;
+            .await
+            .unwrap();
+        let server = repo.create_server("test".into(), user.id).await.unwrap();
         let channel = repo
             .create_channel(server.id, "general".into(), ChannelType::Text)
             .await
+            .unwrap()
             .unwrap();
         let message_id = match repo
             .create_message(channel.id(), user.id, "important".into(), None)
             .await
+            .unwrap()
         {
             backend_storage::CreateMessageResult::Created { message, .. } => message.id(),
             _ => panic!("Expected Created"),
         };
 
-        repo.pin_message(server.id, message_id, user.id).await;
-        let result = repo.unpin_message(server.id, message_id).await;
+        repo.pin_message(server.id, message_id, user.id).await.unwrap();
+        let result = repo.unpin_message(server.id, message_id).await.unwrap();
         assert!(matches!(
             result,
             backend_storage::UnpinMessageResult::Unpinned
         ));
 
-        let pins = repo.list_pinned_messages(server.id).await;
+        let pins = repo.list_pinned_messages(server.id).await.unwrap();
         assert!(pins.is_empty());
     }
 
@@ -271,11 +294,12 @@ mod tests {
         let repo = create_repo();
         let user = repo
             .get_or_create_user_by_external_reference(&"test-user".into())
-            .await;
-        let server = repo.create_server("test".into(), user.id).await;
+            .await
+            .unwrap();
+        let server = repo.create_server("test".into(), user.id).await.unwrap();
         let fake_message_id = backend_domain::MessageId::from(uuid::Uuid::new_v4());
 
-        let result = repo.unpin_message(server.id, fake_message_id).await;
+        let result = repo.unpin_message(server.id, fake_message_id).await.unwrap();
         assert!(matches!(
             result,
             backend_storage::UnpinMessageResult::NotPinned
@@ -287,23 +311,26 @@ mod tests {
         let repo = create_repo();
         let user = repo
             .get_or_create_user_by_external_reference(&"test-user".into())
-            .await;
-        let server = repo.create_server("test".into(), user.id).await;
+            .await
+            .unwrap();
+        let server = repo.create_server("test".into(), user.id).await.unwrap();
         let channel = repo
             .create_channel(server.id, "general".into(), ChannelType::Text)
             .await
+            .unwrap()
             .unwrap();
         let message_id = match repo
             .create_message(channel.id(), user.id, "pinned content".into(), None)
             .await
+            .unwrap()
         {
             backend_storage::CreateMessageResult::Created { message, .. } => message.id(),
             _ => panic!("Expected Created"),
         };
 
-        repo.pin_message(server.id, message_id, user.id).await;
+        repo.pin_message(server.id, message_id, user.id).await.unwrap();
 
-        let pins = repo.list_pinned_messages(server.id).await;
+        let pins = repo.list_pinned_messages(server.id).await.unwrap();
         assert_eq!(pins.len(), 1);
         assert_eq!(pins[0].channel_id, channel.id());
         assert_eq!(pins[0].author_user_id, user.id);

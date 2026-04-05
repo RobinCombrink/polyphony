@@ -1146,12 +1146,13 @@ pub(crate) async fn unread_count_for_channel(
     channel_id: ChannelId,
 ) -> u64 {
     match repository.as_ref() {
-        TestStore::InMemory(store) => store.unread_count_for_channel(user_id, channel_id).await,
+        TestStore::InMemory(store) => store.unread_count_for_channel(user_id, channel_id).await.unwrap(),
         TestStore::Postgres(store) => {
             store
                 .repository
                 .unread_count_for_channel(user_id, channel_id)
                 .await
+                .unwrap()
         }
     }
 }
@@ -1166,13 +1167,15 @@ pub(crate) async fn set_server_mute_state_for_user(
         TestStore::InMemory(store) => {
             store
                 .set_server_mute_state_for_user(user_id, server_id, mute_state)
-                .await;
+                .await
+                .unwrap();
         }
         TestStore::Postgres(store) => {
             store
                 .repository
                 .set_server_mute_state_for_user(user_id, server_id, mute_state)
-                .await;
+                .await
+                .unwrap();
         }
     }
 }
@@ -1186,13 +1189,15 @@ pub(crate) async fn set_global_mute_state_for_user(
         TestStore::InMemory(store) => {
             store
                 .set_global_mute_state_for_user(user_id, mute_state)
-                .await;
+                .await
+                .unwrap();
         }
         TestStore::Postgres(store) => {
             store
                 .repository
                 .set_global_mute_state_for_user(user_id, mute_state)
-                .await;
+                .await
+                .unwrap();
         }
     }
 }
@@ -1207,13 +1212,15 @@ pub(crate) async fn set_channel_temporary_mute_for_user(
         TestStore::InMemory(store) => {
             store
                 .set_channel_temporary_mute_for_user(user_id, channel_id, duration_minutes)
-                .await;
+                .await
+                .unwrap();
         }
         TestStore::Postgres(store) => {
             store
                 .repository
                 .set_channel_temporary_mute_for_user(user_id, channel_id, duration_minutes)
-                .await;
+                .await
+                .unwrap();
         }
     }
 }
@@ -1227,13 +1234,15 @@ pub(crate) async fn clear_channel_temporary_mute_for_user(
         TestStore::InMemory(store) => {
             store
                 .clear_channel_temporary_mute_for_user(user_id, channel_id)
-                .await;
+                .await
+                .unwrap();
         }
         TestStore::Postgres(store) => {
             store
                 .repository
                 .clear_channel_temporary_mute_for_user(user_id, channel_id)
-                .await;
+                .await
+                .unwrap();
         }
     }
 }
@@ -1248,12 +1257,14 @@ pub(crate) async fn outbox_count_for_message_recipient(
             store
                 .outbox_count_for_message_recipient(message_id, recipient_user_id)
                 .await
+                .unwrap()
         }
         TestStore::Postgres(store) => {
             store
                 .repository
                 .outbox_count_for_message_recipient(message_id, recipient_user_id)
                 .await
+                .unwrap()
         }
     }
 }
@@ -1267,12 +1278,14 @@ pub(crate) async fn outbox_total_count_for_recipient(
             store
                 .outbox_total_count_for_recipient(recipient_user_id)
                 .await
+                .unwrap()
         }
         TestStore::Postgres(store) => {
             store
                 .repository
                 .outbox_total_count_for_recipient(recipient_user_id)
                 .await
+                .unwrap()
         }
     }
 }
@@ -1288,12 +1301,14 @@ pub(crate) async fn outbox_count_for_friend_notification(
             store
                 .outbox_count_for_friend_notification(recipient_user_id, actor_user_id, event_type)
                 .await
+                .unwrap()
         }
         TestStore::Postgres(store) => {
             store
                 .repository
                 .outbox_count_for_friend_notification(recipient_user_id, actor_user_id, event_type)
                 .await
+                .unwrap()
         }
     }
 }

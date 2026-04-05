@@ -37,7 +37,11 @@ where
     let response = MeResponse {
         user_id: authenticated_user.user_id,
         external_reference: authenticated_user.external_reference,
-        display_name: user.and_then(|value| value.display_name).map(String::from),
+        display_name: user
+            .ok()
+            .flatten()
+            .and_then(|value| value.display_name)
+            .map(String::from),
         issuer: state.auth_state.config.issuer.to_string(),
     };
 
@@ -73,10 +77,13 @@ where
         Err(_) => return StatusCode::BAD_REQUEST.into_response(),
     };
 
-    let updated_user = state
+    let Ok(updated_user) = state
         .user_repository
         .set_user_display_name(authenticated_user.user_id, display_name)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     let Some(updated_user) = updated_user else {
         return StatusCode::NOT_FOUND.into_response();

@@ -52,8 +52,9 @@ where
         .is_channel_member(channel_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     if !is_channel_member {
@@ -61,10 +62,13 @@ where
     }
 
     let query_text = query.q.unwrap_or_default();
-    let messages = state
+    let Ok(messages) = state
         .message_repository
         .search_messages(channel_id, &query_text)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     (StatusCode::OK, Json(messages)).into_response()
 }
@@ -88,11 +92,13 @@ mod tests {
     ) -> (backend_domain::UserId, backend_domain::ChannelId) {
         let user = repo
             .get_or_create_user_by_external_reference(&"test-user".into())
-            .await;
-        let server = repo.create_server("test".into(), user.id).await;
+            .await
+            .unwrap();
+        let server = repo.create_server("test".into(), user.id).await.unwrap();
         let channel = repo
             .create_channel(server.id, "general".into(), ChannelType::Text)
             .await
+            .unwrap()
             .unwrap();
         (user.id, channel.id())
     }
@@ -105,7 +111,8 @@ mod tests {
     ) {
         let result = repo
             .create_message(channel_id, user_id, content.into(), None)
-            .await;
+            .await
+            .unwrap();
         assert!(matches!(result, CreateMessageResult::Created { .. }));
     }
 
@@ -117,7 +124,7 @@ mod tests {
         post(&repo, channel_id, user_id, "foo bar").await;
         post(&repo, channel_id, user_id, "hello again").await;
 
-        let results = repo.search_messages(channel_id, "hello").await;
+        let results = repo.search_messages(channel_id, "hello").await.unwrap();
         assert_eq!(results.len(), 2);
     }
 
@@ -127,7 +134,7 @@ mod tests {
         let (user_id, channel_id) = seed_channel(&repo).await;
         post(&repo, channel_id, user_id, "Hello World").await;
 
-        let results = repo.search_messages(channel_id, "hello").await;
+        let results = repo.search_messages(channel_id, "hello").await.unwrap();
         assert_eq!(results.len(), 1);
     }
 
@@ -137,7 +144,7 @@ mod tests {
         let (user_id, channel_id) = seed_channel(&repo).await;
         post(&repo, channel_id, user_id, "hello world").await;
 
-        let results = repo.search_messages(channel_id, "xyz").await;
+        let results = repo.search_messages(channel_id, "xyz").await.unwrap();
         assert!(results.is_empty());
     }
 
@@ -148,7 +155,7 @@ mod tests {
         post(&repo, channel_id, user_id, "first").await;
         post(&repo, channel_id, user_id, "second").await;
 
-        let results = repo.search_messages(channel_id, "").await;
+        let results = repo.search_messages(channel_id, "").await.unwrap();
         assert_eq!(results.len(), 2);
     }
 }

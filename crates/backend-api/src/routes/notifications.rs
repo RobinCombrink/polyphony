@@ -54,18 +54,27 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let mute_state = state
+    let Ok(mute_state) = state
         .message_repository
         .global_mute_state_for_user(authenticated_user.user_id)
-        .await;
-    let notification_category = state
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let Ok(notification_category) = state
         .message_repository
         .global_notification_category_for_user(authenticated_user.user_id)
-        .await;
-    let channel_default_category = state
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let Ok(channel_default_category) = state
         .message_repository
         .global_channel_default_notification_category_for_user(authenticated_user.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     (
         StatusCode::OK,
@@ -75,6 +84,7 @@ where
             channel_default_category,
         }),
     )
+        .into_response()
 }
 
 #[utoipa::path(
@@ -113,28 +123,38 @@ where
         .is_server_member(server_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     if !is_server_member {
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    let global_category = state
+    let Ok(global_category) = state
         .message_repository
         .global_notification_category_for_user(authenticated_user.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
-    let notification_category = state
+    let Ok(server_category) = state
         .message_repository
         .server_notification_category_for_user(authenticated_user.user_id, server_id)
         .await
-        .unwrap_or(global_category);
-    let mute_state = state
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let notification_category = server_category.unwrap_or(global_category);
+    let Ok(mute_state) = state
         .message_repository
         .server_mute_state_for_user(authenticated_user.user_id, server_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     (
         StatusCode::OK,
@@ -182,27 +202,37 @@ where
         .is_channel_member(channel_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     if !is_channel_member {
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    let muted_until_epoch_seconds = state
+    let Ok(muted_until_epoch_seconds) = state
         .message_repository
         .channel_temporary_mute_expires_at_epoch_seconds(authenticated_user.user_id, channel_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
-    let channel_category = state
+    let Ok(channel_category) = state
         .message_repository
         .channel_notification_category_for_user(authenticated_user.user_id, channel_id)
-        .await;
-    let global_channel_default = state
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let Ok(global_channel_default) = state
         .message_repository
         .global_channel_default_notification_category_for_user(authenticated_user.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
     let notification_category = channel_category.unwrap_or(global_channel_default);
     let mute_state = if muted_until_epoch_seconds.is_some() {
         NotificationMuteState::Muted
@@ -252,7 +282,7 @@ where
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
     if let Some(notification_category) = request.notification_category {
-        state
+        let _ = state
             .message_repository
             .set_global_notification_category_for_user(
                 authenticated_user.user_id,
@@ -262,14 +292,14 @@ where
     }
 
     if let Some(mute_state) = request.mute_state {
-        state
+        let _ = state
             .message_repository
             .set_global_mute_state_for_user(authenticated_user.user_id, mute_state)
             .await;
     }
 
     if let Some(channel_default_category) = request.channel_default_category {
-        state
+        let _ = state
             .message_repository
             .set_global_channel_default_notification_category_for_user(
                 authenticated_user.user_id,
@@ -319,8 +349,9 @@ where
         .is_server_member(server_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND,
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
     };
 
     if !is_server_member {
@@ -328,7 +359,7 @@ where
     }
 
     if let Some(notification_category) = request.notification_category {
-        state
+        let _ = state
             .message_repository
             .set_server_notification_category_for_user(
                 authenticated_user.user_id,
@@ -339,7 +370,7 @@ where
     }
 
     if let Some(mute_state) = request.mute_state {
-        state
+        let _ = state
             .message_repository
             .set_server_mute_state_for_user(authenticated_user.user_id, server_id, mute_state)
             .await;
@@ -387,8 +418,9 @@ where
         .is_channel_member(channel_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     if !is_channel_member {
@@ -406,7 +438,7 @@ where
             .into_response();
     }
 
-    state
+    let _ = state
         .message_repository
         .set_channel_temporary_mute_for_user(
             authenticated_user.user_id,
@@ -456,15 +488,16 @@ where
         .is_channel_member(channel_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND,
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
     };
 
     if !is_channel_member {
         return StatusCode::FORBIDDEN;
     }
 
-    state
+    let _ = state
         .message_repository
         .set_channel_notification_category_for_user(
             authenticated_user.user_id,
@@ -512,15 +545,16 @@ where
         .is_channel_member(channel_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND,
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
     };
 
     if !is_channel_member {
         return StatusCode::FORBIDDEN;
     }
 
-    state
+    let _ = state
         .message_repository
         .clear_channel_temporary_mute_for_user(authenticated_user.user_id, channel_id)
         .await;
@@ -555,15 +589,19 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let total_unread_count = state
+    let Ok(total_unread_count) = state
         .message_repository
         .total_unread_count_for_user(authenticated_user.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     (
         StatusCode::OK,
         Json(NotificationUnreadCountResponse { total_unread_count }),
     )
+        .into_response()
 }
 
 #[utoipa::path(
@@ -602,15 +640,16 @@ where
         .is_channel_member(channel_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND,
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
     };
 
     if !is_channel_member {
         return StatusCode::FORBIDDEN;
     }
 
-    state
+    let _ = state
         .message_repository
         .clear_unread_count_for_channel(authenticated_user.user_id, channel_id)
         .await;
@@ -656,8 +695,9 @@ where
         .is_channel_member(channel_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND,
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
     };
 
     if !is_channel_member {
@@ -669,8 +709,9 @@ where
         .mark_unread_from_message(authenticated_user.user_id, channel_id, body.message_id)
         .await
     {
-        MarkUnreadFromMessageResult::Updated => StatusCode::NO_CONTENT,
-        MarkUnreadFromMessageResult::MessageNotFound => StatusCode::NOT_FOUND,
+        Ok(MarkUnreadFromMessageResult::Updated) => StatusCode::NO_CONTENT,
+        Ok(MarkUnreadFromMessageResult::MessageNotFound) => StatusCode::NOT_FOUND,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 
@@ -748,7 +789,8 @@ where
     let user = state
         .user_repository
         .get_or_create_user_by_external_reference(&verified_user.external_reference)
-        .await;
+        .await
+        .map_err(|e| AuthError::InvalidToken(e.to_string()))?;
 
     Ok(AuthenticatedUser {
         user_id: user.id,

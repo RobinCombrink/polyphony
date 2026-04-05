@@ -45,7 +45,7 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let mutation_result = state
+    let Ok(mutation_result) = state
         .message_repository
         .update_message(
             channel_id,
@@ -53,14 +53,22 @@ where
             authenticated_user.user_id,
             request.content,
         )
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     match mutation_result {
         MutationResult::Updated => {
-            let updated_message = state
+            let Ok(messages) = state
                 .message_repository
                 .list_messages(channel_id)
                 .await
+            else {
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            };
+
+            let updated_message = messages
                 .into_iter()
                 .find(|message| message.id() == message_id);
 

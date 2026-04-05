@@ -49,8 +49,9 @@ where
         .is_channel_member(channel_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     if !is_channel_member {
@@ -62,8 +63,9 @@ where
         .find_channel_by_id(channel_id)
         .await
     {
-        Some(value) => value,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(Some(value)) => value,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     let channel_type = channel.kind();
@@ -95,11 +97,12 @@ where
         .server_repository
         .list_servers_for_user(participant_user_id)
         .await
-        .into_iter()
-        .find(|candidate| candidate.id == channel.server_id())
     {
-        Some(server) => server.name,
-        None => return StatusCode::NOT_FOUND.into_response(),
+        Ok(servers) => match servers.into_iter().find(|c| c.id == channel.server_id()) {
+            Some(server) => server.name,
+            None => return StatusCode::NOT_FOUND.into_response(),
+        },
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     let joined_user_display_name = match state
@@ -107,11 +110,11 @@ where
         .find_user_by_id(participant_user_id)
         .await
     {
-        Some(user) => user
+        Ok(Some(user)) => user
             .display_name
             .map(String::from)
             .unwrap_or_else(|| participant_user_id.to_string()),
-        None => participant_user_id.to_string(),
+        _ => participant_user_id.to_string(),
     };
     let participant_identity = match participant_instance_id {
         Some(instance_id) => format!("{}:{instance_id}", participant_user_id),
@@ -142,7 +145,7 @@ where
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
-    if let Some(memberships) = state
+    if let Ok(Some(memberships)) = state
         .server_repository
         .list_server_members(channel.server_id())
         .await

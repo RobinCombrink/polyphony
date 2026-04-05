@@ -124,10 +124,13 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let friendships = state
+    let Ok(friendships) = state
         .message_repository
         .list_friendships_for_user(authenticated_user.user_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     let friends = friendships
         .into_iter()
@@ -178,10 +181,15 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let requests = state
+    let Ok(pending) = state
         .message_repository
         .list_pending_incoming_friend_requests(authenticated_user.user_id)
         .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let requests = pending
         .into_iter()
         .map(FriendRequestResponse::from)
         .collect::<Vec<_>>();
@@ -223,10 +231,15 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let requests = state
+    let Ok(pending) = state
         .message_repository
         .list_pending_outgoing_friend_requests(authenticated_user.user_id)
         .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let requests = pending
         .into_iter()
         .map(FriendRequestResponse::from)
         .collect::<Vec<_>>();
@@ -267,11 +280,15 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    match state
+    let Ok(result) = state
         .message_repository
         .send_friend_request(authenticated_user.user_id, user_id)
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         SendFriendRequestResult::Created(friend_request) => {
             state.notification_hub.publish(NotificationEnvelope {
                 recipient_user_id: friend_request.addressee_user_id,
@@ -375,8 +392,8 @@ where
         .is_server_member(server_id, authenticated_user.user_id)
         .await
     {
-        Some(value) => value,
-        None => {
+        Ok(Some(value)) => value,
+        Ok(None) | Err(_) => {
             return (
                 StatusCode::NOT_FOUND,
                 Json(ApiErrorResponse::new("NOT_FOUND", "server was not found")),
@@ -390,8 +407,8 @@ where
         .is_server_member(server_id, user_id)
         .await
     {
-        Some(value) => value,
-        None => {
+        Ok(Some(value)) => value,
+        Ok(None) | Err(_) => {
             return (
                 StatusCode::NOT_FOUND,
                 Json(ApiErrorResponse::new("NOT_FOUND", "server was not found")),
@@ -411,11 +428,15 @@ where
             .into_response();
     }
 
-    match state
+    let Ok(result) = state
         .message_repository
         .send_friend_request(authenticated_user.user_id, user_id)
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         SendFriendRequestResult::Created(friend_request) => {
             state.notification_hub.publish(NotificationEnvelope {
                 recipient_user_id: friend_request.addressee_user_id,
@@ -511,7 +532,7 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    match state
+    let Ok(result) = state
         .message_repository
         .set_friend_request_state(
             authenticated_user.user_id,
@@ -519,7 +540,11 @@ where
             backend_domain::FriendRequestState::Accepted,
         )
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         UpdateFriendRequestResult::Updated(friend_request) => {
             state.notification_hub.publish(NotificationEnvelope {
                 recipient_user_id: friend_request.requester_user_id,
@@ -599,7 +624,7 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    match state
+    let Ok(result) = state
         .message_repository
         .set_friend_request_state(
             authenticated_user.user_id,
@@ -607,7 +632,11 @@ where
             backend_domain::FriendRequestState::Declined,
         )
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         UpdateFriendRequestResult::Updated(friend_request) => (
             StatusCode::OK,
             Json(FriendRequestResponse::from(friend_request)),
@@ -676,7 +705,7 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    match state
+    let Ok(result) = state
         .message_repository
         .set_friend_request_state(
             authenticated_user.user_id,
@@ -684,7 +713,11 @@ where
             backend_domain::FriendRequestState::Cancelled,
         )
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         UpdateFriendRequestResult::Updated(friend_request) => (
             StatusCode::OK,
             Json(FriendRequestResponse::from(friend_request)),
@@ -742,10 +775,15 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let blocked_users = state
+    let Ok(blocked) = state
         .message_repository
         .list_blocked_users(authenticated_user.user_id)
         .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let blocked_users = blocked
         .into_iter()
         .map(|relationship| BlockRelationshipResponse {
             blocked_user_id: relationship.blocked_user_id,
@@ -788,11 +826,15 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    match state
+    let Ok(result) = state
         .message_repository
         .block_user(authenticated_user.user_id, user_id)
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         BlockUserResult::Created(_) => StatusCode::CREATED.into_response(),
         BlockUserResult::AlreadyBlocked => StatusCode::OK.into_response(),
         BlockUserResult::Forbidden => (
@@ -843,11 +885,15 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    match state
+    let Ok(result) = state
         .message_repository
         .unblock_user(authenticated_user.user_id, user_id)
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         backend_storage::MutationResult::Deleted | backend_storage::MutationResult::Updated => {
             StatusCode::NO_CONTENT.into_response()
         }
@@ -901,10 +947,15 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let threads = state
+    let Ok(raw_threads) = state
         .message_repository
         .list_direct_message_threads_for_user(authenticated_user.user_id)
         .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let threads = raw_threads
         .into_iter()
         .map(DirectMessageThreadResponse::from)
         .collect::<Vec<_>>();
@@ -950,11 +1001,15 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    match state
+    let Ok(result) = state
         .message_repository
         .open_or_get_direct_message_thread(authenticated_user.user_id, user_id)
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         OpenOrGetDirectMessageThreadResult::Opened(direct_message_thread) => (
             StatusCode::OK,
             Json(DirectMessageThreadResponse::from(direct_message_thread)),
@@ -1015,10 +1070,13 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let messages = state
+    let Ok(messages) = state
         .message_repository
         .list_direct_messages(authenticated_user.user_id, thread_id)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     let Some(messages) = messages else {
         return (
@@ -1074,11 +1132,15 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    match state
+    let Ok(result) = state
         .message_repository
         .send_direct_message(authenticated_user.user_id, thread_id, payload.content)
         .await
-    {
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    match result {
         SendDirectMessageResult::Created(direct_message) => (
             StatusCode::CREATED,
             Json(DirectMessageResponse::from(direct_message)),
@@ -1150,10 +1212,13 @@ where
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
     let query_text = query.q.unwrap_or_default();
-    let messages = state
+    let Ok(messages) = state
         .message_repository
         .search_direct_messages_for_person(authenticated_user.user_id, user_id, &query_text)
-        .await;
+        .await
+    else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
 
     let Some(messages) = messages else {
         return (

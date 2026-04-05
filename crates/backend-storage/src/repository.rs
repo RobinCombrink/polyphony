@@ -8,6 +8,7 @@ use backend_domain::{
 };
 
 use crate::MutationResult;
+use crate::StorageError;
 
 pub enum CreateMessageResult {
     Created {
@@ -63,102 +64,102 @@ pub enum MarkUnreadFromMessageResult {
 
 #[async_trait]
 pub trait NotificationRepository: Send + Sync {
-    async fn unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> u64;
-    async fn total_unread_count_for_user(&self, user_id: UserId) -> u64;
-    async fn clear_unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId);
+    async fn unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> Result<u64, StorageError>;
+    async fn total_unread_count_for_user(&self, user_id: UserId) -> Result<u64, StorageError>;
+    async fn clear_unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> Result<(), StorageError>;
     async fn mark_unread_from_message(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
         message_id: MessageId,
-    ) -> MarkUnreadFromMessageResult;
+    ) -> Result<MarkUnreadFromMessageResult, StorageError>;
     async fn global_notification_category_for_user(
         &self,
         user_id: UserId,
-    ) -> NotificationCategoryPreference;
+    ) -> Result<NotificationCategoryPreference, StorageError>;
     async fn global_channel_default_notification_category_for_user(
         &self,
         user_id: UserId,
-    ) -> NotificationCategoryPreference;
+    ) -> Result<NotificationCategoryPreference, StorageError>;
     async fn server_notification_category_for_user(
         &self,
         user_id: UserId,
         server_id: ServerId,
-    ) -> Option<NotificationCategoryPreference>;
+    ) -> Result<Option<NotificationCategoryPreference>, StorageError>;
     async fn channel_notification_category_for_user(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
-    ) -> Option<NotificationCategoryPreference>;
+    ) -> Result<Option<NotificationCategoryPreference>, StorageError>;
     async fn set_global_notification_category_for_user(
         &self,
         user_id: UserId,
         category: NotificationCategoryPreference,
-    );
+    ) -> Result<(), StorageError>;
     async fn set_global_channel_default_notification_category_for_user(
         &self,
         user_id: UserId,
         category: NotificationCategoryPreference,
-    );
+    ) -> Result<(), StorageError>;
     async fn set_server_notification_category_for_user(
         &self,
         user_id: UserId,
         server_id: ServerId,
         category: NotificationCategoryPreference,
-    );
+    ) -> Result<(), StorageError>;
     async fn set_channel_notification_category_for_user(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
         category: NotificationCategoryPreference,
-    );
+    ) -> Result<(), StorageError>;
     async fn clear_channel_notification_category_for_user(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
-    );
+    ) -> Result<(), StorageError>;
 
-    async fn global_mute_state_for_user(&self, user_id: UserId) -> NotificationMuteState;
+    async fn global_mute_state_for_user(&self, user_id: UserId) -> Result<NotificationMuteState, StorageError>;
     async fn server_mute_state_for_user(
         &self,
         user_id: UserId,
         server_id: ServerId,
-    ) -> NotificationMuteState;
+    ) -> Result<NotificationMuteState, StorageError>;
     async fn set_global_mute_state_for_user(
         &self,
         user_id: UserId,
         mute_state: NotificationMuteState,
-    );
+    ) -> Result<(), StorageError>;
     async fn set_server_mute_state_for_user(
         &self,
         user_id: UserId,
         server_id: ServerId,
         mute_state: NotificationMuteState,
-    );
+    ) -> Result<(), StorageError>;
     async fn channel_temporary_mute_expires_at_epoch_seconds(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
-    ) -> Option<u64>;
+    ) -> Result<Option<u64>, StorageError>;
     async fn set_channel_temporary_mute_for_user(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
         duration_minutes: u32,
-    );
-    async fn clear_channel_temporary_mute_for_user(&self, user_id: UserId, channel_id: ChannelId);
+    ) -> Result<(), StorageError>;
+    async fn clear_channel_temporary_mute_for_user(&self, user_id: UserId, channel_id: ChannelId) -> Result<(), StorageError>;
     async fn outbox_count_for_message_recipient(
         &self,
         message_id: MessageId,
         recipient_user_id: UserId,
-    ) -> u64;
-    async fn outbox_total_count_for_recipient(&self, recipient_user_id: UserId) -> u64;
+    ) -> Result<u64, StorageError>;
+    async fn outbox_total_count_for_recipient(&self, recipient_user_id: UserId) -> Result<u64, StorageError>;
     async fn outbox_count_for_friend_notification(
         &self,
         recipient_user_id: UserId,
         actor_user_id: UserId,
         event_type: FriendNotificationEventType,
-    ) -> u64;
+    ) -> Result<u64, StorageError>;
 }
 
 #[async_trait]
@@ -169,57 +170,57 @@ pub trait MessageRepository: Send + Sync {
         author_user_id: UserId,
         content: String,
         mentioned_user_id: Option<UserId>,
-    ) -> CreateMessageResult;
+    ) -> Result<CreateMessageResult, StorageError>;
     async fn update_message(
         &self,
         channel_id: ChannelId,
         message_id: MessageId,
         author_user_id: UserId,
         content: String,
-    ) -> MutationResult;
+    ) -> Result<MutationResult, StorageError>;
     async fn delete_message(
         &self,
         channel_id: ChannelId,
         message_id: MessageId,
         author_user_id: UserId,
-    ) -> MutationResult;
-    async fn list_messages(&self, channel_id: ChannelId) -> Vec<Message>;
-    async fn search_messages(&self, channel_id: ChannelId, query: &str) -> Vec<Message>;
+    ) -> Result<MutationResult, StorageError>;
+    async fn list_messages(&self, channel_id: ChannelId) -> Result<Vec<Message>, StorageError>;
+    async fn search_messages(&self, channel_id: ChannelId, query: &str) -> Result<Vec<Message>, StorageError>;
 }
 
 #[async_trait]
 pub trait UserRepository: Send + Sync {
-    async fn find_user_by_id(&self, user_id: UserId) -> Option<User>;
+    async fn find_user_by_id(&self, user_id: UserId) -> Result<Option<User>, StorageError>;
     async fn find_user_by_external_reference(
         &self,
         external_reference: &ExternalReference,
-    ) -> Option<User>;
+    ) -> Result<Option<User>, StorageError>;
     async fn get_or_create_user_by_external_reference(
         &self,
         external_reference: &ExternalReference,
-    ) -> User;
-    async fn set_user_display_name(&self, user_id: UserId, display_name: DisplayName) -> Option<User>;
+    ) -> Result<User, StorageError>;
+    async fn set_user_display_name(&self, user_id: UserId, display_name: DisplayName) -> Result<Option<User>, StorageError>;
 }
 
 #[async_trait]
 pub trait ServerRepository: Send + Sync {
-    async fn create_server(&self, name: String, owner_user_id: UserId) -> Server;
-    async fn list_servers_for_user(&self, user_id: UserId) -> Vec<Server>;
-    async fn is_server_member(&self, server_id: ServerId, user_id: UserId) -> Option<bool>;
+    async fn create_server(&self, name: String, owner_user_id: UserId) -> Result<Server, StorageError>;
+    async fn list_servers_for_user(&self, user_id: UserId) -> Result<Vec<Server>, StorageError>;
+    async fn is_server_member(&self, server_id: ServerId, user_id: UserId) -> Result<Option<bool>, StorageError>;
     async fn add_server_member(
         &self,
         server_id: ServerId,
         actor_user_id: UserId,
         user_id: UserId,
-    ) -> MutationResult;
+    ) -> Result<MutationResult, StorageError>;
     async fn update_server_name(
         &self,
         server_id: ServerId,
         actor_user_id: UserId,
         name: String,
-    ) -> MutationResult;
-    async fn delete_server(&self, server_id: ServerId, actor_user_id: UserId) -> MutationResult;
-    async fn list_server_members(&self, server_id: ServerId) -> Option<Vec<Membership>>;
+    ) -> Result<MutationResult, StorageError>;
+    async fn delete_server(&self, server_id: ServerId, actor_user_id: UserId) -> Result<MutationResult, StorageError>;
+    async fn list_server_members(&self, server_id: ServerId) -> Result<Option<Vec<Membership>>, StorageError>;
 }
 
 #[async_trait]
@@ -229,17 +230,17 @@ pub trait ChannelRepository: Send + Sync {
         server_id: ServerId,
         name: String,
         channel_type: ChannelType,
-    ) -> Option<Channel>;
+    ) -> Result<Option<Channel>, StorageError>;
     async fn update_channel_name(
         &self,
         channel_id: ChannelId,
         actor_user_id: UserId,
         name: String,
-    ) -> MutationResult;
-    async fn delete_channel(&self, channel_id: ChannelId, actor_user_id: UserId) -> MutationResult;
-    async fn list_channels_for_server(&self, server_id: ServerId) -> Option<Vec<Channel>>;
-    async fn find_channel_by_id(&self, channel_id: ChannelId) -> Option<Channel>;
-    async fn is_channel_member(&self, channel_id: ChannelId, user_id: UserId) -> Option<bool>;
+    ) -> Result<MutationResult, StorageError>;
+    async fn delete_channel(&self, channel_id: ChannelId, actor_user_id: UserId) -> Result<MutationResult, StorageError>;
+    async fn list_channels_for_server(&self, server_id: ServerId) -> Result<Option<Vec<Channel>>, StorageError>;
+    async fn find_channel_by_id(&self, channel_id: ChannelId) -> Result<Option<Channel>, StorageError>;
+    async fn is_channel_member(&self, channel_id: ChannelId, user_id: UserId) -> Result<Option<bool>, StorageError>;
 }
 
 #[async_trait]
@@ -248,30 +249,30 @@ pub trait FriendRepository: Send + Sync {
         &self,
         requester_user_id: UserId,
         addressee_user_id: UserId,
-    ) -> SendFriendRequestResult;
+    ) -> Result<SendFriendRequestResult, StorageError>;
     async fn set_friend_request_state(
         &self,
         actor_user_id: UserId,
         friend_request_id: FriendRequestId,
         state: FriendRequestState,
-    ) -> UpdateFriendRequestResult;
-    async fn list_friendships_for_user(&self, user_id: UserId) -> Vec<Friendship>;
-    async fn list_pending_incoming_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest>;
-    async fn list_pending_outgoing_friend_requests(&self, user_id: UserId) -> Vec<FriendRequest>;
-    async fn are_friends(&self, user_id: UserId, other_user_id: UserId) -> bool;
+    ) -> Result<UpdateFriendRequestResult, StorageError>;
+    async fn list_friendships_for_user(&self, user_id: UserId) -> Result<Vec<Friendship>, StorageError>;
+    async fn list_pending_incoming_friend_requests(&self, user_id: UserId) -> Result<Vec<FriendRequest>, StorageError>;
+    async fn list_pending_outgoing_friend_requests(&self, user_id: UserId) -> Result<Vec<FriendRequest>, StorageError>;
+    async fn are_friends(&self, user_id: UserId, other_user_id: UserId) -> Result<bool, StorageError>;
 }
 
 #[async_trait]
 pub trait BlockRepository: Send + Sync {
     async fn block_user(&self, blocker_user_id: UserId, blocked_user_id: UserId)
-    -> BlockUserResult;
+    -> Result<BlockUserResult, StorageError>;
     async fn unblock_user(
         &self,
         blocker_user_id: UserId,
         blocked_user_id: UserId,
-    ) -> MutationResult;
-    async fn list_blocked_users(&self, blocker_user_id: UserId) -> Vec<BlockRelationship>;
-    async fn users_are_blocked(&self, user_id: UserId, other_user_id: UserId) -> bool;
+    ) -> Result<MutationResult, StorageError>;
+    async fn list_blocked_users(&self, blocker_user_id: UserId) -> Result<Vec<BlockRelationship>, StorageError>;
+    async fn users_are_blocked(&self, user_id: UserId, other_user_id: UserId) -> Result<bool, StorageError>;
 }
 
 #[async_trait]
@@ -280,28 +281,28 @@ pub trait DirectMessageRepository: Send + Sync {
         &self,
         actor_user_id: UserId,
         other_user_id: UserId,
-    ) -> OpenOrGetDirectMessageThreadResult;
+    ) -> Result<OpenOrGetDirectMessageThreadResult, StorageError>;
     async fn list_direct_message_threads_for_user(
         &self,
         user_id: UserId,
-    ) -> Vec<DirectMessageThread>;
+    ) -> Result<Vec<DirectMessageThread>, StorageError>;
     async fn send_direct_message(
         &self,
         actor_user_id: UserId,
         thread_id: backend_domain::DirectMessageThreadId,
         content: String,
-    ) -> SendDirectMessageResult;
+    ) -> Result<SendDirectMessageResult, StorageError>;
     async fn list_direct_messages(
         &self,
         actor_user_id: UserId,
         thread_id: backend_domain::DirectMessageThreadId,
-    ) -> Option<Vec<DirectMessage>>;
+    ) -> Result<Option<Vec<DirectMessage>>, StorageError>;
     async fn search_direct_messages_for_person(
         &self,
         actor_user_id: UserId,
         other_user_id: UserId,
         query: &str,
-    ) -> Option<Vec<DirectMessage>>;
+    ) -> Result<Option<Vec<DirectMessage>>, StorageError>;
 }
 
 pub enum ToggleReactionResult {
@@ -317,13 +318,13 @@ pub trait ReactionRepository: Send + Sync {
         message_id: MessageId,
         user_id: UserId,
         emote_id: &EmoteId,
-    ) -> ToggleReactionResult;
+    ) -> Result<ToggleReactionResult, StorageError>;
 
     async fn list_reaction_summaries(
         &self,
         message_id: MessageId,
         current_user_id: UserId,
-    ) -> Vec<ReactionSummary>;
+    ) -> Result<Vec<ReactionSummary>, StorageError>;
 }
 
 pub enum PinMessageResult {
@@ -344,10 +345,10 @@ pub trait PinnedMessageRepository: Send + Sync {
         server_id: ServerId,
         message_id: MessageId,
         pinned_by_user_id: UserId,
-    ) -> PinMessageResult;
+    ) -> Result<PinMessageResult, StorageError>;
 
     async fn unpin_message(&self, server_id: ServerId, message_id: MessageId)
-    -> UnpinMessageResult;
+    -> Result<UnpinMessageResult, StorageError>;
 
-    async fn list_pinned_messages(&self, server_id: ServerId) -> Vec<PinnedMessage>;
+    async fn list_pinned_messages(&self, server_id: ServerId) -> Result<Vec<PinnedMessage>, StorageError>;
 }
