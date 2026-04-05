@@ -116,31 +116,19 @@ class NotificationPreferencesBloc
       return;
     }
 
-    emit(NotificationPreferencesLoadingState(
-      globalPreference: loadedDataState.globalPreference,
-      serverId: loadedDataState.serverId,
-      channelId: loadedDataState.channelId,
-      serverPreference: loadedDataState.serverPreference,
-      channelPreference: loadedDataState.channelPreference,
-    ));
+    emit(loadedDataState.toLoading());
 
     final operationResult = await operation();
     if (operationResult case Error<void>(:final error)) {
-      emit(NotificationPreferencesExceptionState(
-        error: error,
-        globalPreference: loadedDataState.globalPreference,
-        serverId: loadedDataState.serverId,
-        channelId: loadedDataState.channelId,
-        serverPreference: loadedDataState.serverPreference,
-        channelPreference: loadedDataState.channelPreference,
-      ));
+      emit(loadedDataState.toException(error: error));
       return;
     }
 
+    final (serverId, channelId) = _scopeIds(loadedDataState.scope);
     await _loadPreferences(
       emit,
-      serverId: loadedDataState.serverId,
-      channelId: loadedDataState.channelId,
+      serverId: serverId,
+      channelId: channelId,
       emitLoadingState: false,
     );
   }
@@ -153,13 +141,7 @@ class NotificationPreferencesBloc
   }) async {
     final loadedDataState = _loadedStateOrNull(state);
     if (emitLoadingState && loadedDataState != null) {
-      emit(NotificationPreferencesLoadingState(
-        globalPreference: loadedDataState.globalPreference,
-        serverId: serverId,
-        channelId: channelId,
-        serverPreference: loadedDataState.serverPreference,
-        channelPreference: loadedDataState.channelPreference,
-      ));
+      emit(loadedDataState.toLoading());
     }
 
     final globalResult =
@@ -170,14 +152,7 @@ class NotificationPreferencesBloc
         globalPreference = value;
       case Error<ApiNotificationGlobalPreference>(:final error):
         if (loadedDataState != null) {
-          emit(NotificationPreferencesExceptionState(
-            error: error,
-            globalPreference: loadedDataState.globalPreference,
-            serverId: serverId,
-            channelId: channelId,
-            serverPreference: loadedDataState.serverPreference,
-            channelPreference: loadedDataState.channelPreference,
-          ));
+          emit(loadedDataState.toException(error: error));
         }
         return;
     }
@@ -209,11 +184,47 @@ class NotificationPreferencesBloc
 
     emit(NotificationPreferencesLoadedState(
       globalPreference: globalPreference,
-      serverId: trimmedServerId,
-      channelId: trimmedChannelId,
-      serverPreference: serverPreference,
-      channelPreference: channelPreference,
+      scope: _buildScope(
+        serverId: trimmedServerId,
+        channelId: trimmedChannelId,
+        serverPreference: serverPreference,
+        channelPreference: channelPreference,
+      ),
     ));
+  }
+
+  static (String?, String?) _scopeIds(NotificationPreferencesScope scope) {
+    return switch (scope) {
+      NotificationPreferencesGlobalScope() => (null, null),
+      NotificationPreferencesServerScope(:final serverId) => (serverId, null),
+      NotificationPreferencesChannelScope(:final channelId) => (
+          null,
+          channelId
+        ),
+    };
+  }
+
+  static NotificationPreferencesScope _buildScope({
+    required String? serverId,
+    required String? channelId,
+    required ApiNotificationServerPreference? serverPreference,
+    required ApiNotificationChannelPreference? channelPreference,
+  }) {
+    if (channelId != null && channelId.isNotEmpty) {
+      return NotificationPreferencesChannelScope(
+        channelId: channelId,
+        channelPreference: channelPreference,
+      );
+    }
+
+    if (serverId != null && serverId.isNotEmpty) {
+      return NotificationPreferencesServerScope(
+        serverId: serverId,
+        serverPreference: serverPreference,
+      );
+    }
+
+    return const NotificationPreferencesGlobalScope();
   }
 
   NotificationPreferencesLoadedDataState? _loadedStateOrNull(

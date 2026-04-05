@@ -58,8 +58,16 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
         }
 
         final globalPreference = loadedData.globalPreference;
-        final serverPreference = loadedData.serverPreference;
-        final channelPreference = loadedData.channelPreference;
+        final serverPreference = switch (loadedData.scope) {
+          NotificationPreferencesServerScope(:final serverPreference) =>
+            serverPreference,
+          _ => null,
+        };
+        final channelPreference = switch (loadedData.scope) {
+          NotificationPreferencesChannelScope(:final channelPreference) =>
+            channelPreference,
+          _ => null,
+        };
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

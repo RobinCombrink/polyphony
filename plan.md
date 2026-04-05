@@ -898,6 +898,23 @@ Acceptance criteria:
 - All consumers handle the new variants exhaustively. ✅
 - `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
 
+##### 13.4e — Frontend: NotificationPreferencesState scope-typed variants
+Status:
+- Done.
+
+Scope:
+- Introduced `NotificationPreferencesScope` sealed ADT with three variants: `NotificationPreferencesGlobalScope`, `NotificationPreferencesServerScope(serverId, serverPreference?)`, `NotificationPreferencesChannelScope(channelId, channelPreference?)`.
+- Replaced nullable `serverId`/`channelId`/`serverPreference`/`channelPreference` fields on `NotificationPreferencesLoadedDataState` with a single `NotificationPreferencesScope scope` field. `globalPreference` remains directly on the base state.
+- Added `toLoading()` and `toException(error:)` transition methods on `NotificationPreferencesLoadedDataState`, eliminating repetitive state field copying in the BLoC.
+- Added `_scopeIds` and `_buildScope` helpers in the BLoC for scope ↔ serverId/channelId conversions.
+- Updated widget consumer to extract `serverPreference` and `channelPreference` via pattern matching on `scope`.
+
+Acceptance criteria:
+- No nullable scope fields exist in the notification preferences state hierarchy. ✅
+- Each scope variant carries only relevant data. ✅
+- All consumers handle variants exhaustively. ✅
+- `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
+
 
 #### Phase 14 (Weeks 13-14): User identity and workspace usability enhancements
 Status:
