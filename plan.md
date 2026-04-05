@@ -882,6 +882,22 @@ Acceptance criteria:
 - State transitions use named methods, not direct constructor calls. ✅
 - `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
 
+##### 13.4d — Frontend: AuthenticationState and ProfileState ADT refactors
+Status:
+- Done.
+
+Scope:
+- `AuthenticationState`: split `AuthenticationUnauthenticatedState` (which had `error?`) into two distinct variants: `AuthenticationUnauthenticatedState` (no error) and `AuthenticationFailedState({required error})`. Updated BLoC to emit `AuthenticationFailedState` for all error cases.
+- Updated `AuthenticationGateWidget` to handle both variants with explicit pattern-match branches for web and native.
+- `ProfileState`: made `ProfileLoadedDataState.displayName` non-nullable (`String`). BLoC now maps `null` from API to `""`. Updated all consumers that checked `== null` to check `.isEmpty`.
+- Updated BDD and unit tests to match new types (`isEmpty` instead of `isNull`).
+
+Acceptance criteria:
+- `AuthenticationUnauthenticatedState` has no nullable error field. ✅
+- `ProfileLoadedDataState.displayName` is non-nullable. ✅
+- All consumers handle the new variants exhaustively. ✅
+- `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
+
 
 #### Phase 14 (Weeks 13-14): User identity and workspace usability enhancements
 Status:

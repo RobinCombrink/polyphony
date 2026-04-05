@@ -225,7 +225,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
             BlocListener<ProfileBloc, ProfileState>(
               listenWhen: (_, current) {
                 return current is ProfileLoadedDataState &&
-                    current.displayName == null;
+                    current.displayName.isEmpty;
               },
               listener: (context, state) {
                 if (_isDisplayNamePromptOpen ||

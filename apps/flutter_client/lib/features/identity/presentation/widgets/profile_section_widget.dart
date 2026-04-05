@@ -18,7 +18,7 @@ SectionStatus? buildProfileSectionStatus(ProfileState state) {
     );
   }
 
-  if (state is ProfileLoadedDataState && state.displayName == null) {
+  if (state is ProfileLoadedDataState && state.displayName.isEmpty) {
     return const SectionStatus(
       message: "Set your display name to finish setup.",
       isError: false,

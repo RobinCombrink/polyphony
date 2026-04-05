@@ -219,11 +219,33 @@ class _AuthenticationGateWidgetState extends State<AuthenticationGateWidget> {
                 );
               },
             ),
-          AuthenticationUnauthenticatedState(:final error) when kIsWeb =>
-            _WebAuthenticatingView(signInError: error?.toString()),
-          AuthenticationUnauthenticatedState(:final error) => _NativeSignInView(
+          AuthenticationFailedState(:final error) when kIsWeb =>
+            _WebAuthenticatingView(signInError: error.toString()),
+          AuthenticationUnauthenticatedState() when kIsWeb =>
+            const _WebAuthenticatingView(),
+          AuthenticationFailedState(:final error) => _NativeSignInView(
               isSigningIn: false,
-              signInError: error?.toString(),
+              signInError: error.toString(),
+              emailAddressController: _emailAddressController,
+              rememberEmailAddress: _rememberEmailAddress,
+              onRememberEmailAddressChanged: (shouldRememberEmail) {
+                setState(() {
+                  _rememberEmailAddress = shouldRememberEmail;
+                });
+
+                unawaited(_persistRememberedEmailAddressPreference());
+              },
+              onSignInRequested: () {
+                unawaited(
+                  _requestSignIn(
+                    loginHint: _emailAddressController.text,
+                  ),
+                );
+              },
+            ),
+          AuthenticationUnauthenticatedState() => _NativeSignInView(
+              isSigningIn: false,
+              signInError: null,
               emailAddressController: _emailAddressController,
               rememberEmailAddress: _rememberEmailAddress,
               onRememberEmailAddressChanged: (shouldRememberEmail) {

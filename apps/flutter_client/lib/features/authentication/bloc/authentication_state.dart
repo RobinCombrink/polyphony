@@ -5,9 +5,13 @@ sealed class AuthenticationState {
 }
 
 final class AuthenticationUnauthenticatedState extends AuthenticationState {
-  const AuthenticationUnauthenticatedState({this.error});
+  const AuthenticationUnauthenticatedState();
+}
 
-  final Exception? error;
+final class AuthenticationFailedState extends AuthenticationState {
+  const AuthenticationFailedState({required this.error});
+
+  final Exception error;
 }
 
 final class AuthenticationAuthenticatingState extends AuthenticationState {

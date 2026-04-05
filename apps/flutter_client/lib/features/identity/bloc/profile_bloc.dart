@@ -35,7 +35,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       case Ok(:final value):
         emit(ProfileLoadedState(
           userId: value.userId,
-          displayName: value.displayName,
+          displayName: value.displayName ?? "",
         ));
       case Error(:final error):
         emit(ProfileExceptionState(error: error));
@@ -84,7 +84,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       case Ok(:final value):
         emit(ProfileLoadedState(
           userId: value.userId,
-          displayName: value.displayName,
+          displayName: value.displayName ?? "",
         ));
       case Error(:final error):
         emit(ProfileExceptionState(error: error));

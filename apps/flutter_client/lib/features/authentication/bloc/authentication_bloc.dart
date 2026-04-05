@@ -53,7 +53,7 @@ class AuthenticationBloc
         emit(const AuthenticationUnauthenticatedState());
         return;
       case Error<String?>(:final error):
-        emit(AuthenticationUnauthenticatedState(error: error));
+        emit(AuthenticationFailedState(error: error));
         return;
     }
   }
@@ -82,7 +82,7 @@ class AuthenticationBloc
           when error is AuthenticationSignInRedirectInProgressException:
         emit(const AuthenticationUnauthenticatedState());
       case Error<String>(:final error):
-        emit(AuthenticationUnauthenticatedState(error: error));
+        emit(AuthenticationFailedState(error: error));
     }
   }
 
@@ -103,7 +103,7 @@ class AuthenticationBloc
   ) async {
     final signOutResult = await _sessionService.signOut();
     if (signOutResult case Error<void>(:final error)) {
-      emit(AuthenticationUnauthenticatedState(error: error));
+      emit(AuthenticationFailedState(error: error));
       return;
     }
 
@@ -127,7 +127,7 @@ class AuthenticationBloc
         final trimmedUserId = value.userId.trim();
         if (trimmedUserId.isEmpty) {
           emit(
-            AuthenticationUnauthenticatedState(
+            AuthenticationFailedState(
               error:
                   Exception("Authenticated profile response has empty userId."),
             ),
@@ -144,7 +144,7 @@ class AuthenticationBloc
           ),
         );
       case Error(:final error):
-        emit(AuthenticationUnauthenticatedState(error: error));
+        emit(AuthenticationFailedState(error: error));
     }
   }
 }

@@ -119,7 +119,7 @@ void main() {
           isA<ProfileLoadingState>(),
           isA<ProfileLoadedState>()
               .having((state) => state.userId, "user id", fixture.ownerUserId)
-              .having((state) => state.displayName, "display name", isNull),
+              .having((state) => state.displayName, "display name", isEmpty),
         ],
       );
 

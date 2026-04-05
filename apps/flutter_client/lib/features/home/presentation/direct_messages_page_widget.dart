@@ -233,7 +233,7 @@ class _DirectMessagesPageWidgetState extends State<DirectMessagesPageWidget> {
             BlocListener<ProfileBloc, ProfileState>(
               listenWhen: (_, current) {
                 return current is ProfileLoadedDataState &&
-                    current.displayName == null;
+                    current.displayName.isEmpty;
               },
               listener: (context, state) {
                 if (_isDisplayNamePromptOpen ||

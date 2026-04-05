@@ -23,7 +23,7 @@ sealed class ProfileLoadedDataState extends ProfileState {
   });
 
   final UserId userId;
-  final String? displayName;
+  final String displayName;
 }
 
 final class ProfileLoadedState extends ProfileLoadedDataState {
