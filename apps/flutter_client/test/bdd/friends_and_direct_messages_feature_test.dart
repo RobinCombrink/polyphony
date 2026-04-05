@@ -57,9 +57,9 @@ void main() {
           ..add(const SendDirectMessageRequested(content: "hello")),
         expect: () => <Matcher>[
           isA<DirectMessagesLoadingState>(),
-          isA<DirectMessagesLoadedState>(),
-          isA<DirectMessagesLoadedState>(),
-          isA<DirectMessagesValidationFailedState>().having(
+          isA<DirectMessagesNoThreadSelected>(),
+          isA<DirectMessagesThreadSelected>(),
+          isA<DirectMessagesThreadSelectedValidationFailedState>().having(
             (state) => state.issue,
             "validation issue",
             DirectMessagesValidationIssue.blockedRelationship,
@@ -83,14 +83,14 @@ void main() {
           ..add(const SendDirectMessageRequested(content: "hello")),
         expect: () => <Matcher>[
           isA<DirectMessagesLoadingState>(),
-          isA<DirectMessagesLoadedState>(),
-          isA<DirectMessagesLoadedState>(),
-          isA<DirectMessagesLoadedState>().having(
+          isA<DirectMessagesNoThreadSelected>(),
+          isA<DirectMessagesThreadSelected>(),
+          isA<DirectMessagesThreadSelected>().having(
             (state) => state.blockedUserIds.contains(const UserId("friend-2")),
             "friend removed from blocked list",
             isFalse,
           ),
-          isA<DirectMessagesLoadedState>().having(
+          isA<DirectMessagesThreadSelected>().having(
             (state) => state.selectedThreadMessages.length,
             "sent message count",
             1,

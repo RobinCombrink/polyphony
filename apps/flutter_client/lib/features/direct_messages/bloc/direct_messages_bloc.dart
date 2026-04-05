@@ -75,10 +75,8 @@ class DirectMessagesBloc
 
     switch (threadsResult) {
       case Ok<Iterable<DirectMessageThread>>(:final value):
-        emit(DirectMessagesLoadedState(
+        emit(DirectMessagesNoThreadSelected(
           threads: value.toList(growable: false),
-          selectedThreadId: null,
-          selectedThreadMessages: const <DirectMessage>[],
           blockedUserIds: blockedUserIds,
         ));
       case Error<Iterable<DirectMessageThread>>(:final error):
@@ -91,7 +89,7 @@ class DirectMessagesBloc
     Emitter<DirectMessagesState> emit,
   ) async {
     final loadedState = switch (state) {
-      final DirectMessagesLoadedDataState loadedState => loadedState,
+      final DirectMessagesLoadedState loadedState => loadedState,
       _ => null,
     };
 
@@ -105,12 +103,8 @@ class DirectMessagesBloc
 
     final trimmedUserId = event.userId.value.trim();
     if (trimmedUserId.isEmpty) {
-      emit(DirectMessagesValidationFailedState(
+      emit(loadedState.withValidationIssue(
         issue: DirectMessagesValidationIssue.userSelectionRequired,
-        threads: loadedState.threads,
-        selectedThreadId: loadedState.selectedThreadId,
-        selectedThreadMessages: loadedState.selectedThreadMessages,
-        blockedUserIds: loadedState.blockedUserIds,
       ));
       return;
     }
@@ -138,7 +132,7 @@ class DirectMessagesBloc
     Emitter<DirectMessagesState> emit,
   ) async {
     final loadedState = switch (state) {
-      final DirectMessagesLoadedDataState loadedState => loadedState,
+      final DirectMessagesLoadedState loadedState => loadedState,
       _ => null,
     };
 
@@ -151,12 +145,8 @@ class DirectMessagesBloc
         threads.where((thread) => thread.id == event.threadId).firstOrNull;
 
     if (selectedThread == null) {
-      emit(DirectMessagesValidationFailedState(
+      emit(loadedState.withValidationIssue(
         issue: DirectMessagesValidationIssue.threadSelectionRequired,
-        threads: threads,
-        selectedThreadId: loadedState.selectedThreadId,
-        selectedThreadMessages: loadedState.selectedThreadMessages,
-        blockedUserIds: loadedState.blockedUserIds,
       ));
       return;
     }
@@ -167,11 +157,10 @@ class DirectMessagesBloc
 
     switch (messagesResult) {
       case Ok<Iterable<DirectMessage>>(:final value):
-        emit(DirectMessagesLoadedState(
-          threads: threads,
-          selectedThreadId: event.threadId,
-          selectedThreadMessages: value.toList(growable: false),
-          blockedUserIds: loadedState.blockedUserIds,
+        emit(loadedState.selectThread(
+          thread: selectedThread,
+          messages: value.toList(growable: false),
+          threadsOverride: event.threadsOverride,
         ));
       case Error<Iterable<DirectMessage>>(:final error):
         emit(DirectMessagesExceptionState(error: error));
@@ -183,7 +172,7 @@ class DirectMessagesBloc
     Emitter<DirectMessagesState> emit,
   ) async {
     final loadedState = switch (state) {
-      final DirectMessagesLoadedDataState loadedState => loadedState,
+      final DirectMessagesLoadedState loadedState => loadedState,
       _ => null,
     };
 
@@ -194,38 +183,38 @@ class DirectMessagesBloc
       return;
     }
 
-    final selectedThread = loadedState.selectedThread;
-    if (selectedThread == null) {
-      emit(DirectMessagesValidationFailedState(
+    final (selectedThread, currentMessages) = switch (loadedState) {
+      DirectMessagesThreadSelected(
+        :final selectedThread,
+        :final selectedThreadMessages,
+      ) ||
+      DirectMessagesThreadSelectedValidationFailedState(
+        :final selectedThread,
+        :final selectedThreadMessages,
+      ) =>
+        (selectedThread, selectedThreadMessages),
+      _ => (null, null),
+    };
+
+    if (selectedThread == null || currentMessages == null) {
+      emit(loadedState.withValidationIssue(
         issue: DirectMessagesValidationIssue.threadSelectionRequired,
-        threads: loadedState.threads,
-        selectedThreadId: loadedState.selectedThreadId,
-        selectedThreadMessages: loadedState.selectedThreadMessages,
-        blockedUserIds: loadedState.blockedUserIds,
       ));
       return;
     }
 
     final peerUserId = _peerUserIdForThread(selectedThread);
     if (loadedState.blockedUserIds.contains(peerUserId)) {
-      emit(DirectMessagesValidationFailedState(
+      emit(loadedState.withValidationIssue(
         issue: DirectMessagesValidationIssue.blockedRelationship,
-        threads: loadedState.threads,
-        selectedThreadId: loadedState.selectedThreadId,
-        selectedThreadMessages: loadedState.selectedThreadMessages,
-        blockedUserIds: loadedState.blockedUserIds,
       ));
       return;
     }
 
     final trimmedContent = event.content.trim();
     if (trimmedContent.isEmpty) {
-      emit(DirectMessagesValidationFailedState(
+      emit(loadedState.withValidationIssue(
         issue: DirectMessagesValidationIssue.messageContentRequired,
-        threads: loadedState.threads,
-        selectedThreadId: loadedState.selectedThreadId,
-        selectedThreadMessages: loadedState.selectedThreadMessages,
-        blockedUserIds: loadedState.blockedUserIds,
       ));
       return;
     }
@@ -239,14 +228,12 @@ class DirectMessagesBloc
 
     switch (sendResult) {
       case Ok<DirectMessage>(:final value):
-        emit(DirectMessagesLoadedState(
-          threads: loadedState.threads,
-          selectedThreadId: loadedState.selectedThreadId,
-          selectedThreadMessages: <DirectMessage>[
-            ...loadedState.selectedThreadMessages,
+        emit(loadedState.selectThread(
+          thread: selectedThread,
+          messages: <DirectMessage>[
+            ...currentMessages,
             value,
           ],
-          blockedUserIds: loadedState.blockedUserIds,
         ));
       case Error<DirectMessage>(:final error):
         emit(DirectMessagesExceptionState(error: error));
@@ -258,7 +245,7 @@ class DirectMessagesBloc
     Emitter<DirectMessagesState> emit,
   ) async {
     final loadedState = switch (state) {
-      final DirectMessagesLoadedDataState loadedState => loadedState,
+      final DirectMessagesLoadedState loadedState => loadedState,
       _ => null,
     };
 
@@ -266,7 +253,15 @@ class DirectMessagesBloc
       return;
     }
 
-    final selectedThread = loadedState.selectedThread;
+    final selectedThread = switch (loadedState) {
+      DirectMessagesThreadSelected(:final selectedThread) ||
+      DirectMessagesThreadSelectedValidationFailedState(
+        :final selectedThread,
+      ) =>
+        selectedThread,
+      _ => null,
+    };
+
     if (selectedThread == null) {
       return;
     }
@@ -278,10 +273,7 @@ class DirectMessagesBloc
 
     switch (unblockResult) {
       case Ok<void>():
-        emit(DirectMessagesLoadedState(
-          threads: loadedState.threads,
-          selectedThreadId: loadedState.selectedThreadId,
-          selectedThreadMessages: loadedState.selectedThreadMessages,
+        emit(loadedState.withUpdatedBlockedUserIds(
           blockedUserIds: loadedState.blockedUserIds
               .where((userId) => userId != peerUserId)
               .toSet(),

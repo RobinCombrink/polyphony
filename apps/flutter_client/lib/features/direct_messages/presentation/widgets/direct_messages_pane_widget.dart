@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/direct_messages/bloc/direct_messages_bloc.dart";
+import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 
 class DirectMessagesPaneWidget extends StatefulWidget {
   const DirectMessagesPaneWidget({super.key});
@@ -39,10 +40,25 @@ class _DirectMessagesPaneWidgetState extends State<DirectMessagesPaneWidget> {
   Widget build(BuildContext context) {
     return BlocBuilder<DirectMessagesBloc, DirectMessagesState>(
       builder: (context, state) {
-        final loadedData =
-            state is DirectMessagesLoadedDataState ? state : null;
-        final selectedThread = loadedData?.selectedThread;
-        final blockedPeer = loadedData?.selectedThreadIsBlocked ?? false;
+        final loadedData = switch (state) {
+          final DirectMessagesLoadedDataState s => s,
+          _ => null,
+        };
+        final (selectedThread, selectedThreadMessages, blockedPeer) =
+            switch (state) {
+          DirectMessagesThreadSelected(
+            :final selectedThread,
+            :final selectedThreadMessages,
+            :final selectedThreadIsBlocked,
+          ) ||
+          DirectMessagesThreadSelectedValidationFailedState(
+            :final selectedThread,
+            :final selectedThreadMessages,
+            :final selectedThreadIsBlocked,
+          ) =>
+            (selectedThread, selectedThreadMessages, selectedThreadIsBlocked),
+          _ => (null, const <DirectMessage>[], false),
+        };
 
         return Card(
           child: Padding(
@@ -65,8 +81,7 @@ class _DirectMessagesPaneWidgetState extends State<DirectMessagesPaneWidget> {
                           separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final thread = loadedData!.threads[index];
-                            final isSelected =
-                                thread.id == loadedData.selectedThreadId;
+                            final isSelected = thread.id == selectedThread?.id;
                             return ListTile(
                               dense: true,
                               selected: isSelected,
@@ -98,15 +113,13 @@ class _DirectMessagesPaneWidgetState extends State<DirectMessagesPaneWidget> {
                                           ),
                                         )
                                       : ListView.separated(
-                                          itemCount: loadedData
-                                                  ?.selectedThreadMessages
-                                                  .length ??
-                                              0,
+                                          itemCount:
+                                              selectedThreadMessages.length,
                                           separatorBuilder: (_, __) =>
                                               const Divider(height: 1),
                                           itemBuilder: (context, index) {
-                                            final message = loadedData!
-                                                .selectedThreadMessages[index];
+                                            final message =
+                                                selectedThreadMessages[index];
                                             return ListTile(
                                               dense: true,
                                               title: Text(message.content),

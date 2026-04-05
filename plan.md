@@ -864,6 +864,24 @@ Acceptance criteria:
 - No file uses `crate::domain`; all use `backend_domain` directly.
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
 
+##### 13.4c — Frontend: DirectMessagesState ADT refactor
+Status:
+- Done.
+
+Scope:
+- Replaced the nullable `selectedThreadId` field on `DirectMessagesLoadedDataState` with explicit ADT variants: `DirectMessagesNoThreadSelected` and `DirectMessagesThreadSelected` (the latter carries the non-nullable selected thread and messages).
+- Added `DirectMessagesNoThreadSelectedValidationFailedState` and `DirectMessagesThreadSelectedValidationFailedState` sealed subtypes following the `ChannelsState` pattern.
+- Added state-transition methods (`selectThread`, `withValidationIssue`, `withUpdatedBlockedUserIds`, `withAppendedMessage`) to the state hierarchy.
+- Updated `DirectMessagesBloc` event handlers to use transition methods instead of direct constructor calls.
+- Updated `DirectMessagesPaneWidget` to use pattern matching for thread selection extraction.
+- Updated BDD test assertions to use the more specific ADT types.
+
+Acceptance criteria:
+- No nullable `selectedThreadId` exists in `DirectMessagesState` hierarchy. ✅
+- All widget consumers handle both loaded variants explicitly. ✅
+- State transitions use named methods, not direct constructor calls. ✅
+- `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
+
 
 #### Phase 14 (Weeks 13-14): User identity and workspace usability enhancements
 Status:

@@ -22,62 +22,168 @@ final class DirectMessagesLoadingState extends DirectMessagesState {
 sealed class DirectMessagesLoadedDataState extends DirectMessagesState {
   const DirectMessagesLoadedDataState({
     required this.threads,
-    required this.selectedThreadId,
-    required this.selectedThreadMessages,
     required this.blockedUserIds,
   });
 
   final List<DirectMessageThread> threads;
-  final DirectMessageThreadId? selectedThreadId;
-  final List<DirectMessage> selectedThreadMessages;
   final Set<UserId> blockedUserIds;
+}
 
-  DirectMessageThread? get selectedThread {
-    final threadId = selectedThreadId;
-    if (threadId == null) {
-      return null;
-    }
+sealed class DirectMessagesLoadedState extends DirectMessagesLoadedDataState {
+  const DirectMessagesLoadedState({
+    required super.threads,
+    required super.blockedUserIds,
+  });
 
-    for (final thread in threads) {
-      if (thread.id == threadId) {
-        return thread;
-      }
-    }
-
-    return null;
+  DirectMessagesThreadSelected selectThread({
+    required DirectMessageThread thread,
+    required List<DirectMessage> messages,
+    List<DirectMessageThread>? threadsOverride,
+  }) {
+    return DirectMessagesThreadSelected(
+      threads: threadsOverride ?? threads,
+      blockedUserIds: blockedUserIds,
+      selectedThread: thread,
+      selectedThreadMessages: messages,
+    );
   }
 
-  bool get selectedThreadIsBlocked {
-    final thread = selectedThread;
-    if (thread == null) {
-      return false;
-    }
+  DirectMessagesValidationFailedState withValidationIssue({
+    required DirectMessagesValidationIssue issue,
+  }) {
+    return switch (this) {
+      DirectMessagesNoThreadSelected() =>
+        DirectMessagesNoThreadSelectedValidationFailedState(
+          issue: issue,
+          threads: threads,
+          blockedUserIds: blockedUserIds,
+        ),
+      DirectMessagesThreadSelected(
+        :final selectedThread,
+        :final selectedThreadMessages,
+      ) =>
+        DirectMessagesThreadSelectedValidationFailedState(
+          issue: issue,
+          threads: threads,
+          blockedUserIds: blockedUserIds,
+          selectedThread: selectedThread,
+          selectedThreadMessages: selectedThreadMessages,
+        ),
+      final DirectMessagesValidationFailedState validationState =>
+        validationState,
+    };
+  }
 
-    return blockedUserIds.contains(thread.participantAUserId) ||
-        blockedUserIds.contains(thread.participantBUserId);
+  DirectMessagesLoadedState withUpdatedBlockedUserIds({
+    required Set<UserId> blockedUserIds,
+  }) {
+    return switch (this) {
+      DirectMessagesNoThreadSelected() => DirectMessagesNoThreadSelected(
+          threads: threads,
+          blockedUserIds: blockedUserIds,
+        ),
+      DirectMessagesThreadSelected(
+        :final selectedThread,
+        :final selectedThreadMessages,
+      ) =>
+        DirectMessagesThreadSelected(
+          threads: threads,
+          blockedUserIds: blockedUserIds,
+          selectedThread: selectedThread,
+          selectedThreadMessages: selectedThreadMessages,
+        ),
+      DirectMessagesNoThreadSelectedValidationFailedState() =>
+        DirectMessagesNoThreadSelected(
+          threads: threads,
+          blockedUserIds: blockedUserIds,
+        ),
+      DirectMessagesThreadSelectedValidationFailedState(
+        :final selectedThread,
+        :final selectedThreadMessages,
+      ) =>
+        DirectMessagesThreadSelected(
+          threads: threads,
+          blockedUserIds: blockedUserIds,
+          selectedThread: selectedThread,
+          selectedThreadMessages: selectedThreadMessages,
+        ),
+    };
   }
 }
 
-final class DirectMessagesLoadedState extends DirectMessagesLoadedDataState {
-  const DirectMessagesLoadedState({
+final class DirectMessagesNoThreadSelected extends DirectMessagesLoadedState {
+  const DirectMessagesNoThreadSelected({
     required super.threads,
-    required super.selectedThreadId,
-    required super.selectedThreadMessages,
     required super.blockedUserIds,
   });
 }
 
-final class DirectMessagesValidationFailedState
-    extends DirectMessagesLoadedDataState {
+final class DirectMessagesThreadSelected extends DirectMessagesLoadedState {
+  const DirectMessagesThreadSelected({
+    required super.threads,
+    required super.blockedUserIds,
+    required this.selectedThread,
+    required this.selectedThreadMessages,
+  });
+
+  final DirectMessageThread selectedThread;
+  final List<DirectMessage> selectedThreadMessages;
+
+  bool get selectedThreadIsBlocked {
+    return blockedUserIds.contains(selectedThread.participantAUserId) ||
+        blockedUserIds.contains(selectedThread.participantBUserId);
+  }
+
+  DirectMessagesThreadSelected withAppendedMessage(DirectMessage message) {
+    return DirectMessagesThreadSelected(
+      threads: threads,
+      blockedUserIds: blockedUserIds,
+      selectedThread: selectedThread,
+      selectedThreadMessages: <DirectMessage>[
+        ...selectedThreadMessages,
+        message,
+      ],
+    );
+  }
+}
+
+sealed class DirectMessagesValidationFailedState
+    extends DirectMessagesLoadedState {
   const DirectMessagesValidationFailedState({
     required this.issue,
     required super.threads,
-    required super.selectedThreadId,
-    required super.selectedThreadMessages,
     required super.blockedUserIds,
   });
 
   final DirectMessagesValidationIssue issue;
+}
+
+final class DirectMessagesNoThreadSelectedValidationFailedState
+    extends DirectMessagesValidationFailedState {
+  const DirectMessagesNoThreadSelectedValidationFailedState({
+    required super.issue,
+    required super.threads,
+    required super.blockedUserIds,
+  });
+}
+
+final class DirectMessagesThreadSelectedValidationFailedState
+    extends DirectMessagesValidationFailedState {
+  const DirectMessagesThreadSelectedValidationFailedState({
+    required super.issue,
+    required super.threads,
+    required super.blockedUserIds,
+    required this.selectedThread,
+    required this.selectedThreadMessages,
+  });
+
+  final DirectMessageThread selectedThread;
+  final List<DirectMessage> selectedThreadMessages;
+
+  bool get selectedThreadIsBlocked {
+    return blockedUserIds.contains(selectedThread.participantAUserId) ||
+        blockedUserIds.contains(selectedThread.participantBUserId);
+  }
 }
 
 final class DirectMessagesExceptionState extends DirectMessagesState {
