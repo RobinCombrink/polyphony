@@ -1,4 +1,3 @@
-import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
@@ -6,9 +5,14 @@ import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/network/domain_extensions/api_model_extensions.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/message_service.dart";
+import "package:stream_transform/stream_transform.dart";
 
 part "message_search_event.dart";
 part "message_search_state.dart";
+
+EventTransformer<E> _debounceRestartable<E>(Duration duration) {
+  return (events, mapper) => events.debounce(duration).switchMap(mapper);
+}
 
 class MessageSearchBloc extends Bloc<MessageSearchEvent, MessageSearchState> {
   MessageSearchBloc({
@@ -17,7 +21,7 @@ class MessageSearchBloc extends Bloc<MessageSearchEvent, MessageSearchState> {
         super(const MessageSearchInitialState()) {
     on<MessageSearchQueryChanged>(
       _onQueryChanged,
-      transformer: restartable(),
+      transformer: _debounceRestartable(const Duration(milliseconds: 300)),
     );
     on<MessageSearchCleared>(_onCleared);
   }
@@ -33,8 +37,6 @@ class MessageSearchBloc extends Bloc<MessageSearchEvent, MessageSearchState> {
       emit(const MessageSearchInitialState());
       return;
     }
-
-    await Future<void>.delayed(const Duration(milliseconds: 300));
 
     emit(const MessageSearchLoadingState());
 
