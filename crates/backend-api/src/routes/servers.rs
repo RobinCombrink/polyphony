@@ -210,38 +210,25 @@ where
     MessageRepo: MessageRepository + FriendRepository,
     Verifier: TokenVerifier,
 {
-    let Ok(are_friends) = state
-        .message_repository
-        .are_friends(authenticated_user.user_id, friend_user_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    use crate::use_cases::servers::{
+        InviteFriendError, invite_friend_to_server as invite_use_case,
     };
 
-    if !are_friends {
-        return StatusCode::FORBIDDEN.into_response();
-    }
-
-    let Ok(mutation_result) = state
-        .server_repository
-        .add_server_member(server_id, authenticated_user.user_id, friend_user_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-
-    match mutation_result {
-        MutationResult::Updated => (
-            StatusCode::CREATED,
-            Json(Membership {
-                user_id: friend_user_id,
-                server_id,
-            }),
-        )
-            .into_response(),
-        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
-        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
-        MutationResult::Deleted => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    match invite_use_case(
+        &*state.server_repository,
+        &*state.message_repository,
+        server_id,
+        authenticated_user.user_id,
+        friend_user_id,
+    )
+    .await
+    {
+        Ok(membership) => (StatusCode::CREATED, Json(membership)).into_response(),
+        Err(InviteFriendError::NotFriends | InviteFriendError::Forbidden) => {
+            StatusCode::FORBIDDEN.into_response()
+        }
+        Err(InviteFriendError::NotFound) => StatusCode::NOT_FOUND.into_response(),
+        Err(InviteFriendError::InfraError) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 

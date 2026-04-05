@@ -8,7 +8,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_domain::{ChannelId, NotificationMuteState, ServerId};
+use backend_domain::{ChannelId, ServerId};
 use backend_storage::{
     ChannelRepository, MarkUnreadFromMessageResult, MessageRepository, NotificationRepository,
     ServerRepository, UserRepository,
@@ -55,37 +55,23 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let Ok(mute_state) = state
-        .message_repository
-        .global_mute_state_for_user(authenticated_user.user_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-    let Ok(notification_category) = state
-        .message_repository
-        .global_notification_category_for_user(authenticated_user.user_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-    let Ok(channel_default_category) = state
-        .message_repository
-        .global_channel_default_notification_category_for_user(authenticated_user.user_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
+    use crate::use_cases::notifications::{NotificationPreferenceError, get_global_preference};
 
-    (
-        StatusCode::OK,
-        Json(NotificationGlobalPreferenceResponse {
-            mute_state,
-            notification_category,
-            channel_default_category,
-        }),
-    )
-        .into_response()
+    match get_global_preference(&*state.message_repository, authenticated_user.user_id).await {
+        Ok(pref) => (
+            StatusCode::OK,
+            Json(NotificationGlobalPreferenceResponse {
+                mute_state: pref.mute_state,
+                notification_category: pref.notification_category,
+                channel_default_category: pref.channel_default_category,
+            }),
+        )
+            .into_response(),
+        Err(NotificationPreferenceError::Gate(gate_error)) => gate_error.into_response(),
+        Err(NotificationPreferenceError::InfraError) => {
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
 }
 
 #[utoipa::path(
@@ -119,45 +105,29 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    // server_notification_preference: server membership gate
-    if let Err(gate_error) =
-        require_server_membership(&*state.server_repository, server_id, authenticated_user.user_id).await
-    {
-        return gate_error.into_response();
-    }
+    use crate::use_cases::notifications::{NotificationPreferenceError, get_server_preference};
 
-    let Ok(global_category) = state
-        .message_repository
-        .global_notification_category_for_user(authenticated_user.user_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-
-    let Ok(server_category) = state
-        .message_repository
-        .server_notification_category_for_user(authenticated_user.user_id, server_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-    let notification_category = server_category.unwrap_or(global_category);
-    let Ok(mute_state) = state
-        .message_repository
-        .server_mute_state_for_user(authenticated_user.user_id, server_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-
-    (
-        StatusCode::OK,
-        Json(NotificationServerPreferenceResponse {
-            mute_state,
-            notification_category,
-        }),
+    match get_server_preference(
+        &*state.server_repository,
+        &*state.message_repository,
+        server_id,
+        authenticated_user.user_id,
     )
-        .into_response()
+    .await
+    {
+        Ok(pref) => (
+            StatusCode::OK,
+            Json(NotificationServerPreferenceResponse {
+                mute_state: pref.mute_state,
+                notification_category: pref.notification_category,
+            }),
+        )
+            .into_response(),
+        Err(NotificationPreferenceError::Gate(gate_error)) => gate_error.into_response(),
+        Err(NotificationPreferenceError::InfraError) => {
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
 }
 
 #[utoipa::path(
@@ -191,52 +161,31 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    // channel_notification_preference: channel membership gate
-    if let Err(gate_error) =
-        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
-    {
-        return gate_error.into_response();
-    }
+    use crate::use_cases::notifications::{NotificationPreferenceError, get_channel_preference};
 
-    let Ok(muted_until_epoch_seconds) = state
-        .message_repository
-        .channel_temporary_mute_expires_at_epoch_seconds(authenticated_user.user_id, channel_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-
-    let Ok(channel_category) = state
-        .message_repository
-        .channel_notification_category_for_user(authenticated_user.user_id, channel_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-    let Ok(global_channel_default) = state
-        .message_repository
-        .global_channel_default_notification_category_for_user(authenticated_user.user_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-    let notification_category = channel_category.unwrap_or(global_channel_default);
-    let mute_state = if muted_until_epoch_seconds.is_some() {
-        NotificationMuteState::Muted
-    } else {
-        NotificationMuteState::Unmuted
-    };
-
-    (
-        StatusCode::OK,
-        Json(NotificationChannelPreferenceResponse {
-            mute_state,
-            muted_until_epoch_seconds,
-            notification_category,
-            inherited_from_global_default: channel_category.is_none(),
-        }),
+    match get_channel_preference(
+        &*state.channel_repository,
+        &*state.message_repository,
+        channel_id,
+        authenticated_user.user_id,
     )
-        .into_response()
+    .await
+    {
+        Ok(pref) => (
+            StatusCode::OK,
+            Json(NotificationChannelPreferenceResponse {
+                mute_state: pref.mute_state,
+                muted_until_epoch_seconds: pref.muted_until_epoch_seconds,
+                notification_category: pref.notification_category,
+                inherited_from_global_default: pref.inherited_from_global_default,
+            }),
+        )
+            .into_response(),
+        Err(NotificationPreferenceError::Gate(gate_error)) => gate_error.into_response(),
+        Err(NotificationPreferenceError::InfraError) => {
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
 }
 
 #[utoipa::path(

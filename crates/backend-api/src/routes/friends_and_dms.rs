@@ -23,7 +23,6 @@ use crate::{
         BlockUserResponse, OpenOrGetDmThreadResponse, SendDirectMessageResponse,
         UpdateFriendRequestResponse,
     },
-    use_cases::require_server_membership,
 };
 
 #[utoipa::path(
@@ -317,61 +316,41 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    use crate::use_cases::MembershipGateError;
-
-    let requester_is_member = match require_server_membership(
-        &*state.server_repository,
-        server_id,
-        authenticated_user.user_id,
-    )
-    .await
-    {
-        Ok(()) => true,
-        Err(MembershipGateError::NotMember) => false,
-        Err(MembershipGateError::NotFound | MembershipGateError::InfraError) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(ApiErrorResponse::new("NOT_FOUND", "server was not found")),
-            )
-                .into_response();
-        }
+    use crate::use_cases::friends::{
+        ServerContextFriendRequestError,
+        send_friend_request_from_server_context as server_context_use_case,
     };
 
-    let addressee_is_member = match require_server_membership(
+    let result = match server_context_use_case(
         &*state.server_repository,
+        &*state.message_repository,
         server_id,
+        authenticated_user.user_id,
         user_id,
     )
     .await
     {
-        Ok(()) => true,
-        Err(MembershipGateError::NotMember) => false,
-        Err(MembershipGateError::NotFound | MembershipGateError::InfraError) => {
+        Ok(result) => result,
+        Err(ServerContextFriendRequestError::ServerNotFound) => {
             return (
                 StatusCode::NOT_FOUND,
                 Json(ApiErrorResponse::new("NOT_FOUND", "server was not found")),
             )
                 .into_response();
         }
-    };
-
-    if !requester_is_member || !addressee_is_member {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(ApiErrorResponse::new(
-                "FORBIDDEN",
-                "friend request is denied because users do not share this server",
-            )),
-        )
-            .into_response();
-    }
-
-    let Ok(result) = state
-        .message_repository
-        .send_friend_request(authenticated_user.user_id, user_id)
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        Err(ServerContextFriendRequestError::NotSharedServer) => {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(ApiErrorResponse::new(
+                    "FORBIDDEN",
+                    "friend request is denied because users do not share this server",
+                )),
+            )
+                .into_response();
+        }
+        Err(ServerContextFriendRequestError::InfraError) => {
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
 
     match result {

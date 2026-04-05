@@ -14,7 +14,7 @@ use crate::{
     auth::{AuthenticatedUser, TokenVerifier},
     dto::{ApiErrorResponse, CreateMessageRequest},
     notification_hub::{NotificationEnvelope, NotificationEvent},
-    use_cases::require_channel_membership,
+    use_cases::messages::{CreateMessageError, create_message as create_message_use_case},
 };
 
 #[utoipa::path(
@@ -45,47 +45,26 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let channel = match state
-        .channel_repository
-        .find_channel_by_id(channel_id)
-        .await
+    let outcome = match create_message_use_case(
+        &*state.channel_repository,
+        &*state.server_repository,
+        &*state.message_repository,
+        channel_id,
+        authenticated_user.user_id,
+        request.content,
+        request.mentioned_user_id,
+    )
+    .await
     {
-        Ok(Some(channel)) => channel,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
-    let server_name = match state
-        .server_repository
-        .list_servers_for_user(authenticated_user.user_id)
-        .await
-    {
-        Ok(servers) => match servers.into_iter().find(|c| c.id == channel.server_id()) {
-            Some(server) => server.name,
-            None => return StatusCode::NOT_FOUND.into_response(),
-        },
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Ok(outcome) => outcome,
+        Err(CreateMessageError::Gate(gate_error)) => return gate_error.into_response(),
+        Err(CreateMessageError::InfraError) => {
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
 
-    if let Err(gate_error) =
-        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
-    {
-        return gate_error.into_response();
-    }
-
-    let Ok(created_message) = state
-        .message_repository
-        .create_message(
-            channel_id,
-            authenticated_user.user_id,
-            request.content,
-            request.mentioned_user_id,
-        )
-        .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-
-    match created_message {
+    let ctx = outcome.context;
+    match outcome.result {
         CreateMessageResult::Created {
             message,
             notified_user_ids,
@@ -93,18 +72,18 @@ where
             for recipient_user_id in notified_user_ids {
                 let event = if message.is_mentioned() {
                     NotificationEvent::mentioned(
-                        channel.server_id(),
-                        server_name.clone(),
+                        ctx.server_id,
+                        ctx.server_name.clone(),
                         message.channel_id(),
-                        channel.name().to_owned(),
+                        ctx.channel_name.clone(),
                         message.id(),
                     )
                 } else {
                     NotificationEvent::unread_message(
-                        channel.server_id(),
-                        server_name.clone(),
+                        ctx.server_id,
+                        ctx.server_name.clone(),
                         message.channel_id(),
-                        channel.name().to_owned(),
+                        ctx.channel_name.clone(),
                         message.id(),
                     )
                 };
