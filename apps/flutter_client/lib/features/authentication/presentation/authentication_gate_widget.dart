@@ -502,6 +502,7 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
                 notificationRepo: context.read<NotificationRepo>(),
                 notificationRuntimeService:
                     context.read<NotificationRuntimeService>(),
+                notificationService: context.read<NotificationService>(),
                 notificationBadgeService:
                     context.read<NotificationBadgeService>(),
                 preferencesStore: context.read<PreferencesStore>(),

@@ -2,10 +2,12 @@ import "dart:async";
 
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
 part "notification_center_event.dart";
@@ -16,10 +18,12 @@ class NotificationCenterBloc
   NotificationCenterBloc({
     required NotificationRepo notificationRepo,
     required NotificationRuntimeService notificationRuntimeService,
+    required NotificationService notificationService,
     NotificationBadgeService? notificationBadgeService,
     PreferencesStore? preferencesStore,
   })  : _notificationRepo = notificationRepo,
         _notificationRuntimeService = notificationRuntimeService,
+        _notificationService = notificationService,
         _notificationBadgeService =
             notificationBadgeService ?? const NoOpNotificationBadgeService(),
         _preferencesStore = preferencesStore ?? const WebPreferencesStore(),
@@ -34,6 +38,7 @@ class NotificationCenterBloc
 
   final NotificationRepo _notificationRepo;
   final NotificationRuntimeService _notificationRuntimeService;
+  final NotificationService _notificationService;
   final NotificationBadgeService _notificationBadgeService;
   final PreferencesStore _preferencesStore;
   StreamSubscription<RuntimeNotificationEvent>? _runtimeSubscription;
@@ -70,6 +75,8 @@ class NotificationCenterBloc
             totalUnreadCount: state.totalUnreadCount,
           ),
         );
+      case NotificationCenterMarkChannelReadRequested():
+        await _onMarkChannelReadRequested(event, emit);
     }
   }
 
@@ -176,5 +183,26 @@ class NotificationCenterBloc
           ),
         );
     }
+  }
+
+  Future<void> _onMarkChannelReadRequested(
+    NotificationCenterMarkChannelReadRequested event,
+    Emitter<NotificationCenterState> emit,
+  ) async {
+    final markReadResult = await _notificationService
+        .markChannelNotificationsRead(channelId: event.channelId.value);
+
+    if (markReadResult case Error<void>(:final error)) {
+      emit(
+        NotificationCenterExceptionState(
+          entries: state.entries,
+          totalUnreadCount: state.totalUnreadCount,
+          error: error,
+        ),
+      );
+      return;
+    }
+
+    await _refreshUnreadCount(emit);
   }
 }

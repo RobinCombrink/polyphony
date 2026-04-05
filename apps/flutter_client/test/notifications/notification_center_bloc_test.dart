@@ -9,6 +9,21 @@ import "package:polyphony_flutter_client/shared/services/preferences_store.dart"
 
 import "../test_doubles/chat_repository_fakes.dart";
 
+NotificationCenterBloc _buildBloc({
+  required NotificationRepo notificationRepo,
+  required FakeNotificationRuntimeService runtimeService,
+  required NotificationBadgeService notificationBadgeService,
+  required PreferencesStore preferencesStore,
+}) {
+  return NotificationCenterBloc(
+    notificationRepo: notificationRepo,
+    notificationRuntimeService: runtimeService,
+    notificationService: FakeNotificationService(),
+    notificationBadgeService: notificationBadgeService,
+    preferencesStore: preferencesStore,
+  );
+}
+
 class _FakeNotificationRepository implements NotificationRepo {
   _FakeNotificationRepository({
     required this.totalUnreadCount,
@@ -47,9 +62,9 @@ void main() {
   blocTest<NotificationCenterBloc, NotificationCenterState>(
     "loads unread count when started",
     build: () {
-      return NotificationCenterBloc(
+      return _buildBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 5),
-        notificationRuntimeService: runtimeService,
+        runtimeService: runtimeService,
         notificationBadgeService: notificationBadgeService,
         preferencesStore: preferencesStore,
       );
@@ -74,9 +89,9 @@ void main() {
   blocTest<NotificationCenterBloc, NotificationCenterState>(
     "adds runtime notifications to feed",
     build: () {
-      return NotificationCenterBloc(
+      return _buildBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 2),
-        notificationRuntimeService: runtimeService,
+        runtimeService: runtimeService,
         notificationBadgeService: notificationBadgeService,
         preferencesStore: preferencesStore,
       );
@@ -119,9 +134,9 @@ void main() {
   blocTest<NotificationCenterBloc, NotificationCenterState>(
     "ignores friend joined voice notifications when disabled by default",
     build: () {
-      return NotificationCenterBloc(
+      return _buildBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 2),
-        notificationRuntimeService: runtimeService,
+        runtimeService: runtimeService,
         notificationBadgeService: notificationBadgeService,
         preferencesStore: preferencesStore,
       );
@@ -159,9 +174,9 @@ void main() {
   blocTest<NotificationCenterBloc, NotificationCenterState>(
     "adds friend joined voice notifications when enabled",
     build: () {
-      return NotificationCenterBloc(
+      return _buildBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 2),
-        notificationRuntimeService: runtimeService,
+        runtimeService: runtimeService,
         notificationBadgeService: notificationBadgeService,
         preferencesStore: preferencesStore,
       );
@@ -207,9 +222,9 @@ void main() {
   blocTest<NotificationCenterBloc, NotificationCenterState>(
     "ignores friend joined voice notifications when channel is not in selected allow-list",
     build: () {
-      return NotificationCenterBloc(
+      return _buildBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 2),
-        notificationRuntimeService: runtimeService,
+        runtimeService: runtimeService,
         notificationBadgeService: notificationBadgeService,
         preferencesStore: preferencesStore,
       );
@@ -252,9 +267,9 @@ void main() {
   blocTest<NotificationCenterBloc, NotificationCenterState>(
     "adds friend joined voice notifications when channel is in selected allow-list",
     build: () {
-      return NotificationCenterBloc(
+      return _buildBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 2),
-        notificationRuntimeService: runtimeService,
+        runtimeService: runtimeService,
         notificationBadgeService: notificationBadgeService,
         preferencesStore: preferencesStore,
       );

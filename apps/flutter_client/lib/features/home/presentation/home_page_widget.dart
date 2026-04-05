@@ -20,9 +20,7 @@ import "package:polyphony_flutter_client/features/voice_sessions/presentation/wi
 import "package:polyphony_flutter_client/features/voice_sessions/presentation/widgets/voice_quick_actions_overlay_widget.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/top_right_error_toast.dart";
-import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
-import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 
 class HomePageWidget extends StatefulWidget {
   const HomePageWidget({super.key});
@@ -144,24 +142,12 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     return state.entries.where(_isDirectMessageNotification).length;
   }
 
-  Future<void> _markChannelNotificationsRead(ChannelId channelId) async {
-    final markReadResult = await context
-        .read<NotificationService>()
-        .markChannelNotificationsRead(channelId: channelId.value);
-
-    if (!mounted) {
-      return;
-    }
-
-    if (markReadResult case Error<void>()) {
-      showTopRightErrorToast(
-        context,
-        "Unable to mark notifications as read.",
-      );
-      return;
-    }
-
-    _refreshUnreadCount(context);
+  void _markChannelNotificationsRead(ChannelId channelId) {
+    context.read<NotificationCenterBloc>().add(
+          NotificationCenterMarkChannelReadRequested(
+            channelId: channelId,
+          ),
+        );
   }
 
   @override
@@ -397,9 +383,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                   return;
                 }
 
-                unawaited(
-                  _markChannelNotificationsRead(selectedTextChannelId),
-                );
+                _markChannelNotificationsRead(selectedTextChannelId);
               },
             ),
             BlocListener<MessagesBloc, MessagesState>(

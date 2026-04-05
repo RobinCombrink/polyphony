@@ -1,9 +1,7 @@
-import "dart:async";
-
 import "package:flutter/material.dart";
-import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:flutter_bloc/flutter_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/bloc/emote_catalog_bloc.dart";
 import "package:polyphony_flutter_client/shared/services/emote_service.dart";
-import "package:provider/provider.dart";
 
 class EmotePickerWidget extends StatefulWidget {
   const EmotePickerWidget({
@@ -18,38 +16,14 @@ class EmotePickerWidget extends StatefulWidget {
 }
 
 class _EmotePickerWidgetState extends State<EmotePickerWidget> {
-  var _emotes = const <Emote>[];
   var _searchQuery = "";
-  var _isLoading = true;
 
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_loadEmotes());
-  }
-
-  Future<void> _loadEmotes() async {
-    final service = context.read<EmoteService>();
-    final result = await service.listEmotes();
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = false;
-      if (result case Ok<List<Emote>>(:final value)) {
-        _emotes = value;
-      }
-    });
-  }
-
-  List<Emote> get _filteredEmotes {
+  List<Emote> _filterEmotes(List<Emote> emotes) {
     if (_searchQuery.isEmpty) {
-      return _emotes;
+      return emotes;
     }
     final query = _searchQuery.toLowerCase();
-    return _emotes
+    return emotes
         .where((e) => e.shortcode.toLowerCase().contains(query))
         .toList();
   }
@@ -73,17 +47,24 @@ class _EmotePickerWidgetState extends State<EmotePickerWidget> {
             ),
           ),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _buildEmoteGrid(),
+            child: BlocBuilder<EmoteCatalogBloc, EmoteCatalogState>(
+              builder: (context, state) => switch (state) {
+                EmoteCatalogInitialState() ||
+                EmoteCatalogLoadingState() =>
+                  const Center(child: CircularProgressIndicator()),
+                EmoteCatalogLoadedState(:final emotes) =>
+                  _buildEmoteGrid(_filterEmotes(emotes)),
+                EmoteCatalogExceptionState() =>
+                  const Center(child: Text("Failed to load emotes")),
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmoteGrid() {
-    final emotes = _filteredEmotes;
+  Widget _buildEmoteGrid(List<Emote> emotes) {
     if (emotes.isEmpty) {
       return const Center(child: Text("No emotes found"));
     }

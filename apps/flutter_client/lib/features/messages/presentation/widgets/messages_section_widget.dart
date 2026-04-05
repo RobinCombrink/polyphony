@@ -5,6 +5,8 @@ import "package:flutter/services.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_markdown_plus/flutter_markdown_plus.dart";
 import "package:markdown/markdown.dart" as md;
+import "package:polyphony_flutter_client/features/messages/bloc/emote_catalog_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/bloc/message_reactions_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/emote_picker_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/link_preview_card_widget.dart";
@@ -14,7 +16,9 @@ import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
+import "package:polyphony_flutter_client/shared/services/emote_service.dart";
 import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
+import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 import "package:url_launcher/url_launcher.dart";
 
 SectionStatus? buildMessagesSectionStatus(MessagesState state) {
@@ -298,9 +302,19 @@ class MessagesSectionWidget extends StatelessWidget {
                                   _MessageLinkPreviewWidget(
                                     content: message.content,
                                   ),
-                                  MessageReactionsWidget(
-                                    channelId: message.channelId,
-                                    messageId: message.id,
+                                  BlocProvider(
+                                    create: (context) => MessageReactionsBloc(
+                                      reactionService:
+                                          context.read<ReactionService>(),
+                                      channelId: message.channelId,
+                                      messageId: message.id,
+                                    )..add(
+                                        const MessageReactionsLoadRequested(),
+                                      ),
+                                    child: MessageReactionsWidget(
+                                      channelId: message.channelId,
+                                      messageId: message.id,
+                                    ),
                                   ),
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -503,27 +517,32 @@ class _MessageComposerWidgetState extends State<_MessageComposerWidget> {
   }
 
   void _showEmotePicker(BuildContext context) {
+    final emoteService = context.read<EmoteService>();
     unawaited(showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        contentPadding: EdgeInsets.zero,
-        content: EmotePickerWidget(
-          onEmoteSelected: (emote) {
-            final controller = widget.createController;
-            final text = controller.text;
-            final selection = controller.selection;
-            final insertOffset =
-                selection.isValid ? selection.baseOffset : text.length;
-            final newText =
-                "${text.substring(0, insertOffset)}${emote.shortcode}${text.substring(insertOffset)}";
-            controller.value = TextEditingValue(
-              text: newText,
-              selection: TextSelection.collapsed(
-                offset: insertOffset + emote.shortcode.length,
-              ),
-            );
-            Navigator.of(dialogContext).pop();
-          },
+      builder: (dialogContext) => BlocProvider(
+        create: (_) => EmoteCatalogBloc(emoteService: emoteService)
+          ..add(const EmoteCatalogLoadRequested()),
+        child: AlertDialog(
+          contentPadding: EdgeInsets.zero,
+          content: EmotePickerWidget(
+            onEmoteSelected: (emote) {
+              final controller = widget.createController;
+              final text = controller.text;
+              final selection = controller.selection;
+              final insertOffset =
+                  selection.isValid ? selection.baseOffset : text.length;
+              final newText =
+                  "${text.substring(0, insertOffset)}${emote.shortcode}${text.substring(insertOffset)}";
+              controller.value = TextEditingValue(
+                text: newText,
+                selection: TextSelection.collapsed(
+                  offset: insertOffset + emote.shortcode.length,
+                ),
+              );
+              Navigator.of(dialogContext).pop();
+            },
+          ),
         ),
       ),
     ));

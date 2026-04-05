@@ -6,6 +6,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/pinned_messages_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/bloc/message_search_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/message_search_dialog_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_section_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/pinned_messages_dialog_widget.dart";
@@ -76,22 +77,26 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
     final messageService = context.read<MessageService>();
     unawaited(showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Search Messages"),
-        content: SizedBox(
-          width: 400,
-          height: 400,
-          child: MessageSearchDialogWidget(
-            messageService: messageService,
-            channelId: channelId,
-          ),
+      builder: (_) => BlocProvider(
+        create: (_) => MessageSearchBloc(
+          messageService: messageService,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Close"),
+        child: AlertDialog(
+          title: const Text("Search Messages"),
+          content: SizedBox(
+            width: 400,
+            height: 400,
+            child: MessageSearchDialogWidget(
+              channelId: channelId,
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Close"),
+            ),
+          ],
+        ),
       ),
     ));
   }

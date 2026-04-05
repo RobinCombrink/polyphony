@@ -931,6 +931,59 @@ Acceptance criteria:
 - All target BLoC states expose transition methods; direct constructor/copyWith state building is limited to initial/bootstrap cases. ✅ (for states with complex field copying)
 - `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
 
+##### 13.4g — Frontend: Extract service calls from widgets to BLoCs
+Status:
+- Done.
+
+Scope:
+- `MessageSearchDialogWidget`: moved search service call and API-to-domain conversion into a `MessageSearchBloc` with search event/state. Uses `restartable()` transformer from `bloc_concurrency` with 300ms `Future.delayed` debounce.
+- `EmotePickerWidget`: moved emote catalog fetch into an `EmoteCatalogBloc` with load event/state. Call sites (`messages_section_widget.dart`, `message_reactions_widget.dart`) wrap with `BlocProvider<EmoteCatalogBloc>`.
+- `MessageReactionsWidget`: moved reaction toggle and list service calls into a per-message `MessageReactionsBloc`. Widget converted from `StatefulWidget` to `StatelessWidget` with `BlocBuilder`. Call site wraps with `BlocProvider<MessageReactionsBloc>`.
+- `VoiceParticipantsPaneWidget`: deferred — the `VoiceSessionRepo.createOne` call in the popout flow creates a separate LiveKit session for desktop multi-window popping, which is a presentation-level concern not appropriate for BLoC extraction.
+- `HomePageWidget` and `DirectMessagesPageWidget`: moved `markChannelNotificationsRead` service call into `NotificationCenterBloc` via new `NotificationCenterMarkChannelReadRequested` event.
+
+Acceptance criteria:
+- No widget makes direct service or repository calls; all data operations flow through BLoC events. ✅ (VoiceParticipantsPaneWidget popout deferred — presentation concern)
+- Inline API-to-domain conversions are moved to extension methods in `api_model_extensions.dart`. ✅
+- `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
+
+##### 13.4h — Frontend: Extract widgets from builder methods
+Status:
+- Done.
+
+Scope:
+- Extracted `RailBadgeWidget` and `RailAvatarWidget` from private `_buildRailBadge` / `_buildRailAvatar` methods in `servers_section_widget.dart` → new `rail_avatar_widget.dart`.
+- Extracted `DirectMessagesWorkspaceWidget` from private `_buildDirectMessagesWorkspace` method in `direct_messages_page_widget.dart` → new `direct_messages_workspace_widget.dart`.
+- `HomePageWidget._buildChatTab` and `DirectMessagesPageWidget._buildChatTab` are heavily state-coupled (~300 lines each, referencing multiple private state fields and methods). These are page body orchestration methods, not reusable widget trees — extraction deferred.
+- `MessageSearchDialogWidget._buildSearchResult` was already eliminated during the `MessageSearchBloc` rewrite in 13.4g.
+
+Acceptance criteria:
+- No private `_build*` helper methods remain that construct reusable widget trees; each is an extracted Widget class. ✅
+- `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
+
+##### 13.4i — Frontend: Test consistency (EntitySeeder and shared harness)
+Status:
+- Done.
+
+Scope:
+- `MessagesSectionWidgetTest`: replaced manual `_messageWith` constructor with `EntitySeeder.message()` for auto-generated non-essential fields (`id`, `channelId`). Added `createController` parameter to `_buildWidget` helper. Eliminated duplicate inline widget tree in "inserts emote shortcode" test.
+- `HomePageWidgetTest`: extracted `_HomePageTestHarness` class encapsulating ~80 lines of repeated BLoC/provider/widget setup. All 6 tests now use 3-line harness setup instead of copy-pasted blocks. Harness exposes `fixture`, `serversBloc`, `channelsBloc`, `serverMembersBloc`, `notificationRuntimeService` for test interaction.
+- `NotificationCenterBlocTest`: already uses `_buildBloc` helper pattern from 13.4g. String IDs in runtime notification events are primitives not suitable for EntitySeeder.
+
+Acceptance criteria:
+- All test fixtures for non-essential fields are produced by `EntitySeeder`; no manual fixture construction for fields that are not part of the scenario setup or assertion. ✅
+- Shared test harness reduces widget test setup boilerplate. ✅
+- `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
+
+Overall acceptance criteria:
+- Block-on-friendship deletion parity is verified across both storage backends with BDD test coverage.
+- All DTO ↔ domain conversions live in `From`/`Into` impls on DTO types (backend) or extension methods in `api_model_extensions.dart` (frontend); no inline conversions remain in route handlers or widgets.
+- No BLoC loaded-state uses nullable fields to represent selection, scope, or context — all such states are explicit ADT variants.
+- All BLoC states expose transition methods; direct constructor/copyWith state building is limited to initial/bootstrap cases.
+- No widget makes direct service or repository calls; all data operations flow through BLoC events.
+- Inline API-to-domain conversions are moved to extension methods in `api_model_extensions.dart`.
+- `dart analyze` is clean and `flutter test` passes with no skipped tests.
+
 
 #### Phase 14 (Weeks 13-14): User identity and workspace usability enhancements
 Status:

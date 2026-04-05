@@ -3,6 +3,7 @@ import "dart:async";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
+import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
@@ -19,6 +20,7 @@ import "package:polyphony_flutter_client/shared/services/link_preview_service.da
 import "package:polyphony_flutter_client/shared/services/media_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/message_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
+import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/pinned_message_service.dart";
 import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 
@@ -1236,5 +1238,97 @@ class FakeReactionService implements ReactionService {
   }) async {
     toggledEmoteIds.add(emoteId);
     return const Ok<void>(null);
+  }
+}
+
+class FakeNotificationService implements NotificationService {
+  @override
+  Future<Result<ApiNotificationUnreadCount>>
+      getUnreadNotificationCount() async {
+    return Error<ApiNotificationUnreadCount>(Exception("Not used in test."));
+  }
+
+  @override
+  Future<Result<void>> markChannelNotificationsRead({
+    required String channelId,
+  }) async {
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> markMessageAsUnread({
+    required String channelId,
+    required String messageId,
+  }) async {
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<ApiNotificationGlobalPreference>>
+      getGlobalNotificationPreference() async {
+    return Error<ApiNotificationGlobalPreference>(
+      Exception("Not used in test."),
+    );
+  }
+
+  @override
+  Future<Result<void>> updateGlobalNotificationPreference({
+    ApiNotificationMuteState? muteState,
+    ApiNotificationCategoryPreference? notificationCategory,
+    ApiNotificationCategoryPreference? channelDefaultCategory,
+  }) async {
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<ApiNotificationServerPreference>>
+      getServerNotificationPreference({
+    required String serverId,
+  }) async {
+    return Error<ApiNotificationServerPreference>(
+      Exception("Not used in test."),
+    );
+  }
+
+  @override
+  Future<Result<void>> updateServerNotificationPreference({
+    required String serverId,
+    ApiNotificationMuteState? muteState,
+    ApiNotificationCategoryPreference? notificationCategory,
+  }) async {
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<ApiNotificationChannelPreference>>
+      getChannelNotificationPreference({
+    required String channelId,
+  }) async {
+    return Error<ApiNotificationChannelPreference>(
+      Exception("Not used in test."),
+    );
+  }
+
+  @override
+  Future<Result<void>> updateChannelNotificationPreference({
+    required String channelId,
+    required ApiNotificationCategoryPreference notificationCategory,
+  }) async {
+    return const Ok<void>(null);
+  }
+
+  @override
+  Future<Result<void>> muteChannelNotifications({
+    required String channelId,
+    required int durationMinutes,
+  }) async {
+    return Error<void>(Exception("Not used in test."));
+  }
+
+  @override
+  Future<Result<void>> unmuteChannelNotifications({
+    required String channelId,
+  }) async {
+    return Error<void>(Exception("Not used in test."));
   }
 }

@@ -22,6 +22,15 @@ final class NotificationCenterFeedClearedRequested
   const NotificationCenterFeedClearedRequested();
 }
 
+final class NotificationCenterMarkChannelReadRequested
+    extends NotificationCenterEvent {
+  const NotificationCenterMarkChannelReadRequested({
+    required this.channelId,
+  });
+
+  final ChannelId channelId;
+}
+
 final class _NotificationCenterRuntimeEventReceived
     extends NotificationCenterEvent {
   const _NotificationCenterRuntimeEventReceived({

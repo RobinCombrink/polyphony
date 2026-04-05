@@ -23,7 +23,6 @@ import "package:polyphony_flutter_client/shared/services/emote_service.dart";
 import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
-import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 import "package:provider/provider.dart";
@@ -106,100 +105,6 @@ class _FakeNotificationRepository implements NotificationRepo {
   }
 }
 
-class _FakeNotificationService implements NotificationService {
-  @override
-  Future<Result<ApiNotificationUnreadCount>>
-      getUnreadNotificationCount() async {
-    return const Ok<ApiNotificationUnreadCount>(
-      ApiNotificationUnreadCount(totalUnreadCount: 0),
-    );
-  }
-
-  @override
-  Future<Result<ApiNotificationGlobalPreference>>
-      getGlobalNotificationPreference() async {
-    return Error<ApiNotificationGlobalPreference>(
-      Exception("Not used in test."),
-    );
-  }
-
-  @override
-  Future<Result<ApiNotificationServerPreference>>
-      getServerNotificationPreference({
-    required String serverId,
-  }) async {
-    return Error<ApiNotificationServerPreference>(
-      Exception("Not used in test."),
-    );
-  }
-
-  @override
-  Future<Result<ApiNotificationChannelPreference>>
-      getChannelNotificationPreference({
-    required String channelId,
-  }) async {
-    return Error<ApiNotificationChannelPreference>(
-      Exception("Not used in test."),
-    );
-  }
-
-  @override
-  Future<Result<void>> markChannelNotificationsRead({
-    required String channelId,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<void>> markMessageAsUnread({
-    required String channelId,
-    required String messageId,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<void>> muteChannelNotifications({
-    required String channelId,
-    required int durationMinutes,
-  }) async {
-    return Error<void>(Exception("Not used in test."));
-  }
-
-  @override
-  Future<Result<void>> unmuteChannelNotifications({
-    required String channelId,
-  }) async {
-    return Error<void>(Exception("Not used in test."));
-  }
-
-  @override
-  Future<Result<void>> updateChannelNotificationPreference({
-    required String channelId,
-    required ApiNotificationCategoryPreference notificationCategory,
-  }) async {
-    return Error<void>(Exception("Not used in test."));
-  }
-
-  @override
-  Future<Result<void>> updateGlobalNotificationPreference({
-    ApiNotificationMuteState? muteState,
-    ApiNotificationCategoryPreference? notificationCategory,
-    ApiNotificationCategoryPreference? channelDefaultCategory,
-  }) async {
-    return Error<void>(Exception("Not used in test."));
-  }
-
-  @override
-  Future<Result<void>> updateServerNotificationPreference({
-    required String serverId,
-    ApiNotificationMuteState? muteState,
-    ApiNotificationCategoryPreference? notificationCategory,
-  }) async {
-    return Error<void>(Exception("Not used in test."));
-  }
-}
-
 void main() {
   testWidgets(
     "loads server users when selected server changes",
@@ -249,6 +154,7 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 3),
         notificationRuntimeService: notificationRuntimeService,
+        notificationService: FakeNotificationService(),
         notificationBadgeService: const NoOpNotificationBadgeService(),
         preferencesStore: InMemoryPreferencesStore(),
       )..add(
@@ -380,6 +286,7 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(),
         notificationRuntimeService: notificationRuntimeService,
+        notificationService: FakeNotificationService(),
         notificationBadgeService: const NoOpNotificationBadgeService(),
         preferencesStore: InMemoryPreferencesStore(),
       )..add(
@@ -496,6 +403,7 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(totalUnreadCount: 7),
         notificationRuntimeService: notificationRuntimeService,
+        notificationService: FakeNotificationService(),
         notificationBadgeService: const NoOpNotificationBadgeService(),
         preferencesStore: InMemoryPreferencesStore(),
       )..add(
@@ -616,6 +524,7 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(),
         notificationRuntimeService: notificationRuntimeService,
+        notificationService: FakeNotificationService(),
         notificationBadgeService: const NoOpNotificationBadgeService(),
         preferencesStore: preferencesStore,
       )..add(
@@ -650,9 +559,6 @@ void main() {
             ),
             Provider<ReactionService>(
               create: (_) => FakeReactionService(),
-            ),
-            Provider<NotificationService>(
-              create: (_) => _FakeNotificationService(),
             ),
           ],
           child: MultiBlocProvider(
@@ -750,6 +656,7 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(),
         notificationRuntimeService: notificationRuntimeService,
+        notificationService: FakeNotificationService(),
         notificationBadgeService: const NoOpNotificationBadgeService(),
         preferencesStore: InMemoryPreferencesStore(),
       )..add(
@@ -784,9 +691,6 @@ void main() {
             ),
             Provider<ReactionService>(
               create: (_) => FakeReactionService(),
-            ),
-            Provider<NotificationService>(
-              create: (_) => _FakeNotificationService(),
             ),
           ],
           child: MultiBlocProvider(
@@ -898,6 +802,7 @@ void main() {
       final notificationCenterBloc = NotificationCenterBloc(
         notificationRepo: _FakeNotificationRepository(),
         notificationRuntimeService: notificationRuntimeService,
+        notificationService: FakeNotificationService(),
         notificationBadgeService: const NoOpNotificationBadgeService(),
         preferencesStore: InMemoryPreferencesStore(),
       )..add(
@@ -932,9 +837,6 @@ void main() {
             ),
             Provider<ReactionService>(
               create: (_) => FakeReactionService(),
-            ),
-            Provider<NotificationService>(
-              create: (_) => _FakeNotificationService(),
             ),
           ],
           child: MultiBlocProvider(

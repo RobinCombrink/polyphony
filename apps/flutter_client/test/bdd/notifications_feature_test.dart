@@ -31,6 +31,21 @@ class _FakeNotificationBadgeService implements NotificationBadgeService {
   }
 }
 
+NotificationCenterBloc _buildBloc({
+  required NotificationRepo notificationRepo,
+  required FakeNotificationRuntimeService runtimeService,
+  required NotificationBadgeService notificationBadgeService,
+  required PreferencesStore preferencesStore,
+}) {
+  return NotificationCenterBloc(
+    notificationRepo: notificationRepo,
+    notificationRuntimeService: runtimeService,
+    notificationService: FakeNotificationService(),
+    notificationBadgeService: notificationBadgeService,
+    preferencesStore: preferencesStore,
+  );
+}
+
 void main() {
   group("Feature: Notifications", () {
     group(
@@ -49,10 +64,10 @@ void main() {
         blocTest<NotificationCenterBloc, NotificationCenterState>(
           "Scenario: Mentioned event is shown in feed",
           build: () {
-            return NotificationCenterBloc(
+            return _buildBloc(
               notificationRepo:
                   _FakeNotificationRepository(totalUnreadCount: 0),
-              notificationRuntimeService: runtimeService,
+              runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
             );
@@ -95,10 +110,10 @@ void main() {
         blocTest<NotificationCenterBloc, NotificationCenterState>(
           "Scenario: Friend-joined-voice event is suppressed by default",
           build: () {
-            return NotificationCenterBloc(
+            return _buildBloc(
               notificationRepo:
                   _FakeNotificationRepository(totalUnreadCount: 0),
-              notificationRuntimeService: runtimeService,
+              runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
             );
@@ -136,10 +151,10 @@ void main() {
         blocTest<NotificationCenterBloc, NotificationCenterState>(
           "Scenario: Friend-joined-voice event is shown when enabled and selected",
           build: () {
-            return NotificationCenterBloc(
+            return _buildBloc(
               notificationRepo:
                   _FakeNotificationRepository(totalUnreadCount: 0),
-              notificationRuntimeService: runtimeService,
+              runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
             );
@@ -188,10 +203,10 @@ void main() {
         blocTest<NotificationCenterBloc, NotificationCenterState>(
           "Scenario: Unread count syncs to badge service",
           build: () {
-            return NotificationCenterBloc(
+            return _buildBloc(
               notificationRepo:
                   _FakeNotificationRepository(totalUnreadCount: 5),
-              notificationRuntimeService: runtimeService,
+              runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
             );
@@ -218,10 +233,10 @@ void main() {
         blocTest<NotificationCenterBloc, NotificationCenterState>(
           "Scenario: Event outside selected channels is not shown in feed",
           build: () {
-            return NotificationCenterBloc(
+            return _buildBloc(
               notificationRepo:
                   _FakeNotificationRepository(totalUnreadCount: 0),
-              notificationRuntimeService: runtimeService,
+              runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
             );
@@ -264,10 +279,10 @@ void main() {
         blocTest<NotificationCenterBloc, NotificationCenterState>(
           "Scenario: Event in selected channels is shown in feed",
           build: () {
-            return NotificationCenterBloc(
+            return _buildBloc(
               notificationRepo:
                   _FakeNotificationRepository(totalUnreadCount: 0),
-              notificationRuntimeService: runtimeService,
+              runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
             );
