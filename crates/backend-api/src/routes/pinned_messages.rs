@@ -45,18 +45,9 @@ where
     MessageRepo: MessageRepository + PinnedMessageRepository,
     Verifier: TokenVerifier,
 {
-    let user = state
-        .user_repository
-        .find_user_by_external_reference(&authenticated_user.external_reference)
-        .await;
-
-    let Some(user) = user.ok().flatten() else {
-        return StatusCode::UNAUTHORIZED.into_response();
-    };
-
     let Ok(result) = state
         .message_repository
-        .pin_message(server_id, request.message_id, user.id)
+        .pin_message(server_id, request.message_id, authenticated_user.user_id)
         .await
     else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
@@ -82,7 +73,7 @@ where
 )]
 pub(crate) async fn unpin_message<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
-    authenticated_user: AuthenticatedUser,
+    _authenticated_user: AuthenticatedUser,
     Path((server_id, message_id)): Path<(ServerId, backend_domain::MessageId)>,
 ) -> impl IntoResponse
 where
@@ -92,15 +83,6 @@ where
     MessageRepo: MessageRepository + PinnedMessageRepository,
     Verifier: TokenVerifier,
 {
-    let user = state
-        .user_repository
-        .find_user_by_external_reference(&authenticated_user.external_reference)
-        .await;
-
-    let Some(_user) = user.ok().flatten() else {
-        return StatusCode::UNAUTHORIZED.into_response();
-    };
-
     let Ok(result) = state
         .message_repository
         .unpin_message(server_id, message_id)
@@ -127,7 +109,7 @@ where
 )]
 pub(crate) async fn list_pinned_messages<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>(
     State(state): State<ApiState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier>>,
-    authenticated_user: AuthenticatedUser,
+    _authenticated_user: AuthenticatedUser,
     Path(server_id): Path<ServerId>,
 ) -> impl IntoResponse
 where
@@ -137,15 +119,6 @@ where
     MessageRepo: MessageRepository + PinnedMessageRepository,
     Verifier: TokenVerifier,
 {
-    let user = state
-        .user_repository
-        .find_user_by_external_reference(&authenticated_user.external_reference)
-        .await;
-
-    let Some(_user) = user.ok().flatten() else {
-        return StatusCode::UNAUTHORIZED.into_response();
-    };
-
     let Ok(pinned_raw) = state
         .message_repository
         .list_pinned_messages(server_id)

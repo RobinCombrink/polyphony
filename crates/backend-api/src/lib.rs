@@ -6,6 +6,7 @@ pub mod observability;
 mod openapi;
 mod response_mapping;
 mod routes;
+mod use_cases;
 
 pub use backend_domain as domain;
 pub use backend_storage as storage;

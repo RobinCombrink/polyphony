@@ -24,6 +24,7 @@ use crate::{
         NotificationUnreadCountResponse, UpdateNotificationChannelPreferenceRequest,
         UpdateNotificationGlobalPreferenceRequest, UpdateNotificationServerPreferenceRequest,
     },
+    use_cases::{require_channel_membership, require_server_membership},
 };
 use serde::Deserialize;
 
@@ -118,18 +119,11 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let is_server_member = match state
-        .server_repository
-        .is_server_member(server_id, authenticated_user.user_id)
-        .await
+    // server_notification_preference: server membership gate
+    if let Err(gate_error) =
+        require_server_membership(&*state.server_repository, server_id, authenticated_user.user_id).await
     {
-        Ok(Some(value)) => value,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
-
-    if !is_server_member {
-        return StatusCode::FORBIDDEN.into_response();
+        return gate_error.into_response();
     }
 
     let Ok(global_category) = state
@@ -197,18 +191,11 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let is_channel_member = match state
-        .channel_repository
-        .is_channel_member(channel_id, authenticated_user.user_id)
-        .await
+    // channel_notification_preference: channel membership gate
+    if let Err(gate_error) =
+        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
     {
-        Ok(Some(value)) => value,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
-
-    if !is_channel_member {
-        return StatusCode::FORBIDDEN.into_response();
+        return gate_error.into_response();
     }
 
     let Ok(muted_until_epoch_seconds) = state
@@ -282,30 +269,39 @@ where
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
     if let Some(notification_category) = request.notification_category {
-        let _ = state
+        let Ok(_) = state
             .message_repository
             .set_global_notification_category_for_user(
                 authenticated_user.user_id,
                 notification_category,
             )
-            .await;
+            .await
+        else {
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        };
     }
 
     if let Some(mute_state) = request.mute_state {
-        let _ = state
+        let Ok(_) = state
             .message_repository
             .set_global_mute_state_for_user(authenticated_user.user_id, mute_state)
-            .await;
+            .await
+        else {
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        };
     }
 
     if let Some(channel_default_category) = request.channel_default_category {
-        let _ = state
+        let Ok(_) = state
             .message_repository
             .set_global_channel_default_notification_category_for_user(
                 authenticated_user.user_id,
                 channel_default_category,
             )
-            .await;
+            .await
+        else {
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        };
     }
 
     StatusCode::NO_CONTENT
@@ -344,36 +340,38 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let is_server_member = match state
-        .server_repository
-        .is_server_member(server_id, authenticated_user.user_id)
-        .await
+    if let Err(gate_error) = require_server_membership(
+        &*state.server_repository,
+        server_id,
+        authenticated_user.user_id,
+    )
+    .await
     {
-        Ok(Some(value)) => value,
-        Ok(None) => return StatusCode::NOT_FOUND,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
-    };
-
-    if !is_server_member {
-        return StatusCode::FORBIDDEN;
+        return StatusCode::from(&gate_error);
     }
 
     if let Some(notification_category) = request.notification_category {
-        let _ = state
+        let Ok(_) = state
             .message_repository
             .set_server_notification_category_for_user(
                 authenticated_user.user_id,
                 server_id,
                 notification_category,
             )
-            .await;
+            .await
+        else {
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        };
     }
 
     if let Some(mute_state) = request.mute_state {
-        let _ = state
+        let Ok(_) = state
             .message_repository
             .set_server_mute_state_for_user(authenticated_user.user_id, server_id, mute_state)
-            .await;
+            .await
+        else {
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        };
     }
 
     StatusCode::NO_CONTENT
@@ -413,18 +411,10 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let is_channel_member = match state
-        .channel_repository
-        .is_channel_member(channel_id, authenticated_user.user_id)
-        .await
+    if let Err(gate_error) =
+        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
     {
-        Ok(Some(value)) => value,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
-
-    if !is_channel_member {
-        return StatusCode::FORBIDDEN.into_response();
+        return gate_error.into_response();
     }
 
     if request.duration_minutes == 0 {
@@ -438,14 +428,18 @@ where
             .into_response();
     }
 
-    let _ = state
+    if state
         .message_repository
         .set_channel_temporary_mute_for_user(
             authenticated_user.user_id,
             channel_id,
             request.duration_minutes,
         )
-        .await;
+        .await
+        .is_err()
+    {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
 
     StatusCode::NO_CONTENT.into_response()
 }
@@ -483,28 +477,24 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let is_channel_member = match state
-        .channel_repository
-        .is_channel_member(channel_id, authenticated_user.user_id)
-        .await
+    if let Err(gate_error) =
+        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
     {
-        Ok(Some(value)) => value,
-        Ok(None) => return StatusCode::NOT_FOUND,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
-    };
-
-    if !is_channel_member {
-        return StatusCode::FORBIDDEN;
+        return StatusCode::from(&gate_error);
     }
 
-    let _ = state
+    if state
         .message_repository
         .set_channel_notification_category_for_user(
             authenticated_user.user_id,
             channel_id,
             request.notification_category,
         )
-        .await;
+        .await
+        .is_err()
+    {
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
 
     StatusCode::NO_CONTENT
 }
@@ -540,24 +530,20 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let is_channel_member = match state
-        .channel_repository
-        .is_channel_member(channel_id, authenticated_user.user_id)
-        .await
+    if let Err(gate_error) =
+        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
     {
-        Ok(Some(value)) => value,
-        Ok(None) => return StatusCode::NOT_FOUND,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
-    };
-
-    if !is_channel_member {
-        return StatusCode::FORBIDDEN;
+        return StatusCode::from(&gate_error);
     }
 
-    let _ = state
+    if state
         .message_repository
         .clear_channel_temporary_mute_for_user(authenticated_user.user_id, channel_id)
-        .await;
+        .await
+        .is_err()
+    {
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
 
     StatusCode::NO_CONTENT
 }
@@ -635,24 +621,20 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let is_channel_member = match state
-        .channel_repository
-        .is_channel_member(channel_id, authenticated_user.user_id)
-        .await
+    if let Err(gate_error) =
+        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
     {
-        Ok(Some(value)) => value,
-        Ok(None) => return StatusCode::NOT_FOUND,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
-    };
-
-    if !is_channel_member {
-        return StatusCode::FORBIDDEN;
+        return StatusCode::from(&gate_error);
     }
 
-    let _ = state
+    if state
         .message_repository
         .clear_unread_count_for_channel(authenticated_user.user_id, channel_id)
-        .await;
+        .await
+        .is_err()
+    {
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
 
     StatusCode::NO_CONTENT
 }
@@ -690,18 +672,10 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let is_channel_member = match state
-        .channel_repository
-        .is_channel_member(channel_id, authenticated_user.user_id)
-        .await
+    if let Err(gate_error) =
+        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
     {
-        Ok(Some(value)) => value,
-        Ok(None) => return StatusCode::NOT_FOUND,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
-    };
-
-    if !is_channel_member {
-        return StatusCode::FORBIDDEN;
+        return StatusCode::from(&gate_error);
     }
 
     match state

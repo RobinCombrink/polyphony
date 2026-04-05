@@ -18,6 +18,7 @@ use crate::{
         UpdateServerRequest,
     },
     response_mapping::{DeletedResponse, UpdatedResponse},
+    use_cases::require_server_membership,
 };
 
 type AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier> =
@@ -459,18 +460,14 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let is_server_member = match state
-        .server_repository
-        .is_server_member(server_id, authenticated_user.user_id)
-        .await
+    if let Err(gate_error) = require_server_membership(
+        &*state.server_repository,
+        server_id,
+        authenticated_user.user_id,
+    )
+    .await
     {
-        Ok(Some(value)) => value,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
-
-    if !is_server_member {
-        return StatusCode::FORBIDDEN.into_response();
+        return gate_error.into_response();
     }
 
     let Ok(channels) = state

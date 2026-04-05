@@ -23,6 +23,7 @@ use crate::{
         BlockUserResponse, OpenOrGetDmThreadResponse, SendDirectMessageResponse,
         UpdateFriendRequestResponse,
     },
+    use_cases::require_server_membership,
 };
 
 #[utoipa::path(
@@ -316,13 +317,18 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    let requester_is_member = match state
-        .server_repository
-        .is_server_member(server_id, authenticated_user.user_id)
-        .await
+    use crate::use_cases::MembershipGateError;
+
+    let requester_is_member = match require_server_membership(
+        &*state.server_repository,
+        server_id,
+        authenticated_user.user_id,
+    )
+    .await
     {
-        Ok(Some(value)) => value,
-        Ok(None) | Err(_) => {
+        Ok(()) => true,
+        Err(MembershipGateError::NotMember) => false,
+        Err(MembershipGateError::NotFound | MembershipGateError::InfraError) => {
             return (
                 StatusCode::NOT_FOUND,
                 Json(ApiErrorResponse::new("NOT_FOUND", "server was not found")),
@@ -331,13 +337,16 @@ where
         }
     };
 
-    let addressee_is_member = match state
-        .server_repository
-        .is_server_member(server_id, user_id)
-        .await
+    let addressee_is_member = match require_server_membership(
+        &*state.server_repository,
+        server_id,
+        user_id,
+    )
+    .await
     {
-        Ok(Some(value)) => value,
-        Ok(None) | Err(_) => {
+        Ok(()) => true,
+        Err(MembershipGateError::NotMember) => false,
+        Err(MembershipGateError::NotFound | MembershipGateError::InfraError) => {
             return (
                 StatusCode::NOT_FOUND,
                 Json(ApiErrorResponse::new("NOT_FOUND", "server was not found")),

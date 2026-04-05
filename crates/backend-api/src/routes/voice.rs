@@ -14,6 +14,7 @@ use livekit_api::access_token::{AccessToken, VideoGrants};
 
 use crate::notification_hub::{NotificationEnvelope, NotificationEvent};
 use crate::{ApiState, auth::AuthenticatedUser};
+use crate::use_cases::require_channel_membership;
 
 #[utoipa::path(
     post,
@@ -44,18 +45,10 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    let is_channel_member = match state
-        .channel_repository
-        .is_channel_member(channel_id, authenticated_user.user_id)
-        .await
+    if let Err(gate_error) =
+        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
     {
-        Ok(Some(value)) => value,
-        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
-
-    if !is_channel_member {
-        return StatusCode::FORBIDDEN.into_response();
+        return gate_error.into_response();
     }
 
     let channel = match state

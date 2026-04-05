@@ -45,18 +45,9 @@ where
     MessageRepo: MessageRepository + ReactionRepository,
     Verifier: TokenVerifier,
 {
-    let user = state
-        .user_repository
-        .find_user_by_external_reference(&authenticated_user.external_reference)
-        .await;
-
-    let Some(user) = user.ok().flatten() else {
-        return StatusCode::UNAUTHORIZED.into_response();
-    };
-
     let Ok(result) = state
         .message_repository
-        .toggle_reaction(message_id, user.id, &request.emote_id)
+        .toggle_reaction(message_id, authenticated_user.user_id, &request.emote_id)
         .await
     else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
@@ -91,18 +82,9 @@ where
     MessageRepo: MessageRepository + ReactionRepository,
     Verifier: TokenVerifier,
 {
-    let user = state
-        .user_repository
-        .find_user_by_external_reference(&authenticated_user.external_reference)
-        .await;
-
-    let Some(user) = user.ok().flatten() else {
-        return StatusCode::UNAUTHORIZED.into_response();
-    };
-
     let Ok(summaries_raw) = state
         .message_repository
-        .list_reaction_summaries(message_id, user.id)
+        .list_reaction_summaries(message_id, authenticated_user.user_id)
         .await
     else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
