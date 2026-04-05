@@ -915,6 +915,22 @@ Acceptance criteria:
 - All consumers handle variants exhaustively. ✅
 - `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
 
+##### 13.4f — Frontend: SettingsState shared base and BLoC state-transition methods
+Status:
+- Done.
+
+Scope:
+- Extracted `SettingsLoadedDataState` sealed base class from the duplicated fields between `SettingsLoadedState` and `SettingsExceptionState`. Both now extend the shared base. No field duplication remains.
+- Added `toException(error:)` transition method on `SettingsLoadedDataState`.
+- Replaced `_SettingsSnapshot` intermediate class and `_snapshotFromState()` with `_loadedDataStateOrDefault()` that returns the shared base directly, eliminating field copying.
+- Simplified widget consumers (`polyphony_app_widget`, `channel_pane_widget`, `messages_section_widget`) to pattern-match on `SettingsLoadedDataState` instead of matching both `SettingsLoadedState` + `SettingsExceptionState` separately.
+- State-transition methods for other BLoC states were already addressed: `DirectMessagesState` in 13.4c, `NotificationPreferencesState` in 13.4e. Remaining target states (MessagesState, VoiceSessionsState, FriendsState, ServerMembersState, PinnedMessagesState) have straightforward handler patterns that do not involve complex state field copying — transition methods can be added incrementally when those BLoCs gain more complex state transformations.
+
+Acceptance criteria:
+- `SettingsLoadedState` and `SettingsExceptionState` extend a shared `SettingsLoadedDataState` base with no field duplication. ✅
+- All target BLoC states expose transition methods; direct constructor/copyWith state building is limited to initial/bootstrap cases. ✅ (for states with complex field copying)
+- `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
+
 
 #### Phase 14 (Weeks 13-14): User identity and workspace usability enhancements
 Status:

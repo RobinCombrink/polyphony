@@ -169,9 +169,7 @@ class MessagesSectionWidget extends StatelessWidget {
           Expanded(
             child: BlocSelector<SettingsBloc, SettingsState, bool>(
               selector: (state) => switch (state) {
-                SettingsLoadedState(:final isDeveloperModeEnabled) =>
-                  isDeveloperModeEnabled,
-                SettingsExceptionState(:final isDeveloperModeEnabled) =>
+                SettingsLoadedDataState(:final isDeveloperModeEnabled) =>
                   isDeveloperModeEnabled,
                 SettingsInitialState() => false,
               },

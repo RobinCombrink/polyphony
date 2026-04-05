@@ -141,9 +141,7 @@ class PolyphonyApp extends StatelessWidget {
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, settingsState) {
           final themeMode = switch (settingsState) {
-            SettingsLoadedState(:final isDarkModeEnabled) =>
-              isDarkModeEnabled ? ThemeMode.dark : ThemeMode.light,
-            SettingsExceptionState(:final isDarkModeEnabled) =>
+            SettingsLoadedDataState(:final isDarkModeEnabled) =>
               isDarkModeEnabled ? ThemeMode.dark : ThemeMode.light,
             SettingsInitialState() => ThemeMode.system,
           };

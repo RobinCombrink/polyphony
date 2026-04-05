@@ -249,9 +249,7 @@ class _ChannelPaneWidgetState extends State<ChannelPaneWidget> {
     final onNotificationPreferences = widget.onNotificationPreferences;
     final onRenameChannel = widget.onRenameChannel;
     final isDeveloperModeEnabled = switch (context.read<SettingsBloc>().state) {
-      SettingsLoadedState(:final isDeveloperModeEnabled) =>
-        isDeveloperModeEnabled,
-      SettingsExceptionState(:final isDeveloperModeEnabled) =>
+      SettingsLoadedDataState(:final isDeveloperModeEnabled) =>
         isDeveloperModeEnabled,
       SettingsInitialState() => false,
     };
