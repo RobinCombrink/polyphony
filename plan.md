@@ -984,6 +984,21 @@ Overall acceptance criteria:
 - Inline API-to-domain conversions are moved to extension methods in `api_model_extensions.dart`.
 - `dart analyze` is clean and `flutter test` passes with no skipped tests.
 
+##### 13.4h — Frontend: Extract widgets from builder methods
+Status:
+- Planned.
+
+Scope:
+- Replace UI-building helper methods with extracted Widget classes where reusable structure exists:
+	- `MessageSearchDialogWidget._buildSearchResult` → `MessageSearchResultTile` widget.
+	- `HomePageWidget` navigation builder methods → dedicated extracted widgets.
+	- `DirectMessagesPageWidget` builder methods → extracted widgets.
+	- `ServersSectionWidget` builder methods → extracted widgets.
+
+Acceptance criteria:
+- No private `_build*` helper methods remain that construct reusable widget trees; each is an extracted Widget class.
+- `dart analyze` is clean and `flutter test` passes with no skipped tests.
+
 
 #### Phase 14 (Weeks 13-14): User identity and workspace usability enhancements
 Status:

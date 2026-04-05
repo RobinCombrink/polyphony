@@ -6,9 +6,7 @@ import "package:go_router/go_router.dart";
 import "package:polyphony_flutter_client/app/app_route.dart";
 import "package:polyphony_flutter_client/features/authentication/bloc/authentication_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
-import "package:polyphony_flutter_client/features/direct_messages/bloc/direct_messages_bloc.dart";
-import "package:polyphony_flutter_client/features/direct_messages/presentation/widgets/direct_messages_pane_widget.dart";
-import "package:polyphony_flutter_client/features/friends/presentation/widgets/friends_pane_widget.dart";
+import "package:polyphony_flutter_client/features/home/presentation/widgets/direct_messages_workspace_widget.dart";
 import "package:polyphony_flutter_client/features/home/presentation/widgets/workspace_destination.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/identity/presentation/widgets/display_name_banner_widget.dart";
@@ -101,27 +99,6 @@ class _DirectMessagesPageWidgetState extends State<DirectMessagesPageWidget> {
 
   void _showDirectMessagesWorkspace() {
     GoRouter.of(context).goNamed(AppRouteId.directMessages.name);
-  }
-
-  Widget _buildDirectMessagesWorkspace() {
-    return Row(
-      children: <Widget>[
-        SizedBox(
-          width: 320,
-          child: FriendsPaneWidget(
-            onStartDirectMessage: (userId) {
-              context.read<DirectMessagesBloc>().add(
-                    OpenDirectMessageThreadRequested(userId: userId),
-                  );
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: DirectMessagesPaneWidget(),
-        ),
-      ],
-    );
   }
 
   void _showServerWorkspace() {
@@ -492,8 +469,8 @@ class _DirectMessagesPageWidgetState extends State<DirectMessagesPageWidget> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildDirectMessagesWorkspace(),
+                          const Expanded(
+                            child: DirectMessagesWorkspaceWidget(),
                           ),
                         ],
                       ),
