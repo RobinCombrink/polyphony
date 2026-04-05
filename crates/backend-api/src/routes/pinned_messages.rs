@@ -6,14 +6,14 @@ use axum::{
 };
 use backend_domain::ServerId;
 use backend_storage::{
-    ChannelRepository, MessageRepository, PinMessageResult, PinnedMessageRepository,
-    ServerRepository, UserRepository,
+    ChannelRepository, MessageRepository, PinnedMessageRepository, ServerRepository, UserRepository,
 };
 
 use crate::{
     ApiState,
     auth::{AuthenticatedUser, TokenVerifier},
     dto::{PinMessageRequest, PinnedMessageResponse},
+    response_mapping::{PinMessageResponse, UnpinMessageResponse},
 };
 
 #[utoipa::path(
@@ -62,11 +62,7 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match result {
-        PinMessageResult::Pinned => StatusCode::OK.into_response(),
-        PinMessageResult::AlreadyPinned => StatusCode::CONFLICT.into_response(),
-        PinMessageResult::MessageNotFound => StatusCode::NOT_FOUND.into_response(),
-    }
+    PinMessageResponse(result).into_response()
 }
 
 #[utoipa::path(
@@ -113,10 +109,7 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match result {
-        backend_storage::UnpinMessageResult::Unpinned => StatusCode::OK.into_response(),
-        backend_storage::UnpinMessageResult::NotPinned => StatusCode::NOT_FOUND.into_response(),
-    }
+    UnpinMessageResponse(result).into_response()
 }
 
 #[utoipa::path(
@@ -205,7 +198,10 @@ mod tests {
             _ => panic!("Expected Created"),
         };
 
-        let result = repo.pin_message(server.id, message_id, user.id).await.unwrap();
+        let result = repo
+            .pin_message(server.id, message_id, user.id)
+            .await
+            .unwrap();
         assert!(matches!(result, PinMessageResult::Pinned));
 
         let pins = repo.list_pinned_messages(server.id).await.unwrap();
@@ -237,8 +233,13 @@ mod tests {
             _ => panic!("Expected Created"),
         };
 
-        repo.pin_message(server.id, message_id, user.id).await.unwrap();
-        let result = repo.pin_message(server.id, message_id, user.id).await.unwrap();
+        repo.pin_message(server.id, message_id, user.id)
+            .await
+            .unwrap();
+        let result = repo
+            .pin_message(server.id, message_id, user.id)
+            .await
+            .unwrap();
         assert!(matches!(result, PinMessageResult::AlreadyPinned));
     }
 
@@ -252,7 +253,10 @@ mod tests {
         let server = repo.create_server("test".into(), user.id).await.unwrap();
         let fake_message_id = backend_domain::MessageId::from(uuid::Uuid::new_v4());
 
-        let result = repo.pin_message(server.id, fake_message_id, user.id).await.unwrap();
+        let result = repo
+            .pin_message(server.id, fake_message_id, user.id)
+            .await
+            .unwrap();
         assert!(matches!(result, PinMessageResult::MessageNotFound));
     }
 
@@ -278,7 +282,9 @@ mod tests {
             _ => panic!("Expected Created"),
         };
 
-        repo.pin_message(server.id, message_id, user.id).await.unwrap();
+        repo.pin_message(server.id, message_id, user.id)
+            .await
+            .unwrap();
         let result = repo.unpin_message(server.id, message_id).await.unwrap();
         assert!(matches!(
             result,
@@ -299,7 +305,10 @@ mod tests {
         let server = repo.create_server("test".into(), user.id).await.unwrap();
         let fake_message_id = backend_domain::MessageId::from(uuid::Uuid::new_v4());
 
-        let result = repo.unpin_message(server.id, fake_message_id).await.unwrap();
+        let result = repo
+            .unpin_message(server.id, fake_message_id)
+            .await
+            .unwrap();
         assert!(matches!(
             result,
             backend_storage::UnpinMessageResult::NotPinned
@@ -328,7 +337,9 @@ mod tests {
             _ => panic!("Expected Created"),
         };
 
-        repo.pin_message(server.id, message_id, user.id).await.unwrap();
+        repo.pin_message(server.id, message_id, user.id)
+            .await
+            .unwrap();
 
         let pins = repo.list_pinned_messages(server.id).await.unwrap();
         assert_eq!(pins.len(), 1);

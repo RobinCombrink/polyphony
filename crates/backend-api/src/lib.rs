@@ -4,6 +4,7 @@ pub mod dto;
 pub mod notification_hub;
 pub mod observability;
 mod openapi;
+mod response_mapping;
 mod routes;
 
 pub use backend_domain as domain;

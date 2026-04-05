@@ -748,11 +748,10 @@ impl InMemoryStore {
         crate::SendFriendRequestResult::Created(friend_request)
     }
 
-    pub(crate) fn set_friend_request_state(
+    pub(crate) fn accept_friend_request(
         &mut self,
         actor_user_id: UserId,
         friend_request_id: FriendRequestId,
-        state: FriendRequestState,
     ) -> crate::UpdateFriendRequestResult {
         let Some(existing_request) = self.friend_requests_by_id.get(&friend_request_id).cloned()
         else {
@@ -763,43 +762,20 @@ impl InMemoryStore {
             return crate::UpdateFriendRequestResult::InvalidState;
         }
 
-        match state {
-            FriendRequestState::Accepted | FriendRequestState::Declined => {
-                if existing_request.addressee_user_id != actor_user_id {
-                    return crate::UpdateFriendRequestResult::Forbidden;
-                }
-            }
-            FriendRequestState::Cancelled => {
-                if existing_request.requester_user_id != actor_user_id {
-                    return crate::UpdateFriendRequestResult::Forbidden;
-                }
-            }
-            FriendRequestState::Pending => return crate::UpdateFriendRequestResult::InvalidState,
+        if existing_request.addressee_user_id != actor_user_id {
+            return crate::UpdateFriendRequestResult::Forbidden;
         }
 
         let requester_user_id = existing_request.requester_user_id;
         let addressee_user_id = existing_request.addressee_user_id;
 
-        if state == FriendRequestState::Declined || state == FriendRequestState::Cancelled {
-            self.friend_requests_by_id.remove(&friend_request_id);
-
-            return crate::UpdateFriendRequestResult::Updated(FriendRequest {
-                id: friend_request_id,
-                requester_user_id,
-                addressee_user_id,
-                state,
-            });
-        }
-
         let Some(existing_request) = self.friend_requests_by_id.get_mut(&friend_request_id) else {
             return crate::UpdateFriendRequestResult::NotFound;
         };
-        existing_request.state = state;
+        existing_request.state = FriendRequestState::Accepted;
         let updated_request = existing_request.clone();
 
-        if state == FriendRequestState::Accepted
-            && !self.are_friends(requester_user_id, addressee_user_id)
-        {
+        if !self.are_friends(requester_user_id, addressee_user_id) {
             let friendship = Friendship {
                 id: Uuid::new_v4().into(),
                 user_a_id: requester_user_id,
@@ -816,6 +792,62 @@ impl InMemoryStore {
         }
 
         crate::UpdateFriendRequestResult::Updated(updated_request)
+    }
+
+    pub(crate) fn decline_friend_request(
+        &mut self,
+        actor_user_id: UserId,
+        friend_request_id: FriendRequestId,
+    ) -> crate::UpdateFriendRequestResult {
+        let Some(existing_request) = self.friend_requests_by_id.get(&friend_request_id).cloned()
+        else {
+            return crate::UpdateFriendRequestResult::NotFound;
+        };
+
+        if existing_request.state != FriendRequestState::Pending {
+            return crate::UpdateFriendRequestResult::InvalidState;
+        }
+
+        if existing_request.addressee_user_id != actor_user_id {
+            return crate::UpdateFriendRequestResult::Forbidden;
+        }
+
+        self.friend_requests_by_id.remove(&friend_request_id);
+
+        crate::UpdateFriendRequestResult::Updated(FriendRequest {
+            id: friend_request_id,
+            requester_user_id: existing_request.requester_user_id,
+            addressee_user_id: existing_request.addressee_user_id,
+            state: FriendRequestState::Declined,
+        })
+    }
+
+    pub(crate) fn cancel_friend_request(
+        &mut self,
+        actor_user_id: UserId,
+        friend_request_id: FriendRequestId,
+    ) -> crate::UpdateFriendRequestResult {
+        let Some(existing_request) = self.friend_requests_by_id.get(&friend_request_id).cloned()
+        else {
+            return crate::UpdateFriendRequestResult::NotFound;
+        };
+
+        if existing_request.state != FriendRequestState::Pending {
+            return crate::UpdateFriendRequestResult::InvalidState;
+        }
+
+        if existing_request.requester_user_id != actor_user_id {
+            return crate::UpdateFriendRequestResult::Forbidden;
+        }
+
+        self.friend_requests_by_id.remove(&friend_request_id);
+
+        crate::UpdateFriendRequestResult::Updated(FriendRequest {
+            id: friend_request_id,
+            requester_user_id: existing_request.requester_user_id,
+            addressee_user_id: existing_request.addressee_user_id,
+            state: FriendRequestState::Cancelled,
+        })
     }
 
     pub(crate) fn list_friendships_for_user(&self, user_id: UserId) -> Vec<Friendship> {

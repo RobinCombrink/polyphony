@@ -712,14 +712,109 @@ Acceptance criteria:
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
 
 
+##### 13.3c — Centralize notification precedence logic
+Status:
+- Planned.
+
+Scope:
+- Extract the `effective_notification_category_for_channel` precedence logic (global ceiling → scoped fallback chain) into a pure function in `backend-domain` (or a shared `policy` module in `backend-storage`) that accepts the resolved global, channel-default, server, and channel preference values as inputs and returns the effective category.
+- Replace the duplicated implementations in both `in_memory_store.rs` and `postgres_repository.rs` with calls to the shared pure function.
+- Add unit tests for the pure function covering all precedence combinations (global None ceiling, OnlyMentions ceiling over AllMessages, pass-through for matching, and channel/server/default fallback chain).
+
 Acceptance criteria:
+- Notification precedence logic exists in exactly one place.
+- The pure function has dedicated unit tests.
+- Existing BDD notification scenarios pass unchanged.
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
+
+##### 13.3d — Immutable domain transition methods
+Status:
+- Planned.
+
+Scope:
+- Replace `Message::set_content(&mut self, content: String)` with `Message::with_content(self, content: String) -> Message` that returns a new `Message` value.
+- Update all callers in `in_memory_store.rs` (message update path) to use the immutable transition method.
+- Eliminate the remaining `as u64` cast in `in_memory_repository.rs` (mark_unread_from_message) with a `u64::try_from(...).unwrap_or(0)` or equivalent safe conversion.
+
+Acceptance criteria:
+- No `&mut self` methods remain on domain types.
+- No `as` numeric casts remain in storage code.
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
+
+##### 13.3e — Value object validation boundaries
+Status:
+- Planned.
+
+Scope:
+- Add `TryFrom<String>`/`FromStr` with explicit error types to `DisplayName` (e.g. reject empty, enforce max length).
+- Add `TryFrom<String>`/`FromStr` with explicit error types to `ExternalReference` (e.g. reject empty).
+- Add validation to `EmoteId` construction (e.g. reject empty).
+- Replace `DisplayName::new(String)` and `ExternalReference::new(String)` / `From<String>` constructors with `TryFrom` so invalid values are rejected at the boundary.
+- Update all callers (repository implementations, route handlers, test seeders) to handle the validation result.
+- Add unit tests for validation edge cases.
+
+Acceptance criteria:
+- `DisplayName`, `ExternalReference`, and `EmoteId` reject invalid input at construction.
+- Callers handle validation errors explicitly.
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
+
+##### 13.3f — Repository error modeling: separate business from infrastructure
+Status:
+- Planned.
+
+Scope:
+- Introduce a `StorageError` (or `InfraError`) type in `backend-storage` representing infrastructure failures (database connection errors, query failures, serialization failures).
+- Wrap business-outcome enums (`CreateMessageResult`, `SendFriendRequestResult`, `UpdateFriendRequestResult`, `BlockUserResult`, `OpenOrGetDirectMessageThreadResult`, `SendDirectMessageResult`, `MutationResult`, `ToggleReactionResult`, `PinMessageResult`, `UnpinMessageResult`, `MarkUnreadFromMessageResult`) in `Result<T, StorageError>` as trait return types.
+- Replace `.unwrap_or(0)` / `.ok().flatten()` / `let Ok(...) else { return NotFound }` patterns in `postgres_repository.rs` with proper `?` propagation of `StorageError`.
+- Update route handlers to handle the outer `Result` (mapping `StorageError` to 500).
+- Replace `Option<T>` returns where they currently conflate "not found" with "query failed" (e.g. `find_user_by_id`, `find_channel_by_id`, `list_server_members`) with `Result<Option<T>, StorageError>`.
+
+Acceptance criteria:
+- Infrastructure failures produce `StorageError` instead of being silently mapped to business outcomes.
+- Route handlers map `StorageError` to 500 Internal Server Error.
+- Business outcome enums remain clean (no infra-failure variants).
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
+
+##### 13.3g — Centralized repository-result → HTTP response mapping
+Status:
+- Done.
+
+Scope:
+- Implement `IntoResponse` for `MutationResult` (parameterized by expected success variant: Updated or Deleted) so the repeated match blocks in servers.rs, messages/delete.rs, messages/update.rs are replaced with a single `.into_response()` call.
+- Implement `IntoResponse` for `SendFriendRequestResult`, `UpdateFriendRequestResult`, `BlockUserResult`, `OpenOrGetDirectMessageThreadResult`, `SendDirectMessageResult`, `ToggleReactionResult`, `PinMessageResult`, `UnpinMessageResult`, `MarkUnreadFromMessageResult`.
+- Implement `IntoResponse` for `StorageError` (from 13.3f) mapping to 500.
+- Remove the duplicated match arms from route handlers, replacing them with the centralized `IntoResponse` impls.
+- The `SendFriendRequestResult::Created` → HTTP 201 + notification publish pattern repeats verbatim in two route handlers (`send_friend_request` and `send_server_context_friend_request`); extract a shared helper for this.
+
+Acceptance criteria:
+- Each repository result enum has exactly one `IntoResponse` implementation.
+- No ad-hoc match block duplicates the same result→status mapping in multiple routes.
+- Route handlers are shorter and focused on orchestration (calling repository + publishing events), not response formatting.
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
+
+##### 13.3h — Friend request typestate-driven lifecycle
+Status:
+- Done.
+
+Scope:
+- Replace the generic `set_friend_request_state(actor, id, state)` method with three explicit lifecycle methods: `accept_friend_request`, `decline_friend_request`, `cancel_friend_request`.
+- Each method has a fixed target state, making invalid transitions (e.g. transitioning to `Pending`) unrepresentable at the call site.
+- Update `FriendRepository` trait definition (1 → 3 methods), in-memory store, in-memory repository adapter, Postgres repository, and route handlers.
+- Permission checks (addressee can accept/decline; requester can cancel) and state guards (only Pending can transition) remain enforced at the repository level in each method.
+
+Acceptance criteria:
+- No call site can pass an arbitrary `FriendRequestState` — each method has a fixed target state.
+- Transitioning to `Pending` is unrepresentable (no method exists for it).
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
+
+Overall acceptance criteria:
 - Illegal friend-request transition paths are unrepresentable or rejected through typed transition APIs.
 - Domain update APIs used in core flows are immutable and test-covered.
 - Value objects reject invalid input at construction boundaries with explicit error types.
 - Repository methods do not collapse infrastructure failures into not-found/forbidden business outcomes.
 - Enum persistence and parsing paths are derive-driven with no duplicated manual string mapping in core flows.
 - Notification precedence logic is implemented once and reused across storage backends.
-- SQL query shape/type mismatches are caught at build time through compile-time validation in the postgres repository path.
+
 
 #### Phase 14 (Weeks 13-14): User identity and workspace usability enhancements
 Status:

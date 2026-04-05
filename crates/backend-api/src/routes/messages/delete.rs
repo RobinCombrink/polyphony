@@ -4,13 +4,12 @@ use axum::{
     response::IntoResponse,
 };
 use backend_domain::{ChannelId, MessageId};
-use backend_storage::{
-    ChannelRepository, MessageRepository, MutationResult, ServerRepository, UserRepository,
-};
+use backend_storage::{ChannelRepository, MessageRepository, ServerRepository, UserRepository};
 
 use crate::{
     ApiState,
     auth::{AuthenticatedUser, TokenVerifier},
+    response_mapping::DeletedResponse,
 };
 
 #[utoipa::path(
@@ -49,10 +48,5 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match mutation_result {
-        MutationResult::Deleted => StatusCode::NO_CONTENT.into_response(),
-        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
-        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
-        MutationResult::Updated => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    }
+    DeletedResponse(mutation_result).into_response()
 }

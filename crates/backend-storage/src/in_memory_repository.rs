@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use backend_domain::{
     BlockRelationship, Channel, ChannelId, ChannelType, DirectMessage, DirectMessageThread,
     DirectMessageThreadId, DisplayName, EmoteId, ExternalReference, FriendNotificationEventType,
-    FriendRequest, FriendRequestId, FriendRequestState, Friendship, Membership, Message, MessageId,
+    FriendRequest, FriendRequestId, Friendship, Membership, Message, MessageId,
     NotificationCategoryPreference, NotificationMuteState, PinnedMessage, ReactionSummary, Server,
     ServerId, User, UserId,
 };
@@ -69,7 +69,11 @@ impl MessageRepository for InMemoryRepository {
         Ok(store.list_messages(channel_id))
     }
 
-    async fn search_messages(&self, channel_id: ChannelId, query: &str) -> Result<Vec<Message>, StorageError> {
+    async fn search_messages(
+        &self,
+        channel_id: ChannelId,
+        query: &str,
+    ) -> Result<Vec<Message>, StorageError> {
         let store = self.store.read().await;
         Ok(store.search_messages(channel_id, query))
     }
@@ -98,7 +102,11 @@ impl UserRepository for InMemoryRepository {
         Ok(store.get_or_create_user_by_external_reference(external_reference))
     }
 
-    async fn set_user_display_name(&self, user_id: UserId, display_name: DisplayName) -> Result<Option<User>, StorageError> {
+    async fn set_user_display_name(
+        &self,
+        user_id: UserId,
+        display_name: DisplayName,
+    ) -> Result<Option<User>, StorageError> {
         let mut store = self.store.write().await;
         Ok(store.set_user_display_name(user_id, display_name))
     }
@@ -106,7 +114,11 @@ impl UserRepository for InMemoryRepository {
 
 #[async_trait]
 impl ServerRepository for InMemoryRepository {
-    async fn create_server(&self, name: String, owner_user_id: UserId) -> Result<Server, StorageError> {
+    async fn create_server(
+        &self,
+        name: String,
+        owner_user_id: UserId,
+    ) -> Result<Server, StorageError> {
         let mut store = self.store.write().await;
         Ok(store.create_server(name, owner_user_id))
     }
@@ -126,7 +138,11 @@ impl ServerRepository for InMemoryRepository {
             .collect::<Vec<_>>())
     }
 
-    async fn is_server_member(&self, server_id: ServerId, user_id: UserId) -> Result<Option<bool>, StorageError> {
+    async fn is_server_member(
+        &self,
+        server_id: ServerId,
+        user_id: UserId,
+    ) -> Result<Option<bool>, StorageError> {
         let store = self.store.read().await;
         Ok(store.is_server_member(server_id, user_id))
     }
@@ -151,12 +167,19 @@ impl ServerRepository for InMemoryRepository {
         Ok(store.add_server_member(server_id, actor_user_id, user_id))
     }
 
-    async fn delete_server(&self, server_id: ServerId, actor_user_id: UserId) -> Result<MutationResult, StorageError> {
+    async fn delete_server(
+        &self,
+        server_id: ServerId,
+        actor_user_id: UserId,
+    ) -> Result<MutationResult, StorageError> {
         let mut store = self.store.write().await;
         Ok(store.delete_server(server_id, actor_user_id))
     }
 
-    async fn list_server_members(&self, server_id: ServerId) -> Result<Option<Vec<Membership>>, StorageError> {
+    async fn list_server_members(
+        &self,
+        server_id: ServerId,
+    ) -> Result<Option<Vec<Membership>>, StorageError> {
         let store = self.store.read().await;
         Ok(store.list_server_members(server_id))
     }
@@ -184,12 +207,19 @@ impl ChannelRepository for InMemoryRepository {
         Ok(store.update_channel_name(channel_id, actor_user_id, name))
     }
 
-    async fn delete_channel(&self, channel_id: ChannelId, actor_user_id: UserId) -> Result<MutationResult, StorageError> {
+    async fn delete_channel(
+        &self,
+        channel_id: ChannelId,
+        actor_user_id: UserId,
+    ) -> Result<MutationResult, StorageError> {
         let mut store = self.store.write().await;
         Ok(store.delete_channel(channel_id, actor_user_id))
     }
 
-    async fn list_channels_for_server(&self, server_id: ServerId) -> Result<Option<Vec<Channel>>, StorageError> {
+    async fn list_channels_for_server(
+        &self,
+        server_id: ServerId,
+    ) -> Result<Option<Vec<Channel>>, StorageError> {
         let store = self.store.read().await;
 
         if !store.servers.contains_key(&server_id) {
@@ -206,12 +236,19 @@ impl ChannelRepository for InMemoryRepository {
         Ok(Some(channels))
     }
 
-    async fn find_channel_by_id(&self, channel_id: ChannelId) -> Result<Option<Channel>, StorageError> {
+    async fn find_channel_by_id(
+        &self,
+        channel_id: ChannelId,
+    ) -> Result<Option<Channel>, StorageError> {
         let store = self.store.read().await;
         Ok(store.channels.get(&channel_id).cloned())
     }
 
-    async fn is_channel_member(&self, channel_id: ChannelId, user_id: UserId) -> Result<Option<bool>, StorageError> {
+    async fn is_channel_member(
+        &self,
+        channel_id: ChannelId,
+        user_id: UserId,
+    ) -> Result<Option<bool>, StorageError> {
         let store = self.store.read().await;
         Ok(store.is_channel_member(channel_id, user_id))
     }
@@ -219,7 +256,11 @@ impl ChannelRepository for InMemoryRepository {
 
 #[async_trait]
 impl NotificationRepository for InMemoryRepository {
-    async fn unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> Result<u64, StorageError> {
+    async fn unread_count_for_channel(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Result<u64, StorageError> {
         let store = self.store.read().await;
         Ok(store
             .unread_counts_by_user_channel
@@ -243,7 +284,11 @@ impl NotificationRepository for InMemoryRepository {
             .sum::<u64>())
     }
 
-    async fn clear_unread_count_for_channel(&self, user_id: UserId, channel_id: ChannelId) -> Result<(), StorageError> {
+    async fn clear_unread_count_for_channel(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Result<(), StorageError> {
         let mut store = self.store.write().await;
         store
             .unread_counts_by_user_channel
@@ -363,7 +408,10 @@ impl NotificationRepository for InMemoryRepository {
         Ok(())
     }
 
-    async fn global_mute_state_for_user(&self, user_id: UserId) -> Result<NotificationMuteState, StorageError> {
+    async fn global_mute_state_for_user(
+        &self,
+        user_id: UserId,
+    ) -> Result<NotificationMuteState, StorageError> {
         let store = self.store.read().await;
         Ok(store.global_mute_state_for_user(user_id))
     }
@@ -418,7 +466,11 @@ impl NotificationRepository for InMemoryRepository {
         Ok(())
     }
 
-    async fn clear_channel_temporary_mute_for_user(&self, user_id: UserId, channel_id: ChannelId) -> Result<(), StorageError> {
+    async fn clear_channel_temporary_mute_for_user(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Result<(), StorageError> {
         let mut store = self.store.write().await;
         store.clear_channel_temporary_mute_for_user(user_id, channel_id);
         Ok(())
@@ -441,7 +493,10 @@ impl NotificationRepository for InMemoryRepository {
         Ok(u64::try_from(count).unwrap_or(0))
     }
 
-    async fn outbox_total_count_for_recipient(&self, recipient_user_id: UserId) -> Result<u64, StorageError> {
+    async fn outbox_total_count_for_recipient(
+        &self,
+        recipient_user_id: UserId,
+    ) -> Result<u64, StorageError> {
         let store = self.store.read().await;
         let count = store
             .notification_outbox
@@ -488,32 +543,62 @@ impl FriendRepository for InMemoryRepository {
         Ok(store.send_friend_request(requester_user_id, addressee_user_id))
     }
 
-    async fn set_friend_request_state(
+    async fn accept_friend_request(
         &self,
         actor_user_id: UserId,
         friend_request_id: FriendRequestId,
-        state: FriendRequestState,
     ) -> Result<UpdateFriendRequestResult, StorageError> {
         let mut store = self.store.write().await;
-        Ok(store.set_friend_request_state(actor_user_id, friend_request_id, state))
+        Ok(store.accept_friend_request(actor_user_id, friend_request_id))
     }
 
-    async fn list_friendships_for_user(&self, user_id: UserId) -> Result<Vec<Friendship>, StorageError> {
+    async fn decline_friend_request(
+        &self,
+        actor_user_id: UserId,
+        friend_request_id: FriendRequestId,
+    ) -> Result<UpdateFriendRequestResult, StorageError> {
+        let mut store = self.store.write().await;
+        Ok(store.decline_friend_request(actor_user_id, friend_request_id))
+    }
+
+    async fn cancel_friend_request(
+        &self,
+        actor_user_id: UserId,
+        friend_request_id: FriendRequestId,
+    ) -> Result<UpdateFriendRequestResult, StorageError> {
+        let mut store = self.store.write().await;
+        Ok(store.cancel_friend_request(actor_user_id, friend_request_id))
+    }
+
+    async fn list_friendships_for_user(
+        &self,
+        user_id: UserId,
+    ) -> Result<Vec<Friendship>, StorageError> {
         let store = self.store.read().await;
         Ok(store.list_friendships_for_user(user_id))
     }
 
-    async fn list_pending_incoming_friend_requests(&self, user_id: UserId) -> Result<Vec<FriendRequest>, StorageError> {
+    async fn list_pending_incoming_friend_requests(
+        &self,
+        user_id: UserId,
+    ) -> Result<Vec<FriendRequest>, StorageError> {
         let store = self.store.read().await;
         Ok(store.list_pending_incoming_friend_requests(user_id))
     }
 
-    async fn list_pending_outgoing_friend_requests(&self, user_id: UserId) -> Result<Vec<FriendRequest>, StorageError> {
+    async fn list_pending_outgoing_friend_requests(
+        &self,
+        user_id: UserId,
+    ) -> Result<Vec<FriendRequest>, StorageError> {
         let store = self.store.read().await;
         Ok(store.list_pending_outgoing_friend_requests(user_id))
     }
 
-    async fn are_friends(&self, user_id: UserId, other_user_id: UserId) -> Result<bool, StorageError> {
+    async fn are_friends(
+        &self,
+        user_id: UserId,
+        other_user_id: UserId,
+    ) -> Result<bool, StorageError> {
         let store = self.store.read().await;
         Ok(store.are_friends(user_id, other_user_id))
     }
@@ -539,12 +624,19 @@ impl BlockRepository for InMemoryRepository {
         Ok(store.unblock_user(blocker_user_id, blocked_user_id))
     }
 
-    async fn list_blocked_users(&self, blocker_user_id: UserId) -> Result<Vec<BlockRelationship>, StorageError> {
+    async fn list_blocked_users(
+        &self,
+        blocker_user_id: UserId,
+    ) -> Result<Vec<BlockRelationship>, StorageError> {
         let store = self.store.read().await;
         Ok(store.list_blocked_users(blocker_user_id))
     }
 
-    async fn users_are_blocked(&self, user_id: UserId, other_user_id: UserId) -> Result<bool, StorageError> {
+    async fn users_are_blocked(
+        &self,
+        user_id: UserId,
+        other_user_id: UserId,
+    ) -> Result<bool, StorageError> {
         let store = self.store.read().await;
         Ok(store.users_are_blocked(user_id, other_user_id))
     }
@@ -642,7 +734,10 @@ impl PinnedMessageRepository for InMemoryRepository {
         Ok(store.unpin_message(server_id, message_id))
     }
 
-    async fn list_pinned_messages(&self, server_id: ServerId) -> Result<Vec<PinnedMessage>, StorageError> {
+    async fn list_pinned_messages(
+        &self,
+        server_id: ServerId,
+    ) -> Result<Vec<PinnedMessage>, StorageError> {
         let store = self.store.read().await;
         Ok(store.list_pinned_messages(server_id))
     }

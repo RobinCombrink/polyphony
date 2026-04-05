@@ -6,14 +6,14 @@ use axum::{
 };
 use backend_domain::{ChannelId, MessageId};
 use backend_storage::{
-    ChannelRepository, MessageRepository, ReactionRepository, ServerRepository,
-    ToggleReactionResult, UserRepository,
+    ChannelRepository, MessageRepository, ReactionRepository, ServerRepository, UserRepository,
 };
 
 use crate::{
     ApiState,
     auth::{AuthenticatedUser, TokenVerifier},
     dto::{ReactionSummaryResponse, ToggleReactionRequest},
+    response_mapping::ToggleReactionResponse,
 };
 
 #[utoipa::path(
@@ -62,11 +62,7 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match result {
-        ToggleReactionResult::Added => StatusCode::OK.into_response(),
-        ToggleReactionResult::Removed => StatusCode::OK.into_response(),
-        ToggleReactionResult::MessageNotFound => StatusCode::NOT_FOUND.into_response(),
-    }
+    ToggleReactionResponse(result).into_response()
 }
 
 #[utoipa::path(
@@ -163,7 +159,10 @@ mod tests {
             .unwrap();
         assert!(matches!(toggle, ToggleReactionResult::Added));
 
-        let summaries = repo.list_reaction_summaries(message_id, user.id).await.unwrap();
+        let summaries = repo
+            .list_reaction_summaries(message_id, user.id)
+            .await
+            .unwrap();
         assert_eq!(summaries.len(), 1);
         assert_eq!(summaries[0].emote_id.as_ref(), "thumbsup");
         assert_eq!(summaries[0].count, 1);
@@ -202,7 +201,10 @@ mod tests {
             .unwrap();
         assert!(matches!(toggle, ToggleReactionResult::Removed));
 
-        let summaries = repo.list_reaction_summaries(message_id, user.id).await.unwrap();
+        let summaries = repo
+            .list_reaction_summaries(message_id, user.id)
+            .await
+            .unwrap();
         assert!(summaries.is_empty());
     }
 
@@ -232,7 +234,9 @@ mod tests {
             .await
             .unwrap();
         let server = repo.create_server("test".into(), user1.id).await.unwrap();
-        repo.add_server_member(server.id, user1.id, user2.id).await.unwrap();
+        repo.add_server_member(server.id, user1.id, user2.id)
+            .await
+            .unwrap();
         let channel = repo
             .create_channel(server.id, "general".into(), ChannelType::Text)
             .await
@@ -254,13 +258,19 @@ mod tests {
             .await
             .unwrap();
 
-        let summaries = repo.list_reaction_summaries(message_id, user1.id).await.unwrap();
+        let summaries = repo
+            .list_reaction_summaries(message_id, user1.id)
+            .await
+            .unwrap();
         assert_eq!(summaries.len(), 1);
         assert_eq!(summaries[0].emote_id.as_ref(), "thumbsup");
         assert_eq!(summaries[0].count, 2);
         assert!(summaries[0].reacted_by_current_user);
 
-        let summaries_user2 = repo.list_reaction_summaries(message_id, user2.id).await.unwrap();
+        let summaries_user2 = repo
+            .list_reaction_summaries(message_id, user2.id)
+            .await
+            .unwrap();
         assert!(summaries_user2[0].reacted_by_current_user);
     }
 }

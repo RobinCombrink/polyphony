@@ -1744,16 +1744,11 @@ impl FriendRepository for PostgresRepository {
         Ok(SendFriendRequestResult::Created(friend_request))
     }
 
-    async fn set_friend_request_state(
+    async fn accept_friend_request(
         &self,
         actor_user_id: UserId,
         friend_request_id: FriendRequestId,
-        state: FriendRequestState,
     ) -> Result<UpdateFriendRequestResult, StorageError> {
-        if state == FriendRequestState::Pending {
-            return Ok(UpdateFriendRequestResult::InvalidState);
-        }
-
         let actor_user_id = Uuid::from(actor_user_id);
         let friend_request_id = Uuid::from(friend_request_id);
 
@@ -1776,51 +1771,15 @@ impl FriendRepository for PostgresRepository {
 
         let existing_friend_request = FriendRequest::from(existing_friend_request_row);
 
-        let requester_user_id = Uuid::from(existing_friend_request.requester_user_id);
-        let addressee_user_id = Uuid::from(existing_friend_request.addressee_user_id);
-        let existing_state = existing_friend_request.state;
-
-        if existing_state != FriendRequestState::Pending {
+        if existing_friend_request.state != FriendRequestState::Pending {
             return Ok(UpdateFriendRequestResult::InvalidState);
         }
 
-        match state {
-            FriendRequestState::Accepted | FriendRequestState::Declined => {
-                if addressee_user_id != actor_user_id {
-                    return Ok(UpdateFriendRequestResult::Forbidden);
-                }
-            }
-            FriendRequestState::Cancelled => {
-                if requester_user_id != actor_user_id {
-                    return Ok(UpdateFriendRequestResult::Forbidden);
-                }
-            }
-            FriendRequestState::Pending => return Ok(UpdateFriendRequestResult::InvalidState),
-        }
+        let requester_user_id = Uuid::from(existing_friend_request.requester_user_id);
+        let addressee_user_id = Uuid::from(existing_friend_request.addressee_user_id);
 
-        if state == FriendRequestState::Declined || state == FriendRequestState::Cancelled {
-            let deleted = sqlx::query(
-                "DELETE FROM friend_requests
-                 WHERE id = $1",
-            )
-            .bind(friend_request_id)
-            .execute(&self.pool)
-            .await;
-
-            let Ok(deleted_result) = deleted else {
-                return Ok(UpdateFriendRequestResult::NotFound);
-            };
-
-            if deleted_result.rows_affected() == 0 {
-                return Ok(UpdateFriendRequestResult::NotFound);
-            }
-
-            return Ok(UpdateFriendRequestResult::Updated(FriendRequest {
-                id: friend_request_id.into(),
-                requester_user_id: requester_user_id.into(),
-                addressee_user_id: addressee_user_id.into(),
-                state,
-            }));
+        if addressee_user_id != actor_user_id {
+            return Ok(UpdateFriendRequestResult::Forbidden);
         }
 
         let updated = sqlx::query_as::<_, FriendRequestRow>(
@@ -1831,7 +1790,7 @@ impl FriendRepository for PostgresRepository {
              RETURNING id, requester_user_id, addressee_user_id, state",
         )
         .bind(friend_request_id)
-        .bind(state)
+        .bind(FriendRequestState::Accepted)
         .fetch_one(&self.pool)
         .await;
 
@@ -1839,48 +1798,170 @@ impl FriendRepository for PostgresRepository {
             return Ok(UpdateFriendRequestResult::NotFound);
         };
 
-        if state == FriendRequestState::Accepted {
-            let _ = sqlx::query(
-                "INSERT INTO friendships (id, user_a_id, user_b_id)
-                 VALUES (gen_random_uuid(), LEAST($1, $2), GREATEST($1, $2))
-                 ON CONFLICT DO NOTHING",
-            )
-            .bind(requester_user_id)
-            .bind(addressee_user_id)
-            .execute(&self.pool)
-            .await;
+        let _ = sqlx::query(
+            "INSERT INTO friendships (id, user_a_id, user_b_id)
+             VALUES (gen_random_uuid(), LEAST($1, $2), GREATEST($1, $2))
+             ON CONFLICT DO NOTHING",
+        )
+        .bind(requester_user_id)
+        .bind(addressee_user_id)
+        .execute(&self.pool)
+        .await;
 
-            let payload = serde_json::json!({
-                "event_type": FriendNotificationEventType::FriendRequestAccepted.to_string(),
-                "friend_request_id": updated_friend_request_row.id,
-                "requester_user_id": updated_friend_request_row.requester_user_id,
-                "addressee_user_id": updated_friend_request_row.addressee_user_id,
-            });
+        let payload = serde_json::json!({
+            "event_type": FriendNotificationEventType::FriendRequestAccepted.to_string(),
+            "friend_request_id": updated_friend_request_row.id,
+            "requester_user_id": updated_friend_request_row.requester_user_id,
+            "addressee_user_id": updated_friend_request_row.addressee_user_id,
+        });
 
-            let _ = sqlx::query(
-                "INSERT INTO friend_notification_outbox (
-                    id,
-                    event_type,
-                    friend_request_id,
-                    recipient_user_id,
-                    actor_user_id,
-                    payload
-                 )
-                 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
-                 ON CONFLICT (event_type, friend_request_id, recipient_user_id) DO NOTHING",
-            )
-            .bind(FriendNotificationEventType::FriendRequestAccepted)
-            .bind(updated_friend_request_row.id)
-            .bind(updated_friend_request_row.requester_user_id)
-            .bind(updated_friend_request_row.addressee_user_id)
-            .bind(payload)
-            .execute(&self.pool)
-            .await;
-        }
+        let _ = sqlx::query(
+            "INSERT INTO friend_notification_outbox (
+                id,
+                event_type,
+                friend_request_id,
+                recipient_user_id,
+                actor_user_id,
+                payload
+             )
+             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+             ON CONFLICT (event_type, friend_request_id, recipient_user_id) DO NOTHING",
+        )
+        .bind(FriendNotificationEventType::FriendRequestAccepted)
+        .bind(updated_friend_request_row.id)
+        .bind(updated_friend_request_row.requester_user_id)
+        .bind(updated_friend_request_row.addressee_user_id)
+        .bind(payload)
+        .execute(&self.pool)
+        .await;
 
         let updated_friend_request = FriendRequest::from(updated_friend_request_row);
 
         Ok(UpdateFriendRequestResult::Updated(updated_friend_request))
+    }
+
+    async fn decline_friend_request(
+        &self,
+        actor_user_id: UserId,
+        friend_request_id: FriendRequestId,
+    ) -> Result<UpdateFriendRequestResult, StorageError> {
+        let actor_user_id = Uuid::from(actor_user_id);
+        let friend_request_id = Uuid::from(friend_request_id);
+
+        let existing = sqlx::query_as::<_, FriendRequestRow>(
+            "SELECT id, requester_user_id, addressee_user_id, state
+             FROM friend_requests
+             WHERE id = $1",
+        )
+        .bind(friend_request_id)
+        .fetch_optional(&self.pool)
+        .await;
+
+        let Ok(existing) = existing else {
+            return Ok(UpdateFriendRequestResult::NotFound);
+        };
+
+        let Some(existing_friend_request_row) = existing else {
+            return Ok(UpdateFriendRequestResult::NotFound);
+        };
+
+        let existing_friend_request = FriendRequest::from(existing_friend_request_row);
+
+        if existing_friend_request.state != FriendRequestState::Pending {
+            return Ok(UpdateFriendRequestResult::InvalidState);
+        }
+
+        let requester_user_id = Uuid::from(existing_friend_request.requester_user_id);
+        let addressee_user_id = Uuid::from(existing_friend_request.addressee_user_id);
+
+        if addressee_user_id != actor_user_id {
+            return Ok(UpdateFriendRequestResult::Forbidden);
+        }
+
+        let deleted = sqlx::query(
+            "DELETE FROM friend_requests
+             WHERE id = $1",
+        )
+        .bind(friend_request_id)
+        .execute(&self.pool)
+        .await;
+
+        let Ok(deleted_result) = deleted else {
+            return Ok(UpdateFriendRequestResult::NotFound);
+        };
+
+        if deleted_result.rows_affected() == 0 {
+            return Ok(UpdateFriendRequestResult::NotFound);
+        }
+
+        Ok(UpdateFriendRequestResult::Updated(FriendRequest {
+            id: friend_request_id.into(),
+            requester_user_id: requester_user_id.into(),
+            addressee_user_id: addressee_user_id.into(),
+            state: FriendRequestState::Declined,
+        }))
+    }
+
+    async fn cancel_friend_request(
+        &self,
+        actor_user_id: UserId,
+        friend_request_id: FriendRequestId,
+    ) -> Result<UpdateFriendRequestResult, StorageError> {
+        let actor_user_id = Uuid::from(actor_user_id);
+        let friend_request_id = Uuid::from(friend_request_id);
+
+        let existing = sqlx::query_as::<_, FriendRequestRow>(
+            "SELECT id, requester_user_id, addressee_user_id, state
+             FROM friend_requests
+             WHERE id = $1",
+        )
+        .bind(friend_request_id)
+        .fetch_optional(&self.pool)
+        .await;
+
+        let Ok(existing) = existing else {
+            return Ok(UpdateFriendRequestResult::NotFound);
+        };
+
+        let Some(existing_friend_request_row) = existing else {
+            return Ok(UpdateFriendRequestResult::NotFound);
+        };
+
+        let existing_friend_request = FriendRequest::from(existing_friend_request_row);
+
+        if existing_friend_request.state != FriendRequestState::Pending {
+            return Ok(UpdateFriendRequestResult::InvalidState);
+        }
+
+        let requester_user_id = Uuid::from(existing_friend_request.requester_user_id);
+        let addressee_user_id = Uuid::from(existing_friend_request.addressee_user_id);
+
+        if requester_user_id != actor_user_id {
+            return Ok(UpdateFriendRequestResult::Forbidden);
+        }
+
+        let deleted = sqlx::query(
+            "DELETE FROM friend_requests
+             WHERE id = $1",
+        )
+        .bind(friend_request_id)
+        .execute(&self.pool)
+        .await;
+
+        let Ok(deleted_result) = deleted else {
+            return Ok(UpdateFriendRequestResult::NotFound);
+        };
+
+        if deleted_result.rows_affected() == 0 {
+            return Ok(UpdateFriendRequestResult::NotFound);
+        }
+
+        Ok(UpdateFriendRequestResult::Updated(FriendRequest {
+            id: friend_request_id.into(),
+            requester_user_id: requester_user_id.into(),
+            addressee_user_id: addressee_user_id.into(),
+            state: FriendRequestState::Cancelled,
+        }))
     }
 
     async fn list_friendships_for_user(

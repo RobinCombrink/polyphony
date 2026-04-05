@@ -6,8 +6,7 @@ use axum::{
 };
 use backend_domain::{DirectMessageThreadId, FriendRequestId, FriendRequestState, UserId};
 use backend_storage::{
-    BlockRepository, BlockUserResult, DirectMessageRepository, FriendRepository,
-    OpenOrGetDirectMessageThreadResult, SendDirectMessageResult, SendFriendRequestResult,
+    BlockRepository, DirectMessageRepository, FriendRepository, SendFriendRequestResult,
     UpdateFriendRequestResult,
 };
 use serde::Deserialize;
@@ -19,6 +18,10 @@ use crate::{
     auth::{AuthenticatedUser, TokenVerifier},
     dto::ApiErrorResponse,
     notification_hub::{NotificationEnvelope, NotificationEvent},
+    response_mapping::{
+        BlockUserResponse, OpenOrGetDmThreadResponse, SendDirectMessageResponse,
+        UpdateFriendRequestResponse,
+    },
 };
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -534,11 +537,7 @@ where
 {
     let Ok(result) = state
         .message_repository
-        .set_friend_request_state(
-            authenticated_user.user_id,
-            friend_request_id,
-            backend_domain::FriendRequestState::Accepted,
-        )
+        .accept_friend_request(authenticated_user.user_id, friend_request_id)
         .await
     else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
@@ -626,44 +625,13 @@ where
 {
     let Ok(result) = state
         .message_repository
-        .set_friend_request_state(
-            authenticated_user.user_id,
-            friend_request_id,
-            backend_domain::FriendRequestState::Declined,
-        )
+        .decline_friend_request(authenticated_user.user_id, friend_request_id)
         .await
     else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match result {
-        UpdateFriendRequestResult::Updated(friend_request) => (
-            StatusCode::OK,
-            Json(FriendRequestResponse::from(friend_request)),
-        )
-            .into_response(),
-        UpdateFriendRequestResult::Forbidden => (
-            StatusCode::FORBIDDEN,
-            Json(ApiErrorResponse::new("FORBIDDEN", "operation is forbidden")),
-        )
-            .into_response(),
-        UpdateFriendRequestResult::NotFound => (
-            StatusCode::NOT_FOUND,
-            Json(ApiErrorResponse::new(
-                "NOT_FOUND",
-                "friend request was not found",
-            )),
-        )
-            .into_response(),
-        UpdateFriendRequestResult::InvalidState => (
-            StatusCode::CONFLICT,
-            Json(ApiErrorResponse::new(
-                "INVALID_STATE",
-                "friend request transition is invalid",
-            )),
-        )
-            .into_response(),
-    }
+    UpdateFriendRequestResponse(result).into_response()
 }
 
 #[utoipa::path(
@@ -707,44 +675,13 @@ where
 {
     let Ok(result) = state
         .message_repository
-        .set_friend_request_state(
-            authenticated_user.user_id,
-            friend_request_id,
-            backend_domain::FriendRequestState::Cancelled,
-        )
+        .cancel_friend_request(authenticated_user.user_id, friend_request_id)
         .await
     else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match result {
-        UpdateFriendRequestResult::Updated(friend_request) => (
-            StatusCode::OK,
-            Json(FriendRequestResponse::from(friend_request)),
-        )
-            .into_response(),
-        UpdateFriendRequestResult::Forbidden => (
-            StatusCode::FORBIDDEN,
-            Json(ApiErrorResponse::new("FORBIDDEN", "operation is forbidden")),
-        )
-            .into_response(),
-        UpdateFriendRequestResult::NotFound => (
-            StatusCode::NOT_FOUND,
-            Json(ApiErrorResponse::new(
-                "NOT_FOUND",
-                "friend request was not found",
-            )),
-        )
-            .into_response(),
-        UpdateFriendRequestResult::InvalidState => (
-            StatusCode::CONFLICT,
-            Json(ApiErrorResponse::new(
-                "INVALID_STATE",
-                "friend request transition is invalid",
-            )),
-        )
-            .into_response(),
-    }
+    UpdateFriendRequestResponse(result).into_response()
 }
 
 #[utoipa::path(
@@ -834,23 +771,7 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match result {
-        BlockUserResult::Created(_) => StatusCode::CREATED.into_response(),
-        BlockUserResult::AlreadyBlocked => StatusCode::OK.into_response(),
-        BlockUserResult::Forbidden => (
-            StatusCode::FORBIDDEN,
-            Json(ApiErrorResponse::new("FORBIDDEN", "operation is forbidden")),
-        )
-            .into_response(),
-        BlockUserResult::NotFound => (
-            StatusCode::NOT_FOUND,
-            Json(ApiErrorResponse::new(
-                "NOT_FOUND",
-                "target user was not found",
-            )),
-        )
-            .into_response(),
-    }
+    BlockUserResponse(result).into_response()
 }
 
 #[utoipa::path(
@@ -1009,34 +930,7 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match result {
-        OpenOrGetDirectMessageThreadResult::Opened(direct_message_thread) => (
-            StatusCode::OK,
-            Json(DirectMessageThreadResponse::from(direct_message_thread)),
-        )
-            .into_response(),
-        OpenOrGetDirectMessageThreadResult::Blocked => (
-            StatusCode::FORBIDDEN,
-            Json(ApiErrorResponse::new(
-                "USERS_BLOCKED",
-                "cannot open dm thread due to blocked relationship",
-            )),
-        )
-            .into_response(),
-        OpenOrGetDirectMessageThreadResult::Forbidden => (
-            StatusCode::FORBIDDEN,
-            Json(ApiErrorResponse::new("FORBIDDEN", "operation is forbidden")),
-        )
-            .into_response(),
-        OpenOrGetDirectMessageThreadResult::NotFound => (
-            StatusCode::NOT_FOUND,
-            Json(ApiErrorResponse::new(
-                "NOT_FOUND",
-                "target user was not found",
-            )),
-        )
-            .into_response(),
-    }
+    OpenOrGetDmThreadResponse(result).into_response()
 }
 
 #[utoipa::path(
@@ -1140,34 +1034,7 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match result {
-        SendDirectMessageResult::Created(direct_message) => (
-            StatusCode::CREATED,
-            Json(DirectMessageResponse::from(direct_message)),
-        )
-            .into_response(),
-        SendDirectMessageResult::Blocked => (
-            StatusCode::FORBIDDEN,
-            Json(ApiErrorResponse::new(
-                "USERS_BLOCKED",
-                "cannot send dm due to blocked relationship",
-            )),
-        )
-            .into_response(),
-        SendDirectMessageResult::Forbidden => (
-            StatusCode::FORBIDDEN,
-            Json(ApiErrorResponse::new("FORBIDDEN", "operation is forbidden")),
-        )
-            .into_response(),
-        SendDirectMessageResult::NotFound => (
-            StatusCode::NOT_FOUND,
-            Json(ApiErrorResponse::new(
-                "NOT_FOUND",
-                "dm thread was not found",
-            )),
-        )
-            .into_response(),
-    }
+    SendDirectMessageResponse(result).into_response()
 }
 
 #[utoipa::path(

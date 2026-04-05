@@ -17,6 +17,7 @@ use crate::{
         AddServerMemberRequest, CreateChannelRequest, CreateServerRequest, UpdateChannelRequest,
         UpdateServerRequest,
     },
+    response_mapping::{DeletedResponse, UpdatedResponse},
 };
 
 type AppState<UserRepo, ServerRepo, ChannelRepo, MessageRepo, Verifier> =
@@ -278,12 +279,7 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match mutation_result {
-        MutationResult::Updated => StatusCode::NO_CONTENT.into_response(),
-        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
-        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
-        MutationResult::Deleted => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    }
+    UpdatedResponse(mutation_result).into_response()
 }
 
 #[utoipa::path(
@@ -319,12 +315,7 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match mutation_result {
-        MutationResult::Deleted => StatusCode::NO_CONTENT.into_response(),
-        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
-        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
-        MutationResult::Updated => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    }
+    DeletedResponse(mutation_result).into_response()
 }
 
 #[utoipa::path(
@@ -404,12 +395,7 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match mutation_result {
-        MutationResult::Updated => StatusCode::NO_CONTENT.into_response(),
-        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
-        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
-        MutationResult::Deleted => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    }
+    UpdatedResponse(mutation_result).into_response()
 }
 
 #[utoipa::path(
@@ -445,12 +431,7 @@ where
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    match mutation_result {
-        MutationResult::Deleted => StatusCode::NO_CONTENT.into_response(),
-        MutationResult::Forbidden => StatusCode::FORBIDDEN.into_response(),
-        MutationResult::NotFound => StatusCode::NOT_FOUND.into_response(),
-        MutationResult::Updated => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    }
+    DeletedResponse(mutation_result).into_response()
 }
 
 #[utoipa::path(
