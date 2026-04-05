@@ -12,9 +12,20 @@ import "package:polyphony_flutter_client/shared/services/preferences_store.dart"
 import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 import "package:provider/provider.dart";
 
+import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
 
-const _currentUserId = UserId("auth0|current-user");
+final _seeder = EntitySeeder();
+final _currentUserId = _seeder.authUserId();
+final _channelId = ChannelId("chn-${_seeder.hashCode}");
+
+Message _messageWith({required String content}) {
+  return _seeder.message(
+    channelId: _channelId,
+    authorUserId: _currentUserId,
+    content: content,
+  );
+}
 
 Widget _buildWidget({
   required List<Message> messages,
@@ -23,6 +34,7 @@ Widget _buildWidget({
   LinkPreviewService? linkPreviewService,
   EmoteService? emoteService,
   ReactionService? reactionService,
+  TextEditingController? createController,
 }) {
   final resolvedUserId = currentUserId ?? _currentUserId;
 
@@ -52,7 +64,7 @@ Widget _buildWidget({
               displayName: currentUserDisplayName,
             ),
             authorDisplayNamesByUserId: const <UserId, String?>{},
-            createController: TextEditingController(),
+            createController: createController ?? TextEditingController(),
             mentionCandidates: const <UserProfile>[],
             isLoading: false,
             onCreate: (_) {},
@@ -62,15 +74,6 @@ Widget _buildWidget({
         ),
       ),
     ),
-  );
-}
-
-Message _messageWith({required String content}) {
-  return Message(
-    id: const MessageId("msg-test"),
-    channelId: const ChannelId("chn-test"),
-    authorUserId: _currentUserId,
-    content: content,
   );
 }
 
@@ -270,42 +273,9 @@ void main() {
       final controller = TextEditingController();
 
       await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<LinkPreviewService>(
-              create: (_) => FakeLinkPreviewService(),
-            ),
-            Provider<EmoteService>(
-              create: (_) => FakeEmoteService(),
-            ),
-            Provider<ReactionService>(
-              create: (_) => FakeReactionService(),
-            ),
-          ],
-          child: BlocProvider<SettingsBloc>(
-            create: (_) => SettingsBloc(
-              preferencesStore: InMemoryPreferencesStore(),
-              audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
-            )..add(const SettingsPreferencesRestoreRequested()),
-            child: MaterialApp(
-              home: Scaffold(
-                body: MessagesSectionWidget(
-                  messages: const [],
-                  currentUser: const UserProfile(
-                    userId: _currentUserId,
-                    displayName: null,
-                  ),
-                  authorDisplayNamesByUserId: const <UserId, String?>{},
-                  createController: controller,
-                  mentionCandidates: const <UserProfile>[],
-                  isLoading: false,
-                  onCreate: (_) {},
-                  onEdit: (_) async {},
-                  onDelete: (_) {},
-                ),
-              ),
-            ),
-          ),
+        _buildWidget(
+          messages: const [],
+          createController: controller,
         ),
       );
       await tester.pumpAndSettle();

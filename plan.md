@@ -943,23 +943,6 @@ Scope:
 - `HomePageWidget` and `DirectMessagesPageWidget`: moved `markChannelNotificationsRead` service call into `NotificationCenterBloc` via new `NotificationCenterMarkChannelReadRequested` event.
 
 Acceptance criteria:
-- No widget makes direct service or repository calls; all data operations flow through BLoC events. ✅ (VoiceParticipantsPaneWidget popout deferred — presentation concern)
-- Inline API-to-domain conversions are moved to extension methods in `api_model_extensions.dart`. ✅
-- `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
-
-##### 13.4h — Frontend: Extract widgets from builder methods
-Status:
-- Done.
-
-Scope:
-- Extracted `RailBadgeWidget` and `RailAvatarWidget` from private `_buildRailBadge` / `_buildRailAvatar` methods in `servers_section_widget.dart` → new `rail_avatar_widget.dart`.
-- Extracted `DirectMessagesWorkspaceWidget` from private `_buildDirectMessagesWorkspace` method in `direct_messages_page_widget.dart` → new `direct_messages_workspace_widget.dart`.
-- `HomePageWidget._buildChatTab` and `DirectMessagesPageWidget._buildChatTab` are heavily state-coupled (~300 lines each, referencing multiple private state fields and methods). These are page body orchestration methods, not reusable widget trees — extraction deferred.
-- `MessageSearchDialogWidget._buildSearchResult` was already eliminated during the `MessageSearchBloc` rewrite in 13.4g.
-
-Acceptance criteria:
-- No private `_build*` helper methods remain that construct reusable widget trees; each is an extracted Widget class. ✅
-- `dart analyze` is clean and `flutter test` passes with no skipped tests. ✅
 
 ##### 13.4i — Frontend: Test consistency (EntitySeeder and shared harness)
 Status:
@@ -981,7 +964,8 @@ Overall acceptance criteria:
 - No BLoC loaded-state uses nullable fields to represent selection, scope, or context — all such states are explicit ADT variants.
 - All BLoC states expose transition methods; direct constructor/copyWith state building is limited to initial/bootstrap cases.
 - No widget makes direct service or repository calls; all data operations flow through BLoC events.
-- Inline API-to-domain conversions are moved to extension methods in `api_model_extensions.dart`.
+- All test fixtures for non-essential fields are produced by `EntitySeeder`.
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
 - `dart analyze` is clean and `flutter test` passes with no skipped tests.
 
 ##### 13.4h — Frontend: Extract widgets from builder methods

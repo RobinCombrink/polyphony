@@ -105,131 +105,154 @@ class _FakeNotificationRepository implements NotificationRepo {
   }
 }
 
+class _HomePageTestHarness {
+  _HomePageTestHarness({
+    int totalUnreadCount = 0,
+    PreferencesStore? preferencesStore,
+  })  : fixture = EntitySeeder().chatApiFixture(),
+        _totalUnreadCount = totalUnreadCount,
+        preferencesStore = preferencesStore ?? InMemoryPreferencesStore();
+
+  final ChatApiFixture fixture;
+  final int _totalUnreadCount;
+  final PreferencesStore preferencesStore;
+
+  late final _serverRepo = FakeServerRepository(fixture: fixture);
+  late final _channelRepo = FakeChannelRepository(fixture: fixture);
+  late final _messageRepo = FakeMessageRepository(fixture: fixture);
+  late final _profileRepo = FakeProfileRepository(
+    userId: fixture.ownerUserId,
+    initialDisplayName: "Owner",
+  );
+  late final _textSessionRepo = FakeTextSessionRepository(fixture: fixture);
+  late final _voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
+  late final _voiceRuntimeService = FakeVoiceRuntimeService();
+  late final _messageRuntimeService = FakeMessageRuntimeService();
+  late final notificationRuntimeService = FakeNotificationRuntimeService();
+
+  late final _authenticationBloc = AuthenticationBloc(
+    profileService: _FakeAuthenticationProfileService(
+      userId: fixture.ownerUserId,
+    ),
+    sessionService: _FakeAuthenticationSessionService(),
+  )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
+
+  late final serversBloc = ServersBloc(serverRepo: _serverRepo);
+  late final channelsBloc = ChannelsBloc(channelRepo: _channelRepo);
+
+  late final _messagesBloc = MessagesBloc(
+    messageRepo: _messageRepo,
+    profileRepo: _profileRepo,
+    textSessionRepo: _textSessionRepo,
+    messageRuntimeService: _messageRuntimeService,
+  );
+
+  late final _profileBloc = ProfileBloc(
+    profileRepo: _profileRepo,
+    currentUserId: fixture.ownerUserId,
+  );
+
+  late final serverMembersBloc = _RecordingServerMembersBloc(
+    serverMemberRepo: FakeServerMemberRepository(fixture: fixture),
+    profileRepo: _profileRepo,
+    friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
+    serverRepo: _serverRepo,
+  );
+
+  late final _voiceSessionsBloc = VoiceSessionsBloc(
+    voiceSessionRepo: _voiceSessionRepo,
+    voiceRuntimeService: _voiceRuntimeService,
+    profileRepo: _profileRepo,
+  );
+
+  late final _notificationCenterBloc = NotificationCenterBloc(
+    notificationRepo: _FakeNotificationRepository(
+      totalUnreadCount: _totalUnreadCount,
+    ),
+    notificationRuntimeService: notificationRuntimeService,
+    notificationService: FakeNotificationService(),
+    notificationBadgeService: const NoOpNotificationBadgeService(),
+    preferencesStore: preferencesStore,
+  )..add(
+      const NotificationCenterStartedRequested(bearerToken: "test-token"),
+    );
+
+  void registerTearDowns(void Function(dynamic Function()) addTearDown) {
+    addTearDown(_authenticationBloc.close);
+    addTearDown(serversBloc.close);
+    addTearDown(channelsBloc.close);
+    addTearDown(_messagesBloc.close);
+    addTearDown(_profileBloc.close);
+    addTearDown(serverMembersBloc.close);
+    addTearDown(_voiceSessionsBloc.close);
+    addTearDown(_notificationCenterBloc.close);
+  }
+
+  Widget buildWidget() {
+    return MultiProvider(
+      providers: [
+        Provider<PreferencesStore>.value(value: preferencesStore),
+        Provider<NotificationRuntimeService>(
+          create: (_) => notificationRuntimeService,
+        ),
+        Provider<EmoteService>(
+          create: (_) => FakeEmoteService(),
+        ),
+        Provider<LinkPreviewService>(
+          create: (_) => FakeLinkPreviewService(),
+        ),
+        Provider<ReactionService>(
+          create: (_) => FakeReactionService(),
+        ),
+      ],
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<AuthenticationBloc>.value(value: _authenticationBloc),
+          BlocProvider<ServersBloc>.value(value: serversBloc),
+          BlocProvider<ChannelsBloc>.value(value: channelsBloc),
+          BlocProvider<MessagesBloc>.value(value: _messagesBloc),
+          BlocProvider<ProfileBloc>.value(value: _profileBloc),
+          BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
+          BlocProvider<VoiceSessionsBloc>.value(value: _voiceSessionsBloc),
+          BlocProvider<NotificationCenterBloc>.value(
+            value: _notificationCenterBloc,
+          ),
+          BlocProvider<SettingsBloc>(
+            create: (_) => SettingsBloc(
+              preferencesStore: InMemoryPreferencesStore(),
+              audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
+            )..add(const SettingsPreferencesRestoreRequested()),
+          ),
+        ],
+        child: const MaterialApp(home: HomePageWidget()),
+      ),
+    );
+  }
+}
+
 void main() {
   testWidgets(
     "loads server users when selected server changes",
     (tester) async {
-      final fixture = EntitySeeder().chatApiFixture();
-      final serverRepo = FakeServerRepository(fixture: fixture);
-      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
-      final channelRepo = FakeChannelRepository(fixture: fixture);
-      final messageRepo = FakeMessageRepository(fixture: fixture);
-      final profileRepo = FakeProfileRepository(
-        userId: fixture.ownerUserId,
-        initialDisplayName: "Owner",
-      );
-      final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
-      final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
-      final voiceRuntimeService = FakeVoiceRuntimeService();
-      final messageRuntimeService = FakeMessageRuntimeService();
-      final notificationRuntimeService = FakeNotificationRuntimeService();
+      final harness = _HomePageTestHarness(totalUnreadCount: 3)
+        ..registerTearDowns(addTearDown);
 
-      final authenticationBloc = AuthenticationBloc(
-        profileService: _FakeAuthenticationProfileService(
-          userId: fixture.ownerUserId,
-        ),
-        sessionService: _FakeAuthenticationSessionService(),
-      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
-      final serversBloc = ServersBloc(serverRepo: serverRepo);
-      final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
-      final messagesBloc = MessagesBloc(
-        messageRepo: messageRepo,
-        profileRepo: profileRepo,
-        textSessionRepo: textSessionRepo,
-        messageRuntimeService: messageRuntimeService,
-      );
-      final profileBloc = ProfileBloc(
-          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
-      final serverMembersBloc = _RecordingServerMembersBloc(
-        serverMemberRepo: serverMemberRepo,
-        profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
-        serverRepo: serverRepo,
-      );
-      final voiceSessionsBloc = VoiceSessionsBloc(
-        voiceSessionRepo: voiceSessionRepo,
-        voiceRuntimeService: voiceRuntimeService,
-        profileRepo: profileRepo,
-      );
-      final notificationCenterBloc = NotificationCenterBloc(
-        notificationRepo: _FakeNotificationRepository(totalUnreadCount: 3),
-        notificationRuntimeService: notificationRuntimeService,
-        notificationService: FakeNotificationService(),
-        notificationBadgeService: const NoOpNotificationBadgeService(),
-        preferencesStore: InMemoryPreferencesStore(),
-      )..add(
-          const NotificationCenterStartedRequested(
-            bearerToken: "test-token",
-          ),
-        );
-
-      addTearDown(authenticationBloc.close);
-      addTearDown(serversBloc.close);
-      addTearDown(channelsBloc.close);
-      addTearDown(messagesBloc.close);
-      addTearDown(profileBloc.close);
-      addTearDown(serverMembersBloc.close);
-      addTearDown(voiceSessionsBloc.close);
-      addTearDown(notificationCenterBloc.close);
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<PreferencesStore>(
-              create: (_) => InMemoryPreferencesStore(),
-            ),
-            Provider<NotificationRuntimeService>(
-              create: (_) => notificationRuntimeService,
-            ),
-            Provider<EmoteService>(
-              create: (_) => FakeEmoteService(),
-            ),
-            Provider<LinkPreviewService>(
-              create: (_) => FakeLinkPreviewService(),
-            ),
-            Provider<ReactionService>(
-              create: (_) => FakeReactionService(),
-            ),
-          ],
-          child: MultiBlocProvider(
-            providers: [
-              BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
-              BlocProvider<ServersBloc>.value(value: serversBloc),
-              BlocProvider<ChannelsBloc>.value(value: channelsBloc),
-              BlocProvider<MessagesBloc>.value(value: messagesBloc),
-              BlocProvider<ProfileBloc>.value(value: profileBloc),
-              BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
-              BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
-              BlocProvider<NotificationCenterBloc>.value(
-                value: notificationCenterBloc,
-              ),
-              BlocProvider<SettingsBloc>(
-                create: (_) => SettingsBloc(
-                  preferencesStore: InMemoryPreferencesStore(),
-                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
-                )..add(const SettingsPreferencesRestoreRequested()),
-              ),
-            ],
-            child: const MaterialApp(home: HomePageWidget()),
-          ),
-        ),
-      );
-
+      await tester.pumpWidget(harness.buildWidget());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      serverMembersBloc.recordedEvents.clear();
-      serversBloc.add(
-        SelectServerRequested(serverId: fixture.listedServer.id),
+      harness.serverMembersBloc.recordedEvents.clear();
+      harness.serversBloc.add(
+        SelectServerRequested(serverId: harness.fixture.listedServer.id),
       );
       await tester.pump();
 
-      final loadEvents = serverMembersBloc.recordedEvents
+      final loadEvents = harness.serverMembersBloc.recordedEvents
           .whereType<LoadServerMembersRequested>()
           .toList();
 
       expect(loadEvents, hasLength(1));
-      expect(loadEvents.single.serverId, fixture.listedServer.id);
+      expect(loadEvents.single.serverId, harness.fixture.listedServer.id);
     },
   );
 
@@ -241,112 +264,9 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final fixture = EntitySeeder().chatApiFixture();
-      final serverRepo = FakeServerRepository(fixture: fixture);
-      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
-      final channelRepo = FakeChannelRepository(fixture: fixture);
-      final messageRepo = FakeMessageRepository(fixture: fixture);
-      final profileRepo = FakeProfileRepository(
-        userId: fixture.ownerUserId,
-        initialDisplayName: "Owner",
-      );
-      final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
-      final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
-      final voiceRuntimeService = FakeVoiceRuntimeService();
-      final messageRuntimeService = FakeMessageRuntimeService();
-      final notificationRuntimeService = FakeNotificationRuntimeService();
+      final harness = _HomePageTestHarness()..registerTearDowns(addTearDown);
 
-      final authenticationBloc = AuthenticationBloc(
-        profileService: _FakeAuthenticationProfileService(
-          userId: fixture.ownerUserId,
-        ),
-        sessionService: _FakeAuthenticationSessionService(),
-      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
-      final serversBloc = ServersBloc(serverRepo: serverRepo);
-      final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
-      final messagesBloc = MessagesBloc(
-        messageRepo: messageRepo,
-        profileRepo: profileRepo,
-        textSessionRepo: textSessionRepo,
-        messageRuntimeService: messageRuntimeService,
-      );
-      final profileBloc = ProfileBloc(
-          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
-      final serverMembersBloc = _RecordingServerMembersBloc(
-        serverMemberRepo: serverMemberRepo,
-        profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
-        serverRepo: serverRepo,
-      );
-      final voiceSessionsBloc = VoiceSessionsBloc(
-        voiceSessionRepo: voiceSessionRepo,
-        voiceRuntimeService: voiceRuntimeService,
-        profileRepo: profileRepo,
-      );
-      final notificationCenterBloc = NotificationCenterBloc(
-        notificationRepo: _FakeNotificationRepository(),
-        notificationRuntimeService: notificationRuntimeService,
-        notificationService: FakeNotificationService(),
-        notificationBadgeService: const NoOpNotificationBadgeService(),
-        preferencesStore: InMemoryPreferencesStore(),
-      )..add(
-          const NotificationCenterStartedRequested(
-            bearerToken: "test-token",
-          ),
-        );
-
-      addTearDown(authenticationBloc.close);
-      addTearDown(serversBloc.close);
-      addTearDown(channelsBloc.close);
-      addTearDown(messagesBloc.close);
-      addTearDown(profileBloc.close);
-      addTearDown(serverMembersBloc.close);
-      addTearDown(voiceSessionsBloc.close);
-      addTearDown(notificationCenterBloc.close);
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<PreferencesStore>(
-              create: (_) => InMemoryPreferencesStore(),
-            ),
-            Provider<NotificationRuntimeService>(
-              create: (_) => notificationRuntimeService,
-            ),
-            Provider<EmoteService>(
-              create: (_) => FakeEmoteService(),
-            ),
-            Provider<LinkPreviewService>(
-              create: (_) => FakeLinkPreviewService(),
-            ),
-            Provider<ReactionService>(
-              create: (_) => FakeReactionService(),
-            ),
-          ],
-          child: MultiBlocProvider(
-            providers: [
-              BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
-              BlocProvider<ServersBloc>.value(value: serversBloc),
-              BlocProvider<ChannelsBloc>.value(value: channelsBloc),
-              BlocProvider<MessagesBloc>.value(value: messagesBloc),
-              BlocProvider<ProfileBloc>.value(value: profileBloc),
-              BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
-              BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
-              BlocProvider<NotificationCenterBloc>.value(
-                value: notificationCenterBloc,
-              ),
-              BlocProvider<SettingsBloc>(
-                create: (_) => SettingsBloc(
-                  preferencesStore: InMemoryPreferencesStore(),
-                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
-                )..add(const SettingsPreferencesRestoreRequested()),
-              ),
-            ],
-            child: const MaterialApp(home: HomePageWidget()),
-          ),
-        ),
-      );
-
+      await tester.pumpWidget(harness.buildWidget());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -358,112 +278,10 @@ void main() {
   testWidgets(
     "shows unread count badge when unread notifications exist",
     (tester) async {
-      final fixture = EntitySeeder().chatApiFixture();
-      final serverRepo = FakeServerRepository(fixture: fixture);
-      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
-      final channelRepo = FakeChannelRepository(fixture: fixture);
-      final messageRepo = FakeMessageRepository(fixture: fixture);
-      final profileRepo = FakeProfileRepository(
-        userId: fixture.ownerUserId,
-        initialDisplayName: "Owner",
-      );
-      final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
-      final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
-      final voiceRuntimeService = FakeVoiceRuntimeService();
-      final messageRuntimeService = FakeMessageRuntimeService();
-      final notificationRuntimeService = FakeNotificationRuntimeService();
+      final harness = _HomePageTestHarness(totalUnreadCount: 7)
+        ..registerTearDowns(addTearDown);
 
-      final authenticationBloc = AuthenticationBloc(
-        profileService: _FakeAuthenticationProfileService(
-          userId: fixture.ownerUserId,
-        ),
-        sessionService: _FakeAuthenticationSessionService(),
-      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
-      final serversBloc = ServersBloc(serverRepo: serverRepo);
-      final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
-      final messagesBloc = MessagesBloc(
-        messageRepo: messageRepo,
-        profileRepo: profileRepo,
-        textSessionRepo: textSessionRepo,
-        messageRuntimeService: messageRuntimeService,
-      );
-      final profileBloc = ProfileBloc(
-          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
-      final serverMembersBloc = _RecordingServerMembersBloc(
-        serverMemberRepo: serverMemberRepo,
-        profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
-        serverRepo: serverRepo,
-      );
-      final voiceSessionsBloc = VoiceSessionsBloc(
-        voiceSessionRepo: voiceSessionRepo,
-        voiceRuntimeService: voiceRuntimeService,
-        profileRepo: profileRepo,
-      );
-      final notificationCenterBloc = NotificationCenterBloc(
-        notificationRepo: _FakeNotificationRepository(totalUnreadCount: 7),
-        notificationRuntimeService: notificationRuntimeService,
-        notificationService: FakeNotificationService(),
-        notificationBadgeService: const NoOpNotificationBadgeService(),
-        preferencesStore: InMemoryPreferencesStore(),
-      )..add(
-          const NotificationCenterStartedRequested(
-            bearerToken: "test-token",
-          ),
-        );
-
-      addTearDown(authenticationBloc.close);
-      addTearDown(serversBloc.close);
-      addTearDown(channelsBloc.close);
-      addTearDown(messagesBloc.close);
-      addTearDown(profileBloc.close);
-      addTearDown(serverMembersBloc.close);
-      addTearDown(voiceSessionsBloc.close);
-      addTearDown(notificationCenterBloc.close);
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<PreferencesStore>(
-              create: (_) => InMemoryPreferencesStore(),
-            ),
-            Provider<NotificationRuntimeService>(
-              create: (_) => notificationRuntimeService,
-            ),
-            Provider<EmoteService>(
-              create: (_) => FakeEmoteService(),
-            ),
-            Provider<LinkPreviewService>(
-              create: (_) => FakeLinkPreviewService(),
-            ),
-            Provider<ReactionService>(
-              create: (_) => FakeReactionService(),
-            ),
-          ],
-          child: MultiBlocProvider(
-            providers: [
-              BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
-              BlocProvider<ServersBloc>.value(value: serversBloc),
-              BlocProvider<ChannelsBloc>.value(value: channelsBloc),
-              BlocProvider<MessagesBloc>.value(value: messagesBloc),
-              BlocProvider<ProfileBloc>.value(value: profileBloc),
-              BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
-              BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
-              BlocProvider<NotificationCenterBloc>.value(
-                value: notificationCenterBloc,
-              ),
-              BlocProvider<SettingsBloc>(
-                create: (_) => SettingsBloc(
-                  preferencesStore: InMemoryPreferencesStore(),
-                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
-                )..add(const SettingsPreferencesRestoreRequested()),
-              ),
-            ],
-            child: const MaterialApp(home: HomePageWidget()),
-          ),
-        ),
-      );
-
+      await tester.pumpWidget(harness.buildWidget());
       await tester.pumpAndSettle();
 
       expect(find.text("7"), findsOneWidget);
@@ -473,121 +291,20 @@ void main() {
   testWidgets(
     "friend joined voice event outside selected channels is not shown in notification feed",
     (tester) async {
-      final fixture = EntitySeeder().chatApiFixture();
-      final serverRepo = FakeServerRepository(fixture: fixture);
-      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
-      final channelRepo = FakeChannelRepository(fixture: fixture);
-      final messageRepo = FakeMessageRepository(fixture: fixture);
-      final profileRepo = FakeProfileRepository(
-        userId: fixture.ownerUserId,
-        initialDisplayName: "Owner",
-      );
-      final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
-      final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
-      final voiceRuntimeService = FakeVoiceRuntimeService();
-      final messageRuntimeService = FakeMessageRuntimeService();
-      final notificationRuntimeService = FakeNotificationRuntimeService();
       final preferencesStore = InMemoryPreferencesStore();
-
       await preferencesStore.writeChannelJoinNotificationsEnabled(true);
       await preferencesStore.writeChannelJoinNotificationChannelIds(
         const <String>["voice-allowed"],
       );
 
-      final authenticationBloc = AuthenticationBloc(
-        profileService: _FakeAuthenticationProfileService(
-          userId: fixture.ownerUserId,
-        ),
-        sessionService: _FakeAuthenticationSessionService(),
-      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
-      final serversBloc = ServersBloc(serverRepo: serverRepo);
-      final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
-      final messagesBloc = MessagesBloc(
-        messageRepo: messageRepo,
-        profileRepo: profileRepo,
-        textSessionRepo: textSessionRepo,
-        messageRuntimeService: messageRuntimeService,
-      );
-      final profileBloc = ProfileBloc(
-          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
-      final serverMembersBloc = _RecordingServerMembersBloc(
-        serverMemberRepo: serverMemberRepo,
-        profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
-        serverRepo: serverRepo,
-      );
-      final voiceSessionsBloc = VoiceSessionsBloc(
-        voiceSessionRepo: voiceSessionRepo,
-        voiceRuntimeService: voiceRuntimeService,
-        profileRepo: profileRepo,
-      );
-      final notificationCenterBloc = NotificationCenterBloc(
-        notificationRepo: _FakeNotificationRepository(),
-        notificationRuntimeService: notificationRuntimeService,
-        notificationService: FakeNotificationService(),
-        notificationBadgeService: const NoOpNotificationBadgeService(),
+      final harness = _HomePageTestHarness(
         preferencesStore: preferencesStore,
-      )..add(
-          const NotificationCenterStartedRequested(
-            bearerToken: "test-token",
-          ),
-        );
+      )..registerTearDowns(addTearDown);
 
-      addTearDown(authenticationBloc.close);
-      addTearDown(serversBloc.close);
-      addTearDown(channelsBloc.close);
-      addTearDown(messagesBloc.close);
-      addTearDown(profileBloc.close);
-      addTearDown(serverMembersBloc.close);
-      addTearDown(voiceSessionsBloc.close);
-      addTearDown(notificationCenterBloc.close);
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<PreferencesStore>.value(
-              value: preferencesStore,
-            ),
-            Provider<NotificationRuntimeService>(
-              create: (_) => notificationRuntimeService,
-            ),
-            Provider<EmoteService>(
-              create: (_) => FakeEmoteService(),
-            ),
-            Provider<LinkPreviewService>(
-              create: (_) => FakeLinkPreviewService(),
-            ),
-            Provider<ReactionService>(
-              create: (_) => FakeReactionService(),
-            ),
-          ],
-          child: MultiBlocProvider(
-            providers: [
-              BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
-              BlocProvider<ServersBloc>.value(value: serversBloc),
-              BlocProvider<ChannelsBloc>.value(value: channelsBloc),
-              BlocProvider<MessagesBloc>.value(value: messagesBloc),
-              BlocProvider<ProfileBloc>.value(value: profileBloc),
-              BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
-              BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
-              BlocProvider<NotificationCenterBloc>.value(
-                value: notificationCenterBloc,
-              ),
-              BlocProvider<SettingsBloc>(
-                create: (_) => SettingsBloc(
-                  preferencesStore: InMemoryPreferencesStore(),
-                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
-                )..add(const SettingsPreferencesRestoreRequested()),
-              ),
-            ],
-            child: const MaterialApp(home: HomePageWidget()),
-          ),
-        ),
-      );
-
+      await tester.pumpWidget(harness.buildWidget());
       await tester.pumpAndSettle();
 
-      notificationRuntimeService.emit(
+      harness.notificationRuntimeService.emit(
         const FriendJoinedVoiceRuntimeNotificationEvent(
           serverId: "server-1",
           serverName: "Server",
@@ -611,121 +328,18 @@ void main() {
   testWidgets(
     "tapping notification feed entry selects its server and channel",
     (tester) async {
-      final fixture = EntitySeeder().chatApiFixture();
-      final serverRepo = FakeServerRepository(fixture: fixture);
-      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
-      final channelRepo = FakeChannelRepository(fixture: fixture);
-      final messageRepo = FakeMessageRepository(fixture: fixture);
-      final profileRepo = FakeProfileRepository(
-        userId: fixture.ownerUserId,
-        initialDisplayName: "Owner",
-      );
-      final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
-      final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
-      final voiceRuntimeService = FakeVoiceRuntimeService();
-      final messageRuntimeService = FakeMessageRuntimeService();
-      final notificationRuntimeService = FakeNotificationRuntimeService();
+      final harness = _HomePageTestHarness()..registerTearDowns(addTearDown);
 
-      final authenticationBloc = AuthenticationBloc(
-        profileService: _FakeAuthenticationProfileService(
-          userId: fixture.ownerUserId,
-        ),
-        sessionService: _FakeAuthenticationSessionService(),
-      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
-      final serversBloc = ServersBloc(serverRepo: serverRepo);
-      final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
-      final messagesBloc = MessagesBloc(
-        messageRepo: messageRepo,
-        profileRepo: profileRepo,
-        textSessionRepo: textSessionRepo,
-        messageRuntimeService: messageRuntimeService,
-      );
-      final profileBloc = ProfileBloc(
-          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
-      final serverMembersBloc = _RecordingServerMembersBloc(
-        serverMemberRepo: serverMemberRepo,
-        profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
-        serverRepo: serverRepo,
-      );
-      final voiceSessionsBloc = VoiceSessionsBloc(
-        voiceSessionRepo: voiceSessionRepo,
-        voiceRuntimeService: voiceRuntimeService,
-        profileRepo: profileRepo,
-      );
-      final notificationCenterBloc = NotificationCenterBloc(
-        notificationRepo: _FakeNotificationRepository(),
-        notificationRuntimeService: notificationRuntimeService,
-        notificationService: FakeNotificationService(),
-        notificationBadgeService: const NoOpNotificationBadgeService(),
-        preferencesStore: InMemoryPreferencesStore(),
-      )..add(
-          const NotificationCenterStartedRequested(
-            bearerToken: "test-token",
-          ),
-        );
-
-      addTearDown(authenticationBloc.close);
-      addTearDown(serversBloc.close);
-      addTearDown(channelsBloc.close);
-      addTearDown(messagesBloc.close);
-      addTearDown(profileBloc.close);
-      addTearDown(serverMembersBloc.close);
-      addTearDown(voiceSessionsBloc.close);
-      addTearDown(notificationCenterBloc.close);
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<PreferencesStore>(
-              create: (_) => InMemoryPreferencesStore(),
-            ),
-            Provider<NotificationRuntimeService>(
-              create: (_) => notificationRuntimeService,
-            ),
-            Provider<EmoteService>(
-              create: (_) => FakeEmoteService(),
-            ),
-            Provider<LinkPreviewService>(
-              create: (_) => FakeLinkPreviewService(),
-            ),
-            Provider<ReactionService>(
-              create: (_) => FakeReactionService(),
-            ),
-          ],
-          child: MultiBlocProvider(
-            providers: [
-              BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
-              BlocProvider<ServersBloc>.value(value: serversBloc),
-              BlocProvider<ChannelsBloc>.value(value: channelsBloc),
-              BlocProvider<MessagesBloc>.value(value: messagesBloc),
-              BlocProvider<ProfileBloc>.value(value: profileBloc),
-              BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
-              BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
-              BlocProvider<NotificationCenterBloc>.value(
-                value: notificationCenterBloc,
-              ),
-              BlocProvider<SettingsBloc>(
-                create: (_) => SettingsBloc(
-                  preferencesStore: InMemoryPreferencesStore(),
-                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
-                )..add(const SettingsPreferencesRestoreRequested()),
-              ),
-            ],
-            child: const MaterialApp(home: HomePageWidget()),
-          ),
-        ),
-      );
-
+      await tester.pumpWidget(harness.buildWidget());
       await tester.pumpAndSettle();
 
-      notificationRuntimeService.emit(
+      harness.notificationRuntimeService.emit(
         MentionedRuntimeNotificationEvent(
-          serverId: fixture.listedServer.id.value,
-          serverName: fixture.listedServer.name,
-          channelId: fixture.listedChannel.id.value,
-          channelName: fixture.listedChannel.name,
-          messageId: fixture.listedMessage.id.value,
+          serverId: harness.fixture.listedServer.id.value,
+          serverName: harness.fixture.listedServer.name,
+          channelId: harness.fixture.listedChannel.id.value,
+          channelName: harness.fixture.listedChannel.name,
+          messageId: harness.fixture.listedMessage.id.value,
         ),
       );
 
@@ -739,139 +353,36 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      final serversState = serversBloc.state;
+      final serversState = harness.serversBloc.state;
       expect(serversState, isA<ServerSelected>());
       expect((serversState as ServerSelected).selectedServer.id,
-          fixture.listedServer.id);
+          harness.fixture.listedServer.id);
 
-      final channelsState = channelsBloc.state;
+      final channelsState = harness.channelsBloc.state;
       expect(channelsState, isA<ChannelsLoadedDataState>());
       expect((channelsState as ChannelsLoadedDataState).serverId,
-          fixture.listedServer.id);
+          harness.fixture.listedServer.id);
       expect(channelsState, isA<TextChannelSelected>());
       expect((channelsState as TextChannelSelected).selectedTextChannel.id,
-          fixture.listedChannel.id);
+          harness.fixture.listedChannel.id);
     },
   );
 
   testWidgets(
     "tapping stale notification entry shows unable-to-open channel toast",
     (tester) async {
-      final fixture = EntitySeeder().chatApiFixture();
-      final serverRepo = FakeServerRepository(fixture: fixture);
-      final serverMemberRepo = FakeServerMemberRepository(fixture: fixture);
-      final channelRepo = FakeChannelRepository(fixture: fixture);
-      final messageRepo = FakeMessageRepository(fixture: fixture);
-      final profileRepo = FakeProfileRepository(
-        userId: fixture.ownerUserId,
-        initialDisplayName: "Owner",
-      );
-      final textSessionRepo = FakeTextSessionRepository(fixture: fixture);
-      final voiceSessionRepo = FakeVoiceSessionRepository(fixture: fixture);
-      final voiceRuntimeService = FakeVoiceRuntimeService();
-      final messageRuntimeService = FakeMessageRuntimeService();
-      final notificationRuntimeService = FakeNotificationRuntimeService();
+      final harness = _HomePageTestHarness()..registerTearDowns(addTearDown);
 
-      final authenticationBloc = AuthenticationBloc(
-        profileService: _FakeAuthenticationProfileService(
-          userId: fixture.ownerUserId,
-        ),
-        sessionService: _FakeAuthenticationSessionService(),
-      )..add(const AuthenticationLoginRequested(bearerToken: "test-token"));
-      final serversBloc = ServersBloc(serverRepo: serverRepo);
-      final channelsBloc = ChannelsBloc(channelRepo: channelRepo);
-      final messagesBloc = MessagesBloc(
-        messageRepo: messageRepo,
-        profileRepo: profileRepo,
-        textSessionRepo: textSessionRepo,
-        messageRuntimeService: messageRuntimeService,
-      );
-      final profileBloc = ProfileBloc(
-          profileRepo: profileRepo, currentUserId: fixture.ownerUserId);
-      final serverMembersBloc = _RecordingServerMembersBloc(
-        serverMemberRepo: serverMemberRepo,
-        profileRepo: profileRepo,
-        friendRepo: FakeFriendRepository(friendUserIds: <UserId>{}),
-        serverRepo: serverRepo,
-      );
-      final voiceSessionsBloc = VoiceSessionsBloc(
-        voiceSessionRepo: voiceSessionRepo,
-        voiceRuntimeService: voiceRuntimeService,
-        profileRepo: profileRepo,
-      );
-      final notificationCenterBloc = NotificationCenterBloc(
-        notificationRepo: _FakeNotificationRepository(),
-        notificationRuntimeService: notificationRuntimeService,
-        notificationService: FakeNotificationService(),
-        notificationBadgeService: const NoOpNotificationBadgeService(),
-        preferencesStore: InMemoryPreferencesStore(),
-      )..add(
-          const NotificationCenterStartedRequested(
-            bearerToken: "test-token",
-          ),
-        );
-
-      addTearDown(authenticationBloc.close);
-      addTearDown(serversBloc.close);
-      addTearDown(channelsBloc.close);
-      addTearDown(messagesBloc.close);
-      addTearDown(profileBloc.close);
-      addTearDown(serverMembersBloc.close);
-      addTearDown(voiceSessionsBloc.close);
-      addTearDown(notificationCenterBloc.close);
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<PreferencesStore>(
-              create: (_) => InMemoryPreferencesStore(),
-            ),
-            Provider<NotificationRuntimeService>(
-              create: (_) => notificationRuntimeService,
-            ),
-            Provider<EmoteService>(
-              create: (_) => FakeEmoteService(),
-            ),
-            Provider<LinkPreviewService>(
-              create: (_) => FakeLinkPreviewService(),
-            ),
-            Provider<ReactionService>(
-              create: (_) => FakeReactionService(),
-            ),
-          ],
-          child: MultiBlocProvider(
-            providers: [
-              BlocProvider<AuthenticationBloc>.value(value: authenticationBloc),
-              BlocProvider<ServersBloc>.value(value: serversBloc),
-              BlocProvider<ChannelsBloc>.value(value: channelsBloc),
-              BlocProvider<MessagesBloc>.value(value: messagesBloc),
-              BlocProvider<ProfileBloc>.value(value: profileBloc),
-              BlocProvider<ServerMembersBloc>.value(value: serverMembersBloc),
-              BlocProvider<VoiceSessionsBloc>.value(value: voiceSessionsBloc),
-              BlocProvider<NotificationCenterBloc>.value(
-                value: notificationCenterBloc,
-              ),
-              BlocProvider<SettingsBloc>(
-                create: (_) => SettingsBloc(
-                  preferencesStore: InMemoryPreferencesStore(),
-                  audioDeviceRuntimeService: FakeAudioDeviceRuntimeService(),
-                )..add(const SettingsPreferencesRestoreRequested()),
-              ),
-            ],
-            child: const MaterialApp(home: HomePageWidget()),
-          ),
-        ),
-      );
-
+      await tester.pumpWidget(harness.buildWidget());
       await tester.pumpAndSettle();
 
-      notificationRuntimeService.emit(
+      harness.notificationRuntimeService.emit(
         MentionedRuntimeNotificationEvent(
-          serverId: fixture.listedServer.id.value,
-          serverName: fixture.listedServer.name,
+          serverId: harness.fixture.listedServer.id.value,
+          serverName: harness.fixture.listedServer.name,
           channelId: "missing-channel-id",
           channelName: "missing",
-          messageId: fixture.listedMessage.id.value,
+          messageId: harness.fixture.listedMessage.id.value,
         ),
       );
 
