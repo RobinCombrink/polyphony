@@ -86,13 +86,15 @@ Feature: Friends, direct messaging, and safety controls
       Then direct message search is denied
 
   Rule: Blocking applies two-way restrictions and can be reverted
-    Scenario: Blocking prevents friend actions and direct messages in both directions
+    Scenario: Blocking removes friendship and prevents friend actions and direct messages
       Given a user named "Olivia" exists
       And a user named "Noah" exists
       And "Olivia" and "Noah" are friends
       And a direct message thread exists between "Olivia" and "Noah"
       When "Olivia" blocks "Noah"
-      Then "Noah" cannot send a friend request to "Olivia"
+      Then "Olivia" is not included in the friend list for "Noah"
+      And "Noah" is not included in the friend list for "Olivia"
+      And "Noah" cannot send a friend request to "Olivia"
       And "Olivia" cannot send a friend request to "Noah"
       And "Noah" cannot send a direct message to "Olivia"
       And "Olivia" cannot send a direct message to "Noah"

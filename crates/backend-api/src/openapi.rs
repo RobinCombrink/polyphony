@@ -7,17 +7,15 @@ use utoipa::{Modify, OpenApi};
 
 use crate::dto::ApiErrorResponse;
 use crate::dto::{
-    AddServerMemberRequest, CreateChannelRequest, CreateMessageRequest, CreateServerRequest,
-    CreateSessionRequest, HealthResponse, MeResponse, MuteChannelNotificationsRequest,
-    NotificationChannelPreferenceResponse, NotificationGlobalPreferenceResponse,
-    NotificationServerPreferenceResponse, NotificationUnreadCountResponse, UpdateChannelRequest,
+    AddServerMemberRequest, BlockRelationshipResponse, CreateChannelRequest, CreateMessageRequest,
+    CreateServerRequest, CreateSessionRequest, DirectMessageResponse, DirectMessageThreadResponse,
+    FriendRequestResponse, FriendSummaryResponse, HealthResponse, MeResponse,
+    MuteChannelNotificationsRequest, NotificationChannelPreferenceResponse,
+    NotificationGlobalPreferenceResponse, NotificationServerPreferenceResponse,
+    NotificationUnreadCountResponse, SendDirectMessageRequest, UpdateChannelRequest,
     UpdateMeRequest, UpdateMessageRequest, UpdateNotificationChannelPreferenceRequest,
     UpdateNotificationGlobalPreferenceRequest, UpdateNotificationServerPreferenceRequest,
     UpdateServerRequest, UserLookupResponse, VoiceConnectResponse,
-};
-use crate::routes::friends_and_dms::{
-    BlockRelationshipResponse, DirectMessageResponse, DirectMessageThreadResponse,
-    FriendRequestResponse, FriendSummaryResponse, SendDirectMessageRequest,
 };
 
 #[derive(OpenApi)]

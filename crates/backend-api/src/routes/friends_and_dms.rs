@@ -4,100 +4,26 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use backend_domain::{DirectMessageThreadId, FriendRequestId, FriendRequestState, UserId};
+use backend_domain::{DirectMessageThreadId, FriendRequestId, UserId};
 use backend_storage::{
     BlockRepository, DirectMessageRepository, FriendRepository, SendFriendRequestResult,
     UpdateFriendRequestResult,
 };
-use serde::Deserialize;
-use serde::Serialize;
-use utoipa::ToSchema;
 
 use crate::{
     ApiState,
     auth::{AuthenticatedUser, TokenVerifier},
-    dto::ApiErrorResponse,
+    dto::{
+        ApiErrorResponse, BlockRelationshipResponse, DirectMessageResponse,
+        DirectMessageThreadResponse, FriendRequestResponse, FriendSummaryResponse,
+        SearchDirectMessagesQuery, SendDirectMessageRequest,
+    },
     notification_hub::{NotificationEnvelope, NotificationEvent},
     response_mapping::{
         BlockUserResponse, OpenOrGetDmThreadResponse, SendDirectMessageResponse,
         UpdateFriendRequestResponse,
     },
 };
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct FriendSummaryResponse {
-    pub user_id: UserId,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct FriendRequestResponse {
-    pub id: FriendRequestId,
-    pub requester_user_id: UserId,
-    pub addressee_user_id: UserId,
-    pub state: FriendRequestState,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct BlockRelationshipResponse {
-    pub blocked_user_id: UserId,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct DirectMessageThreadResponse {
-    pub id: DirectMessageThreadId,
-    pub participant_a_user_id: UserId,
-    pub participant_b_user_id: UserId,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct DirectMessageResponse {
-    pub id: backend_domain::DirectMessageId,
-    pub thread_id: DirectMessageThreadId,
-    pub author_user_id: UserId,
-    pub content: String,
-}
-
-impl From<backend_domain::FriendRequest> for FriendRequestResponse {
-    fn from(value: backend_domain::FriendRequest) -> Self {
-        Self {
-            id: value.id,
-            requester_user_id: value.requester_user_id,
-            addressee_user_id: value.addressee_user_id,
-            state: value.state,
-        }
-    }
-}
-
-impl From<backend_domain::DirectMessageThread> for DirectMessageThreadResponse {
-    fn from(value: backend_domain::DirectMessageThread) -> Self {
-        Self {
-            id: value.id,
-            participant_a_user_id: value.participant_a_user_id,
-            participant_b_user_id: value.participant_b_user_id,
-        }
-    }
-}
-
-impl From<backend_domain::DirectMessage> for DirectMessageResponse {
-    fn from(value: backend_domain::DirectMessage) -> Self {
-        Self {
-            id: value.id,
-            thread_id: value.thread_id,
-            author_user_id: value.author_user_id,
-            content: value.content,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct SendDirectMessageRequest {
-    pub content: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SearchDirectMessagesQuery {
-    pub q: Option<String>,
-}
 
 #[utoipa::path(
     get,

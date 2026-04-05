@@ -815,6 +815,55 @@ Overall acceptance criteria:
 - Enum persistence and parsing paths are derive-driven with no duplicated manual string mapping in core flows.
 - Notification precedence logic is implemented once and reused across storage backends.
 
+#### Phase 13.4: Cross-stack architecture consistency and compile-time correctness
+Status:
+- In progress.
+
+Goals:
+- Eliminate architectural drift by enforcing the established patterns uniformly across every feature module in both backend and frontend.
+- Maximize compile-time safety and make illegal states unrepresentable through ADTs, typestate patterns, and validated boundaries.
+- Remove duplicated logic, ad-hoc shortcuts, and presentation-layer business logic that accumulated during rapid feature delivery.
+
+Previously addressed (no longer in scope):
+- `as` cast elimination in `in_memory_repository.rs` — completed in 13.3d.
+- Mutable `set_content` setter removal on `Message` — completed in 13.3d (`with_content` already exists).
+- Shared `MemoryCache<T>` utility — already exists in `shared/services/cache/memory_cache.dart` and is used by `RestEmoteService` and `RestLinkPreviewService`.
+- DM permission check centralization — validation ordering is consistent across backends but implementations necessarily differ (SQL vs in-memory data structure queries). Extracting into pure functions would require abstracting over the query mechanism, which is better addressed in Phase 13.5 (use-case layer).
+
+Sub-phases:
+
+##### 13.4a — Backend: Fix block-on-friendship deletion parity
+Status:
+- Done.
+
+Scope:
+- Fix the Postgres `block_user` implementation to delete the existing friendship when blocking a user, matching the in-memory behavior. Currently Postgres captures `restored_friendship_id` but never issues a `DELETE FROM friendships`, so blocked users remain friends in the database.
+- Add a `DELETE FROM friendships` query after capturing `restored_friendship_id` in `postgres_repository.rs`.
+- Add a BDD scenario in `features/friends_and_dms.feature` verifying that blocking a friend removes them from the friend list.
+- Add a BDD scenario verifying that unblocking restores the friendship.
+- Verify both in-memory and Postgres pass the new scenarios.
+
+Acceptance criteria:
+- Blocking a friend deletes the friendship in both storage backends.
+- Unblocking restores the friendship (using `restored_friendship_id`) in both backends.
+- New BDD scenarios cover the block→unfriend→unblock→refriend lifecycle.
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
+
+##### 13.4b — Backend: Standardize DTO placement and import style
+Status:
+- Done.
+
+Scope:
+- Move `FriendRequestResponse`, `DirectMessageThreadResponse`, `DirectMessageResponse`, `FriendSummaryResponse`, and `BlockRelationshipResponse` DTOs and their `From` impls from `routes/friends_and_dms.rs` into dedicated files in the `dto/` module, matching the pattern used by `PinnedMessageResponse` and `ReactionSummaryResponse`.
+- Replace the `crate::domain::UserId` import in `dto/add_server_member_request.rs` with a direct `backend_domain::UserId` import.
+- Remove the `pub use backend_domain as domain;` re-export alias from `lib.rs` if no other files depend on it.
+- Update the `response_mapping.rs` imports to use the new DTO module paths.
+
+Acceptance criteria:
+- All DTO types live in the `dto/` module with `From` impls; no DTO structs remain in route files.
+- No file uses `crate::domain`; all use `backend_domain` directly.
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
+
 
 #### Phase 14 (Weeks 13-14): User identity and workspace usability enhancements
 Status:

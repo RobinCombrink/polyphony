@@ -5,9 +5,7 @@ use backend_storage::{
 };
 
 use crate::dto::ApiErrorResponse;
-use crate::routes::friends_and_dms::{
-    DirectMessageResponse, DirectMessageThreadResponse, FriendRequestResponse,
-};
+use crate::dto::{DirectMessageResponse, DirectMessageThreadResponse, FriendRequestResponse};
 
 pub(crate) struct UpdatedResponse(pub MutationResult);
 
