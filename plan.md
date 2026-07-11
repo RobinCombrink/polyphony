@@ -711,6 +711,9 @@ Acceptance criteria:
 - Migrations convert TEXT columns to Postgres enum types without data loss.
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
 
+##### 13.3b — Remove `async-trait` crate, adopt native async traits
+Status:
+- Deferred — Rust 1.94 supports `async fn` in traits, but `return_type_notation` for `Send`-bounded async trait futures through generic parameters is still unstable. Since all repository traits are consumed via generics (not concrete types) in `ApiState`, removing `async-trait` produces "future cannot be sent between threads safely" errors. This sub-phase is deferred until `return_type_notation` stabilizes or the generic-dispatch pattern changes.
 
 ##### 13.3c — Centralize notification precedence logic
 Status:
@@ -968,21 +971,298 @@ Overall acceptance criteria:
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test` pass.
 - `dart analyze` is clean and `flutter test` passes with no skipped tests.
 
-##### 13.4h — Frontend: Extract widgets from builder methods
+#### Phase 13.5: Domain service / use-case layer between routes and repositories
 Status:
 - Planned.
 
+Goals:
+- Decouple business flow orchestration from HTTP route handlers by introducing a thin use-case/command-handler layer.
+
 Scope:
-- Replace UI-building helper methods with extracted Widget classes where reusable structure exists:
-	- `MessageSearchDialogWidget._buildSearchResult` → `MessageSearchResultTile` widget.
-	- `HomePageWidget` navigation builder methods → dedicated extracted widgets.
-	- `DirectMessagesPageWidget` builder methods → extracted widgets.
-	- `ServersSectionWidget` builder methods → extracted widgets.
+- Introduce a use-case or command-handler abstraction layer between route handlers and repository traits.
+- Move multi-step business flows (membership checks, repository mutations, notification fan-out, response mapping) out of route handlers and into composable use-case functions or structs.
+- Route handlers become thin adapters: parse request, call use-case, map result to HTTP response.
+
+Implementation notes:
+- Use-case functions should accept repository/service trait references and return domain result types — no HTTP types.
+- This eliminates the need for route handlers to hold references to multiple repository traits simultaneously, shrinking the massive generic bounds on handler signatures.
+- Business flows become unit-testable without HTTP scaffolding.
 
 Acceptance criteria:
-- No private `_build*` helper methods remain that construct reusable widget trees; each is an extracted Widget class.
-- `dart analyze` is clean and `flutter test` passes with no skipped tests.
+- Route handlers contain no business logic beyond request parsing and response mapping.
+- Use-case functions are independently unit-testable with in-memory repository implementations.
+- Generic trait bounds on route handlers are reduced to a single app-state or use-case reference.
+- Existing BDD scenarios pass unchanged.
 
+#### Phase 13.6: Event-driven side-effects instead of inline notification publishing
+Status:
+- Planned.
+
+Goals:
+- Separate "what happened" from "who needs to know" by replacing inline notification publishing with domain event emission and subscriber-based side-effect handling.
+
+Scope:
+- Define domain event types for key state transitions (message created, friend request accepted, voice session joined, etc.).
+- Use-cases (from Phase 13.5) emit domain events rather than publishing to the notification hub directly.
+- Introduce an event dispatcher/bus that routes domain events to registered subscribers (notification fan-out, future audit logs, future push notifications).
+- Remove all direct notification hub publishing from route handlers.
+
+Implementation notes:
+- Keep event dispatch synchronous within the request lifecycle initially; async fan-out can be added later.
+- Subscribers should be registered at app startup alongside repository wiring.
+- Testing becomes: assert that the correct event was emitted rather than mocking the notification hub.
+
+Acceptance criteria:
+- No route handler or use-case directly references the notification hub.
+- Adding a new subscriber (e.g., audit log, push notification) requires no changes to existing use-cases or route handlers.
+- Domain events are typed and exhaustively matched by the dispatcher.
+- Existing notification BDD scenarios pass unchanged.
+
+#### Phase 13.7: Centralized `AppError` type with `IntoResponse`
+Status:
+- Planned.
+
+Goals:
+- Replace per-handler status code mapping with a single `AppError` enum implementing axum's `IntoResponse`, making error-to-HTTP mapping consistent and auditable in one place.
+
+Scope:
+- Define an `AppError` enum covering common outcomes (not found, forbidden, conflict, validation failure, internal error) with `IntoResponse` implementation.
+- Migrate route handlers from inline `(StatusCode, Json<...>)` tuples to returning `Result<T, AppError>`.
+- Unify the pattern already used by the auth rejection type as the template for all routes.
+
+Implementation notes:
+- `AppError` should carry enough context for actionable error messages without leaking internal details.
+- Repository result enums (e.g., `CreateMessageResult::ChannelNotFound`) should have `From` impls into `AppError` variants to keep handler mapping minimal.
+
+Acceptance criteria:
+- All route handlers return `Result<impl IntoResponse, AppError>` instead of manual status code tuples.
+- Error-to-HTTP mapping is defined in exactly one place (`AppError`'s `IntoResponse` impl).
+- No duplicate match arms for the same repository outcome exist across handlers.
+- Existing BDD scenarios pass unchanged.
+
+#### Phase 13.8: Repository supertrait to reduce handler generic bounds
+Status:
+- Planned.
+
+Goals:
+- Eliminate repetitive multi-trait generic bounds on route handler signatures by introducing a blanket supertrait or trait alias.
+
+Scope:
+- Define a supertrait (e.g., `trait AppRepository: ServerRepository + ChannelRepository + MembershipRepository + MessageRepository + ...`) in backend-storage.
+- Implement the supertrait for `PostgresRepository` and `InMemoryRepository`.
+- Update all route handlers and use-cases to use the single supertrait bound instead of listing 4-6 individual trait bounds.
+
+Implementation notes:
+- Adding a new repository concern becomes a one-line change to the supertrait definition instead of updating every handler.
+- If Phase 13.5 use-case layer is in place, apply the supertrait there; otherwise apply to route handlers.
+
+Acceptance criteria:
+- No route handler or use-case function lists more than one repository trait bound.
+- Adding a new repository trait to the supertrait is a single-line change.
+- Existing BDD scenarios pass unchanged.
+
+#### Phase 13.9: `MessageSequence` domain value object for ordering
+Status:
+- Planned.
+
+Goals:
+- Make message ordering a domain-level concept instead of a storage implementation detail leaking into queries and comparison logic.
+
+Scope:
+- Introduce a `MessageSequence` value object in `backend-domain` wrapping the ordering value.
+- Replace raw `created_order` bigserial references in domain entities and repository return types with `MessageSequence`.
+- In-memory store simulates sequence assignment without needing to replicate auto-increment counters as a raw implementation detail.
+
+Implementation notes:
+- `MessageSequence` should implement `Ord`, `Display`, and standard conversion traits.
+- Postgres maps the bigserial column to `MessageSequence` at the repository boundary.
+- In-memory store assigns monotonic sequence values via an atomic counter.
+
+Acceptance criteria:
+- No domain or use-case code references `created_order` directly — all ordering uses `MessageSequence`.
+- In-memory and Postgres implementations produce consistent ordering behavior.
+- Existing BDD scenarios pass unchanged.
+
+#### Phase 13.10: Shared page shell / scaffold abstraction in Flutter
+Status:
+- Planned.
+
+Goals:
+- Eliminate near-identical Home and Direct Messages page compositions by extracting a shared authenticated shell scaffold.
+
+Scope:
+- Extract a single `AuthenticatedShellScaffold` widget parameterized by content pane, active navigation destination, and optional configuration callbacks.
+- Consolidate duplicated app bar, notification listeners, navigation destinations, and BLoC provider wiring from `HomePageWidget` and `DirectMessagesPageWidget` into the shared scaffold.
+- Adding a new top-level navigation destination becomes a one-line change.
+
+Implementation notes:
+- Keep the shell stateless where possible; parameterize differences rather than branching internally.
+- Navigation destination definitions should be data-driven (a list of destination descriptors) rather than hardcoded widget trees.
+
+Acceptance criteria:
+- `HomePageWidget` and `DirectMessagesPageWidget` delegate to the shared scaffold with no duplicated app bar, listener, or navigation code.
+- Adding a new top-level navigation destination requires changes in one place only.
+- Existing Flutter tests pass unchanged or with minimal adaptation.
+
+#### Phase 13.11: Single authoritative decode path (API models only, no domain `fromJson`)
+Status:
+- Planned.
+
+Goals:
+- Eliminate the parallel decode path where domain models have their own `fromJson` factories alongside the API model `fromJson` + extension-method conversion path.
+
+Scope:
+- Remove all `fromJson` factories from domain model classes in `chat_models.dart`.
+- Ensure all deserialization goes through API models (`fromJson`) followed by the extension-method bridge to domain models.
+- Domain models become pure value objects with no JSON awareness.
+
+Implementation notes:
+- Audit all call sites that use domain `fromJson` directly and migrate them to the API-model → extension-method path.
+- WebSocket event payloads that currently decode directly to domain types should decode to API DTOs first, then convert.
+
+Acceptance criteria:
+- No domain model class contains a `fromJson` factory or any JSON-related import.
+- All deserialization flows through exactly one path: API model `fromJson` → extension method → domain model.
+- Existing Flutter tests pass unchanged or with minimal adaptation.
+
+#### Phase 13.12: Shared `BlocProvider` test harness builder
+Status:
+- Planned.
+
+Goals:
+- Drastically reduce widget test setup boilerplate by providing a reusable test harness that constructs the standard provider/BLoC tree.
+
+Scope:
+- Create a `TestHarness.builder()` utility in the test infrastructure that accepts only the overrides relevant to each test and constructs the full provider tree with sensible defaults.
+- Centralize teardown of all blocs and controllers to prevent omissions.
+- Migrate existing widget tests to use the harness, eliminating repeated 8-12 provider deep setup blocks.
+
+Implementation notes:
+- The harness should use `EntitySeeder` for default fixture data.
+- Override points should be typed (e.g., `withServerRepo(...)`, `withMessagesBloc(...)`) rather than positional.
+- Adding a new global dependency requires a single change to the harness, not updating every widget test file.
+
+Acceptance criteria:
+- Widget test setup boilerplate is reduced by at least 60%.
+- No widget test manually constructs the full provider tree — all use the shared harness with overrides.
+- Teardown of blocs/controllers is automatic and cannot be omitted.
+- Existing Flutter tests pass with the harness.
+
+#### Phase 13.13: Explicit message deduplication for optimistic updates
+Status:
+- Planned.
+
+Goals:
+- Eliminate the potential message double-insert window where the messages BLoC sends via WebSocket runtime and then creates via REST, while also listening for incoming runtime events.
+
+Scope:
+- Assign a client-side correlation ID to each outgoing message at creation time.
+- Insert the message optimistically into BLoC state with the correlation ID.
+- On server confirmation (REST response or runtime event, whichever arrives first), reconcile by replacing the optimistic entry with the server-authoritative message using the correlation ID.
+- Deduplicate subsequent arrivals (runtime event after REST response, or vice versa) by correlation ID.
+
+Implementation notes:
+- The correlation ID should be a UUID generated client-side and included in the create-message request body.
+- The backend should echo the correlation ID in both the REST response and the notification event payload.
+- The BLoC should maintain a set of pending correlation IDs and discard duplicate arrivals.
+
+Acceptance criteria:
+- A sent message appears exactly once in the message list regardless of arrival order (REST response vs. runtime event).
+- Optimistic messages display immediately without waiting for server round-trip.
+- Server-authoritative data (ID, timestamp, sequence) replaces optimistic values on confirmation.
+- Existing message BDD scenarios pass unchanged.
+
+#### Phase 13.14: Voice participant state as BLoC-owned state
+Status:
+- Planned.
+
+Goals:
+- Move voice presence and participant counts into BLoC-owned state rather than widget-fetched data, so the UI reflects live state without widget-level service calls.
+
+Scope:
+- Extend voice session BLoC (or introduce a dedicated voice presence BLoC) to subscribe to room participant events and maintain per-channel participant counts.
+- Replace the hardcoded `participantCount: 0` in the channels pane with live data from the voice presence BLoC.
+- Remove any direct repository or service calls for participant data from widget code.
+
+Implementation notes:
+- The BLoC should subscribe to LiveKit room events for participant join/leave and project counts per channel.
+- Participant counts should be available to the channels pane via `BlocSelector` on the relevant state slice.
+
+Acceptance criteria:
+- Voice channel participant counts in the channels pane reflect live room state.
+- No widget makes direct service or repository calls for voice participant data.
+- Participant count updates are event-driven, not poll-based.
+- Existing voice session tests pass with adaptation.
+
+#### Phase 13.15: Frontend feature-file execution / traceability enforcement
+Status:
+- Planned.
+
+Goals:
+- Provide a mechanical guarantee that frontend BDD-style tests stay aligned with `.feature` specification files, preventing undetected drift.
+
+Scope:
+- Parse `.feature` files at test time and validate that every applicable scenario has a corresponding frontend test with a matching name.
+- Report mismatches (missing frontend tests, renamed scenarios, stale test names) as test failures.
+- Optionally generate a traceability matrix mapping each `.feature` scenario to its backend and frontend test coverage.
+
+Implementation notes:
+- A simple Dart test utility can read feature files, extract scenario names, and assert they exist in the corresponding `_feature_test.dart` file.
+- This should run as part of the standard `flutter test` suite so drift is caught in CI.
+- Keep the parser lightweight — only scenario name extraction, not full Gherkin execution.
+
+Acceptance criteria:
+- Any scenario name mismatch between `.feature` files and frontend BDD-style tests causes a test failure.
+- Adding a new `.feature` scenario without a corresponding frontend test is detected automatically.
+- The traceability check runs as part of the standard Flutter test suite.
+
+#### Phase 13.16: OpenAPI-first contract between backend and frontend
+Status:
+- Planned.
+
+Goals:
+- Make the OpenAPI spec the single source of truth for API contracts and generate the Dart API client from it, eliminating the hand-maintained API model and `fromJson` layer.
+
+Scope:
+- Configure backend OpenAPI spec generation as a build artifact (already partially done via utoipa).
+- Introduce a Dart code generator (e.g., `openapi_generator` or `swagger_parser`) that produces typed API client classes and request/response models from the spec.
+- Replace hand-written API models in `shared/network/api_models.dart` and REST service implementations with generated code.
+- Keep domain models and extension-method conversion bridge as-is; only the API transport layer is generated.
+
+Implementation notes:
+- Generated code should be committed or reproducibly generated in CI so builds are deterministic.
+- The extension-method bridge (`api_model_extensions.dart`) adapts generated API types to domain models, preserving the existing architecture.
+- Breaking API changes are caught at code-generation time rather than at runtime.
+
+Acceptance criteria:
+- The Dart API client is generated from the backend OpenAPI spec with no hand-written API model classes.
+- Adding or changing a backend endpoint updates the frontend client through regeneration, not manual editing.
+- Compile-time failures surface when the backend spec and frontend client diverge.
+- Existing Flutter tests pass with the generated client.
+
+#### Phase 13.17: Structured logging correlation IDs end-to-end
+Status:
+- Planned.
+
+Goals:
+- Enable end-to-end request tracing from client through backend to WebSocket notifications by propagating a correlation ID across all boundaries.
+
+Scope:
+- Generate a unique request/trace ID on the client for each API call and include it as a header (e.g., `X-Request-ID`).
+- Backend middleware extracts the correlation ID (or generates one if missing) and attaches it to the OpenTelemetry span context.
+- Include the correlation ID in notification event payloads so WebSocket-delivered events can be traced back to the originating operation.
+- Log the correlation ID in both client-side and server-side log output.
+
+Implementation notes:
+- Use the existing OpenTelemetry infrastructure to propagate trace context; the correlation ID can ride on `traceparent` or a custom header.
+- The Dio interceptor on the client side should attach the header automatically.
+- Notification payloads should include an optional `trace_id` field for debugging without requiring it for functional behavior.
+
+Acceptance criteria:
+- Every API request carries a correlation ID visible in backend logs and traces.
+- Notification events include the correlation ID of the operation that triggered them.
+- Operators can trace a single user action from client request through backend processing to notification delivery using the correlation ID.
+- No functional behavior depends on the correlation ID — it is strictly observability infrastructure.
 
 #### Phase 14 (Weeks 13-14): User identity and workspace usability enhancements
 Status:
