@@ -1,8 +1,11 @@
 import "package:bloc_concurrency/bloc_concurrency.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
-import "package:polyphony_flutter_client/shared/network/api_models.dart";
+import "package:polyphony_flutter_client/features/notifications/use_cases/mute_channel_notifications_use_case.dart";
+import "package:polyphony_flutter_client/features/notifications/use_cases/unmute_channel_notifications_use_case.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
+import "package:polyphony_flutter_client/shared/models/notification_preference.dart";
+import "package:polyphony_flutter_client/shared/repositories/notification_preference_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
-import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 
 part "notification_preferences_event.dart";
 part "notification_preferences_state.dart";
@@ -10,8 +13,13 @@ part "notification_preferences_state.dart";
 class NotificationPreferencesBloc
     extends Bloc<NotificationPreferencesEvent, NotificationPreferencesState> {
   NotificationPreferencesBloc({
-    required NotificationService notificationService,
-  })  : _notificationService = notificationService,
+    required NotificationPreferenceRepo notificationPreferenceRepo,
+    required MuteChannelNotificationsUseCase muteChannelNotificationsUseCase,
+    required UnmuteChannelNotificationsUseCase
+        unmuteChannelNotificationsUseCase,
+  })  : _notificationPreferenceRepo = notificationPreferenceRepo,
+        _muteChannelNotificationsUseCase = muteChannelNotificationsUseCase,
+        _unmuteChannelNotificationsUseCase = unmuteChannelNotificationsUseCase,
         super(const NotificationPreferencesInitialState()) {
     on<NotificationPreferencesEvent>(
       _onEvent,
@@ -19,7 +27,9 @@ class NotificationPreferencesBloc
     );
   }
 
-  final NotificationService _notificationService;
+  final NotificationPreferenceRepo _notificationPreferenceRepo;
+  final MuteChannelNotificationsUseCase _muteChannelNotificationsUseCase;
+  final UnmuteChannelNotificationsUseCase _unmuteChannelNotificationsUseCase;
 
   Future<void> _onEvent(
     NotificationPreferencesEvent event,
@@ -36,47 +46,52 @@ class NotificationPreferencesBloc
       case GlobalMuteToggledRequested():
         await _updateAndReload(
           emit,
-          operation: () =>
-              _notificationService.updateGlobalNotificationPreference(
-            muteState: event.muted
-                ? ApiNotificationMuteState.muted
-                : ApiNotificationMuteState.unmuted,
+          operation: () => _notificationPreferenceRepo.updateOne(
+            command: UpdateGlobalNotificationPreferenceCommand(
+              muteState: event.muted
+                  ? NotificationMuteState.muted
+                  : NotificationMuteState.unmuted,
+            ),
           ),
         );
       case GlobalNotificationCategoryChangedRequested():
         await _updateAndReload(
           emit,
-          operation: () =>
-              _notificationService.updateGlobalNotificationPreference(
-            notificationCategory: event.notificationCategory,
+          operation: () => _notificationPreferenceRepo.updateOne(
+            command: UpdateGlobalNotificationPreferenceCommand(
+              notificationCategory: event.notificationCategory,
+            ),
           ),
         );
       case GlobalChannelDefaultCategoryChangedRequested():
         await _updateAndReload(
           emit,
-          operation: () =>
-              _notificationService.updateGlobalNotificationPreference(
-            channelDefaultCategory: event.channelDefaultCategory,
+          operation: () => _notificationPreferenceRepo.updateOne(
+            command: UpdateGlobalNotificationPreferenceCommand(
+              channelDefaultCategory: event.channelDefaultCategory,
+            ),
           ),
         );
       case ServerMuteToggledRequested():
         await _updateAndReload(
           emit,
-          operation: () =>
-              _notificationService.updateServerNotificationPreference(
-            serverId: event.serverId,
-            muteState: event.muted
-                ? ApiNotificationMuteState.muted
-                : ApiNotificationMuteState.unmuted,
+          operation: () => _notificationPreferenceRepo.updateOne(
+            command: UpdateServerNotificationPreferenceCommand(
+              serverId: event.serverId,
+              muteState: event.muted
+                  ? NotificationMuteState.muted
+                  : NotificationMuteState.unmuted,
+            ),
           ),
         );
       case ServerNotificationCategoryChangedRequested():
         await _updateAndReload(
           emit,
-          operation: () =>
-              _notificationService.updateServerNotificationPreference(
-            serverId: event.serverId,
-            notificationCategory: event.notificationCategory,
+          operation: () => _notificationPreferenceRepo.updateOne(
+            command: UpdateServerNotificationPreferenceCommand(
+              serverId: event.serverId,
+              notificationCategory: event.notificationCategory,
+            ),
           ),
         );
       case ChannelMuteToggledRequested():
@@ -84,13 +99,13 @@ class NotificationPreferencesBloc
           emit,
           operation: () {
             if (event.muted) {
-              return _notificationService.muteChannelNotifications(
+              return _muteChannelNotificationsUseCase(
                 channelId: event.channelId,
                 durationMinutes: 30,
               );
             }
 
-            return _notificationService.unmuteChannelNotifications(
+            return _unmuteChannelNotificationsUseCase(
               channelId: event.channelId,
             );
           },
@@ -98,10 +113,11 @@ class NotificationPreferencesBloc
       case ChannelNotificationCategoryChangedRequested():
         await _updateAndReload(
           emit,
-          operation: () =>
-              _notificationService.updateChannelNotificationPreference(
-            channelId: event.channelId,
-            notificationCategory: event.notificationCategory,
+          operation: () => _notificationPreferenceRepo.updateOne(
+            command: UpdateChannelNotificationCategoryCommand(
+              channelId: event.channelId,
+              notificationCategory: event.notificationCategory,
+            ),
           ),
         );
     }
@@ -135,8 +151,8 @@ class NotificationPreferencesBloc
 
   Future<void> _loadPreferences(
     Emitter<NotificationPreferencesState> emit, {
-    required String? serverId,
-    required String? channelId,
+    required ServerId? serverId,
+    required ChannelId? channelId,
     required bool emitLoadingState,
   }) async {
     final loadedDataState = _loadedStateOrNull(state);
@@ -144,56 +160,60 @@ class NotificationPreferencesBloc
       emit(loadedDataState.toLoading());
     }
 
-    final globalResult =
-        await _notificationService.getGlobalNotificationPreference();
-    final ApiNotificationGlobalPreference globalPreference;
+    final globalResult = await _notificationPreferenceRepo.getOne(
+      query: const GetGlobalNotificationPreferenceQuery(),
+    );
+    final NotificationGlobalPreference globalPreference;
     switch (globalResult) {
-      case Ok<ApiNotificationGlobalPreference>(:final value):
-        globalPreference = value;
-      case Error<ApiNotificationGlobalPreference>(:final error):
+      case Ok<NotificationPreferenceData>(
+          value: GlobalNotificationPreferenceData(:final preference)):
+        globalPreference = preference;
+      case Error<NotificationPreferenceData>(:final error):
         if (loadedDataState != null) {
           emit(loadedDataState.toException(error: error));
         }
         return;
+      default:
+        return;
     }
 
-    ApiNotificationServerPreference? serverPreference;
-    final trimmedServerId = serverId?.trim();
-    if (trimmedServerId != null && trimmedServerId.isNotEmpty) {
-      final serverResult =
-          await _notificationService.getServerNotificationPreference(
-        serverId: trimmedServerId,
+    NotificationServerPreference? serverPreference;
+    if (serverId != null) {
+      final serverResult = await _notificationPreferenceRepo.getOne(
+        query: GetServerNotificationPreferenceQuery(serverId: serverId),
       );
-      if (serverResult case Ok<ApiNotificationServerPreference>(:final value)) {
-        serverPreference = value;
+      if (serverResult
+          case Ok<NotificationPreferenceData>(
+            value: ServerNotificationPreferenceData(:final preference))) {
+        serverPreference = preference;
       }
     }
 
-    ApiNotificationChannelPreference? channelPreference;
-    final trimmedChannelId = channelId?.trim();
-    if (trimmedChannelId != null && trimmedChannelId.isNotEmpty) {
-      final channelResult =
-          await _notificationService.getChannelNotificationPreference(
-        channelId: trimmedChannelId,
+    NotificationChannelPreference? channelPreference;
+    if (channelId != null) {
+      final channelResult = await _notificationPreferenceRepo.getOne(
+        query: GetChannelNotificationPreferenceQuery(
+            channelId: channelId),
       );
       if (channelResult
-          case Ok<ApiNotificationChannelPreference>(:final value)) {
-        channelPreference = value;
+          case Ok<NotificationPreferenceData>(
+            value: ChannelNotificationPreferenceData(:final preference))) {
+        channelPreference = preference;
       }
     }
 
     emit(NotificationPreferencesLoadedState(
       globalPreference: globalPreference,
       scope: _buildScope(
-        serverId: trimmedServerId,
-        channelId: trimmedChannelId,
+        serverId: serverId,
+        channelId: channelId,
         serverPreference: serverPreference,
         channelPreference: channelPreference,
       ),
     ));
   }
 
-  static (String?, String?) _scopeIds(NotificationPreferencesScope scope) {
+  static (ServerId?, ChannelId?) _scopeIds(NotificationPreferencesScope scope) {
     return switch (scope) {
       NotificationPreferencesGlobalScope() => (null, null),
       NotificationPreferencesServerScope(:final serverId) => (serverId, null),
@@ -205,19 +225,19 @@ class NotificationPreferencesBloc
   }
 
   static NotificationPreferencesScope _buildScope({
-    required String? serverId,
-    required String? channelId,
-    required ApiNotificationServerPreference? serverPreference,
-    required ApiNotificationChannelPreference? channelPreference,
+    required ServerId? serverId,
+    required ChannelId? channelId,
+    required NotificationServerPreference? serverPreference,
+    required NotificationChannelPreference? channelPreference,
   }) {
-    if (channelId != null && channelId.isNotEmpty) {
+    if (channelId != null) {
       return NotificationPreferencesChannelScope(
         channelId: channelId,
         channelPreference: channelPreference,
       );
     }
 
-    if (serverId != null && serverId.isNotEmpty) {
+    if (serverId != null) {
       return NotificationPreferencesServerScope(
         serverId: serverId,
         serverPreference: serverPreference,

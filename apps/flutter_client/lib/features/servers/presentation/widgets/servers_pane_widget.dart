@@ -243,7 +243,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
         context.read<NotificationPreferencesBloc>()
           ..add(
             LoadNotificationPreferencesRequested(
-              serverId: server.id.value,
+              serverId: server.id,
               channelId: null,
             ),
           );
@@ -259,7 +259,7 @@ class _ServersPaneWidgetState extends State<ServersPaneWidget> {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: SettingsNotificationPreferencesSectionWidget(
-                  selectedServerId: server.id.value,
+                  selectedServerId: server.id,
                   showGlobal: false,
                   showChannel: false,
                   title: "Server notification preferences",

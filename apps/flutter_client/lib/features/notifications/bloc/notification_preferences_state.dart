@@ -16,8 +16,8 @@ final class NotificationPreferencesServerScope
     required this.serverPreference,
   });
 
-  final String serverId;
-  final ApiNotificationServerPreference? serverPreference;
+  final ServerId serverId;
+  final NotificationServerPreference? serverPreference;
 }
 
 final class NotificationPreferencesChannelScope
@@ -27,8 +27,8 @@ final class NotificationPreferencesChannelScope
     required this.channelPreference,
   });
 
-  final String channelId;
-  final ApiNotificationChannelPreference? channelPreference;
+  final ChannelId channelId;
+  final NotificationChannelPreference? channelPreference;
 }
 
 sealed class NotificationPreferencesState {
@@ -47,7 +47,7 @@ sealed class NotificationPreferencesLoadedDataState
     required this.scope,
   });
 
-  final ApiNotificationGlobalPreference globalPreference;
+  final NotificationGlobalPreference globalPreference;
   final NotificationPreferencesScope scope;
 
   NotificationPreferencesLoadingState toLoading() {

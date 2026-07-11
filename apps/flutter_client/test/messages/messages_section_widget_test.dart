@@ -3,13 +3,15 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_markdown_plus/flutter_markdown_plus.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_section_widget.dart";
+import "package:polyphony_flutter_client/features/messages/use_cases/toggle_reaction_use_case.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
-import "package:polyphony_flutter_client/shared/services/emote_service.dart";
+import "package:polyphony_flutter_client/shared/models/reaction_summary.dart";
+import "package:polyphony_flutter_client/shared/repositories/emote_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/reaction_repo.dart";
 import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
-import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 import "package:provider/provider.dart";
 
 import "../entity_seeder.dart";
@@ -32,8 +34,8 @@ Widget _buildWidget({
   UserId? currentUserId,
   String? currentUserDisplayName,
   LinkPreviewService? linkPreviewService,
-  EmoteService? emoteService,
-  ReactionService? reactionService,
+  EmoteRepo? emoteRepo,
+  ReactionRepo? reactionRepo,
   TextEditingController? createController,
 }) {
   final resolvedUserId = currentUserId ?? _currentUserId;
@@ -43,11 +45,16 @@ Widget _buildWidget({
       Provider<LinkPreviewService>(
         create: (_) => linkPreviewService ?? FakeLinkPreviewService(),
       ),
-      Provider<EmoteService>(
-        create: (_) => emoteService ?? FakeEmoteService(),
+      Provider<EmoteRepo>(
+        create: (_) => emoteRepo ?? FakeEmoteRepo(),
       ),
-      Provider<ReactionService>(
-        create: (_) => reactionService ?? FakeReactionService(),
+      Provider<ReactionRepo>(
+        create: (_) => reactionRepo ?? FakeReactionRepo(),
+      ),
+      Provider<ToggleReactionUseCase>(
+        create: (_) => ToggleReactionUseCase(
+          reactionRepo: FakeReactionRepo(),
+        ),
       ),
     ],
     child: BlocProvider<SettingsBloc>(
@@ -326,7 +333,7 @@ void main() {
       await tester.pumpWidget(
         _buildWidget(
           messages: [_messageWith(content: "hello")],
-          reactionService: FakeReactionService(
+          reactionRepo: FakeReactionRepo(
             reactions: const [
               ReactionSummary(
                 emoteId: "thumbsup",

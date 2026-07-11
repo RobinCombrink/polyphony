@@ -14,7 +14,7 @@ use crate::{
     auth::{AuthenticatedUser, TokenVerifier},
     dto::{ApiErrorResponse, CreateMessageRequest},
     notification_hub::{NotificationEnvelope, NotificationEvent},
-    use_cases::messages::{CreateMessageError, create_message as create_message_use_case},
+    use_cases::messages::create_message as create_message_use_case,
 };
 
 #[utoipa::path(
@@ -57,10 +57,7 @@ where
     .await
     {
         Ok(outcome) => outcome,
-        Err(CreateMessageError::Gate(gate_error)) => return gate_error.into_response(),
-        Err(CreateMessageError::InfraError) => {
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
+        Err(error) => return error.into_response(),
     };
 
     let ctx = outcome.context;

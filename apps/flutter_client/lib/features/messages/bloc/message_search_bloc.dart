@@ -1,10 +1,8 @@
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
-import "package:polyphony_flutter_client/shared/network/api_models.dart";
-import "package:polyphony_flutter_client/shared/network/domain_extensions/api_model_extensions.dart";
+import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
-import "package:polyphony_flutter_client/shared/services/message_service.dart";
 import "package:stream_transform/stream_transform.dart";
 
 part "message_search_event.dart";
@@ -16,8 +14,8 @@ EventTransformer<E> _debounceRestartable<E>(Duration duration) {
 
 class MessageSearchBloc extends Bloc<MessageSearchEvent, MessageSearchState> {
   MessageSearchBloc({
-    required MessageService messageService,
-  })  : _messageService = messageService,
+    required MessageRepo messageRepo,
+  })  : _messageRepo = messageRepo,
         super(const MessageSearchInitialState()) {
     on<MessageSearchQueryChanged>(
       _onQueryChanged,
@@ -26,7 +24,7 @@ class MessageSearchBloc extends Bloc<MessageSearchEvent, MessageSearchState> {
     on<MessageSearchCleared>(_onCleared);
   }
 
-  final MessageService _messageService;
+  final MessageRepo _messageRepo;
 
   Future<void> _onQueryChanged(
     MessageSearchQueryChanged event,
@@ -40,20 +38,17 @@ class MessageSearchBloc extends Bloc<MessageSearchEvent, MessageSearchState> {
 
     emit(const MessageSearchLoadingState());
 
-    final result = await _messageService.searchMessages(
-      channelId: event.channelId.value,
-      query: trimmedQuery,
+    final result = await _messageRepo.getMany(
+      query: GetMessagesQuery(
+        channelId: event.channelId,
+        filter: MessageFilter(searchQuery: trimmedQuery),
+      ),
     );
 
     switch (result) {
-      case Ok<List<ApiMessage>>(:final value):
-        emit(
-          MessageSearchLoadedState(
-            results:
-                value.map((apiMessage) => apiMessage.toDomainModel()).toList(),
-          ),
-        );
-      case Error<List<ApiMessage>>(:final error):
+      case Ok<Iterable<Message>>(:final value):
+        emit(MessageSearchLoadedState(results: value.toList()));
+      case Error<Iterable<Message>>(:final error):
         emit(MessageSearchExceptionState(error: error));
     }
   }

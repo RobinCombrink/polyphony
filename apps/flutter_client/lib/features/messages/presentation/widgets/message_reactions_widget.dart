@@ -6,8 +6,8 @@ import "package:polyphony_flutter_client/features/messages/bloc/emote_catalog_bl
 import "package:polyphony_flutter_client/features/messages/bloc/message_reactions_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/emote_picker_widget.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
-import "package:polyphony_flutter_client/shared/services/emote_service.dart";
-import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
+import "package:polyphony_flutter_client/shared/models/reaction_summary.dart";
+import "package:polyphony_flutter_client/shared/repositories/emote_repo.dart";
 
 class MessageReactionsWidget extends StatelessWidget {
   const MessageReactionsWidget({
@@ -20,12 +20,12 @@ class MessageReactionsWidget extends StatelessWidget {
   final MessageId messageId;
 
   void _showEmotePicker(BuildContext context) {
-    final emoteService = context.read<EmoteService>();
+    final emoteRepo = context.read<EmoteRepo>();
     final reactionsBloc = context.read<MessageReactionsBloc>();
     unawaited(showDialog<void>(
       context: context,
       builder: (dialogContext) => BlocProvider(
-        create: (_) => EmoteCatalogBloc(emoteService: emoteService)
+        create: (_) => EmoteCatalogBloc(emoteRepo: emoteRepo)
           ..add(const EmoteCatalogLoadRequested()),
         child: AlertDialog(
           contentPadding: EdgeInsets.zero,

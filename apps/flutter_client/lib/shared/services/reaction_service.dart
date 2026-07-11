@@ -1,17 +1,8 @@
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
+import "package:polyphony_flutter_client/shared/models/reaction_summary.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
 
-class ReactionSummary {
-  const ReactionSummary({
-    required this.emoteId,
-    required this.count,
-    required this.reactedByCurrentUser,
-  });
-
-  final String emoteId;
-  final int count;
-  final bool reactedByCurrentUser;
-}
+export "package:polyphony_flutter_client/shared/models/reaction_summary.dart";
 
 abstract interface class ReactionService {
   Future<Result<void>> toggleReaction({

@@ -3,111 +3,18 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/use_cases/mute_channel_notifications_use_case.dart";
+import "package:polyphony_flutter_client/features/notifications/use_cases/unmute_channel_notifications_use_case.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/chat_browser_settings_page_widget.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
-import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 import "package:provider/provider.dart";
 
 import "../entity_seeder.dart";
 import "../test_doubles/chat_repository_fakes.dart";
-
-class _FakeNotificationService implements NotificationService {
-  @override
-  Future<Result<ApiNotificationUnreadCount>>
-      getUnreadNotificationCount() async {
-    return const Ok<ApiNotificationUnreadCount>(
-      ApiNotificationUnreadCount(totalUnreadCount: 0),
-    );
-  }
-
-  @override
-  Future<Result<ApiNotificationGlobalPreference>>
-      getGlobalNotificationPreference() async {
-    return const Ok<ApiNotificationGlobalPreference>(
-      ApiNotificationGlobalPreference(
-        muteState: ApiNotificationMuteState.unmuted,
-        notificationCategory: ApiNotificationCategoryPreference.allMessages,
-        channelDefaultCategory: ApiNotificationCategoryPreference.allMessages,
-      ),
-    );
-  }
-
-  @override
-  Future<Result<ApiNotificationServerPreference>>
-      getServerNotificationPreference({required String serverId}) async {
-    return Error<ApiNotificationServerPreference>(
-      Exception("Not used in test."),
-    );
-  }
-
-  @override
-  Future<Result<ApiNotificationChannelPreference>>
-      getChannelNotificationPreference({required String channelId}) async {
-    return Error<ApiNotificationChannelPreference>(
-      Exception("Not used in test."),
-    );
-  }
-
-  @override
-  Future<Result<void>> markChannelNotificationsRead({
-    required String channelId,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<void>> markMessageAsUnread({
-    required String channelId,
-    required String messageId,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<void>> muteChannelNotifications({
-    required String channelId,
-    required int durationMinutes,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<void>> unmuteChannelNotifications({
-    required String channelId,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<void>> updateChannelNotificationPreference({
-    required String channelId,
-    required ApiNotificationCategoryPreference notificationCategory,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<void>> updateGlobalNotificationPreference({
-    ApiNotificationMuteState? muteState,
-    ApiNotificationCategoryPreference? notificationCategory,
-    ApiNotificationCategoryPreference? channelDefaultCategory,
-  }) async {
-    return const Ok<void>(null);
-  }
-
-  @override
-  Future<Result<void>> updateServerNotificationPreference({
-    required String serverId,
-    ApiNotificationMuteState? muteState,
-    ApiNotificationCategoryPreference? notificationCategory,
-  }) async {
-    return const Ok<void>(null);
-  }
-}
 
 class _FakeProfileService implements ProfileService {
   @override
@@ -197,8 +104,16 @@ void main() {
       channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),
       )..add(LoadChannelsRequested(serverId: fixture.listedServer.id));
+      final fakeNotificationPreferenceRepo =
+          FakeNotificationPreferenceRepo();
       notificationPreferencesBloc = NotificationPreferencesBloc(
-        notificationService: _FakeNotificationService(),
+        notificationPreferenceRepo: fakeNotificationPreferenceRepo,
+        muteChannelNotificationsUseCase: MuteChannelNotificationsUseCase(
+          notificationPreferenceRepo: fakeNotificationPreferenceRepo,
+        ),
+        unmuteChannelNotificationsUseCase: UnmuteChannelNotificationsUseCase(
+          notificationPreferenceRepo: fakeNotificationPreferenceRepo,
+        ),
       );
     });
 

@@ -2,12 +2,20 @@ import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/repositories/repository_mixins.dart";
 
+class MessageFilter {
+  const MessageFilter({required this.searchQuery});
+
+  final String searchQuery;
+}
+
 class GetMessagesQuery {
   const GetMessagesQuery({
     required this.channelId,
+    this.filter,
   });
 
   final ChannelId channelId;
+  final MessageFilter? filter;
 }
 
 class CreateMessageCommand {

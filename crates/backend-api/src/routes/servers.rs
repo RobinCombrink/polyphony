@@ -210,9 +210,7 @@ where
     MessageRepo: MessageRepository + FriendRepository,
     Verifier: TokenVerifier,
 {
-    use crate::use_cases::servers::{
-        InviteFriendError, invite_friend_to_server as invite_use_case,
-    };
+    use crate::use_cases::servers::invite_friend_to_server as invite_use_case;
 
     match invite_use_case(
         &*state.server_repository,
@@ -224,11 +222,7 @@ where
     .await
     {
         Ok(membership) => (StatusCode::CREATED, Json(membership)).into_response(),
-        Err(InviteFriendError::NotFriends | InviteFriendError::Forbidden) => {
-            StatusCode::FORBIDDEN.into_response()
-        }
-        Err(InviteFriendError::NotFound) => StatusCode::NOT_FOUND.into_response(),
-        Err(InviteFriendError::InfraError) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(error) => error.into_response(),
     }
 }
 

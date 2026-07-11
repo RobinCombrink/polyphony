@@ -7,6 +7,7 @@ import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.da
 import "package:polyphony_flutter_client/features/home/presentation/home_page_widget.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/use_cases/toggle_reaction_use_case.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
@@ -17,14 +18,13 @@ import "package:polyphony_flutter_client/shared/auth/authentication_profile_serv
 import "package:polyphony_flutter_client/shared/auth/authentication_session_service.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
-import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/emote_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/reaction_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
-import "package:polyphony_flutter_client/shared/services/emote_service.dart";
 import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
-import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 import "package:provider/provider.dart";
 
 import "../entity_seeder.dart";
@@ -90,21 +90,6 @@ class _NoopAccessTokenProvider implements AccessTokenProvider {
   }
 }
 
-class _FakeNotificationRepository implements NotificationRepo {
-  _FakeNotificationRepository({
-    this.totalUnreadCount = 0,
-  });
-
-  final int totalUnreadCount;
-
-  @override
-  Future<Result<int>> getOne({
-    required GetNotificationUnreadCountQuery query,
-  }) async {
-    return Ok<int>(totalUnreadCount);
-  }
-}
-
 class _HomePageTestHarness {
   _HomePageTestHarness({
     int totalUnreadCount = 0,
@@ -166,11 +151,10 @@ class _HomePageTestHarness {
   );
 
   late final _notificationCenterBloc = NotificationCenterBloc(
-    notificationRepo: _FakeNotificationRepository(
+    notificationRepo: FakeNotificationRepository(
       totalUnreadCount: _totalUnreadCount,
     ),
     notificationRuntimeService: notificationRuntimeService,
-    notificationService: FakeNotificationService(),
     notificationBadgeService: const NoOpNotificationBadgeService(),
     preferencesStore: preferencesStore,
   )..add(
@@ -195,14 +179,19 @@ class _HomePageTestHarness {
         Provider<NotificationRuntimeService>(
           create: (_) => notificationRuntimeService,
         ),
-        Provider<EmoteService>(
-          create: (_) => FakeEmoteService(),
+        Provider<EmoteRepo>(
+          create: (_) => FakeEmoteRepo(),
         ),
         Provider<LinkPreviewService>(
           create: (_) => FakeLinkPreviewService(),
         ),
-        Provider<ReactionService>(
-          create: (_) => FakeReactionService(),
+        Provider<ReactionRepo>(
+          create: (_) => FakeReactionRepo(),
+        ),
+        Provider<ToggleReactionUseCase>(
+          create: (_) => ToggleReactionUseCase(
+            reactionRepo: FakeReactionRepo(),
+          ),
         ),
       ],
       child: MultiBlocProvider(

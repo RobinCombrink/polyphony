@@ -23,4 +23,21 @@ class NotificationRepository implements NotificationRepo {
       Error<ApiNotificationUnreadCount>(:final error) => Error<int>(error),
     };
   }
+
+  @override
+  Future<Result<void>> updateOne({
+    required NotificationUpdateCommand command,
+  }) {
+    return switch (command) {
+      MarkChannelReadCommand(:final channelId) =>
+        _notificationService.markChannelNotificationsRead(
+          channelId: channelId.value,
+        ),
+      MarkMessageAsUnreadCommand(:final channelId, :final messageId) =>
+        _notificationService.markMessageAsUnread(
+          channelId: channelId.value,
+          messageId: messageId.value,
+        ),
+    };
+  }
 }

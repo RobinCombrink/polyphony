@@ -228,7 +228,7 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
           ..add(
             LoadNotificationPreferencesRequested(
               serverId: null,
-              channelId: channel.id.value,
+              channelId: channel.id,
             ),
           );
 
@@ -243,7 +243,7 @@ class _ChannelsPaneWidgetState extends State<ChannelsPaneWidget> {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: SettingsNotificationPreferencesSectionWidget(
-                  selectedChannelId: channel.id.value,
+                  selectedChannelId: channel.id,
                   showGlobal: false,
                   showServer: false,
                   title: "Channel notification preferences",

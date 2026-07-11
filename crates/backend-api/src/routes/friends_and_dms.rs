@@ -316,10 +316,7 @@ where
         + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    use crate::use_cases::friends::{
-        ServerContextFriendRequestError,
-        send_friend_request_from_server_context as server_context_use_case,
-    };
+    use crate::use_cases::friends::send_friend_request_from_server_context as server_context_use_case;
 
     let result = match server_context_use_case(
         &*state.server_repository,
@@ -331,26 +328,7 @@ where
     .await
     {
         Ok(result) => result,
-        Err(ServerContextFriendRequestError::ServerNotFound) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(ApiErrorResponse::new("NOT_FOUND", "server was not found")),
-            )
-                .into_response();
-        }
-        Err(ServerContextFriendRequestError::NotSharedServer) => {
-            return (
-                StatusCode::FORBIDDEN,
-                Json(ApiErrorResponse::new(
-                    "FORBIDDEN",
-                    "friend request is denied because users do not share this server",
-                )),
-            )
-                .into_response();
-        }
-        Err(ServerContextFriendRequestError::InfraError) => {
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
+        Err(error) => return error.into_response(),
     };
 
     match result {

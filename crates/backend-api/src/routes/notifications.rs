@@ -55,7 +55,7 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    use crate::use_cases::notifications::{NotificationPreferenceError, get_global_preference};
+    use crate::use_cases::notifications::get_global_preference;
 
     match get_global_preference(&*state.message_repository, authenticated_user.user_id).await {
         Ok(pref) => (
@@ -67,10 +67,7 @@ where
             }),
         )
             .into_response(),
-        Err(NotificationPreferenceError::Gate(gate_error)) => gate_error.into_response(),
-        Err(NotificationPreferenceError::InfraError) => {
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+        Err(error) => error.into_response(),
     }
 }
 
@@ -105,7 +102,7 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    use crate::use_cases::notifications::{NotificationPreferenceError, get_server_preference};
+    use crate::use_cases::notifications::get_server_preference;
 
     match get_server_preference(
         &*state.server_repository,
@@ -123,10 +120,7 @@ where
             }),
         )
             .into_response(),
-        Err(NotificationPreferenceError::Gate(gate_error)) => gate_error.into_response(),
-        Err(NotificationPreferenceError::InfraError) => {
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+        Err(error) => error.into_response(),
     }
 }
 
@@ -161,7 +155,7 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    use crate::use_cases::notifications::{NotificationPreferenceError, get_channel_preference};
+    use crate::use_cases::notifications::get_channel_preference;
 
     match get_channel_preference(
         &*state.channel_repository,
@@ -181,10 +175,7 @@ where
             }),
         )
             .into_response(),
-        Err(NotificationPreferenceError::Gate(gate_error)) => gate_error.into_response(),
-        Err(NotificationPreferenceError::InfraError) => {
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+        Err(error) => error.into_response(),
     }
 }
 

@@ -1,3 +1,4 @@
+use axum::{http::StatusCode, response::IntoResponse};
 use backend_domain::{
     ChannelId, NotificationCategoryPreference, NotificationMuteState, ServerId, UserId,
 };
@@ -27,6 +28,15 @@ pub(crate) struct ChannelPreference {
 pub(crate) enum NotificationPreferenceError {
     Gate(MembershipGateError),
     InfraError,
+}
+
+impl IntoResponse for NotificationPreferenceError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            Self::Gate(gate_error) => gate_error.into_response(),
+            Self::InfraError => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        }
+    }
 }
 
 pub(crate) async fn get_global_preference(

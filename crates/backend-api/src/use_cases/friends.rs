@@ -1,5 +1,8 @@
+use axum::{Json, http::StatusCode, response::IntoResponse};
 use backend_domain::{ServerId, UserId};
 use backend_storage::{FriendRepository, SendFriendRequestResult, ServerRepository};
+
+use crate::dto::ApiErrorResponse;
 
 use super::guards::{MembershipGateError, require_server_membership};
 
@@ -7,6 +10,27 @@ pub(crate) enum ServerContextFriendRequestError {
     ServerNotFound,
     NotSharedServer,
     InfraError,
+}
+
+impl IntoResponse for ServerContextFriendRequestError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            Self::ServerNotFound => (
+                StatusCode::NOT_FOUND,
+                Json(ApiErrorResponse::new("NOT_FOUND", "server was not found")),
+            )
+                .into_response(),
+            Self::NotSharedServer => (
+                StatusCode::FORBIDDEN,
+                Json(ApiErrorResponse::new(
+                    "FORBIDDEN",
+                    "friend request is denied because users do not share this server",
+                )),
+            )
+                .into_response(),
+            Self::InfraError => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        }
+    }
 }
 
 pub(crate) async fn send_friend_request_from_server_context(

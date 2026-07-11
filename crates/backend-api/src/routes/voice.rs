@@ -1,7 +1,7 @@
 use crate::{
     auth::TokenVerifier,
     dto::{ApiErrorResponse, CreateSessionRequest, VoiceConnectResponse},
-    use_cases::voice::{CreateSessionError, validate_voice_session},
+    use_cases::voice::validate_voice_session,
 };
 use axum::{
     Json,
@@ -54,20 +54,7 @@ where
     .await
     {
         Ok(channel) => channel,
-        Err(CreateSessionError::Gate(gate_error)) => return gate_error.into_response(),
-        Err(CreateSessionError::ChannelKindMismatch) => {
-            return (
-                StatusCode::UNPROCESSABLE_ENTITY,
-                Json(ApiErrorResponse::new(
-                    "CHANNEL_KIND_MISMATCH",
-                    "requested session type does not match channel type",
-                )),
-            )
-                .into_response()
-        }
-        Err(CreateSessionError::InfraError) => {
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+        Err(error) => return error.into_response(),
     };
 
     let participant_instance_id = request

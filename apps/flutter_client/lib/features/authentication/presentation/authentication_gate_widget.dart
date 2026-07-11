@@ -12,8 +12,11 @@ import "package:polyphony_flutter_client/features/home/presentation/home_page_wi
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/pinned_messages_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/use_cases/toggle_reaction_use_case.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
+import "package:polyphony_flutter_client/features/notifications/use_cases/mute_channel_notifications_use_case.dart";
+import "package:polyphony_flutter_client/features/notifications/use_cases/unmute_channel_notifications_use_case.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/server_members_bloc.dart";
 import "package:polyphony_flutter_client/features/servers/bloc/servers_bloc.dart";
 import "package:polyphony_flutter_client/features/voice_sessions/bloc/voice_sessions_bloc.dart";
@@ -26,16 +29,22 @@ import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/direct_message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/direct_message_repository.dart";
+import "package:polyphony_flutter_client/shared/repositories/emote_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/emote_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repository.dart";
+import "package:polyphony_flutter_client/shared/repositories/notification_preference_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/notification_preference_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/pinned_message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/pinned_message_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repository.dart";
+import "package:polyphony_flutter_client/shared/repositories/reaction_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/reaction_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_member_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_member_repository.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
@@ -448,6 +457,38 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
               notificationService: context.read<NotificationService>(),
             ),
           ),
+          Provider<NotificationPreferenceRepo>(
+            create: (context) => NotificationPreferenceRepository(
+              notificationService: context.read<NotificationService>(),
+            ),
+          ),
+          Provider<EmoteRepo>(
+            create: (context) => EmoteRepository(
+              emoteService: context.read<EmoteService>(),
+            ),
+          ),
+          Provider<ReactionRepo>(
+            create: (context) => ReactionRepository(
+              reactionService: context.read<ReactionService>(),
+            ),
+          ),
+          Provider<ToggleReactionUseCase>(
+            create: (context) => ToggleReactionUseCase(
+              reactionRepo: context.read<ReactionRepo>(),
+            ),
+          ),
+          Provider<MuteChannelNotificationsUseCase>(
+            create: (context) => MuteChannelNotificationsUseCase(
+              notificationPreferenceRepo:
+                  context.read<NotificationPreferenceRepo>(),
+            ),
+          ),
+          Provider<UnmuteChannelNotificationsUseCase>(
+            create: (context) => UnmuteChannelNotificationsUseCase(
+              notificationPreferenceRepo:
+                  context.read<NotificationPreferenceRepo>(),
+            ),
+          ),
           Provider<PinnedMessageRepo>(
             create: (context) => PinnedMessageRepository(
               pinnedMessageService: context.read<PinnedMessageService>(),
@@ -502,7 +543,6 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
                 notificationRepo: context.read<NotificationRepo>(),
                 notificationRuntimeService:
                     context.read<NotificationRuntimeService>(),
-                notificationService: context.read<NotificationService>(),
                 notificationBadgeService:
                     context.read<NotificationBadgeService>(),
                 preferencesStore: context.read<PreferencesStore>(),
@@ -514,7 +554,12 @@ final class _AuthenticatedShellState extends State<_AuthenticatedShell> {
             ),
             BlocProvider<NotificationPreferencesBloc>(
               create: (context) => NotificationPreferencesBloc(
-                notificationService: context.read<NotificationService>(),
+                notificationPreferenceRepo:
+                    context.read<NotificationPreferenceRepo>(),
+                muteChannelNotificationsUseCase:
+                    context.read<MuteChannelNotificationsUseCase>(),
+                unmuteChannelNotificationsUseCase:
+                    context.read<UnmuteChannelNotificationsUseCase>(),
               ),
             ),
             BlocProvider<ProfileBloc>(

@@ -2,25 +2,11 @@ import "package:bloc_test/bloc_test.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_center_bloc.dart";
 import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
-import "package:polyphony_flutter_client/shared/result/result.dart";
 import "package:polyphony_flutter_client/shared/services/notification_badge_service.dart";
 import "package:polyphony_flutter_client/shared/services/notification_runtime_service.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 
 import "../test_doubles/chat_repository_fakes.dart";
-
-class _FakeNotificationRepository implements NotificationRepo {
-  _FakeNotificationRepository({required this.totalUnreadCount});
-
-  final int totalUnreadCount;
-
-  @override
-  Future<Result<int>> getOne({
-    required GetNotificationUnreadCountQuery query,
-  }) async {
-    return Ok<int>(totalUnreadCount);
-  }
-}
 
 class _FakeNotificationBadgeService implements NotificationBadgeService {
   final syncedUnreadCounts = <int>[];
@@ -40,7 +26,6 @@ NotificationCenterBloc _buildBloc({
   return NotificationCenterBloc(
     notificationRepo: notificationRepo,
     notificationRuntimeService: runtimeService,
-    notificationService: FakeNotificationService(),
     notificationBadgeService: notificationBadgeService,
     preferencesStore: preferencesStore,
   );
@@ -66,7 +51,7 @@ void main() {
           build: () {
             return _buildBloc(
               notificationRepo:
-                  _FakeNotificationRepository(totalUnreadCount: 0),
+                  FakeNotificationRepository(),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
@@ -112,7 +97,7 @@ void main() {
           build: () {
             return _buildBloc(
               notificationRepo:
-                  _FakeNotificationRepository(totalUnreadCount: 0),
+                  FakeNotificationRepository(),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
@@ -153,7 +138,7 @@ void main() {
           build: () {
             return _buildBloc(
               notificationRepo:
-                  _FakeNotificationRepository(totalUnreadCount: 0),
+                  FakeNotificationRepository(),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
@@ -205,7 +190,7 @@ void main() {
           build: () {
             return _buildBloc(
               notificationRepo:
-                  _FakeNotificationRepository(totalUnreadCount: 5),
+                  FakeNotificationRepository(totalUnreadCount: 5),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
@@ -235,7 +220,7 @@ void main() {
           build: () {
             return _buildBloc(
               notificationRepo:
-                  _FakeNotificationRepository(totalUnreadCount: 0),
+                  FakeNotificationRepository(),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
@@ -281,7 +266,7 @@ void main() {
           build: () {
             return _buildBloc(
               notificationRepo:
-                  _FakeNotificationRepository(totalUnreadCount: 0),
+                  FakeNotificationRepository(),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,

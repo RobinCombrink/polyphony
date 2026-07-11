@@ -1,14 +1,20 @@
 import "dart:async";
 
+import "package:polyphony_flutter_client/features/messages/use_cases/toggle_reaction_use_case.dart";
 import "package:polyphony_flutter_client/shared/errors/polyphony_exceptions.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
+import "package:polyphony_flutter_client/shared/models/notification_preference.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 import "package:polyphony_flutter_client/shared/repositories/channel_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/emote_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/friend_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/notification_preference_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/pinned_message_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/profile_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/reaction_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_member_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/server_repo.dart";
 import "package:polyphony_flutter_client/shared/repositories/text_session_repo.dart";
@@ -1330,5 +1336,124 @@ class FakeNotificationService implements NotificationService {
     required String channelId,
   }) async {
     return Error<void>(Exception("Not used in test."));
+  }
+}
+
+class FakeEmoteRepo implements EmoteRepo {
+  FakeEmoteRepo({List<Emote>? emotes})
+      : _emotes = emotes ??
+            const [
+              Emote(
+                  id: "thumbsup",
+                  shortcode: ":thumbsup:",
+                  emojiChar: "\u{1F44D}"),
+              Emote(
+                  id: "heart",
+                  shortcode: ":heart:",
+                  emojiChar: "\u{2764}\u{FE0F}"),
+              Emote(id: "laugh", shortcode: ":laugh:", emojiChar: "\u{1F602}"),
+            ];
+
+  final List<Emote> _emotes;
+
+  @override
+  Future<Result<Iterable<Emote>>> getMany({
+    required ListEmotesQuery query,
+  }) async {
+    return Ok<Iterable<Emote>>(_emotes);
+  }
+}
+
+class FakeReactionRepo implements ReactionRepo {
+  FakeReactionRepo({
+    List<ReactionSummary>? reactions,
+  }) : _reactions = reactions ?? const [];
+
+  final List<ReactionSummary> _reactions;
+
+  @override
+  Future<Result<Iterable<ReactionSummary>>> getMany({
+    required ListReactionsQuery query,
+  }) async {
+    return Ok<Iterable<ReactionSummary>>(_reactions);
+  }
+
+  @override
+  Future<Result<void>> updateOne({
+    required ToggleReactionCommand command,
+  }) async {
+    return const Ok<void>(null);
+  }
+}
+
+class FakeToggleReactionUseCase extends ToggleReactionUseCase {
+  FakeToggleReactionUseCase()
+      : super(reactionRepo: FakeReactionRepo());
+
+  final List<String> toggledEmoteIds = [];
+
+  @override
+  Future<Result<void>> call({
+    required ChannelId channelId,
+    required MessageId messageId,
+    required String emoteId,
+  }) async {
+    toggledEmoteIds.add(emoteId);
+    return const Ok<void>(null);
+  }
+}
+
+class FakeNotificationRepository implements NotificationRepo {
+  FakeNotificationRepository({
+    this.totalUnreadCount = 0,
+  });
+
+  final int totalUnreadCount;
+
+  @override
+  Future<Result<int>> getOne({
+    required GetNotificationUnreadCountQuery query,
+  }) async {
+    return Ok<int>(totalUnreadCount);
+  }
+
+  @override
+  Future<Result<void>> updateOne({
+    required NotificationUpdateCommand command,
+  }) async {
+    return const Ok<void>(null);
+  }
+}
+
+class FakeNotificationPreferenceRepo implements NotificationPreferenceRepo {
+  @override
+  Future<Result<NotificationPreferenceData>> getOne({
+    required GetNotificationPreferenceQuery query,
+  }) async {
+    return switch (query) {
+      GetGlobalNotificationPreferenceQuery() =>
+        const Ok<NotificationPreferenceData>(
+          GlobalNotificationPreferenceData(
+            preference: NotificationGlobalPreference(
+              muteState: NotificationMuteState.unmuted,
+              notificationCategory:
+                  NotificationCategoryPreference.allMessages,
+              channelDefaultCategory:
+                  NotificationCategoryPreference.allMessages,
+            ),
+          ),
+        ),
+      GetServerNotificationPreferenceQuery() =>
+        Error<NotificationPreferenceData>(Exception("Not used in test.")),
+      GetChannelNotificationPreferenceQuery() =>
+        Error<NotificationPreferenceData>(Exception("Not used in test.")),
+    };
+  }
+
+  @override
+  Future<Result<void>> updateOne({
+    required UpdateNotificationPreferenceCommand command,
+  }) async {
+    return const Ok<void>(null);
   }
 }

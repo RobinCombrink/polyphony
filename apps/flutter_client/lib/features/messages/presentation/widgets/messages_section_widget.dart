@@ -11,14 +11,15 @@ import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.da
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/emote_picker_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/link_preview_card_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/message_reactions_widget.dart";
+import "package:polyphony_flutter_client/features/messages/use_cases/toggle_reaction_use_case.dart";
 import "package:polyphony_flutter_client/features/settings/bloc/settings_bloc.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/section_status.dart";
+import "package:polyphony_flutter_client/shared/repositories/emote_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/reaction_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
-import "package:polyphony_flutter_client/shared/services/emote_service.dart";
 import "package:polyphony_flutter_client/shared/services/link_preview_service.dart";
-import "package:polyphony_flutter_client/shared/services/reaction_service.dart";
 import "package:url_launcher/url_launcher.dart";
 
 SectionStatus? buildMessagesSectionStatus(MessagesState state) {
@@ -304,8 +305,10 @@ class MessagesSectionWidget extends StatelessWidget {
                                   ),
                                   BlocProvider(
                                     create: (context) => MessageReactionsBloc(
-                                      reactionService:
-                                          context.read<ReactionService>(),
+                                      reactionRepo:
+                                          context.read<ReactionRepo>(),
+                                      toggleReactionUseCase:
+                                          context.read<ToggleReactionUseCase>(),
                                       channelId: message.channelId,
                                       messageId: message.id,
                                     )..add(
@@ -517,11 +520,11 @@ class _MessageComposerWidgetState extends State<_MessageComposerWidget> {
   }
 
   void _showEmotePicker(BuildContext context) {
-    final emoteService = context.read<EmoteService>();
+    final emoteRepo = context.read<EmoteRepo>();
     unawaited(showDialog<void>(
       context: context,
       builder: (dialogContext) => BlocProvider(
-        create: (_) => EmoteCatalogBloc(emoteService: emoteService)
+        create: (_) => EmoteCatalogBloc(emoteRepo: emoteRepo)
           ..add(const EmoteCatalogLoadRequested()),
         child: AlertDialog(
           contentPadding: EdgeInsets.zero,

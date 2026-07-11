@@ -1,7 +1,8 @@
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/notifications/bloc/notification_preferences_bloc.dart";
-import "package:polyphony_flutter_client/shared/network/api_models.dart";
+import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
+import "package:polyphony_flutter_client/shared/models/notification_preference.dart";
 
 class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
   const SettingsNotificationPreferencesSectionWidget({
@@ -16,19 +17,19 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
     super.key,
   });
 
-  final String? selectedServerId;
-  final String? selectedChannelId;
+  final ServerId? selectedServerId;
+  final ChannelId? selectedChannelId;
   final bool showGlobal;
   final bool showServer;
   final bool showChannel;
   final String title;
   final String description;
 
-  String _categoryLabel(ApiNotificationCategoryPreference value) {
+  String _categoryLabel(NotificationCategoryPreference value) {
     return switch (value) {
-      ApiNotificationCategoryPreference.allMessages => "All messages",
-      ApiNotificationCategoryPreference.onlyMentions => "Only mentions",
-      ApiNotificationCategoryPreference.none => "None",
+      NotificationCategoryPreference.allMessages => "All messages",
+      NotificationCategoryPreference.onlyMentions => "Only mentions",
+      NotificationCategoryPreference.none => "None",
     };
   }
 
@@ -87,7 +88,7 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 title: const Text("Globally mute notifications"),
                 value: globalPreference.muteState ==
-                    ApiNotificationMuteState.muted,
+                    NotificationMuteState.muted,
                 onChanged: isLoading
                     ? null
                     : (muted) {
@@ -96,15 +97,15 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
                             );
                       },
               ),
-              DropdownButtonFormField<ApiNotificationCategoryPreference>(
+              DropdownButtonFormField<NotificationCategoryPreference>(
                 initialValue: globalPreference.notificationCategory,
                 decoration: const InputDecoration(
                   labelText: "Global notification category",
                 ),
-                items: ApiNotificationCategoryPreference.values
+                items: NotificationCategoryPreference.values
                     .map(
                       (value) =>
-                          DropdownMenuItem<ApiNotificationCategoryPreference>(
+                          DropdownMenuItem<NotificationCategoryPreference>(
                         value: value,
                         child: Text(_categoryLabel(value)),
                       ),
@@ -125,15 +126,15 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
                       },
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<ApiNotificationCategoryPreference>(
+              DropdownButtonFormField<NotificationCategoryPreference>(
                 initialValue: globalPreference.channelDefaultCategory,
                 decoration: const InputDecoration(
                   labelText: "Default channel notification category",
                 ),
-                items: ApiNotificationCategoryPreference.values
+                items: NotificationCategoryPreference.values
                     .map(
                       (value) =>
-                          DropdownMenuItem<ApiNotificationCategoryPreference>(
+                          DropdownMenuItem<NotificationCategoryPreference>(
                         value: value,
                         child: Text(_categoryLabel(value)),
                       ),
@@ -171,7 +172,7 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   title: const Text("Mute selected server"),
                   value: serverPreference.muteState ==
-                      ApiNotificationMuteState.muted,
+                      NotificationMuteState.muted,
                   onChanged: isLoading
                       ? null
                       : (muted) {
@@ -183,15 +184,15 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
                               );
                         },
                 ),
-                DropdownButtonFormField<ApiNotificationCategoryPreference>(
+                DropdownButtonFormField<NotificationCategoryPreference>(
                   initialValue: serverPreference.notificationCategory,
                   decoration: const InputDecoration(
                     labelText: "Server notification category",
                   ),
-                  items: ApiNotificationCategoryPreference.values
+                  items: NotificationCategoryPreference.values
                       .map(
                         (value) =>
-                            DropdownMenuItem<ApiNotificationCategoryPreference>(
+                            DropdownMenuItem<NotificationCategoryPreference>(
                           value: value,
                           child: Text(_categoryLabel(value)),
                         ),
@@ -231,7 +232,7 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   title: const Text("Temporarily mute selected channel (30m)"),
                   value: channelPreference.muteState ==
-                      ApiNotificationMuteState.muted,
+                      NotificationMuteState.muted,
                   onChanged: isLoading
                       ? null
                       : (muted) {
@@ -243,15 +244,15 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
                               );
                         },
                 ),
-                DropdownButtonFormField<ApiNotificationCategoryPreference>(
+                DropdownButtonFormField<NotificationCategoryPreference>(
                   initialValue: channelPreference.notificationCategory,
                   decoration: const InputDecoration(
                     labelText: "Channel notification category",
                   ),
-                  items: ApiNotificationCategoryPreference.values
+                  items: NotificationCategoryPreference.values
                       .map(
                         (value) =>
-                            DropdownMenuItem<ApiNotificationCategoryPreference>(
+                            DropdownMenuItem<NotificationCategoryPreference>(
                           value: value,
                           child: Text(_categoryLabel(value)),
                         ),

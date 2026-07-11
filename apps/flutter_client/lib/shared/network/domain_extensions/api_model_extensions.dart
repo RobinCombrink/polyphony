@@ -1,6 +1,7 @@
 import "package:polyphony_flutter_client/shared/models/channel_type.dart";
 import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
+import "package:polyphony_flutter_client/shared/models/notification_preference.dart";
 import "package:polyphony_flutter_client/shared/network/api_models.dart";
 
 extension ApiServerToDomainExtension on ApiServer {
@@ -204,4 +205,70 @@ extension ApiUserLookupToDomainExtension on ApiUserLookup {
       displayName: displayName,
     );
   }
+}
+
+extension ApiNotificationMuteStateToDomainExtension
+    on ApiNotificationMuteState {
+  NotificationMuteState toDomain() => switch (this) {
+        ApiNotificationMuteState.unmuted => NotificationMuteState.unmuted,
+        ApiNotificationMuteState.muted => NotificationMuteState.muted,
+      };
+}
+
+extension NotificationMuteStateToApiExtension on NotificationMuteState {
+  ApiNotificationMuteState toApi() => switch (this) {
+        NotificationMuteState.unmuted => ApiNotificationMuteState.unmuted,
+        NotificationMuteState.muted => ApiNotificationMuteState.muted,
+      };
+}
+
+extension ApiNotificationCategoryPreferenceToDomainExtension
+    on ApiNotificationCategoryPreference {
+  NotificationCategoryPreference toDomain() => switch (this) {
+        ApiNotificationCategoryPreference.allMessages =>
+          NotificationCategoryPreference.allMessages,
+        ApiNotificationCategoryPreference.onlyMentions =>
+          NotificationCategoryPreference.onlyMentions,
+        ApiNotificationCategoryPreference.none =>
+          NotificationCategoryPreference.none,
+      };
+}
+
+extension NotificationCategoryPreferenceToApiExtension
+    on NotificationCategoryPreference {
+  ApiNotificationCategoryPreference toApi() => switch (this) {
+        NotificationCategoryPreference.allMessages =>
+          ApiNotificationCategoryPreference.allMessages,
+        NotificationCategoryPreference.onlyMentions =>
+          ApiNotificationCategoryPreference.onlyMentions,
+        NotificationCategoryPreference.none =>
+          ApiNotificationCategoryPreference.none,
+      };
+}
+
+extension ApiNotificationGlobalPreferenceToDomainExtension
+    on ApiNotificationGlobalPreference {
+  NotificationGlobalPreference toDomain() => NotificationGlobalPreference(
+        muteState: muteState.toDomain(),
+        notificationCategory: notificationCategory.toDomain(),
+        channelDefaultCategory: channelDefaultCategory.toDomain(),
+      );
+}
+
+extension ApiNotificationServerPreferenceToDomainExtension
+    on ApiNotificationServerPreference {
+  NotificationServerPreference toDomain() => NotificationServerPreference(
+        muteState: muteState.toDomain(),
+        notificationCategory: notificationCategory.toDomain(),
+      );
+}
+
+extension ApiNotificationChannelPreferenceToDomainExtension
+    on ApiNotificationChannelPreference {
+  NotificationChannelPreference toDomain() => NotificationChannelPreference(
+        muteState: muteState.toDomain(),
+        notificationCategory: notificationCategory.toDomain(),
+        mutedUntilEpochSeconds: mutedUntilEpochSeconds,
+        inheritedFromGlobalDefault: inheritedFromGlobalDefault,
+      );
 }

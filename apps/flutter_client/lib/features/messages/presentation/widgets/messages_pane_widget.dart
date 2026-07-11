@@ -4,9 +4,9 @@ import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:polyphony_flutter_client/features/channels/bloc/channels_bloc.dart";
 import "package:polyphony_flutter_client/features/identity/bloc/profile_bloc.dart";
+import "package:polyphony_flutter_client/features/messages/bloc/message_search_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/messages_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/bloc/pinned_messages_bloc.dart";
-import "package:polyphony_flutter_client/features/messages/bloc/message_search_bloc.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/message_search_dialog_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/messages_section_widget.dart";
 import "package:polyphony_flutter_client/features/messages/presentation/widgets/pinned_messages_dialog_widget.dart";
@@ -17,9 +17,9 @@ import "package:polyphony_flutter_client/shared/models/chat_models.dart";
 import "package:polyphony_flutter_client/shared/models/entity_ids.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/pane_placeholder_widget.dart";
 import "package:polyphony_flutter_client/shared/presentation/widgets/something_went_wrong_widget.dart";
+import "package:polyphony_flutter_client/shared/repositories/message_repo.dart";
+import "package:polyphony_flutter_client/shared/repositories/notification_repo.dart";
 import "package:polyphony_flutter_client/shared/result/result.dart";
-import "package:polyphony_flutter_client/shared/services/message_service.dart";
-import "package:polyphony_flutter_client/shared/services/notification_service.dart";
 import "package:skeletonizer/skeletonizer.dart";
 
 class MessagesPaneWidget extends StatefulWidget {
@@ -74,12 +74,12 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
   }
 
   void _showSearchDialog(BuildContext context, ChannelId channelId) {
-    final messageService = context.read<MessageService>();
+    final messageRepo = context.read<MessageRepo>();
     unawaited(showDialog<void>(
       context: context,
       builder: (_) => BlocProvider(
         create: (_) => MessageSearchBloc(
-          messageService: messageService,
+          messageRepo: messageRepo,
         ),
         child: AlertDialog(
           title: const Text("Search Messages"),
@@ -106,10 +106,12 @@ class _MessagesPaneWidgetState extends State<MessagesPaneWidget> {
     ChannelId channelId,
     Message message,
   ) async {
-    final notificationService = context.read<NotificationService>();
-    final result = await notificationService.markMessageAsUnread(
-      channelId: channelId.value,
-      messageId: message.id.value,
+    final notificationRepo = context.read<NotificationRepo>();
+    final result = await notificationRepo.updateOne(
+      command: MarkMessageAsUnreadCommand(
+        channelId: channelId,
+        messageId: message.id,
+      ),
     );
 
     if (!context.mounted) {

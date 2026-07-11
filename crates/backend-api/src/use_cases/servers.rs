@@ -1,3 +1,4 @@
+use axum::{http::StatusCode, response::IntoResponse};
 use backend_domain::{Membership, ServerId, UserId};
 use backend_storage::{FriendRepository, MutationResult, ServerRepository};
 
@@ -6,6 +7,16 @@ pub(crate) enum InviteFriendError {
     NotFound,
     Forbidden,
     InfraError,
+}
+
+impl IntoResponse for InviteFriendError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            Self::NotFriends | Self::Forbidden => StatusCode::FORBIDDEN.into_response(),
+            Self::NotFound => StatusCode::NOT_FOUND.into_response(),
+            Self::InfraError => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        }
+    }
 }
 
 pub(crate) async fn invite_friend_to_server(

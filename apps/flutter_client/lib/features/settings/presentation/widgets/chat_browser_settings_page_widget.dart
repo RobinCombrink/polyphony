@@ -13,7 +13,7 @@ import "package:polyphony_flutter_client/features/settings/presentation/widgets/
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_keybindings_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_notification_preferences_section_widget.dart";
 import "package:polyphony_flutter_client/features/settings/presentation/widgets/settings_voice_notifications_section_widget.dart";
-import "package:polyphony_flutter_client/shared/network/api_models.dart";
+import "package:polyphony_flutter_client/shared/models/notification_preference.dart";
 import "package:polyphony_flutter_client/shared/services/preferences_store.dart";
 import "package:polyphony_flutter_client/shared/services/profile_service.dart";
 
@@ -102,13 +102,13 @@ class _ChatBrowserSettingsPageWidgetState
         );
     context.read<NotificationPreferencesBloc>().add(
           const GlobalNotificationCategoryChangedRequested(
-            notificationCategory: ApiNotificationCategoryPreference.allMessages,
+            notificationCategory: NotificationCategoryPreference.allMessages,
           ),
         );
     context.read<NotificationPreferencesBloc>().add(
           const GlobalChannelDefaultCategoryChangedRequested(
             channelDefaultCategory:
-                ApiNotificationCategoryPreference.allMessages,
+                NotificationCategoryPreference.allMessages,
           ),
         );
 

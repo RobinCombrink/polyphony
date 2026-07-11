@@ -15,9 +15,19 @@ class MessageRepository implements MessageRepo {
   Future<Result<Iterable<Message>>> getMany({
     required GetMessagesQuery query,
   }) async {
-    final serviceResult = await _messageService.listMessages(
-      channelId: query.channelId.value,
-    );
+    final filter = query.filter;
+    final Result<List<ApiMessage>> serviceResult;
+
+    if (filter != null) {
+      serviceResult = await _messageService.searchMessages(
+        channelId: query.channelId.value,
+        query: filter.searchQuery,
+      );
+    } else {
+      serviceResult = await _messageService.listMessages(
+        channelId: query.channelId.value,
+      );
+    }
 
     return switch (serviceResult) {
       Ok<List<ApiMessage>>(:final value) => Ok<Iterable<Message>>(

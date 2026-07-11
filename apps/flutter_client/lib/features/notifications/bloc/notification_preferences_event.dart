@@ -11,8 +11,8 @@ final class LoadNotificationPreferencesRequested
     required this.channelId,
   });
 
-  final String? serverId;
-  final String? channelId;
+  final ServerId? serverId;
+  final ChannelId? channelId;
 }
 
 final class GlobalMuteToggledRequested extends NotificationPreferencesEvent {
@@ -29,7 +29,7 @@ final class GlobalNotificationCategoryChangedRequested
     required this.notificationCategory,
   });
 
-  final ApiNotificationCategoryPreference notificationCategory;
+  final NotificationCategoryPreference notificationCategory;
 }
 
 final class GlobalChannelDefaultCategoryChangedRequested
@@ -38,7 +38,7 @@ final class GlobalChannelDefaultCategoryChangedRequested
     required this.channelDefaultCategory,
   });
 
-  final ApiNotificationCategoryPreference channelDefaultCategory;
+  final NotificationCategoryPreference channelDefaultCategory;
 }
 
 final class ServerMuteToggledRequested extends NotificationPreferencesEvent {
@@ -47,7 +47,7 @@ final class ServerMuteToggledRequested extends NotificationPreferencesEvent {
     required this.muted,
   });
 
-  final String serverId;
+  final ServerId serverId;
   final bool muted;
 }
 
@@ -58,8 +58,8 @@ final class ServerNotificationCategoryChangedRequested
     required this.notificationCategory,
   });
 
-  final String serverId;
-  final ApiNotificationCategoryPreference notificationCategory;
+  final ServerId serverId;
+  final NotificationCategoryPreference notificationCategory;
 }
 
 final class ChannelMuteToggledRequested extends NotificationPreferencesEvent {
@@ -68,7 +68,7 @@ final class ChannelMuteToggledRequested extends NotificationPreferencesEvent {
     required this.muted,
   });
 
-  final String channelId;
+  final ChannelId channelId;
   final bool muted;
 }
 
@@ -79,6 +79,6 @@ final class ChannelNotificationCategoryChangedRequested
     required this.notificationCategory,
   });
 
-  final String channelId;
-  final ApiNotificationCategoryPreference notificationCategory;
+  final ChannelId channelId;
+  final NotificationCategoryPreference notificationCategory;
 }
