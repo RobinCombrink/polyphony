@@ -14,7 +14,10 @@ abstract class RestRequestServiceBase {
       return const <Map<String, dynamic>>[];
     }
 
-    return data.whereType<Map>().map(Map<String, dynamic>.from).toList();
+    return data
+        .whereType<Map<dynamic, dynamic>>()
+        .map(Map<String, dynamic>.from)
+        .toList();
   }
 
   Future<Result<List<T>>> performListRequest<T>({
