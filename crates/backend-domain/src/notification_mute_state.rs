@@ -10,7 +10,10 @@ pub enum NotificationMuteState {
 
 impl NotificationMuteState {
     pub fn is_muted(self) -> bool {
-        matches!(self, Self::Muted)
+        match self {
+            Self::Muted => true,
+            Self::Unmuted => false,
+        }
     }
 
     pub fn from_muted_flag(muted: bool) -> Self {

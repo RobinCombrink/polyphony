@@ -100,7 +100,10 @@ impl Message {
     }
 
     pub fn is_mentioned(&self) -> bool {
-        matches!(self, Self::Mentioned(_))
+        match self {
+            Self::Mentioned(_) => true,
+            Self::Regular(_) => false,
+        }
     }
 
     pub fn with_content(self, content: String) -> Self {

@@ -212,11 +212,17 @@ impl RuntimeEnvironment {
     }
 
     pub fn is_production(self) -> bool {
-        matches!(self, Self::Production)
+        match self {
+            Self::Production => true,
+            Self::Local | Self::Dev => false,
+        }
     }
 
     pub fn requires_explicit_environment(self) -> bool {
-        !matches!(self, Self::Local)
+        match self {
+            Self::Local => false,
+            Self::Dev | Self::Production => true,
+        }
     }
 }
 
