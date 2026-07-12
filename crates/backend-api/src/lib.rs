@@ -1,3 +1,11 @@
+// matches! is disallowed in production (clippy.toml disallowed-macros), but the mod-scoped
+// #[allow(clippy::disallowed_macros)] the canon expects doesn't actually suppress this lint
+// (verified: clippy 0.1.94 only honors #![allow] at the crate root for this lint, ignoring
+// module/fn-level attributes). `cfg_attr(test, ...)` keeps production enforcement intact —
+// the non-test `--lib` clippy pass still catches production matches! — while exempting every
+// test module in one place instead of restating the allow per module.
+#![cfg_attr(test, allow(clippy::disallowed_macros))]
+
 pub mod auth;
 pub mod config;
 pub mod dto;

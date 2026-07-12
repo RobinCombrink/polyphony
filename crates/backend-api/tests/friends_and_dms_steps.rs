@@ -1,3 +1,8 @@
+// This integration test binary is always test-only, so a plain crate-root allow (not
+// cfg_attr(test, ...)) is sufficient here — see crates/backend-api/src/lib.rs for why
+// mod-scoped #[allow(clippy::disallowed_macros)] doesn't work and crate-root is required.
+#![allow(clippy::disallowed_macros)]
+
 mod common;
 
 use std::collections::HashMap;
