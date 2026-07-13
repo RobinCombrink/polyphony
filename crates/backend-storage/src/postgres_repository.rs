@@ -2064,8 +2064,7 @@ impl BlockRepository for PostgresRepository {
         )
         .bind(vec![blocker_user_id, blocked_user_id])
         .fetch_one(&self.pool)
-        .await
-        .unwrap_or(0);
+        .await?;
 
         if existing_users < 2 {
             return Ok(BlockUserResult::NotFound);
@@ -2080,8 +2079,7 @@ impl BlockRepository for PostgresRepository {
         .bind(blocker_user_id)
         .bind(blocked_user_id)
         .fetch_one(&self.pool)
-        .await
-        .unwrap_or(0);
+        .await?;
 
         if already_blocked > 0 {
             return Ok(BlockUserResult::AlreadyBlocked);
@@ -2099,13 +2097,13 @@ impl BlockRepository for PostgresRepository {
         .await?;
 
         if let Some(friendship_id) = restored_friendship_id {
-            let _ = sqlx::query("DELETE FROM friendships WHERE id = $1")
+            sqlx::query("DELETE FROM friendships WHERE id = $1")
                 .bind(friendship_id)
                 .execute(&self.pool)
-                .await;
+                .await?;
         }
 
-        let inserted = sqlx::query_as::<_, BlockRelationshipRow>(
+        let block_relationship_row = sqlx::query_as::<_, BlockRelationshipRow>(
             "INSERT INTO blocks (id, blocker_user_id, blocked_user_id, restored_friendship_id)
              VALUES (gen_random_uuid(), $1, $2, $3)
              RETURNING id, blocker_user_id, blocked_user_id, restored_friendship_id",
@@ -2114,11 +2112,7 @@ impl BlockRepository for PostgresRepository {
         .bind(blocked_user_id)
         .bind(restored_friendship_id)
         .fetch_one(&self.pool)
-        .await;
-
-        let Ok(block_relationship_row) = inserted else {
-            return Ok(BlockUserResult::NotFound);
-        };
+        .await?;
 
         Ok(BlockUserResult::Created(BlockRelationship::from(
             block_relationship_row,
@@ -2142,11 +2136,7 @@ impl BlockRepository for PostgresRepository {
         .bind(blocker_user_id)
         .bind(blocked_user_id)
         .fetch_optional(&self.pool)
-        .await;
-
-        let Ok(block_record) = block_record else {
-            return Ok(MutationResult::NotFound);
-        };
+        .await?;
 
         let Some(block_relationship_row) = block_record else {
             return Ok(MutationResult::NotFound);
@@ -2158,21 +2148,17 @@ impl BlockRepository for PostgresRepository {
             return Ok(MutationResult::Forbidden);
         }
 
-        let deleted = sqlx::query("DELETE FROM blocks WHERE id = $1")
+        let delete_result = sqlx::query("DELETE FROM blocks WHERE id = $1")
             .bind(Uuid::from(block_relationship.id))
             .execute(&self.pool)
-            .await;
-
-        let Ok(delete_result) = deleted else {
-            return Ok(MutationResult::NotFound);
-        };
+            .await?;
 
         if delete_result.rows_affected() == 0 {
             return Ok(MutationResult::NotFound);
         }
 
         if let Some(friendship_id) = block_relationship.restored_friendship_id {
-            let _ = sqlx::query(
+            sqlx::query(
                 "INSERT INTO friendships (id, user_a_id, user_b_id)
                  VALUES ($1, LEAST($2, $3), GREATEST($2, $3))
                  ON CONFLICT DO NOTHING",
@@ -2181,7 +2167,7 @@ impl BlockRepository for PostgresRepository {
             .bind(Uuid::from(block_relationship.blocker_user_id))
             .bind(Uuid::from(block_relationship.blocked_user_id))
             .execute(&self.pool)
-            .await;
+            .await?;
         }
 
         Ok(MutationResult::Deleted)
