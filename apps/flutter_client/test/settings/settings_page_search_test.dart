@@ -104,8 +104,7 @@ void main() {
       channelsBloc = ChannelsBloc(
         channelRepo: FakeChannelRepository(fixture: fixture),
       )..add(LoadChannelsRequested(serverId: fixture.listedServer.id));
-      final fakeNotificationPreferenceRepo =
-          FakeNotificationPreferenceRepo();
+      final fakeNotificationPreferenceRepo = FakeNotificationPreferenceRepo();
       notificationPreferencesBloc = NotificationPreferencesBloc(
         notificationPreferenceRepo: fakeNotificationPreferenceRepo,
         muteChannelNotificationsUseCase: MuteChannelNotificationsUseCase(
@@ -361,12 +360,9 @@ void main() {
           );
           await Future<void>.delayed(Duration.zero);
 
-          settingsBloc.add(
-            const SettingsAudioInputDeviceSetRequested(deviceId: null),
-          );
-          settingsBloc.add(
-            const SettingsAudioOutputDeviceSetRequested(deviceId: null),
-          );
+          settingsBloc
+            ..add(const SettingsAudioInputDeviceSetRequested(deviceId: null))
+            ..add(const SettingsAudioOutputDeviceSetRequested(deviceId: null));
           await Future<void>.delayed(Duration.zero);
 
           final selectedInput = switch (settingsBloc.state) {
@@ -388,16 +384,17 @@ void main() {
           );
           await Future<void>.delayed(Duration.zero);
 
-          settingsBloc.add(
-            const SettingsChannelJoinNotificationsToggledRequested(
-              enabled: false,
-            ),
-          );
-          settingsBloc.add(
-            const SettingsChannelJoinNotificationChannelsSetRequested(
-              channelIds: <String>[],
-            ),
-          );
+          settingsBloc
+            ..add(
+              const SettingsChannelJoinNotificationsToggledRequested(
+                enabled: false,
+              ),
+            )
+            ..add(
+              const SettingsChannelJoinNotificationChannelsSetRequested(
+                channelIds: <String>[],
+              ),
+            );
           await Future<void>.delayed(Duration.zero);
 
           final isEnabled = switch (settingsBloc.state) {
