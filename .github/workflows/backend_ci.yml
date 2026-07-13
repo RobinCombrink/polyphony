@@ -190,7 +190,7 @@ jobs:
           tar -czf "dist/polyphony-backend-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz" -C dist backend-api
 
       - name: Upload backend build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rust-backend-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: |

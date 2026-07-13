@@ -171,7 +171,7 @@ jobs:
         run: Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "build/polyphony-windows-${{ github.run_id }}-${{ github.run_attempt }}.zip"
 
       - name: Upload Windows build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: flutter-windows-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
