@@ -31,7 +31,7 @@ jobs:
       - name: Compute semantic version
         id: semantic_version
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: paulhatch/semantic-version@v5.4.0
+        uses: paulhatch/semantic-version@v6.0.2
         with:
           branch: main
           version_format: "${major}.${minor}.${patch}"
