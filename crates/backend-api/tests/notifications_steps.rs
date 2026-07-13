@@ -15,11 +15,10 @@ use common::bdd_support::{
     create_channel_with_token, create_message_with_token, create_message_with_token_and_mention,
     create_server_with_token, global_notification_preference_with_token,
     mark_channel_notifications_read_with_token, mark_message_as_unread_with_token,
-    mute_channel_notifications_with_token,
-    outbox_count_for_message_recipient, outbox_total_count_for_recipient, payload_channel_id,
-    payload_message_id, payload_server_id, prime_feature_test_store, response_payload_json,
-    server_notification_preference_with_token, shutdown_feature_test_store,
-    unmute_channel_notifications_with_token, unread_count_for_channel,
+    mute_channel_notifications_with_token, outbox_count_for_message_recipient,
+    outbox_total_count_for_recipient, payload_channel_id, payload_message_id, payload_server_id,
+    prime_feature_test_store, response_payload_json, server_notification_preference_with_token,
+    shutdown_feature_test_store, unmute_channel_notifications_with_token, unread_count_for_channel,
     unread_notifications_count_with_token,
     update_global_channel_default_notification_preference_with_token,
     update_global_notification_category_preference_with_token,
@@ -743,16 +742,13 @@ async fn named_user_posts_named_message_in_channel(
 ) {
     let actor = world.actor_ref(&actor_name);
     let channel_id = *world.channel_id_by_name_ref(&channel_name);
-    let response =
-        create_message_with_token(&actor.app, &channel_id, &content, &actor.token).await;
+    let response = create_message_with_token(&actor.app, &channel_id, &content, &actor.token).await;
 
     world.latest_status = Some(response.status());
     if response.status() == StatusCode::CREATED {
         let payload = response_payload_json(response).await;
         let message_id = payload_message_id(&payload, "id");
-        world
-            .message_ids_by_content
-            .insert(content, message_id);
+        world.message_ids_by_content.insert(content, message_id);
         world.latest_message_id = Some(message_id);
         world.latest_payload = Some(payload);
     }

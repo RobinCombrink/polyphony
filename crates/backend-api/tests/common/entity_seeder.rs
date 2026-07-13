@@ -43,7 +43,9 @@ impl EntitySeeder {
         User {
             id: Uuid::new_v4().into(),
             external_reference: ExternalReference::from(format!("auth0|user_{random_segment}")),
-            display_name: Some(DisplayName::new(format!("User-{random_segment}")).expect("seeder display name")),
+            display_name: Some(
+                DisplayName::new(format!("User-{random_segment}")).expect("seeder display name"),
+            ),
         }
     }
 

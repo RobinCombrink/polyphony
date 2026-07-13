@@ -19,10 +19,10 @@ use crate::{
     auth::{AuthError, AuthenticatedUser, TokenVerifier},
     dto::{
         ApiErrorResponse, MarkUnreadRequest, MuteChannelNotificationsRequest,
-        NotificationChannelPreferenceResponse,
-        NotificationGlobalPreferenceResponse, NotificationServerPreferenceResponse,
-        NotificationUnreadCountResponse, UpdateNotificationChannelPreferenceRequest,
-        UpdateNotificationGlobalPreferenceRequest, UpdateNotificationServerPreferenceRequest,
+        NotificationChannelPreferenceResponse, NotificationGlobalPreferenceResponse,
+        NotificationServerPreferenceResponse, NotificationUnreadCountResponse,
+        UpdateNotificationChannelPreferenceRequest, UpdateNotificationGlobalPreferenceRequest,
+        UpdateNotificationServerPreferenceRequest,
     },
     use_cases::{require_channel_membership, require_server_membership},
 };
@@ -351,8 +351,12 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    if let Err(gate_error) =
-        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
+    if let Err(gate_error) = require_channel_membership(
+        &*state.channel_repository,
+        channel_id,
+        authenticated_user.user_id,
+    )
+    .await
     {
         return gate_error.into_response();
     }
@@ -417,8 +421,12 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    if let Err(gate_error) =
-        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
+    if let Err(gate_error) = require_channel_membership(
+        &*state.channel_repository,
+        channel_id,
+        authenticated_user.user_id,
+    )
+    .await
     {
         return StatusCode::from(&gate_error);
     }
@@ -470,8 +478,12 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    if let Err(gate_error) =
-        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
+    if let Err(gate_error) = require_channel_membership(
+        &*state.channel_repository,
+        channel_id,
+        authenticated_user.user_id,
+    )
+    .await
     {
         return StatusCode::from(&gate_error);
     }
@@ -561,8 +573,12 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    if let Err(gate_error) =
-        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
+    if let Err(gate_error) = require_channel_membership(
+        &*state.channel_repository,
+        channel_id,
+        authenticated_user.user_id,
+    )
+    .await
     {
         return StatusCode::from(&gate_error);
     }
@@ -612,8 +628,12 @@ where
     MessageRepo: MessageRepository + NotificationRepository + Send + Sync + 'static,
     Verifier: TokenVerifier + Send + Sync + 'static,
 {
-    if let Err(gate_error) =
-        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
+    if let Err(gate_error) = require_channel_membership(
+        &*state.channel_repository,
+        channel_id,
+        authenticated_user.user_id,
+    )
+    .await
     {
         return StatusCode::from(&gate_error);
     }

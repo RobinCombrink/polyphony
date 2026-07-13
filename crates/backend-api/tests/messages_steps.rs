@@ -834,17 +834,12 @@ async fn user_posted_named_message_in_channel(
 ) {
     let channel_id = world.channel_id_ref();
     let response =
-        create_message_with_token(&world.owner_app, channel_id, &content, &world.owner_token)
-            .await;
+        create_message_with_token(&world.owner_app, channel_id, &content, &world.owner_token).await;
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
 #[when(expr = r#"the user searches for {string} in channel {string}"#)]
-async fn user_searches_in_channel(
-    world: &mut MessagesWorld,
-    query: String,
-    _channel_name: String,
-) {
+async fn user_searches_in_channel(world: &mut MessagesWorld, query: String, _channel_name: String) {
     let channel_id = world.channel_id_ref();
     let response = search_messages(&world.owner_app, channel_id, &query).await;
     assert_eq!(response.status(), StatusCode::OK);
@@ -854,10 +849,7 @@ async fn user_searches_in_channel(
 }
 
 #[when(expr = "the user searches with an empty query in channel {string}")]
-async fn user_searches_empty_query_in_channel(
-    world: &mut MessagesWorld,
-    _channel_name: String,
-) {
+async fn user_searches_empty_query_in_channel(world: &mut MessagesWorld, _channel_name: String) {
     let channel_id = world.channel_id_ref();
     let response = search_messages(&world.owner_app, channel_id, "").await;
     assert_eq!(response.status(), StatusCode::OK);

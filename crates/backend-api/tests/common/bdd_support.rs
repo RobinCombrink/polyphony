@@ -1146,14 +1146,15 @@ pub(crate) async fn unread_count_for_channel(
     channel_id: ChannelId,
 ) -> u64 {
     match repository.as_ref() {
-        TestStore::InMemory(store) => store.unread_count_for_channel(user_id, channel_id).await.unwrap(),
-        TestStore::Postgres(store) => {
-            store
-                .repository
-                .unread_count_for_channel(user_id, channel_id)
-                .await
-                .unwrap()
-        }
+        TestStore::InMemory(store) => store
+            .unread_count_for_channel(user_id, channel_id)
+            .await
+            .unwrap(),
+        TestStore::Postgres(store) => store
+            .repository
+            .unread_count_for_channel(user_id, channel_id)
+            .await
+            .unwrap(),
     }
 }
 
@@ -1253,19 +1254,15 @@ pub(crate) async fn outbox_count_for_message_recipient(
     recipient_user_id: UserId,
 ) -> u64 {
     match repository.as_ref() {
-        TestStore::InMemory(store) => {
-            store
-                .outbox_count_for_message_recipient(message_id, recipient_user_id)
-                .await
-                .unwrap()
-        }
-        TestStore::Postgres(store) => {
-            store
-                .repository
-                .outbox_count_for_message_recipient(message_id, recipient_user_id)
-                .await
-                .unwrap()
-        }
+        TestStore::InMemory(store) => store
+            .outbox_count_for_message_recipient(message_id, recipient_user_id)
+            .await
+            .unwrap(),
+        TestStore::Postgres(store) => store
+            .repository
+            .outbox_count_for_message_recipient(message_id, recipient_user_id)
+            .await
+            .unwrap(),
     }
 }
 
@@ -1274,19 +1271,15 @@ pub(crate) async fn outbox_total_count_for_recipient(
     recipient_user_id: UserId,
 ) -> u64 {
     match repository.as_ref() {
-        TestStore::InMemory(store) => {
-            store
-                .outbox_total_count_for_recipient(recipient_user_id)
-                .await
-                .unwrap()
-        }
-        TestStore::Postgres(store) => {
-            store
-                .repository
-                .outbox_total_count_for_recipient(recipient_user_id)
-                .await
-                .unwrap()
-        }
+        TestStore::InMemory(store) => store
+            .outbox_total_count_for_recipient(recipient_user_id)
+            .await
+            .unwrap(),
+        TestStore::Postgres(store) => store
+            .repository
+            .outbox_total_count_for_recipient(recipient_user_id)
+            .await
+            .unwrap(),
     }
 }
 
@@ -1297,19 +1290,15 @@ pub(crate) async fn outbox_count_for_friend_notification(
     event_type: FriendNotificationEventType,
 ) -> u64 {
     match repository.as_ref() {
-        TestStore::InMemory(store) => {
-            store
-                .outbox_count_for_friend_notification(recipient_user_id, actor_user_id, event_type)
-                .await
-                .unwrap()
-        }
-        TestStore::Postgres(store) => {
-            store
-                .repository
-                .outbox_count_for_friend_notification(recipient_user_id, actor_user_id, event_type)
-                .await
-                .unwrap()
-        }
+        TestStore::InMemory(store) => store
+            .outbox_count_for_friend_notification(recipient_user_id, actor_user_id, event_type)
+            .await
+            .unwrap(),
+        TestStore::Postgres(store) => store
+            .repository
+            .outbox_count_for_friend_notification(recipient_user_id, actor_user_id, event_type)
+            .await
+            .unwrap(),
     }
 }
 

@@ -1,6 +1,8 @@
 use axum::{http::StatusCode, response::IntoResponse};
 use backend_domain::{ChannelId, ServerId, UserId};
-use backend_storage::{ChannelRepository, CreateMessageResult, MessageRepository, ServerRepository};
+use backend_storage::{
+    ChannelRepository, CreateMessageResult, MessageRepository, ServerRepository,
+};
 
 use super::guards::{MembershipGateError, require_channel_membership};
 

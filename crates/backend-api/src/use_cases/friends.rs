@@ -40,33 +40,23 @@ pub(crate) async fn send_friend_request_from_server_context(
     requester_user_id: UserId,
     addressee_user_id: UserId,
 ) -> Result<SendFriendRequestResult, ServerContextFriendRequestError> {
-    let requester_is_member = match require_server_membership(
-        server_repo,
-        server_id,
-        requester_user_id,
-    )
-    .await
-    {
-        Ok(()) => true,
-        Err(MembershipGateError::NotMember) => false,
-        Err(MembershipGateError::NotFound | MembershipGateError::InfraError) => {
-            return Err(ServerContextFriendRequestError::ServerNotFound);
-        }
-    };
+    let requester_is_member =
+        match require_server_membership(server_repo, server_id, requester_user_id).await {
+            Ok(()) => true,
+            Err(MembershipGateError::NotMember) => false,
+            Err(MembershipGateError::NotFound | MembershipGateError::InfraError) => {
+                return Err(ServerContextFriendRequestError::ServerNotFound);
+            }
+        };
 
-    let addressee_is_member = match require_server_membership(
-        server_repo,
-        server_id,
-        addressee_user_id,
-    )
-    .await
-    {
-        Ok(()) => true,
-        Err(MembershipGateError::NotMember) => false,
-        Err(MembershipGateError::NotFound | MembershipGateError::InfraError) => {
-            return Err(ServerContextFriendRequestError::ServerNotFound);
-        }
-    };
+    let addressee_is_member =
+        match require_server_membership(server_repo, server_id, addressee_user_id).await {
+            Ok(()) => true,
+            Err(MembershipGateError::NotMember) => false,
+            Err(MembershipGateError::NotFound | MembershipGateError::InfraError) => {
+                return Err(ServerContextFriendRequestError::ServerNotFound);
+            }
+        };
 
     if !requester_is_member || !addressee_is_member {
         return Err(ServerContextFriendRequestError::NotSharedServer);

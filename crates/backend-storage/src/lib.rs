@@ -9,12 +9,12 @@ pub use in_memory_repository::InMemoryRepository;
 pub(crate) use in_memory_store::InMemoryStore;
 pub use mutation_result::MutationResult;
 pub use postgres_repository::PostgresRepository;
-pub use storage_error::StorageError;
 pub use repository::{
     BlockRepository, BlockUserResult, ChannelRepository, CreateMessageResult,
     DirectMessageRepository, FriendRepository, MarkUnreadFromMessageResult, MessageRepository,
     NotificationRepository, OpenOrGetDirectMessageThreadResult, PinMessageResult,
-    PinnedMessageRepository, ReactionRepository, SendDirectMessageResult,
-    SendFriendRequestResult, ServerRepository, ToggleReactionResult, UnpinMessageResult,
-    UpdateFriendRequestResult, UserRepository,
+    PinnedMessageRepository, ReactionRepository, SendDirectMessageResult, SendFriendRequestResult,
+    ServerRepository, ToggleReactionResult, UnpinMessageResult, UpdateFriendRequestResult,
+    UserRepository,
 };
+pub use storage_error::StorageError;

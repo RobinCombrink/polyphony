@@ -48,8 +48,12 @@ where
     MessageRepo: MessageRepository,
     Verifier: TokenVerifier,
 {
-    if let Err(gate_error) =
-        require_channel_membership(&*state.channel_repository, channel_id, authenticated_user.user_id).await
+    if let Err(gate_error) = require_channel_membership(
+        &*state.channel_repository,
+        channel_id,
+        authenticated_user.user_id,
+    )
+    .await
     {
         return gate_error.into_response();
     }

@@ -60,11 +60,7 @@ where
 
     match mutation_result {
         MutationResult::Updated => {
-            let Ok(messages) = state
-                .message_repository
-                .list_messages(channel_id)
-                .await
-            else {
+            let Ok(messages) = state.message_repository.list_messages(channel_id).await else {
                 return StatusCode::INTERNAL_SERVER_ERROR.into_response();
             };
 
