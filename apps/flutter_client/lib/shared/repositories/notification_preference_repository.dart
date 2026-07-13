@@ -46,21 +46,18 @@ class NotificationPreferenceRepository implements NotificationPreferenceRepo {
           channelId: command.channelId.value,
           notificationCategory: command.notificationCategory.toApi(),
         ),
-      MuteChannelCommand() =>
-        _notificationService.muteChannelNotifications(
+      MuteChannelCommand() => _notificationService.muteChannelNotifications(
           channelId: command.channelId.value,
           durationMinutes: command.durationMinutes,
         ),
-      UnmuteChannelCommand() =>
-        _notificationService.unmuteChannelNotifications(
+      UnmuteChannelCommand() => _notificationService.unmuteChannelNotifications(
           channelId: command.channelId.value,
         ),
     };
   }
 
   Future<Result<NotificationPreferenceData>> _getGlobal() async {
-    final result =
-        await _notificationService.getGlobalNotificationPreference();
+    final result = await _notificationService.getGlobalNotificationPreference();
     return switch (result) {
       Ok<ApiNotificationGlobalPreference>(:final value) =>
         Ok(GlobalNotificationPreferenceData(preference: value.toDomain())),
@@ -71,8 +68,7 @@ class NotificationPreferenceRepository implements NotificationPreferenceRepo {
   Future<Result<NotificationPreferenceData>> _getServer(
     String serverId,
   ) async {
-    final result =
-        await _notificationService.getServerNotificationPreference(
+    final result = await _notificationService.getServerNotificationPreference(
       serverId: serverId,
     );
     return switch (result) {
@@ -85,8 +81,7 @@ class NotificationPreferenceRepository implements NotificationPreferenceRepo {
   Future<Result<NotificationPreferenceData>> _getChannel(
     String channelId,
   ) async {
-    final result =
-        await _notificationService.getChannelNotificationPreference(
+    final result = await _notificationService.getChannelNotificationPreference(
       channelId: channelId,
     );
     return switch (result) {

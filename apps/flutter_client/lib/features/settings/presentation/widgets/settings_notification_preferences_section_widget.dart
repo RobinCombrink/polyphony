@@ -87,8 +87,8 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text("Globally mute notifications"),
-                value: globalPreference.muteState ==
-                    NotificationMuteState.muted,
+                value:
+                    globalPreference.muteState == NotificationMuteState.muted,
                 onChanged: isLoading
                     ? null
                     : (muted) {
@@ -171,8 +171,8 @@ class SettingsNotificationPreferencesSectionWidget extends StatelessWidget {
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text("Mute selected server"),
-                  value: serverPreference.muteState ==
-                      NotificationMuteState.muted,
+                  value:
+                      serverPreference.muteState == NotificationMuteState.muted,
                   onChanged: isLoading
                       ? null
                       : (muted) {

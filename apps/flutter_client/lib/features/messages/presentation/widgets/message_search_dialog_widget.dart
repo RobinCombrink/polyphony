@@ -57,8 +57,7 @@ class _MessageSearchDialogWidgetState extends State<MessageSearchDialogWidget> {
                   const Center(child: CircularProgressIndicator()),
                 MessageSearchExceptionState(:final error) =>
                   Center(child: Text("Search failed: $error")),
-                MessageSearchLoadedState(: final results)
-                    when results.isEmpty =>
+                MessageSearchLoadedState(:final results) when results.isEmpty =>
                   const Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,

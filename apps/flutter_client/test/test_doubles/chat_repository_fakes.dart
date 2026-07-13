@@ -1387,8 +1387,7 @@ class FakeReactionRepo implements ReactionRepo {
 }
 
 class FakeToggleReactionUseCase extends ToggleReactionUseCase {
-  FakeToggleReactionUseCase()
-      : super(reactionRepo: FakeReactionRepo());
+  FakeToggleReactionUseCase() : super(reactionRepo: FakeReactionRepo());
 
   final List<String> toggledEmoteIds = [];
 
@@ -1436,8 +1435,7 @@ class FakeNotificationPreferenceRepo implements NotificationPreferenceRepo {
           GlobalNotificationPreferenceData(
             preference: NotificationGlobalPreference(
               muteState: NotificationMuteState.unmuted,
-              notificationCategory:
-                  NotificationCategoryPreference.allMessages,
+              notificationCategory: NotificationCategoryPreference.allMessages,
               channelDefaultCategory:
                   NotificationCategoryPreference.allMessages,
             ),

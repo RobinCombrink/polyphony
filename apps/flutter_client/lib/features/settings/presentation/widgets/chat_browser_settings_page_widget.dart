@@ -107,8 +107,7 @@ class _ChatBrowserSettingsPageWidgetState
         );
     context.read<NotificationPreferencesBloc>().add(
           const GlobalChannelDefaultCategoryChangedRequested(
-            channelDefaultCategory:
-                NotificationCategoryPreference.allMessages,
+            channelDefaultCategory: NotificationCategoryPreference.allMessages,
           ),
         );
 

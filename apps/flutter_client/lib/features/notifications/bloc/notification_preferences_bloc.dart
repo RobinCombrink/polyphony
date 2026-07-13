@@ -166,7 +166,8 @@ class NotificationPreferencesBloc
     final NotificationGlobalPreference globalPreference;
     switch (globalResult) {
       case Ok<NotificationPreferenceData>(
-          value: GlobalNotificationPreferenceData(:final preference)):
+          value: GlobalNotificationPreferenceData(:final preference)
+        ):
         globalPreference = preference;
       case Error<NotificationPreferenceData>(:final error):
         if (loadedDataState != null) {
@@ -184,7 +185,8 @@ class NotificationPreferencesBloc
       );
       if (serverResult
           case Ok<NotificationPreferenceData>(
-            value: ServerNotificationPreferenceData(:final preference))) {
+            value: ServerNotificationPreferenceData(:final preference)
+          )) {
         serverPreference = preference;
       }
     }
@@ -192,12 +194,12 @@ class NotificationPreferencesBloc
     NotificationChannelPreference? channelPreference;
     if (channelId != null) {
       final channelResult = await _notificationPreferenceRepo.getOne(
-        query: GetChannelNotificationPreferenceQuery(
-            channelId: channelId),
+        query: GetChannelNotificationPreferenceQuery(channelId: channelId),
       );
       if (channelResult
           case Ok<NotificationPreferenceData>(
-            value: ChannelNotificationPreferenceData(:final preference))) {
+            value: ChannelNotificationPreferenceData(:final preference)
+          )) {
         channelPreference = preference;
       }
     }

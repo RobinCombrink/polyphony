@@ -50,8 +50,7 @@ void main() {
           "Scenario: Mentioned event is shown in feed",
           build: () {
             return _buildBloc(
-              notificationRepo:
-                  FakeNotificationRepository(),
+              notificationRepo: FakeNotificationRepository(),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
@@ -96,8 +95,7 @@ void main() {
           "Scenario: Friend-joined-voice event is suppressed by default",
           build: () {
             return _buildBloc(
-              notificationRepo:
-                  FakeNotificationRepository(),
+              notificationRepo: FakeNotificationRepository(),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
@@ -137,8 +135,7 @@ void main() {
           "Scenario: Friend-joined-voice event is shown when enabled and selected",
           build: () {
             return _buildBloc(
-              notificationRepo:
-                  FakeNotificationRepository(),
+              notificationRepo: FakeNotificationRepository(),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
@@ -189,8 +186,7 @@ void main() {
           "Scenario: Unread count syncs to badge service",
           build: () {
             return _buildBloc(
-              notificationRepo:
-                  FakeNotificationRepository(totalUnreadCount: 5),
+              notificationRepo: FakeNotificationRepository(totalUnreadCount: 5),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
@@ -219,8 +215,7 @@ void main() {
           "Scenario: Event outside selected channels is not shown in feed",
           build: () {
             return _buildBloc(
-              notificationRepo:
-                  FakeNotificationRepository(),
+              notificationRepo: FakeNotificationRepository(),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
@@ -265,8 +260,7 @@ void main() {
           "Scenario: Event in selected channels is shown in feed",
           build: () {
             return _buildBloc(
-              notificationRepo:
-                  FakeNotificationRepository(),
+              notificationRepo: FakeNotificationRepository(),
               runtimeService: runtimeService,
               notificationBadgeService: notificationBadgeService,
               preferencesStore: preferencesStore,
