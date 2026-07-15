@@ -6,6 +6,7 @@ on:
       - .github/workflows/backend_ci.yml
       - Cargo.toml
       - Cargo.lock
+      - clippy.toml
       - crates/**
     branches: [ main ]
   pull_request:
@@ -13,6 +14,7 @@ on:
       - .github/workflows/backend_ci.yml
       - Cargo.toml
       - Cargo.lock
+      - clippy.toml
       - crates/**
   workflow_dispatch:
 
