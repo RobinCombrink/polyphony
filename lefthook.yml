@@ -61,7 +61,7 @@ pre-push:
 stop-gate:
   jobs:
     - name: polyphony-postgres-bdd
-      files: git diff --name-only HEAD && git ls-files --others --exclude-standard
+      files: git ls-files --modified --others --exclude-standard
       glob: "crates/backend-storage/**"
       env:
         BDD_STORE: postgres
