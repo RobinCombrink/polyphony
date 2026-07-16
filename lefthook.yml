@@ -2,7 +2,9 @@
 # dotfiles via `remotes:`; defining `stop-gate` jobs is this repo's opt-in to the
 # user-global Claude Code stop-gate wrapper (dotfiles docs/adr/0001-hook-enforcement-stack.md).
 # Green-baseline verified 2026-07-13: clippy -D warnings, cargo test, dart analyze, and
-# flutter test all pass. The existing .githooks/pre-push stays and is unchanged.
+# flutter test all pass. lefthook owns commit-msg AND pre-push here: core.hooksPath is
+# unset and the hand-written .githooks/pre-push was retired in favour of the `pre-push:`
+# jobs below (dotfiles #31), which mirror its commands and path-scoping exactly.
 remotes:
   - git_url: https://github.com/RobinCombrink/dotfiles
     ref: main
@@ -10,6 +12,49 @@ remotes:
       - lefthook/commit-msg.yml
       - lefthook/rust.yml
       - lefthook/flutter.yml
+
+# Path-scoped CI gate, run once per push (ported from the retired .githooks/pre-push).
+# `glob` gates each group against lefthook's push_files list (git diff HEAD @{push}), so an
+# unrelated push skips both groups; a Rust-touching push runs the workspace checks, a
+# Flutter-touching push runs the app checks. `piped: true` stops the group at the first
+# failing step, matching the old hook's `set -e`. The commands are byte-for-byte the retired
+# hook's; the postgres acceptance step runs on any Rust change, as it did there.
+pre-push:
+  jobs:
+    - name: rust
+      glob:
+        - "Cargo.toml"
+        - "Cargo.lock"
+        - "crates/**"
+      group:
+        piped: true
+        jobs:
+          - name: cargo fmt check
+            run: cargo fmt --all -- --check
+          - name: cargo clippy
+            run: cargo clippy --workspace --all-targets -- -D warnings
+          - name: cargo build
+            run: cargo build --workspace --all-targets
+          - name: cargo test
+            run: cargo test --workspace --all-targets
+          - name: postgres bdd acceptance
+            env:
+              BDD_STORE: postgres
+            run: cargo test -p backend-api --tests
+    - name: flutter
+      glob:
+        - "apps/flutter_client/**"
+      group:
+        piped: true
+        jobs:
+          - name: flutter pub get
+            run: cd apps/flutter_client ; flutter pub get
+          - name: flutter analyze
+            run: cd apps/flutter_client ; flutter analyze
+          - name: dart format check
+            run: cd apps/flutter_client ; dart format --output=none --set-exit-if-changed lib test
+          - name: flutter test
+            run: cd apps/flutter_client ; flutter test
 
 # Postgres BDD suite, scoped to storage-layer changes in the current dirty set (the
 # per-turn analogue of the pre-push hook, which runs it on any Rust change per push).
