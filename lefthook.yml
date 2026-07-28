@@ -3,8 +3,8 @@
 # user-global Claude Code stop-gate wrapper (dotfiles docs/adr/0001-hook-enforcement-stack.md).
 # Green-baseline verified 2026-07-13: clippy -D warnings, cargo test, dart analyze, and
 # flutter test all pass. lefthook owns commit-msg AND pre-push here: core.hooksPath is
-# unset and the hand-written .githooks/pre-push was retired in favour of the `pre-push:`
-# jobs below (dotfiles #31), which mirror its commands and path-scoping exactly.
+# unset and the hand-written .githooks/pre-push was retired in favour of the shared and
+# local `pre-push:` jobs (dotfiles #31).
 remotes:
   - git_url: https://github.com/RobinCombrink/dotfiles
     ref: main
@@ -15,32 +15,29 @@ remotes:
 
 # Path-scoped CI gate, run once per push (ported from the retired .githooks/pre-push).
 # `glob` gates each group against lefthook's push_files list (git diff HEAD @{push}), so an
-# unrelated push skips both groups; a Rust-touching push runs the workspace checks, a
-# Flutter-touching push runs the app checks. `piped: true` stops the group at the first
-# failing step, matching the old hook's `set -e`. The commands are byte-for-byte the retired
-# hook's; the postgres acceptance step runs on any Rust change, as it did there.
+# unrelated push skips it; `piped: true` stops the group at the first failing step, matching
+# the old hook's `set -e`.
+#
+# The Rust fmt/clippy/test triple that used to live here is now the shared `pre-push` job in
+# dotfiles' lefthook/rust.yml, pulled in by the `remotes:` block above — one home for the
+# stack gate rather than a copy per repo. Only the postgres acceptance step is polyphony's
+# own, so only it remains, under a name distinct from the shared `rust` job: a same-named
+# local job merges with the remote one field-wise rather than replacing it, which silently
+# rescopes the glob (see the merge-hazard note in dotfiles' lefthook/rust.yml).
+#
+# `cargo build --workspace --all-targets` went with the triple and is not reinstated: the
+# shared job's `clippy --all-targets` and `test --all-targets` each compile every target, so
+# it only ever paid for the same codegen a third time.
 pre-push:
   jobs:
-    - name: rust
+    - name: polyphony-postgres-bdd
       glob:
+        - "*.rs"
         - "Cargo.toml"
         - "Cargo.lock"
-        - "crates/**"
-      group:
-        piped: true
-        jobs:
-          - name: cargo fmt check
-            run: cargo fmt --all -- --check
-          - name: cargo clippy
-            run: cargo clippy --workspace --all-targets -- -D warnings
-          - name: cargo build
-            run: cargo build --workspace --all-targets
-          - name: cargo test
-            run: cargo test --workspace --all-targets
-          - name: postgres bdd acceptance
-            env:
-              BDD_STORE: postgres
-            run: cargo test -p backend-api --tests
+      env:
+        BDD_STORE: postgres
+      run: cargo test -p backend-api --tests
     - name: flutter
       glob:
         - "apps/flutter_client/**"
