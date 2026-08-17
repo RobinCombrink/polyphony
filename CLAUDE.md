@@ -1,6 +1,7 @@
 # polyphony
 
 @~/.claude/stacks/rust.md
+@~/.claude/stacks/rust-web.md
 @~/.claude/stacks/flutter.md
 
 ## Local rules
