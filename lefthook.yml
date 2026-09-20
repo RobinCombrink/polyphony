@@ -57,12 +57,10 @@ pre-push:
           - name: flutter test
             run: cd apps/flutter_client ; flutter test
 
-# Postgres BDD suite, scoped to storage-layer changes in the current dirty set (the
-# per-turn analogue of the pre-push hook, which runs it on any Rust change per push).
 stop-gate:
   jobs:
     - name: polyphony-postgres-bdd
-      files: git ls-files --modified --others --exclude-standard
+      files: stop-gate gate-scope
       glob: "crates/backend-storage/**"
       env:
         BDD_STORE: postgres
